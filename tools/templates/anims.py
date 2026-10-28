@@ -181,17 +181,17 @@ R1W_CAST = [
     wand("SETTLE", 2, 0.66, 0.80, 0.30, 72, 0.55, aim=None),
 ]
 
-# Staff, right hand: a long staff held upright a third of the way down, leaning a little into
-# the scene so its head stays on screen. The cast raises it, holds it high to charge, then tips
+# Staff, right hand: carried upright at the right side like a walking stick, held a third of
+# the way down, head up. The cast lifts it straight up, holds it high to charge, then tips
 # the head forward toward the target and FIRES: projectiles come out of the head (the tip).
 # Then it settles back. (The reference video has no casting; only its walking bob applies.)
-STAFF_CARRY = dict(S=(*at(0.70, 0.86), 0.34), ang=95, dz=1.20)
+STAFF_CARRY = dict(S=(*at(0.86, 1.00), 0.34), ang=91, dz=0.15)
 STAFF_FIRE = dict(S=(*at(0.66, 0.62), 0.42), ang=108, dz=1.50)
 R1S_CAST = [
     dict(name="CARRY", tics=2, **STAFF_CARRY),
-    dict(name="RAISE 1", tics=2, S=(*at(0.70, 0.74), 0.34), ang=92, dz=0.80),
-    dict(name="RAISE 2", tics=2, S=(*at(0.70, 0.62), 0.34), ang=90, dz=0.50),
-    dict(name="CHARGE", tics=3, S=(*at(0.70, 0.58), 0.33), ang=90, dz=0.40),
+    dict(name="RAISE 1", tics=2, S=(*at(0.82, 0.82), 0.34), ang=91, dz=0.30),
+    dict(name="RAISE 2", tics=2, S=(*at(0.77, 0.66), 0.34), ang=90, dz=0.38),
+    dict(name="CHARGE", tics=3, S=(*at(0.74, 0.60), 0.33), ang=90, dz=0.40),
     dict(name="TIP", tics=1, smear=True, S=(*at(0.68, 0.60), 0.38), ang=100, dz=0.90),
     dict(STAFF_FIRE, name="FIRE", tics=2, fire=True),
     dict(name="FOLLOW", tics=2, S=(*at(0.67, 0.64), 0.41), ang=104, dz=1.30),
@@ -390,7 +390,7 @@ ANIMS = {
         id="r1s_walk", title="STAFF CARRY / WALK — RIGHT HAND",
         frames=_frames(walk_cycle(STAFF_CARRY), "R", "staff"),
         notes=[
-            "Right hand only: a long staff held upright a third of the way down.",
+            "Right hand only: a long staff carried upright at the side like a walking stick.",
             "8-frame loop, same bob as r1h_walk; frame 00 is also the idle pose.",
             "Yellow = the staff head (projectiles come out of its top); brown = the shaft.",
         ]),
