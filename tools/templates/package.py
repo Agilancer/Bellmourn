@@ -88,8 +88,9 @@ def pack_models(name, title, subs):
         z.write(os.path.join(TOOLS, "apply_texture.py"), "apply_texture.py")
         # the viewer, rewritten to read the models from this folder
         with open(os.path.join(TOOLS, "viewer.html"), encoding="utf8") as f:
-            z.writestr("viewer.html", f.read().replace("const ROOT = '../../templates/models/';",
-                                                       "const ROOT = './';"))
+            viewer = f.read().replace("|| '../../templates/models/';", "|| './';")
+            assert "|| './';" in viewer, "viewer ROOT line changed; update this rewrite"
+            z.writestr("viewer.html", viewer)
         z.write(os.path.join(MODELS, "manifest.json"), "manifest.json")
         # the bare arms always come along (the viewer and the game fall back to them)
         for fn in os.listdir(os.path.join(MODELS, "arms")):
