@@ -60,7 +60,8 @@ FIST = (0.055, 0.055, 0.035)  # half extents along hand axis A, handle D, back-o
 PROXY = {
     "sword1h": dict(pommel=-0.09, guard=0.065, tip=0.60, width=0.05, guard_half=0.085),
     "sword2h": dict(pommel=-0.28, guard=0.08, tip=1.00, width=0.065, guard_half=0.13),
-    "spear":   dict(pommel=-0.90, guard=0.60, tip=0.95, width=0.045, guard_half=0.04),
+    "spear":   dict(pommel=-0.22, guard=0.76, tip=1.06, width=0.075, guard_half=0.03,
+                    shaft=0.017),
     "wand":    dict(pommel=-0.06, guard=0.04, tip=0.34, width=0.022, guard_half=0.0),
     "shield":  None,
 }
@@ -166,9 +167,13 @@ def _pose_arm(side, key):
         d = norm(key["D3"])
     else:  # with a rigid wrist, only a starting guess
         d = weapon_dir(key["ang"], key.get("dz", 0.3))
+    # a steady support fist squares itself to the forearm inside the solve, so it stays
+    # exactly on its spot on the other hand's weapon
+    held = key.get("steady") and "G3" in key
     a = norm(g - s)
-    for _ in range(8 if wrist is None else 12):  # (8 keeps approved rigs bit-identical)
-        a = norm(a - d * np.dot(a, d))  # the fist closes at right angles to the handle
+    for _ in range(8 if wrist is None and not held else 12):  # (8: approved rigs unchanged)
+        if not held:
+            a = norm(a - d * np.dot(a, d))  # the fist closes at right angles to the handle
         w = g - a * HAND
         if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:  # out of reach: slide the grip in
             w = s + norm(w - s) * (UPPER + FORE - 1e-3)
@@ -184,9 +189,12 @@ def _pose_arm(side, key):
             up = np.cross(norm(np.cross(w - s, pole)), f)  # mirrors correctly for the left arm
             r = math.radians(wrist)
             d = norm(f * math.cos(r) + up * math.sin(r))
-    a = norm(a - d * np.dot(a, d))
+    if not held:
+        a = norm(a - d * np.dot(a, d))
     h = d  # the axis the fist closes around
-    if key.get("steady"):
+    if held:
+        h = np.cross(norm(np.cross(w - s, pole)), a)
+    elif key.get("steady"):
         # pointer grip: the fist stays square to the arm, never rolling, whatever the item
         # points at; the item leaves the front of the fist along D
         a = norm(w - e)
@@ -332,7 +340,10 @@ def weapon_parts(cv, arm, kind):
         cv.d.polygon(pts, fill=(255, 225, 60, 255), outline=(200, 150, 0, 255), width=SS)
 
     def handle():
-        cv.line3d(pommel, guard, (150, 90, 40, 255), 3)
+        if p.get("shaft"):  # a polearm's shaft has real thickness, shrinking with distance
+            cv.capsule3d(pommel, guard, p["shaft"], p["shaft"], (150, 90, 40, 255))
+        else:
+            cv.line3d(pommel, guard, (150, 90, 40, 255), 3)
         if p["guard_half"] and guard[2] > NEAR and tip[2] > NEAR:
             pg, o = project(guard), across(guard, p["guard_half"])
             cv.d.line([cv.pt(pg - o), cv.pt(pg + o)], fill=(255, 200, 0, 255), width=3 * SS)

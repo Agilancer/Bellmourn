@@ -233,11 +233,12 @@ R2H_SWING = [
 ]
 
 
-def _two_handed(keys, weapon):
-    """Right-hand keys -> frames with the left hand supporting lower on the same grip."""
+def _two_handed(keys, weapon, grip=GRIP_2H, **support):
+    """Right-hand keys -> frames with the left hand on the same weapon, `grip` metres further
+    toward the pommel (negative: further up toward the head)."""
     out = _frames(keys, "R", weapon)
     for f in out:
-        f["L"] = dict(support=GRIP_2H)
+        f["L"] = dict(support=grip, **support)
     return out
 
 
