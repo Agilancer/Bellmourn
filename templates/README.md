@@ -63,7 +63,7 @@ the set for its size class and direction set, e.g. `creatures/M8/`:
 - Size classes S / M / L / H / E (64, 64, 48, 32, 16 px per metre; E is for huge dragons).
 - `…5` = symmetric, paint D1-D5 (the game mirrors D6-D8); `…8` = every direction.
 - `<set>_model_p1.png` (paint first: the creature's design lock), one template per animation
-  kind (6 frames across, a row per direction: idle, walk, run, jump, fly, float, slither, talk,
+  kind (4 frames across, a row per direction: idle, walk, run, jump, fly, float, slither, talk,
   melee, heavy, leap, cast, shoot, throw, breath, roar, summon, blink, block, takeoff, land,
   hurt, death, …) and `<set>_corpse_p1.png`; `<set>_layout.json` maps every cell.
 - `TEMPLATES.md` lists the classes and the frame timing and events of every kind.

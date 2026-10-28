@@ -65,7 +65,7 @@ sheets), then paste:
 Next sheet for the <NAME>: the <ANIMATION NAME> animation, painted on this <TEMPLATE>
 template. What it does: <ONE LINE, e.g. "a lunging bite with a head shake">.
 Paint exactly the creature on the painted model sheet: same design, colours, size, light and
-pixel scale in every cell. Each row is one direction (the label says which), 6 frames left to
+pixel scale in every cell. Each row is one direction (the label says which), 4 frames left to
 right; each label names the pose of that frame. HIT marks the frame a blow lands, FIRE where a
 projectile leaves, SMEAR where a motion smear is allowed. Keep the feet on the ground line and
 the creature centred on the tick (the game moves it). Then paint all cyan guides and labels

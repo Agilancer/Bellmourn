@@ -11,7 +11,7 @@ D6-D8; 8 = every direction):
 
 Writes templates/creatures/<set>/ (e.g. M8/):
   <set>_model_p1.png ...     model sheet: standing at rest, one cell per direction
-  <set>_<kind>_p1.png ...    one template per animation kind (6 frames across, a row per
+  <set>_<kind>_p1.png ...    one template per animation kind (4 frames across, a row per
                              direction; big sizes span several pages)
   <set>_corpse_p1.png ...    the corpse, one cell per direction
   <set>_layout.json          every cell of every sheet: direction, frame, art box, anchor
@@ -74,14 +74,14 @@ def cell_rect(size, col, row):
 
 
 def anim_pages(size, dirs):
-    """Split a 6-frame animation over sheets: each direction takes ceil(6 / cols) grid rows."""
-    per_dir = math.ceil(6 / size["cols"])
+    """Split an animation over sheets: each direction takes ceil(FRAMES / cols) grid rows."""
+    per_dir = math.ceil(C.FRAMES / size["cols"])
     dirs_per_page = size["rows"] // per_dir
     pages = []
     for p in range(0, len(dirs), dirs_per_page):
         cells = []
         for r, d in enumerate(dirs[p:p + dirs_per_page]):
-            for f in range(6):
+            for f in range(C.FRAMES):
                 cells.append((d, f, (f % size["cols"], r * per_dir + f // size["cols"])))
         pages.append(cells)
     return pages
@@ -194,10 +194,10 @@ def build(sk, ndirs):
          "it to every other sheet of that creature.", flow_pages(size, dirs))
     for kind, k in C.KINDS.items():
         make(kind, kind, kind.upper().replace("_", " "),
-             f"template {sid}_{kind}  ·  6 frames →, a row per direction", k["note"],
+             f"template {sid}_{kind}  ·  {C.FRAMES} frames →, a row per direction", k["note"],
              anim_pages(size, dirs))
     make("corpse", "corpse", "CORPSE", f"template {sid}_corpse",
-         "Dead on the ground, one cell per direction: the same pose as the last frame (F6) of "
+         "Dead on the ground, one cell per direction: the same pose as the last frame (F4) of "
          "its death animation.", flow_pages(size, dirs))
 
     layout = dict(set=sid, size_class=sk, size_name=size["name"], use=size["use"],
@@ -227,7 +227,7 @@ def templates_md(counts):
                    f"{size['use']} | `{sk}5` ({counts[sk + '5']}), `{sk}8` ({counts[sk + '8']}) |")
     out += ["", "- `…5` = symmetric creature: paint D1-D5, the game mirrors D6-D8.",
             "- `…8` = holds something in one hand (weapon, shield, bow, staff): paint all 8.",
-            "", "## Animation templates (every one is 6 frames)", "",
+            "", f"## Animation templates (every one is {C.FRAMES} frames)", "",
             "| Template | Loops | Frames (tics at 35/s; events) | What |", "|---|---|---|---|"]
     for kind, k in C.KINDS.items():
         frames = ", ".join(f"{n} {'hold' if t < 0 else t}" + (f" **{'/'.join(e)}**" if e else "")

@@ -27,11 +27,11 @@ standing at rest from every direction. Paint it first and get it right. It is th
 - A sheet is always **1536 × 1024**. Keep that size and every black cell border where it is.
 - Templates come in five size classes (S, M, L, H, E), each in a 5-direction and an
   8-direction set (§3).
-- **Animation sheets:** 6 frames from left to right, **one row per direction**. Big creatures
-  need more than one sheet (page) per animation; the epic class uses 3 frames per row, so one
+- **Animation sheets:** 4 frames from left to right, **one row per direction**. Big creatures
+  need more than one sheet (page) per animation; the epic class uses 2 frames per row, so one
   direction takes two rows.
 - **Corpse sheet:** one cell per direction, the creature dead on the ground.
-- Inside each cell, the dark **label strip** says the direction (D1–D8), the frame (F1–F6),
+- Inside each cell, the dark **label strip** says the direction (D1–D8), the frame (F1–F4),
   its pose name and its length in tics (1 tic = 1/35 s). Coloured tags mark events:
   **HIT** = the blow lands, **FIRE** = a projectile or breath leaves, **SMEAR** = a motion smear
   is allowed, **SUMMON**, **TELEPORT**, **ROAR**, **HOLD** = the frame is held.
@@ -79,21 +79,23 @@ The numbering is Doom-style. "Faces L" means the creature faces toward the left 
 
 ## 5. Animation
 
-- **6 frames, every animation.** Loops (idle, walk, run, fly, float, slither, talk) must flow
-  from F6 back into F1.
-- Walk and run: F1 and F4 are the foot contacts, the body dips on F2 and F5.
+- **4 frames, every animation.** Loops (idle, walk, run, fly, float, slither, talk) must flow
+  from F4 back into F1.
+- Walk: F1 and F3 are the two foot contacts (left foot forward, then right), F2 and F4 the
+  passing poses with the body at its highest. Run: F1 and F3 push off, F2 and F4 are in the
+  air.
 - Attacks have a readable **wind-up**, a fast strike, then a recovery. The HIT frame shows the
   blow fully landed. SMEAR frames may stretch the weapon or limb into a smear of 3–5 ghosted
   copies, or one swept shape, in the creature's own light shades: never a white arc or a modern
   slash effect.
-- Spells: the magic grows in F1–F3 in the hand, mouth or staff, and leaves on the FIRE frame.
+- Spells: the magic grows in F1–F2 in the hand, mouth or staff, and leaves on the FIRE frame.
   Magic is solid pixels from `mana`, `arcane`, `venom` or `fire` with a bright core and a hard,
   crackling 1–2 px edge. No soft glow, no bloom. The game draws the projectile itself.
 - Breath (dragons): paint only the light in the mouth and throat; the game draws the stream.
-- Hurt: knocked back on F1–F2, back to the idle pose by F6.
-- Death: the creature collapses onto the ground line; **F6 is held** and then replaced by the
-  corpse, so the corpse sheet must match death F6 for the same direction.
-- Corpse: lying flat on the ground line, in the same pose as death F6. Blood stays on the
+- Hurt: knocked back on F1–F2, back to the idle pose by F4.
+- Death: the creature collapses onto the ground line; **F4 is held** and then replaced by the
+  corpse, so the corpse sheet must match death F4 for the same direction.
+- Corpse: lying flat on the ground line, in the same pose as death F4. Blood stays on the
   body — no pool spreading out on the ground (the game adds decals).
 
 ## 6. Light and finish
