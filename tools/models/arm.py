@@ -138,20 +138,48 @@ def _open_dirs(f, spread):
     return [norm((0.06, sy, 1.0)), norm((-0.10, sy * 1.1, 1.0)), norm((-0.24, sy * 1.2, 1.0))]
 
 
+def _hinge(theta):
+    """Rotation about the hand's +y axis (the axis the fingers curl round): positive theta
+    turns a finger from +z toward +x, i.e. uncurls it away from the palm."""
+    c, s = math.cos(theta), math.sin(theta)
+    return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+
+
+def _tilt(alpha):
+    """Rotation about the hand's +x axis tilting a forward finger toward +y (the fan)."""
+    c, s = math.cos(alpha), math.sin(alpha)
+    return np.array([[1, 0, 0], [0, c, s], [0, -s, c]])
+
+
 def finger_locals(curl=1.0, spread=1.0):
     """Finger and thumb bone matrices relative to the hand (right-hand bind space): curl 1 is
-    the bind grip, 0 a fully open hand, in between a cupped hand. Each segment turns from its
-    grip direction toward its open direction, chained from the knuckle out."""
+    the bind grip, 0 a fully open hand, in between a cupped hand. Each finger segment turns
+    about the finger's hinge only, always the uncurling way (a straight shortest turn would
+    swing the fingertip backward over the knuckles: it has to travel more than half a turn),
+    then the whole finger fans sideways from the knuckle. Chained from the knuckle out."""
     out = {}
+    o_frac = 1.0 - curl
     for f in FINGERS + ("thumb",):
         j = finger_joints(f)
         t = j[0].copy()
-        for k, o in enumerate(_open_dirs(f, spread)):
-            r = _turn(j[k + 1] - j[k], o, 1.0 - curl)
+        dirs = _open_dirs(f, spread)
+        if f != "thumb":
+            fan = _tilt(math.atan2(dirs[0][1], math.hypot(dirs[0][0], dirs[0][2])) * o_frac)
+        for k, o in enumerate(dirs):
+            seg = j[k + 1] - j[k]
+            if f == "thumb":  # the thumb's turns are all well under half a circle
+                r = _turn(seg, o, o_frac)
+            else:
+                # the angle (in the x/z plane) from the grip direction back to the open one,
+                # taken the uncurling way round, however far that is
+                a_b = math.atan2(seg[2], seg[0])
+                a_o = math.atan2(o[2], o[0])
+                uncurl = (a_b - a_o) % (2 * math.pi)
+                r = fan @ _hinge(uncurl * o_frac)
             m = np.eye(4)
             m[:3, :3], m[:3, 3] = r, t
             out[f"{f}{k + 1}"] = m
-            t = t + r @ (j[k + 1] - j[k])
+            t = t + r @ seg
     return out
 
 
