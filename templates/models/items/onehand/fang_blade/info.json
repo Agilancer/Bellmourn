@@ -1,0 +1,31 @@
+{
+ "id": "fang_blade",
+ "name": "Serrated Fang",
+ "kind": "one-handed weapon",
+ "description": "A saw-toothed blade with a bone guard shaped like fangs and a bone pommel.",
+ "texture_size": 128,
+ "triangles": 224,
+ "files": [
+  "fang_blade.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "serrated blade"
+  },
+  {
+   "number": 2,
+   "name": "fang guard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  }
+ ],
+ "set": "set09",
+ "set_name": "model 9"
+}

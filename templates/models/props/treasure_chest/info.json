@@ -1,0 +1,65 @@
+{
+ "id": "treasure_chest",
+ "name": "Treasure Chest",
+ "kind": "world prop",
+ "description": "A wooden chest with a rounded lid, three iron bands, brass corners and a gold lock plate.",
+ "texture_size": 128,
+ "triangles": 260,
+ "files": [
+  "treasure_chest.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "body"
+  },
+  {
+   "number": 2,
+   "name": "lid"
+  },
+  {
+   "number": 3,
+   "name": "iron band 1"
+  },
+  {
+   "number": 4,
+   "name": "lid band 1"
+  },
+  {
+   "number": 5,
+   "name": "iron band 2"
+  },
+  {
+   "number": 6,
+   "name": "lid band 2"
+  },
+  {
+   "number": 7,
+   "name": "iron band 3"
+  },
+  {
+   "number": 8,
+   "name": "lid band 3"
+  },
+  {
+   "number": 9,
+   "name": "lock plate"
+  },
+  {
+   "number": 10,
+   "name": "corner LB"
+  },
+  {
+   "number": 11,
+   "name": "corner LF"
+  },
+  {
+   "number": 12,
+   "name": "corner RB"
+  },
+  {
+   "number": 13,
+   "name": "corner RF"
+  }
+ ]
+}

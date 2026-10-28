@@ -1,0 +1,29 @@
+{
+ "_doc": "Sword angle per attack frame in degrees (0 = forward, +90 = straight down, -90 = up; clockwise is the swing direction). null hides the blade. 'behind' frames draw the blade behind the body (wind-up over the far shoulder).",
+ "angles": {
+  "default": [
+   null,
+   -100,
+   160,
+   -60,
+   0,
+   25,
+   60,
+   null
+  ],
+  "attack_crouching": [
+   null,
+   -100,
+   160,
+   -60,
+   0,
+   15,
+   30,
+   null
+  ]
+ },
+ "behind": [
+  1,
+  2
+ ]
+}

@@ -1,0 +1,37 @@
+{
+ "id": "barrel",
+ "name": "Barrel",
+ "kind": "world prop",
+ "description": "An oak barrel of bent staves bound with four iron hoops.",
+ "texture_size": 128,
+ "triangles": 700,
+ "files": [
+  "barrel.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "staves"
+  },
+  {
+   "number": 2,
+   "name": "lid"
+  },
+  {
+   "number": 3,
+   "name": "hoop 1"
+  },
+  {
+   "number": 4,
+   "name": "hoop 2"
+  },
+  {
+   "number": 5,
+   "name": "hoop 3"
+  },
+  {
+   "number": 6,
+   "name": "hoop 4"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "id": "bone_wand",
+ "name": "Bone Wand",
+ "kind": "magic wand",
+ "description": "A knobbly bone wand tipped with a knucklebone, bound in sinew.",
+ "texture_size": 128,
+ "triangles": 232,
+ "files": [
+  "bone_wand.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "bone shaft"
+  },
+  {
+   "number": 2,
+   "name": "knucklebone tip"
+  },
+  {
+   "number": 3,
+   "name": "sinew wrap"
+  }
+ ],
+ "set": "set02",
+ "set_name": "model 2"
+}

@@ -1,0 +1,25 @@
+{
+ "id": "gravestone_cross",
+ "name": "Cross Grave Marker",
+ "kind": "world prop",
+ "description": "A mossy stone cross on a block base.",
+ "texture_size": 128,
+ "triangles": 36,
+ "files": [
+  "gravestone_cross.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "cross upright"
+  },
+  {
+   "number": 2,
+   "name": "cross arm"
+  },
+  {
+   "number": 3,
+   "name": "cross base"
+  }
+ ]
+}

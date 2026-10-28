@@ -1,0 +1,39 @@
+{
+ "id": "great_axe",
+ "name": "Double Great Axe",
+ "kind": "two-handed weapon",
+ "description": "Twin crescent steel bits on a long dark haft with an iron socket and top spike.",
+ "texture_size": 128,
+ "triangles": 226,
+ "files": [
+  "great_axe.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "bit (front)"
+  },
+  {
+   "number": 3,
+   "name": "bit (back)"
+  },
+  {
+   "number": 4,
+   "name": "socket"
+  },
+  {
+   "number": 5,
+   "name": "top spike"
+  },
+  {
+   "number": 6,
+   "name": "grip band"
+  }
+ ],
+ "set": "set03",
+ "set_name": "model 3"
+}

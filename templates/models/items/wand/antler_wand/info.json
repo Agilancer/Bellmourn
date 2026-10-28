@@ -1,0 +1,31 @@
+{
+ "id": "antler_wand",
+ "name": "Antler Wand",
+ "kind": "magic wand",
+ "description": "A branch of antler with two tines, leather binding.",
+ "texture_size": 128,
+ "triangles": 134,
+ "files": [
+  "antler_wand.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "antler"
+  },
+  {
+   "number": 2,
+   "name": "tine 1"
+  },
+  {
+   "number": 3,
+   "name": "tine 2"
+  },
+  {
+   "number": 4,
+   "name": "binding"
+  }
+ ],
+ "set": "set07",
+ "set_name": "model 7"
+}

@@ -1,0 +1,110 @@
+{
+ "id": "mailed",
+ "name": "Mailed Glove",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "A riveted chain-mail glove and mail sleeve, a polished steel plate cuff, a steel knuckle bar and a plain steel elbow cop. Grey, cold, functional.",
+ "texture_size": 256,
+ "triangles": 2104,
+ "files": [
+  "mailed_R.glb",
+  "mailed_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "mail sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "couter"
+  },
+  {
+   "number": 5,
+   "name": "mail sleeve (forearm)"
+  },
+  {
+   "number": 6,
+   "name": "glove wrist"
+  },
+  {
+   "number": 7,
+   "name": "palm"
+  },
+  {
+   "number": 8,
+   "name": "index 1"
+  },
+  {
+   "number": 9,
+   "name": "index 2"
+  },
+  {
+   "number": 10,
+   "name": "index 3"
+  },
+  {
+   "number": 11,
+   "name": "middle 1"
+  },
+  {
+   "number": 12,
+   "name": "middle 2"
+  },
+  {
+   "number": 13,
+   "name": "middle 3"
+  },
+  {
+   "number": 14,
+   "name": "ring 1"
+  },
+  {
+   "number": 15,
+   "name": "ring 2"
+  },
+  {
+   "number": 16,
+   "name": "ring 3"
+  },
+  {
+   "number": 17,
+   "name": "pinky 1"
+  },
+  {
+   "number": 18,
+   "name": "pinky 2"
+  },
+  {
+   "number": 19,
+   "name": "pinky 3"
+  },
+  {
+   "number": 20,
+   "name": "thumb 1"
+  },
+  {
+   "number": 21,
+   "name": "thumb 2"
+  },
+  {
+   "number": 22,
+   "name": "thumb 3"
+  },
+  {
+   "number": 23,
+   "name": "plate cuff"
+  },
+  {
+   "number": 24,
+   "name": "knuckle guard"
+  }
+ ]
+}

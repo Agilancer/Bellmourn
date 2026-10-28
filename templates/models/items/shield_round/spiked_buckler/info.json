@@ -1,0 +1,43 @@
+{
+ "id": "spiked_buckler",
+ "name": "Spiked Buckler",
+ "kind": "round shield",
+ "description": "A small steel buckler with a spiked boss and dark iron rim.",
+ "texture_size": 128,
+ "triangles": 552,
+ "files": [
+  "spiked_buckler.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "rim"
+  },
+  {
+   "number": 3,
+   "name": "boss"
+  },
+  {
+   "number": 4,
+   "name": "boss spike"
+  },
+  {
+   "number": 5,
+   "name": "grip bar"
+  },
+  {
+   "number": 6,
+   "name": "grip post top"
+  },
+  {
+   "number": 7,
+   "name": "grip post bottom"
+  }
+ ],
+ "set": "set02",
+ "set_name": "model 2"
+}

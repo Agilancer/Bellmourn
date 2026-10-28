@@ -1,0 +1,41 @@
+{
+ "id": "pillar_gothic",
+ "name": "Gothic Clustered Pillar",
+ "kind": "world prop",
+ "description": "A marble core ringed by four slender shafts on an octagonal base and capital. 4 m tall.",
+ "texture_size": 128,
+ "triangles": 196,
+ "files": [
+  "pillar_gothic.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "octagonal base"
+  },
+  {
+   "number": 2,
+   "name": "core"
+  },
+  {
+   "number": 3,
+   "name": "shaft 1"
+  },
+  {
+   "number": 4,
+   "name": "shaft 2"
+  },
+  {
+   "number": 5,
+   "name": "shaft 3"
+  },
+  {
+   "number": 6,
+   "name": "shaft 4"
+  },
+  {
+   "number": 7,
+   "name": "octagonal capital"
+  }
+ ]
+}

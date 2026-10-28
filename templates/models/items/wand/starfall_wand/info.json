@@ -1,0 +1,27 @@
+{
+ "id": "starfall_wand",
+ "name": "Starfall Wand",
+ "kind": "magic wand",
+ "description": "A dark wooden wand topped with a golden star.",
+ "texture_size": 128,
+ "triangles": 120,
+ "files": [
+  "starfall_wand.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "star"
+  },
+  {
+   "number": 3,
+   "name": "band"
+  }
+ ],
+ "set": "set06",
+ "set_name": "model 6"
+}

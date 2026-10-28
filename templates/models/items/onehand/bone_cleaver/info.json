@@ -1,0 +1,31 @@
+{
+ "id": "bone_cleaver",
+ "name": "Bone Cleaver",
+ "kind": "one-handed weapon",
+ "description": "A brutal butcher's cleaver with a dark wood handle, brass collar and iron ring.",
+ "texture_size": 128,
+ "triangles": 208,
+ "files": [
+  "bone_cleaver.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "cleaver blade"
+  },
+  {
+   "number": 2,
+   "name": "grip"
+  },
+  {
+   "number": 3,
+   "name": "pommel ring"
+  },
+  {
+   "number": 4,
+   "name": "collar"
+  }
+ ],
+ "set": "set08",
+ "set_name": "model 8"
+}

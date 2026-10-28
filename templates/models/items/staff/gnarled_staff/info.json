@@ -1,0 +1,39 @@
+{
+ "id": "gnarled_staff",
+ "name": "Gnarled Crystal Staff",
+ "kind": "magic staff",
+ "description": "A twisted wooden staff whose root claws clutch a pale crystal.",
+ "texture_size": 128,
+ "triangles": 448,
+ "files": [
+  "gnarled_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "root claw 1"
+  },
+  {
+   "number": 3,
+   "name": "root claw 2"
+  },
+  {
+   "number": 4,
+   "name": "root claw 3"
+  },
+  {
+   "number": 5,
+   "name": "root claw 4"
+  },
+  {
+   "number": 6,
+   "name": "crystal"
+  }
+ ],
+ "set": "set01",
+ "set_name": "model 1"
+}

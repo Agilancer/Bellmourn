@@ -1,0 +1,186 @@
+{
+ "id": "wayfarer",
+ "name": "Wayfarer's Gauntlet",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "The player's default arm: blackened-iron finger lames and knuckle bar over a dark leather glove, a domed iron hand plate with brass rivets, a brown leather bracer laced with pale rawhide between two iron bands, and a wine-red wool sleeve.",
+ "texture_size": 256,
+ "triangles": 2940,
+ "files": [
+  "wayfarer_R.glb",
+  "wayfarer_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "elbow knob top"
+  },
+  {
+   "number": 5,
+   "name": "elbow knob bottom"
+  },
+  {
+   "number": 6,
+   "name": "sleeve cuff"
+  },
+  {
+   "number": 7,
+   "name": "leather bracer"
+  },
+  {
+   "number": 8,
+   "name": "iron wrist band"
+  },
+  {
+   "number": 9,
+   "name": "iron elbow band"
+  },
+  {
+   "number": 10,
+   "name": "glove wrist"
+  },
+  {
+   "number": 11,
+   "name": "palm"
+  },
+  {
+   "number": 12,
+   "name": "index 1"
+  },
+  {
+   "number": 13,
+   "name": "index 2"
+  },
+  {
+   "number": 14,
+   "name": "index 3"
+  },
+  {
+   "number": 15,
+   "name": "middle 1"
+  },
+  {
+   "number": 16,
+   "name": "middle 2"
+  },
+  {
+   "number": 17,
+   "name": "middle 3"
+  },
+  {
+   "number": 18,
+   "name": "ring 1"
+  },
+  {
+   "number": 19,
+   "name": "ring 2"
+  },
+  {
+   "number": 20,
+   "name": "ring 3"
+  },
+  {
+   "number": 21,
+   "name": "pinky 1"
+  },
+  {
+   "number": 22,
+   "name": "pinky 2"
+  },
+  {
+   "number": 23,
+   "name": "pinky 3"
+  },
+  {
+   "number": 24,
+   "name": "thumb 1"
+  },
+  {
+   "number": 25,
+   "name": "thumb 2"
+  },
+  {
+   "number": 26,
+   "name": "thumb 3"
+  },
+  {
+   "number": 27,
+   "name": "index plate 1"
+  },
+  {
+   "number": 28,
+   "name": "index plate 2"
+  },
+  {
+   "number": 29,
+   "name": "index plate 3"
+  },
+  {
+   "number": 30,
+   "name": "middle plate 1"
+  },
+  {
+   "number": 31,
+   "name": "middle plate 2"
+  },
+  {
+   "number": 32,
+   "name": "middle plate 3"
+  },
+  {
+   "number": 33,
+   "name": "ring plate 1"
+  },
+  {
+   "number": 34,
+   "name": "ring plate 2"
+  },
+  {
+   "number": 35,
+   "name": "ring plate 3"
+  },
+  {
+   "number": 36,
+   "name": "pinky plate 1"
+  },
+  {
+   "number": 37,
+   "name": "pinky plate 2"
+  },
+  {
+   "number": 38,
+   "name": "pinky plate 3"
+  },
+  {
+   "number": 39,
+   "name": "thumb plate 1"
+  },
+  {
+   "number": 40,
+   "name": "thumb plate 2"
+  },
+  {
+   "number": 41,
+   "name": "thumb plate 3"
+  },
+  {
+   "number": 42,
+   "name": "knuckle guard"
+  },
+  {
+   "number": 43,
+   "name": "hand plate"
+  }
+ ]
+}

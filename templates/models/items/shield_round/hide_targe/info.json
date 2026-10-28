@@ -1,0 +1,71 @@
+{
+ "id": "hide_targe",
+ "name": "Hide Targe",
+ "kind": "round shield",
+ "description": "A leather-covered targe with brass studs and a brass boss.",
+ "texture_size": 128,
+ "triangles": 864,
+ "files": [
+  "hide_targe.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "rim"
+  },
+  {
+   "number": 3,
+   "name": "boss"
+  },
+  {
+   "number": 4,
+   "name": "stud 1"
+  },
+  {
+   "number": 5,
+   "name": "stud 2"
+  },
+  {
+   "number": 6,
+   "name": "stud 3"
+  },
+  {
+   "number": 7,
+   "name": "stud 4"
+  },
+  {
+   "number": 8,
+   "name": "stud 5"
+  },
+  {
+   "number": 9,
+   "name": "stud 6"
+  },
+  {
+   "number": 10,
+   "name": "stud 7"
+  },
+  {
+   "number": 11,
+   "name": "stud 8"
+  },
+  {
+   "number": 12,
+   "name": "grip bar"
+  },
+  {
+   "number": 13,
+   "name": "grip post top"
+  },
+  {
+   "number": 14,
+   "name": "grip post bottom"
+  }
+ ],
+ "set": "set03",
+ "set_name": "model 3"
+}

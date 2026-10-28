@@ -1,0 +1,37 @@
+{
+ "id": "bed",
+ "name": "Bed",
+ "kind": "world prop",
+ "description": "A wooden bed with a linen mattress, red blanket and pillow.",
+ "texture_size": 128,
+ "triangles": 72,
+ "files": [
+  "bed.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "frame"
+  },
+  {
+   "number": 2,
+   "name": "mattress"
+  },
+  {
+   "number": 3,
+   "name": "blanket"
+  },
+  {
+   "number": 4,
+   "name": "pillow"
+  },
+  {
+   "number": 5,
+   "name": "headboard"
+  },
+  {
+   "number": 6,
+   "name": "footboard"
+  }
+ ]
+}

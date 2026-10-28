@@ -1,0 +1,35 @@
+{
+ "id": "antler_staff",
+ "name": "Antler Staff",
+ "kind": "magic staff",
+ "description": "A pale wooden staff forking into antlers, tied with a red cord.",
+ "texture_size": 128,
+ "triangles": 471,
+ "files": [
+  "antler_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "antler left"
+  },
+  {
+   "number": 3,
+   "name": "antler right"
+  },
+  {
+   "number": 4,
+   "name": "tine"
+  },
+  {
+   "number": 5,
+   "name": "fetish cord"
+  }
+ ],
+ "set": "set07",
+ "set_name": "model 7"
+}

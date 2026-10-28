@@ -1,0 +1,47 @@
+{
+ "id": "brazier_staff",
+ "name": "Brazier Staff",
+ "kind": "magic staff",
+ "description": "A dark iron staff topped with a burning brazier.",
+ "texture_size": 128,
+ "triangles": 237,
+ "files": [
+  "brazier_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "brazier bowl"
+  },
+  {
+   "number": 3,
+   "name": "coals"
+  },
+  {
+   "number": 4,
+   "name": "flame 1"
+  },
+  {
+   "number": 5,
+   "name": "flame 2"
+  },
+  {
+   "number": 6,
+   "name": "flame 3"
+  },
+  {
+   "number": 7,
+   "name": "flame 4"
+  },
+  {
+   "number": 8,
+   "name": "flame 5"
+  }
+ ],
+ "set": "set09",
+ "set_name": "model 9"
+}

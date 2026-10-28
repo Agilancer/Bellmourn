@@ -1,0 +1,166 @@
+{
+ "id": "boneward",
+ "name": "Bone-Ward",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "Tribal: bleached bone plates bound to a dark hide glove with sinew, bone ribs lashed around a hide bracer, a bone elbow cap, and a shaggy brown fur sleeve.",
+ "texture_size": 256,
+ "triangles": 2588,
+ "files": [
+  "boneward_R.glb",
+  "boneward_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "fur sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "bone couter"
+  },
+  {
+   "number": 5,
+   "name": "hide bracer"
+  },
+  {
+   "number": 6,
+   "name": "rib 1"
+  },
+  {
+   "number": 7,
+   "name": "rib 2"
+  },
+  {
+   "number": 8,
+   "name": "rib 3"
+  },
+  {
+   "number": 9,
+   "name": "rib 4"
+  },
+  {
+   "number": 10,
+   "name": "rib 5"
+  },
+  {
+   "number": 11,
+   "name": "glove wrist"
+  },
+  {
+   "number": 12,
+   "name": "palm"
+  },
+  {
+   "number": 13,
+   "name": "index 1"
+  },
+  {
+   "number": 14,
+   "name": "index 2"
+  },
+  {
+   "number": 15,
+   "name": "index 3"
+  },
+  {
+   "number": 16,
+   "name": "middle 1"
+  },
+  {
+   "number": 17,
+   "name": "middle 2"
+  },
+  {
+   "number": 18,
+   "name": "middle 3"
+  },
+  {
+   "number": 19,
+   "name": "ring 1"
+  },
+  {
+   "number": 20,
+   "name": "ring 2"
+  },
+  {
+   "number": 21,
+   "name": "ring 3"
+  },
+  {
+   "number": 22,
+   "name": "pinky 1"
+  },
+  {
+   "number": 23,
+   "name": "pinky 2"
+  },
+  {
+   "number": 24,
+   "name": "pinky 3"
+  },
+  {
+   "number": 25,
+   "name": "thumb 1"
+  },
+  {
+   "number": 26,
+   "name": "thumb 2"
+  },
+  {
+   "number": 27,
+   "name": "thumb 3"
+  },
+  {
+   "number": 28,
+   "name": "index bone plate 1"
+  },
+  {
+   "number": 29,
+   "name": "index bone plate 2"
+  },
+  {
+   "number": 30,
+   "name": "middle bone plate 1"
+  },
+  {
+   "number": 31,
+   "name": "middle bone plate 2"
+  },
+  {
+   "number": 32,
+   "name": "ring bone plate 1"
+  },
+  {
+   "number": 33,
+   "name": "ring bone plate 2"
+  },
+  {
+   "number": 34,
+   "name": "pinky bone plate 1"
+  },
+  {
+   "number": 35,
+   "name": "pinky bone plate 2"
+  },
+  {
+   "number": 36,
+   "name": "thumb bone plate 1"
+  },
+  {
+   "number": 37,
+   "name": "thumb bone plate 2"
+  },
+  {
+   "number": 38,
+   "name": "bone hand plate"
+  }
+ ]
+}

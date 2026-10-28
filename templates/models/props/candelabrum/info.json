@@ -1,0 +1,57 @@
+{
+ "id": "candelabrum",
+ "name": "Candelabrum",
+ "kind": "world prop",
+ "description": "A tall iron candle stand holding three candles.",
+ "texture_size": 128,
+ "triangles": 290,
+ "files": [
+  "candelabrum.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "candelabrum stand"
+  },
+  {
+   "number": 2,
+   "name": "candle arm"
+  },
+  {
+   "number": 3,
+   "name": "cup 1"
+  },
+  {
+   "number": 4,
+   "name": "candle 1"
+  },
+  {
+   "number": 5,
+   "name": "flame 1"
+  },
+  {
+   "number": 6,
+   "name": "cup 2"
+  },
+  {
+   "number": 7,
+   "name": "candle 2"
+  },
+  {
+   "number": 8,
+   "name": "flame 2"
+  },
+  {
+   "number": 9,
+   "name": "cup 3"
+  },
+  {
+   "number": 10,
+   "name": "candle 3"
+  },
+  {
+   "number": 11,
+   "name": "flame 3"
+  }
+ ]
+}

@@ -1,0 +1,958 @@
+{
+ "view_scale": 0.58,
+ "tic": 0.02857142857142857,
+ "arms": [
+  {
+   "id": "bare",
+   "name": "bare arm",
+   "R": "arms/arm_bare_R.glb",
+   "L": "arms/arm_bare_L.glb"
+  },
+  {
+   "id": "boneward",
+   "name": "Bone-Ward",
+   "R": "gauntlets/boneward/boneward_R.glb",
+   "L": "gauntlets/boneward/boneward_L.glb"
+  },
+  {
+   "id": "brawler",
+   "name": "Spiked Brawler",
+   "R": "gauntlets/brawler/brawler_R.glb",
+   "L": "gauntlets/brawler/brawler_L.glb"
+  },
+  {
+   "id": "drake",
+   "name": "Drakescale",
+   "R": "gauntlets/drake/drake_R.glb",
+   "L": "gauntlets/drake/drake_L.glb"
+  },
+  {
+   "id": "fiend",
+   "name": "Fiend's Claw",
+   "R": "gauntlets/fiend/fiend_R.glb",
+   "L": "gauntlets/fiend/fiend_L.glb"
+  },
+  {
+   "id": "hunter",
+   "name": "Hunter's Wraps",
+   "R": "gauntlets/hunter/hunter_R.glb",
+   "L": "gauntlets/hunter/hunter_L.glb"
+  },
+  {
+   "id": "knight",
+   "name": "Knight's Hourglass",
+   "R": "gauntlets/knight/knight_R.glb",
+   "L": "gauntlets/knight/knight_L.glb"
+  },
+  {
+   "id": "mailed",
+   "name": "Mailed Glove",
+   "R": "gauntlets/mailed/mailed_R.glb",
+   "L": "gauntlets/mailed/mailed_L.glb"
+  },
+  {
+   "id": "runebound",
+   "name": "Runebound Glove",
+   "R": "gauntlets/runebound/runebound_R.glb",
+   "L": "gauntlets/runebound/runebound_L.glb"
+  },
+  {
+   "id": "templar",
+   "name": "Gilded Templar",
+   "R": "gauntlets/templar/templar_R.glb",
+   "L": "gauntlets/templar/templar_L.glb"
+  },
+  {
+   "id": "wayfarer",
+   "name": "Wayfarer's Gauntlet",
+   "R": "gauntlets/wayfarer/wayfarer_R.glb",
+   "L": "gauntlets/wayfarer/wayfarer_L.glb"
+  }
+ ],
+ "items": {
+  "onehand": [
+   {
+    "id": "arming_sword",
+    "name": "Arming Sword",
+    "set": "set01",
+    "path": "items/onehand/arming_sword/arming_sword.glb"
+   },
+   {
+    "id": "bearded_axe",
+    "name": "Bearded Axe",
+    "set": "set04",
+    "path": "items/onehand/bearded_axe/bearded_axe.glb"
+   },
+   {
+    "id": "bone_cleaver",
+    "name": "Bone Cleaver",
+    "set": "set08",
+    "path": "items/onehand/bone_cleaver/bone_cleaver.glb"
+   },
+   {
+    "id": "falchion",
+    "name": "Falchion",
+    "set": "set02",
+    "path": "items/onehand/falchion/falchion.glb"
+   },
+   {
+    "id": "fang_blade",
+    "name": "Serrated Fang",
+    "set": "set09",
+    "path": "items/onehand/fang_blade/fang_blade.glb"
+   },
+   {
+    "id": "flanged_mace",
+    "name": "Flanged Mace",
+    "set": "set03",
+    "path": "items/onehand/flanged_mace/flanged_mace.glb"
+   },
+   {
+    "id": "morning_star",
+    "name": "Morning Star",
+    "set": "set05",
+    "path": "items/onehand/morning_star/morning_star.glb"
+   },
+   {
+    "id": "nail_club",
+    "name": "Nail Club",
+    "set": "set10",
+    "path": "items/onehand/nail_club/nail_club.glb"
+   },
+   {
+    "id": "scimitar",
+    "name": "Scimitar",
+    "set": "set07",
+    "path": "items/onehand/scimitar/scimitar.glb"
+   },
+   {
+    "id": "war_hammer",
+    "name": "War Hammer",
+    "set": "set06",
+    "path": "items/onehand/war_hammer/war_hammer.glb"
+   }
+  ],
+  "shield_kite": [
+   {
+    "id": "banded_kite",
+    "name": "Banded Kite",
+    "set": "set02",
+    "path": "items/shield_kite/banded_kite/banded_kite.glb"
+   },
+   {
+    "id": "knights_kite",
+    "name": "Knight's Kite",
+    "set": "set01",
+    "path": "items/shield_kite/knights_kite/knights_kite.glb"
+   },
+   {
+    "id": "scale_kite",
+    "name": "Drakescale Kite",
+    "set": "set03",
+    "path": "items/shield_kite/scale_kite/scale_kite.glb"
+   },
+   {
+    "id": "templar_kite",
+    "name": "Templar Kite",
+    "set": "set04",
+    "path": "items/shield_kite/templar_kite/templar_kite.glb"
+   },
+   {
+    "id": "thorned_kite",
+    "name": "Thorned Kite",
+    "set": "set05",
+    "path": "items/shield_kite/thorned_kite/thorned_kite.glb"
+   }
+  ],
+  "shield_round": [
+   {
+    "id": "hide_targe",
+    "name": "Hide Targe",
+    "set": "set03",
+    "path": "items/shield_round/hide_targe/hide_targe.glb"
+   },
+   {
+    "id": "ironbound",
+    "name": "Iron-Bound Roundshield",
+    "set": "set01",
+    "path": "items/shield_round/ironbound/ironbound.glb"
+   },
+   {
+    "id": "skull_boss",
+    "name": "Skull-Boss Shield",
+    "set": "set05",
+    "path": "items/shield_round/skull_boss/skull_boss.glb"
+   },
+   {
+    "id": "spiked_buckler",
+    "name": "Spiked Buckler",
+    "set": "set02",
+    "path": "items/shield_round/spiked_buckler/spiked_buckler.glb"
+   },
+   {
+    "id": "sun_bronze",
+    "name": "Sun Shield",
+    "set": "set04",
+    "path": "items/shield_round/sun_bronze/sun_bronze.glb"
+   }
+  ],
+  "staff": [
+   {
+    "id": "antler_staff",
+    "name": "Antler Staff",
+    "set": "set07",
+    "path": "items/staff/antler_staff/antler_staff.glb"
+   },
+   {
+    "id": "brazier_staff",
+    "name": "Brazier Staff",
+    "set": "set09",
+    "path": "items/staff/brazier_staff/brazier_staff.glb"
+   },
+   {
+    "id": "caged_orb",
+    "name": "Caged Orb Staff",
+    "set": "set06",
+    "path": "items/staff/caged_orb/caged_orb.glb"
+   },
+   {
+    "id": "crescent_staff",
+    "name": "Crescent Staff",
+    "set": "set04",
+    "path": "items/staff/crescent_staff/crescent_staff.glb"
+   },
+   {
+    "id": "crosier",
+    "name": "Bishop's Crosier",
+    "set": "set08",
+    "path": "items/staff/crosier/crosier.glb"
+   },
+   {
+    "id": "gnarled_staff",
+    "name": "Gnarled Crystal Staff",
+    "set": "set01",
+    "path": "items/staff/gnarled_staff/gnarled_staff.glb"
+   },
+   {
+    "id": "iron_crook",
+    "name": "Iron Crook",
+    "set": "set02",
+    "path": "items/staff/iron_crook/iron_crook.glb"
+   },
+   {
+    "id": "monk_staff",
+    "name": "Ringed Monk Staff",
+    "set": "set10",
+    "path": "items/staff/monk_staff/monk_staff.glb"
+   },
+   {
+    "id": "serpent_staff",
+    "name": "Serpent Staff",
+    "set": "set05",
+    "path": "items/staff/serpent_staff/serpent_staff.glb"
+   },
+   {
+    "id": "skull_staff",
+    "name": "Skull Staff",
+    "set": "set03",
+    "path": "items/staff/skull_staff/skull_staff.glb"
+   }
+  ],
+  "twohand": [
+   {
+    "id": "claymore",
+    "name": "Claymore",
+    "set": "set02",
+    "path": "items/twohand/claymore/claymore.glb"
+   },
+   {
+    "id": "flamberge",
+    "name": "Flamberge",
+    "set": "set07",
+    "path": "items/twohand/flamberge/flamberge.glb"
+   },
+   {
+    "id": "glaive",
+    "name": "Glaive",
+    "set": "set10",
+    "path": "items/twohand/glaive/glaive.glb"
+   },
+   {
+    "id": "great_axe",
+    "name": "Double Great Axe",
+    "set": "set03",
+    "path": "items/twohand/great_axe/great_axe.glb"
+   },
+   {
+    "id": "greatsword",
+    "name": "Greatsword",
+    "set": "set01",
+    "path": "items/twohand/greatsword/greatsword.glb"
+   },
+   {
+    "id": "headsman",
+    "name": "Headsman's Sword",
+    "set": "set06",
+    "path": "items/twohand/headsman/headsman.glb"
+   },
+   {
+    "id": "ogre_club",
+    "name": "Ogre Greatclub",
+    "set": "set09",
+    "path": "items/twohand/ogre_club/ogre_club.glb"
+   },
+   {
+    "id": "poleaxe",
+    "name": "Poleaxe",
+    "set": "set05",
+    "path": "items/twohand/poleaxe/poleaxe.glb"
+   },
+   {
+    "id": "scythe",
+    "name": "Reaper's Scythe",
+    "set": "set08",
+    "path": "items/twohand/scythe/scythe.glb"
+   },
+   {
+    "id": "warmaul",
+    "name": "Warmaul",
+    "set": "set04",
+    "path": "items/twohand/warmaul/warmaul.glb"
+   }
+  ],
+  "wand": [
+   {
+    "id": "antler_wand",
+    "name": "Antler Wand",
+    "set": "set07",
+    "path": "items/wand/antler_wand/antler_wand.glb"
+   },
+   {
+    "id": "bone_wand",
+    "name": "Bone Wand",
+    "set": "set02",
+    "path": "items/wand/bone_wand/bone_wand.glb"
+   },
+   {
+    "id": "crystal_wand",
+    "name": "Crystal Wand",
+    "set": "set01",
+    "path": "items/wand/crystal_wand/crystal_wand.glb"
+   },
+   {
+    "id": "ebony_wand",
+    "name": "Ebony Wand",
+    "set": "set08",
+    "path": "items/wand/ebony_wand/ebony_wand.glb"
+   },
+   {
+    "id": "ember_rod",
+    "name": "Ember Rod",
+    "set": "set04",
+    "path": "items/wand/ember_rod/ember_rod.glb"
+   },
+   {
+    "id": "feathered_wand",
+    "name": "Feathered Charm",
+    "set": "set10",
+    "path": "items/wand/feathered_wand/feathered_wand.glb"
+   },
+   {
+    "id": "obsidian_shard",
+    "name": "Obsidian Shard",
+    "set": "set09",
+    "path": "items/wand/obsidian_shard/obsidian_shard.glb"
+   },
+   {
+    "id": "rootwood_wand",
+    "name": "Rootwood Wand",
+    "set": "set03",
+    "path": "items/wand/rootwood_wand/rootwood_wand.glb"
+   },
+   {
+    "id": "serpent_wand",
+    "name": "Serpent Wand",
+    "set": "set05",
+    "path": "items/wand/serpent_wand/serpent_wand.glb"
+   },
+   {
+    "id": "starfall_wand",
+    "name": "Starfall Wand",
+    "set": "set06",
+    "path": "items/wand/starfall_wand/starfall_wand.glb"
+   }
+  ]
+ },
+ "item_sets": [
+  {
+   "id": "set01",
+   "name": "model 1"
+  },
+  {
+   "id": "set04",
+   "name": "model 4"
+  },
+  {
+   "id": "set08",
+   "name": "model 8"
+  },
+  {
+   "id": "set02",
+   "name": "model 2"
+  },
+  {
+   "id": "set09",
+   "name": "model 9"
+  },
+  {
+   "id": "set03",
+   "name": "model 3"
+  },
+  {
+   "id": "set05",
+   "name": "model 5"
+  },
+  {
+   "id": "set10",
+   "name": "model 10"
+  },
+  {
+   "id": "set07",
+   "name": "model 7"
+  },
+  {
+   "id": "set06",
+   "name": "model 6"
+  }
+ ],
+ "anims": {
+  "r1h_walk": {
+   "R": "onehand"
+  },
+  "r1h_swing": {
+   "R": "onehand"
+  },
+  "l1h_walk": {
+   "L": "onehand"
+  },
+  "l1h_swing": {
+   "L": "onehand"
+  },
+  "lsh_walk": {
+   "L": "shield_round"
+  },
+  "lsh_block": {
+   "L": "shield_round"
+  },
+  "lks_walk": {
+   "L": "shield_kite"
+  },
+  "lks_block": {
+   "L": "shield_kite"
+  },
+  "r1h_shield_back": {
+   "R": "onehand"
+  },
+  "r1w_walk": {
+   "R": "wand"
+  },
+  "r1w_cast": {
+   "R": "wand"
+  },
+  "l1w_walk": {
+   "L": "wand"
+  },
+  "l1w_cast": {
+   "L": "wand"
+  },
+  "r2h_walk": {
+   "R": "twohand",
+   "L": null
+  },
+  "r2h_swing": {
+   "R": "twohand",
+   "L": null
+  },
+  "r1s_walk": {
+   "R": "staff"
+  },
+  "r1s_cast": {
+   "R": "staff"
+  },
+  "r2h_walk_3d": {
+   "R": "twohand",
+   "L": null
+  },
+  "r2h_swing_3d": {
+   "R": "twohand",
+   "L": null
+  },
+  "r1c_walk": {
+   "R": null
+  },
+  "r1c_cast": {
+   "R": null
+  },
+  "l1c_walk": {
+   "L": null
+  },
+  "l1c_cast": {
+   "L": null
+  },
+  "b2c_walk": {
+   "R": null,
+   "L": null
+  },
+  "b2c_cast": {
+   "R": null,
+   "L": null
+  }
+ },
+ "frame_starts": {
+  "r1h_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r1h_swing": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.228571,
+   0.314286,
+   0.342857,
+   0.371429,
+   0.4,
+   0.428571,
+   0.485714,
+   0.542857,
+   0.6,
+   0.685714,
+   0.742857,
+   0.8
+  ],
+  "l1h_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "l1h_swing": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.228571,
+   0.314286,
+   0.342857,
+   0.371429,
+   0.4,
+   0.428571,
+   0.485714,
+   0.542857,
+   0.6,
+   0.685714,
+   0.742857,
+   0.8
+  ],
+  "lsh_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "lsh_block": [
+   0.0,
+   0.057143,
+   0.085714,
+   0.114286,
+   0.228571,
+   0.285714,
+   0.342857,
+   0.4
+  ],
+  "lks_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "lks_block": [
+   0.0,
+   0.057143,
+   0.085714,
+   0.114286,
+   0.228571,
+   0.285714,
+   0.342857,
+   0.4
+  ],
+  "r1h_shield_back": [
+   0.0,
+   0.057143,
+   0.085714,
+   0.114286,
+   0.228571,
+   0.285714,
+   0.342857,
+   0.4
+  ],
+  "r1w_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r1w_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.257143,
+   0.285714,
+   0.342857,
+   0.4,
+   0.457143,
+   0.514286,
+   0.571429,
+   0.628571
+  ],
+  "l1w_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "l1w_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.257143,
+   0.285714,
+   0.342857,
+   0.4,
+   0.457143,
+   0.514286,
+   0.571429,
+   0.628571
+  ],
+  "r2h_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r2h_swing": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.228571,
+   0.285714,
+   0.342857,
+   0.428571,
+   0.457143,
+   0.485714,
+   0.514286,
+   0.542857,
+   0.6,
+   0.657143,
+   0.714286,
+   0.771429
+  ],
+  "r1s_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r1s_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.257143,
+   0.285714,
+   0.342857,
+   0.4,
+   0.457143,
+   0.514286,
+   0.571429,
+   0.628571
+  ],
+  "r2h_walk_3d": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r2h_swing_3d": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.228571,
+   0.285714,
+   0.342857,
+   0.428571,
+   0.457143,
+   0.485714,
+   0.514286,
+   0.542857,
+   0.6,
+   0.657143,
+   0.714286,
+   0.771429
+  ],
+  "r1c_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "r1c_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.257143,
+   0.285714,
+   0.342857,
+   0.4,
+   0.457143,
+   0.514286,
+   0.571429
+  ],
+  "l1c_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "l1c_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.257143,
+   0.285714,
+   0.342857,
+   0.4,
+   0.457143,
+   0.514286,
+   0.571429
+  ],
+  "b2c_walk": [
+   0.0,
+   0.114286,
+   0.228571,
+   0.342857,
+   0.457143,
+   0.571429,
+   0.685714,
+   0.8
+  ],
+  "b2c_cast": [
+   0.0,
+   0.057143,
+   0.114286,
+   0.171429,
+   0.285714,
+   0.314286,
+   0.371429,
+   0.428571,
+   0.485714,
+   0.542857,
+   0.6
+  ]
+ },
+ "events": {
+  "r1h_walk": {
+   "duration": 0.914286
+  },
+  "r1h_swing": {
+   "hit": [
+    0.428571
+   ],
+   "duration": 0.857143
+  },
+  "l1h_walk": {
+   "duration": 0.914286
+  },
+  "l1h_swing": {
+   "hit": [
+    0.428571
+   ],
+   "duration": 0.857143
+  },
+  "lsh_walk": {
+   "duration": 0.914286
+  },
+  "lsh_block": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "lks_walk": {
+   "duration": 0.914286
+  },
+  "lks_block": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "r1h_shield_back": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "r1w_walk": {
+   "duration": 0.914286
+  },
+  "r1w_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "l1w_walk": {
+   "duration": 0.914286
+  },
+  "l1w_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "r2h_walk": {
+   "duration": 0.914286
+  },
+  "r2h_swing": {
+   "hit": [
+    0.542857
+   ],
+   "duration": 0.828571
+  },
+  "r1s_walk": {
+   "duration": 0.914286
+  },
+  "r1s_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "r2h_walk_3d": {
+   "duration": 0.914286
+  },
+  "r2h_swing_3d": {
+   "hit": [
+    0.542857
+   ],
+   "duration": 0.828571
+  },
+  "r1c_walk": {
+   "duration": 0.914286
+  },
+  "r1c_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.628571
+  },
+  "l1c_walk": {
+   "duration": 0.914286
+  },
+  "l1c_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.628571
+  },
+  "b2c_walk": {
+   "duration": 0.914286
+  },
+  "b2c_cast": {
+   "fire": [
+    0.314286
+   ],
+   "duration": 0.657143
+  }
+ },
+ "props": [
+  "altar",
+  "anvil",
+  "barrel",
+  "bed",
+  "bookshelf",
+  "candelabrum",
+  "crate",
+  "gravestone_cross",
+  "gravestone_obelisk",
+  "gravestone_round",
+  "pew",
+  "pillar_broken",
+  "pillar_fluted",
+  "pillar_gothic",
+  "pillar_round",
+  "pillar_square",
+  "pillar_twisted",
+  "pulpit",
+  "sarcophagus",
+  "stool",
+  "table",
+  "treasure_chest",
+  "wall_torch",
+  "well"
+ ]
+}

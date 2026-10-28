@@ -1,0 +1,33 @@
+{
+ "id": "pillar_round",
+ "name": "Round Column",
+ "kind": "world prop",
+ "description": "A plain round stone column on a square plinth with a moulded base, capital and abacus. 4 m tall.",
+ "texture_size": 128,
+ "triangles": 396,
+ "files": [
+  "pillar_round.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "plinth"
+  },
+  {
+   "number": 2,
+   "name": "base moulding"
+  },
+  {
+   "number": 3,
+   "name": "shaft"
+  },
+  {
+   "number": 4,
+   "name": "capital"
+  },
+  {
+   "number": 5,
+   "name": "abacus"
+  }
+ ]
+}

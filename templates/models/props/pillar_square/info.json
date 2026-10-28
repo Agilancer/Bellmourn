@@ -1,0 +1,33 @@
+{
+ "id": "pillar_square",
+ "name": "Square Pier",
+ "kind": "world prop",
+ "description": "A heavy square pier of dark stone with an impost block. 4 m tall.",
+ "texture_size": 128,
+ "triangles": 60,
+ "files": [
+  "pillar_square.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "plinth"
+  },
+  {
+   "number": 2,
+   "name": "pier"
+  },
+  {
+   "number": 3,
+   "name": "impost"
+  },
+  {
+   "number": 4,
+   "name": "base course"
+  },
+  {
+   "number": 5,
+   "name": "cap block"
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+{
+ "id": "claymore",
+ "name": "Claymore",
+ "kind": "two-handed weapon",
+ "description": "A highland sword with forward-swept quillons ending in trefoils, a guard ring and a wheel pommel.",
+ "texture_size": 128,
+ "triangles": 340,
+ "files": [
+  "claymore.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "quillons"
+  },
+  {
+   "number": 3,
+   "name": "guard ring"
+  },
+  {
+   "number": 4,
+   "name": "grip"
+  },
+  {
+   "number": 5,
+   "name": "pommel"
+  }
+ ],
+ "set": "set02",
+ "set_name": "model 2"
+}

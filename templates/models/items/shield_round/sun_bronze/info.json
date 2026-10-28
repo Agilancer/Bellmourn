@@ -1,0 +1,71 @@
+{
+ "id": "sun_bronze",
+ "name": "Sun Shield",
+ "kind": "round shield",
+ "description": "A bronze shield with golden sun rays radiating from a gold boss.",
+ "texture_size": 128,
+ "triangles": 656,
+ "files": [
+  "sun_bronze.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "rim"
+  },
+  {
+   "number": 3,
+   "name": "sun boss"
+  },
+  {
+   "number": 4,
+   "name": "sun ray 1"
+  },
+  {
+   "number": 5,
+   "name": "sun ray 2"
+  },
+  {
+   "number": 6,
+   "name": "sun ray 3"
+  },
+  {
+   "number": 7,
+   "name": "sun ray 4"
+  },
+  {
+   "number": 8,
+   "name": "sun ray 5"
+  },
+  {
+   "number": 9,
+   "name": "sun ray 6"
+  },
+  {
+   "number": 10,
+   "name": "sun ray 7"
+  },
+  {
+   "number": 11,
+   "name": "sun ray 8"
+  },
+  {
+   "number": 12,
+   "name": "grip bar"
+  },
+  {
+   "number": 13,
+   "name": "grip post top"
+  },
+  {
+   "number": 14,
+   "name": "grip post bottom"
+  }
+ ],
+ "set": "set04",
+ "set_name": "model 4"
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bellmourn",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tools/serve.py", "8124"],
+      "port": 8124
+    }
+  ]
+}

@@ -1,0 +1,8543 @@
+{
+ "surfaces": [
+  {
+   "id": "gold_01_beaten_antique_gold",
+   "file": "surfaces/gold_01_beaten_antique_gold.png",
+   "kind": "material_gold",
+   "source": "source/materials/textures/gold/GOLD-01_Beaten_Antique_Gold.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#855e28"
+  },
+  {
+   "id": "gold_02_scratched_gold_leaf",
+   "file": "surfaces/gold_02_scratched_gold_leaf.png",
+   "kind": "material_gold",
+   "source": "source/materials/textures/gold/GOLD-02_Scratched_Gold_Leaf.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a37835"
+  },
+  {
+   "id": "gold_03_amethyst_seamed_gold",
+   "file": "surfaces/gold_03_amethyst_seamed_gold.png",
+   "kind": "material_gold",
+   "source": "source/materials/textures/gold/GOLD-03_Amethyst_Seamed_Gold.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#593721"
+  },
+  {
+   "id": "gold_04_hammered_reliquary_gold",
+   "file": "surfaces/gold_04_hammered_reliquary_gold.png",
+   "kind": "material_gold",
+   "source": "source/materials/textures/gold/GOLD-04_Hammered_Reliquary_Gold.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6c4c21"
+  },
+  {
+   "id": "gold_05_gilded_charcoal_alloy",
+   "file": "surfaces/gold_05_gilded_charcoal_alloy.png",
+   "kind": "material_gold",
+   "source": "source/materials/textures/gold/GOLD-05_Gilded_Charcoal_Alloy.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#463523"
+  },
+  {
+   "id": "met_01_hammered_gunmetal",
+   "file": "surfaces/met_01_hammered_gunmetal.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-01_Hammered_Gunmetal.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2f2d2f"
+  },
+  {
+   "id": "met_02_riveted_black_iron",
+   "file": "surfaces/met_02_riveted_black_iron.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-02_Riveted_Black_Iron.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#262223"
+  },
+  {
+   "id": "met_03_flaked_iron",
+   "file": "surfaces/met_03_flaked_iron.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-03_Flaked_Iron.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3633"
+  },
+  {
+   "id": "met_04_tarnished_bronze",
+   "file": "surfaces/met_04_tarnished_bronze.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-04_Tarnished_Bronze.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c3520"
+  },
+  {
+   "id": "met_05_oxidized_copper",
+   "file": "surfaces/met_05_oxidized_copper.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-05_Oxidized_Copper.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#454532"
+  },
+  {
+   "id": "met_06_tarnished_silver",
+   "file": "surfaces/met_06_tarnished_silver.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-06_Tarnished_Silver.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5f534a"
+  },
+  {
+   "id": "met_07_black_chainmail",
+   "file": "surfaces/met_07_black_chainmail.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-07_Black_Chainmail.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2d2724"
+  },
+  {
+   "id": "met_08_scratched_blue_steel",
+   "file": "surfaces/met_08_scratched_blue_steel.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-08_Scratched_Blue_Steel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#232630"
+  },
+  {
+   "id": "met_09_oxide_stained_brass",
+   "file": "surfaces/met_09_oxide_stained_brass.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-09_Oxide_Stained_Brass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#60451e"
+  },
+  {
+   "id": "met_10_amethyst_corrosion",
+   "file": "surfaces/met_10_amethyst_corrosion.png",
+   "kind": "material_metal",
+   "source": "source/materials/textures/metal/MET-10_Amethyst_Corrosion.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#381f21"
+  },
+  {
+   "id": "cloth_01_coarse_sail_canvas",
+   "file": "surfaces/cloth_01_coarse_sail_canvas.png",
+   "kind": "material_sailcloth",
+   "source": "source/materials/textures/sailcloth/CLOTH-01_Coarse_Sail_Canvas.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#967b5d"
+  },
+  {
+   "id": "cloth_02_stitched_charcoal",
+   "file": "surfaces/cloth_02_stitched_charcoal.png",
+   "kind": "material_sailcloth",
+   "source": "source/materials/textures/sailcloth/CLOTH-02_Stitched_Charcoal.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#211e20"
+  },
+  {
+   "id": "cloth_03_patched_dark_canvas",
+   "file": "surfaces/cloth_03_patched_dark_canvas.png",
+   "kind": "material_sailcloth",
+   "source": "source/materials/textures/sailcloth/CLOTH-03_Patched_Dark_Canvas.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#312b29"
+  },
+  {
+   "id": "cloth_04_aged_cream_linen",
+   "file": "surfaces/cloth_04_aged_cream_linen.png",
+   "kind": "material_sailcloth",
+   "source": "source/materials/textures/sailcloth/CLOTH-04_Aged_Cream_Linen.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a48969"
+  },
+  {
+   "id": "cloth_05_deep_plum_woven_sail",
+   "file": "surfaces/cloth_05_deep_plum_woven_sail.png",
+   "kind": "material_sailcloth",
+   "source": "source/materials/textures/sailcloth/CLOTH-05_Deep_Plum_Woven_Sail.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#27172f"
+  },
+  {
+   "id": "ship_01_tarblack_oak",
+   "file": "surfaces/ship_01_tarblack_oak.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-01_Tarblack_Oak.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#1b1818"
+  },
+  {
+   "id": "ship_02_salt_worn_oak",
+   "file": "surfaces/ship_02_salt_worn_oak.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-02_Salt_Worn_Oak.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#433227"
+  },
+  {
+   "id": "ship_03_violet_teak",
+   "file": "surfaces/ship_03_violet_teak.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-03_Violet_Teak.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#342320"
+  },
+  {
+   "id": "ship_04_splintered_cypress",
+   "file": "surfaces/ship_04_splintered_cypress.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-04_Splintered_Cypress.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a3628"
+  },
+  {
+   "id": "ship_05_red_mahogany",
+   "file": "surfaces/ship_05_red_mahogany.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-05_Red_Mahogany.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#361b13"
+  },
+  {
+   "id": "ship_06_salt_bleached_greyboards",
+   "file": "surfaces/ship_06_salt_bleached_greyboards.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-06_Salt_Bleached_Greyboards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#554b43"
+  },
+  {
+   "id": "ship_07_ember_scorched",
+   "file": "surfaces/ship_07_ember_scorched.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-07_Ember_Scorched.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#211717"
+  },
+  {
+   "id": "ship_08_bone_nail_oak",
+   "file": "surfaces/ship_08_bone_nail_oak.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-08_Bone_Nail_Oak.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#332b22"
+  },
+  {
+   "id": "ship_09_mossed_shipboard",
+   "file": "surfaces/ship_09_mossed_shipboard.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-09_Mossed_Shipboard.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#362a18"
+  },
+  {
+   "id": "ship_10_black_walnut_rift_seam",
+   "file": "surfaces/ship_10_black_walnut_rift_seam.png",
+   "kind": "material_ship_planks",
+   "source": "source/materials/textures/ship_planks/SHIP-10_Black_Walnut_Rift_Seam.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2c1e1f"
+  },
+  {
+   "id": "wood_01_end_grain_timber",
+   "file": "surfaces/wood_01_end_grain_timber.png",
+   "kind": "material_wood",
+   "source": "source/materials/textures/wood/WOOD-01_End_Grain_Timber.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#382419"
+  },
+  {
+   "id": "wood_02_scroll_cut_blackwood",
+   "file": "surfaces/wood_02_scroll_cut_blackwood.png",
+   "kind": "material_wood",
+   "source": "source/materials/textures/wood/WOOD-02_Scroll_Cut_Blackwood.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#37251a"
+  },
+  {
+   "id": "wood_03_rootwood_grain",
+   "file": "surfaces/wood_03_rootwood_grain.png",
+   "kind": "material_wood",
+   "source": "source/materials/textures/wood/WOOD-03_Rootwood_Grain.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#34251b"
+  },
+  {
+   "id": "wood_04_weathered_cedar",
+   "file": "surfaces/wood_04_weathered_cedar.png",
+   "kind": "material_wood",
+   "source": "source/materials/textures/wood/WOOD-04_Weathered_Cedar.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#563424"
+  },
+  {
+   "id": "wood_05_violet_streak_blackwood",
+   "file": "surfaces/wood_05_violet_streak_blackwood.png",
+   "kind": "material_wood",
+   "source": "source/materials/textures/wood/WOOD-05_Violet_Streak_Blackwood.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#18131c"
+  },
+  {
+   "id": "cave_dec_01",
+   "file": "surfaces/cave_dec_01.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-01.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8f8b86"
+  },
+  {
+   "id": "cave_dec_02",
+   "file": "surfaces/cave_dec_02.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-02.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#928e8a"
+  },
+  {
+   "id": "cave_dec_03",
+   "file": "surfaces/cave_dec_03.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-03.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9d9993"
+  },
+  {
+   "id": "cave_dec_04",
+   "file": "surfaces/cave_dec_04.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-04.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#858180"
+  },
+  {
+   "id": "cave_dec_05",
+   "file": "surfaces/cave_dec_05.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-05.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a29e96"
+  },
+  {
+   "id": "cave_dec_06",
+   "file": "surfaces/cave_dec_06.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-06.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#938f8b"
+  },
+  {
+   "id": "cave_dec_07",
+   "file": "surfaces/cave_dec_07.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-07.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9b9791"
+  },
+  {
+   "id": "cave_dec_08",
+   "file": "surfaces/cave_dec_08.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-08.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9c9892"
+  },
+  {
+   "id": "cave_dec_09",
+   "file": "surfaces/cave_dec_09.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-09.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8b8784"
+  },
+  {
+   "id": "cave_dec_10",
+   "file": "surfaces/cave_dec_10.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-10.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9b9792"
+  },
+  {
+   "id": "cave_dec_11",
+   "file": "surfaces/cave_dec_11.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-11.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#97938e"
+  },
+  {
+   "id": "cave_dec_12",
+   "file": "surfaces/cave_dec_12.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-12.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#94908b"
+  },
+  {
+   "id": "cave_dec_13",
+   "file": "surfaces/cave_dec_13.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-13.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#858181"
+  },
+  {
+   "id": "cave_dec_14",
+   "file": "surfaces/cave_dec_14.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-14.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8c8885"
+  },
+  {
+   "id": "cave_dec_15",
+   "file": "surfaces/cave_dec_15.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-15.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#938f8b"
+  },
+  {
+   "id": "cave_dec_16",
+   "file": "surfaces/cave_dec_16.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-16.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e8b88"
+  },
+  {
+   "id": "cave_dec_17",
+   "file": "surfaces/cave_dec_17.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-17.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9d9992"
+  },
+  {
+   "id": "cave_dec_18",
+   "file": "surfaces/cave_dec_18.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-18.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e8a87"
+  },
+  {
+   "id": "cave_dec_19",
+   "file": "surfaces/cave_dec_19.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-19.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#98948f"
+  },
+  {
+   "id": "cave_dec_20",
+   "file": "surfaces/cave_dec_20.png",
+   "kind": "cave",
+   "source": "tiles/depths_edge/tex/DEC-20.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8d8986"
+  },
+  {
+   "id": "castle_ashlar",
+   "file": "surfaces/castle_ashlar.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/ashlar.png",
+   "size": [
+    178,
+    338
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#9b9081"
+  },
+  {
+   "id": "castle_basalt",
+   "file": "surfaces/castle_basalt.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/basalt.png",
+   "size": [
+    127,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#3a342d"
+  },
+  {
+   "id": "castle_brick",
+   "file": "surfaces/castle_brick.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/brick.png",
+   "size": [
+    152,
+    338
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5a3522"
+  },
+  {
+   "id": "castle_chapel",
+   "file": "surfaces/castle_chapel.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/chapel.png",
+   "size": [
+    131,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#897a66"
+  },
+  {
+   "id": "castle_iron",
+   "file": "surfaces/castle_iron.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/iron.png",
+   "size": [
+    218,
+    339
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b332b"
+  },
+  {
+   "id": "castle_mossy",
+   "file": "surfaces/castle_mossy.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/mossy.png",
+   "size": [
+    222,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#473c26"
+  },
+  {
+   "id": "castle_panel",
+   "file": "surfaces/castle_panel.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/panel.png",
+   "size": [
+    131,
+    339
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#685844"
+  },
+  {
+   "id": "castle_roof_black",
+   "file": "surfaces/castle_roof_black.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_black.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#171419"
+  },
+  {
+   "id": "castle_roof_blue",
+   "file": "surfaces/castle_roof_blue.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_blue.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#2a437e"
+  },
+  {
+   "id": "castle_roof_char",
+   "file": "surfaces/castle_roof_char.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_char.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#171513"
+  },
+  {
+   "id": "castle_roof_copper",
+   "file": "surfaces/castle_roof_copper.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_copper.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#539784"
+  },
+  {
+   "id": "castle_roof_gold",
+   "file": "surfaces/castle_roof_gold.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_gold.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#7b5f21"
+  },
+  {
+   "id": "castle_roof_moss",
+   "file": "surfaces/castle_roof_moss.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_moss.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3c4731"
+  },
+  {
+   "id": "castle_roof_snow",
+   "file": "surfaces/castle_roof_snow.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_snow.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c7cbd4"
+  },
+  {
+   "id": "castle_roof_terracotta",
+   "file": "surfaces/castle_roof_terracotta.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_terracotta.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#92462c"
+  },
+  {
+   "id": "castle_roof_violet",
+   "file": "surfaces/castle_roof_violet.png",
+   "kind": "roof",
+   "source": "source/castle3d/tex/roof_violet.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#432d5e"
+  },
+  {
+   "id": "castle_rubble",
+   "file": "surfaces/castle_rubble.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/rubble.png",
+   "size": [
+    151,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#5b4c3c"
+  },
+  {
+   "id": "castle_slate",
+   "file": "surfaces/castle_slate.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/slate.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3c4048"
+  },
+  {
+   "id": "castle_slatestone",
+   "file": "surfaces/castle_slatestone.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/slatestone.png",
+   "size": [
+    141,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#414140"
+  },
+  {
+   "id": "castle_soot",
+   "file": "surfaces/castle_soot.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/soot.png",
+   "size": [
+    259,
+    338
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#402f20"
+  },
+  {
+   "id": "castle_wood",
+   "file": "surfaces/castle_wood.png",
+   "kind": "wall",
+   "source": "source/castle3d/tex/wood.png",
+   "size": [
+    128,
+    256
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#543822"
+  },
+  {
+   "id": "castle_keep_pale_keep_limestone",
+   "file": "surfaces/castle_keep_pale_keep_limestone.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#8c7b6e"
+  },
+  {
+   "id": "castle_keep_bluegray_bastion_slate",
+   "file": "surfaces/castle_keep_bluegray_bastion_slate.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#343130"
+  },
+  {
+   "id": "castle_keep_charcoal_guardstone",
+   "file": "surfaces/castle_keep_charcoal_guardstone.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5d544f"
+  },
+  {
+   "id": "castle_keep_crimson_armory_brick",
+   "file": "surfaces/castle_keep_crimson_armory_brick.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5d382f"
+  },
+  {
+   "id": "castle_keep_ivory_chapel_marble",
+   "file": "surfaces/castle_keep_ivory_chapel_marble.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#2a2d32"
+  },
+  {
+   "id": "castle_keep_rough_battlement_block",
+   "file": "surfaces/castle_keep_rough_battlement_block.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5a524d"
+  },
+  {
+   "id": "castle_keep_weathered_gatehouse_flag",
+   "file": "surfaces/castle_keep_weathered_gatehouse_flag.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#443a34"
+  },
+  {
+   "id": "castle_keep_mossline_foundation_stone",
+   "file": "surfaces/castle_keep_mossline_foundation_stone.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4c4634"
+  },
+  {
+   "id": "castle_keep_royal_inlay_slab",
+   "file": "surfaces/castle_keep_royal_inlay_slab.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#867c72"
+  },
+  {
+   "id": "castle_keep_sootdark_great_hall",
+   "file": "surfaces/castle_keep_sootdark_great_hall.png",
+   "kind": "floor",
+   "source": "tiles/castle_keep/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#413c3b"
+  },
+  {
+   "id": "catacombs_charcoal_flagstone",
+   "file": "surfaces/catacombs_charcoal_flagstone.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2f2c28"
+  },
+  {
+   "id": "catacombs_weathered_cobbles",
+   "file": "surfaces/catacombs_weathered_cobbles.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#38332c"
+  },
+  {
+   "id": "catacombs_slate_bricks",
+   "file": "surfaces/catacombs_slate_bricks.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2d2b29"
+  },
+  {
+   "id": "catacombs_ossuary_aggregate",
+   "file": "surfaces/catacombs_ossuary_aggregate.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3428"
+  },
+  {
+   "id": "catacombs_moss_cobbles",
+   "file": "surfaces/catacombs_moss_cobbles.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#342f26"
+  },
+  {
+   "id": "catacombs_crypt_limestone",
+   "file": "surfaces/catacombs_crypt_limestone.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#423930"
+  },
+  {
+   "id": "catacombs_burial_terracotta",
+   "file": "surfaces/catacombs_burial_terracotta.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#41271d"
+  },
+  {
+   "id": "catacombs_grave_gravel",
+   "file": "surfaces/catacombs_grave_gravel.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3126"
+  },
+  {
+   "id": "catacombs_black_basalt",
+   "file": "surfaces/catacombs_black_basalt.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#252523"
+  },
+  {
+   "id": "catacombs_mortuary_tesserae",
+   "file": "surfaces/catacombs_mortuary_tesserae.png",
+   "kind": "floor",
+   "source": "tiles/catacombs/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d5246"
+  },
+  {
+   "id": "cathedral_graveyard_nave_flagstone",
+   "file": "surfaces/cathedral_graveyard_nave_flagstone.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#38342f"
+  },
+  {
+   "id": "cathedral_graveyard_limestone_squares",
+   "file": "surfaces/cathedral_graveyard_limestone_squares.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6d6252"
+  },
+  {
+   "id": "cathedral_graveyard_choir_slate",
+   "file": "surfaces/cathedral_graveyard_choir_slate.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b3b38"
+  },
+  {
+   "id": "cathedral_graveyard_marble_checker",
+   "file": "surfaces/cathedral_graveyard_marble_checker.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#60584c"
+  },
+  {
+   "id": "cathedral_graveyard_terracotta_nave",
+   "file": "surfaces/cathedral_graveyard_terracotta_nave.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#523427"
+  },
+  {
+   "id": "cathedral_graveyard_grave_soil",
+   "file": "surfaces/cathedral_graveyard_grave_soil.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#31281f"
+  },
+  {
+   "id": "cathedral_graveyard_moss_cobbles",
+   "file": "surfaces/cathedral_graveyard_moss_cobbles.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#433c2e"
+  },
+  {
+   "id": "cathedral_graveyard_grave_gravel",
+   "file": "surfaces/cathedral_graveyard_grave_gravel.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c443a"
+  },
+  {
+   "id": "cathedral_graveyard_dead_grass",
+   "file": "surfaces/cathedral_graveyard_dead_grass.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443726"
+  },
+  {
+   "id": "cathedral_graveyard_muddy_path",
+   "file": "surfaces/cathedral_graveyard_muddy_path.png",
+   "kind": "floor",
+   "source": "tiles/cathedral_graveyard/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3329"
+  },
+  {
+   "id": "dark_forest_black_loam",
+   "file": "surfaces/dark_forest_black_loam.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#1b1614"
+  },
+  {
+   "id": "dark_forest_pine_needles",
+   "file": "surfaces/dark_forest_pine_needles.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#301d14"
+  },
+  {
+   "id": "dark_forest_dead_leaves",
+   "file": "surfaces/dark_forest_dead_leaves.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#41291c"
+  },
+  {
+   "id": "dark_forest_damp_moss",
+   "file": "surfaces/dark_forest_damp_moss.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#232514"
+  },
+  {
+   "id": "dark_forest_gravel_path",
+   "file": "surfaces/dark_forest_gravel_path.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#35312d"
+  },
+  {
+   "id": "dark_forest_packed_mud",
+   "file": "surfaces/dark_forest_packed_mud.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#35281f"
+  },
+  {
+   "id": "dark_forest_dark_turf",
+   "file": "surfaces/dark_forest_dark_turf.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#1c1e12"
+  },
+  {
+   "id": "dark_forest_peat",
+   "file": "surfaces/dark_forest_peat.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#1c130f"
+  },
+  {
+   "id": "dark_forest_shale_chips",
+   "file": "surfaces/dark_forest_shale_chips.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#282726"
+  },
+  {
+   "id": "dark_forest_root_soil",
+   "file": "surfaces/dark_forest_root_soil.png",
+   "kind": "floor",
+   "source": "tiles/dark_forest/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#281f18"
+  },
+  {
+   "id": "sewers_damp_flagstone",
+   "file": "surfaces/sewers_damp_flagstone.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#363126"
+  },
+  {
+   "id": "sewers_sewer_cobbles",
+   "file": "surfaces/sewers_sewer_cobbles.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#322f23"
+  },
+  {
+   "id": "sewers_culvert_brick_pavers",
+   "file": "surfaces/sewers_culvert_brick_pavers.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#302c21"
+  },
+  {
+   "id": "sewers_packed_grit_muck",
+   "file": "surfaces/sewers_packed_grit_muck.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b2f22"
+  },
+  {
+   "id": "sewers_algae_cobbles",
+   "file": "surfaces/sewers_algae_cobbles.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#353322"
+  },
+  {
+   "id": "sewers_weathered_sluice_slabs",
+   "file": "surfaces/sewers_weathered_sluice_slabs.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#423b2b"
+  },
+  {
+   "id": "sewers_eroded_red_bricks",
+   "file": "surfaces/sewers_eroded_red_bricks.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#442818"
+  },
+  {
+   "id": "sewers_wet_pebble_silt",
+   "file": "surfaces/sewers_wet_pebble_silt.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#392e1f"
+  },
+  {
+   "id": "sewers_iron_studded_flagstone",
+   "file": "surfaces/sewers_iron_studded_flagstone.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#24221c"
+  },
+  {
+   "id": "sewers_calcified_limestone",
+   "file": "surfaces/sewers_calcified_limestone.png",
+   "kind": "floor",
+   "source": "tiles/sewers/floors.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#605642"
+  },
+  {
+   "id": "sand_fine_dune_sand",
+   "file": "surfaces/sand_fine_dune_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cd995b"
+  },
+  {
+   "id": "sand_rippled_amber_sand",
+   "file": "surfaces/sand_rippled_amber_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#aa7a48"
+  },
+  {
+   "id": "sand_pale_leeward_sand",
+   "file": "surfaces/sand_pale_leeward_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bd915c"
+  },
+  {
+   "id": "sand_wind_combed_sand",
+   "file": "surfaces/sand_wind_combed_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c68e4f"
+  },
+  {
+   "id": "sand_footprinted_sand",
+   "file": "surfaces/sand_footprinted_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d8b787"
+  },
+  {
+   "id": "sand_mica_sand",
+   "file": "surfaces/sand_mica_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bc8040"
+  },
+  {
+   "id": "sand_ochre_hardpan",
+   "file": "surfaces/sand_ochre_hardpan.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9f4f2c"
+  },
+  {
+   "id": "sand_red_dune_sand",
+   "file": "surfaces/sand_red_dune_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a05d2d"
+  },
+  {
+   "id": "sand_shadowed_dune_sand",
+   "file": "surfaces/sand_shadowed_dune_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9c754a"
+  },
+  {
+   "id": "sand_moonlit_sand",
+   "file": "surfaces/sand_moonlit_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bd9769"
+  },
+  {
+   "id": "sand_black_basalt_grit",
+   "file": "surfaces/sand_black_basalt_grit.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#41372e"
+  },
+  {
+   "id": "sand_rose_quartz_gravel",
+   "file": "surfaces/sand_rose_quartz_gravel.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9f735e"
+  },
+  {
+   "id": "sand_white_gypsum_gravel",
+   "file": "surfaces/sand_white_gypsum_gravel.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a08e7d"
+  },
+  {
+   "id": "sand_salt_crust",
+   "file": "surfaces/sand_salt_crust.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#baa997"
+  },
+  {
+   "id": "sand_pebble_scree",
+   "file": "surfaces/sand_pebble_scree.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#775d46"
+  },
+  {
+   "id": "sand_caravan_track_gravel",
+   "file": "surfaces/sand_caravan_track_gravel.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#856545"
+  },
+  {
+   "id": "sand_shell_grit",
+   "file": "surfaces/sand_shell_grit.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bea07e"
+  },
+  {
+   "id": "sand_dark_coarse_scree",
+   "file": "surfaces/sand_dark_coarse_scree.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3027"
+  },
+  {
+   "id": "sand_ironstone_gravel",
+   "file": "surfaces/sand_ironstone_gravel.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#744026"
+  },
+  {
+   "id": "sand_mixed_dune_scree",
+   "file": "surfaces/sand_mixed_dune_scree.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7b6149"
+  },
+  {
+   "id": "sand_sienna_cracked_clay",
+   "file": "surfaces/sand_sienna_cracked_clay.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9e5931"
+  },
+  {
+   "id": "sand_dried_wadi_bed",
+   "file": "surfaces/sand_dried_wadi_bed.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a87b4e"
+  },
+  {
+   "id": "sand_flaking_mud_crust",
+   "file": "surfaces/sand_flaking_mud_crust.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a98159"
+  },
+  {
+   "id": "sand_deep_caravan_ruts",
+   "file": "surfaces/sand_deep_caravan_ruts.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9d6b3e"
+  },
+  {
+   "id": "sand_ochre_loam",
+   "file": "surfaces/sand_ochre_loam.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a46a31"
+  },
+  {
+   "id": "sand_red_earth",
+   "file": "surfaces/sand_red_earth.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e4227"
+  },
+  {
+   "id": "sand_salt_cracked_clay",
+   "file": "surfaces/sand_salt_cracked_clay.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bc9f7c"
+  },
+  {
+   "id": "sand_silt_and_pebbles",
+   "file": "surfaces/sand_silt_and_pebbles.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#875c38"
+  },
+  {
+   "id": "sand_dry_wash_sediment",
+   "file": "surfaces/sand_dry_wash_sediment.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6e4d"
+  },
+  {
+   "id": "sand_ash_wadi",
+   "file": "surfaces/sand_ash_wadi.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6c5b4b"
+  },
+  {
+   "id": "sand_sunbaked_block_paving",
+   "file": "surfaces/sand_sunbaked_block_paving.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a5825d"
+  },
+  {
+   "id": "sand_worn_sandstone_flag",
+   "file": "surfaces/sand_worn_sandstone_flag.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#896f4d"
+  },
+  {
+   "id": "sand_mosaic_fragments",
+   "file": "surfaces/sand_mosaic_fragments.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#907159"
+  },
+  {
+   "id": "sand_chipped_ruin_slab",
+   "file": "surfaces/sand_chipped_ruin_slab.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a98862"
+  },
+  {
+   "id": "sand_engraved_processional_stone",
+   "file": "surfaces/sand_engraved_processional_stone.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a5815a"
+  },
+  {
+   "id": "sand_pale_limestone_paving",
+   "file": "surfaces/sand_pale_limestone_paving.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bc9c75"
+  },
+  {
+   "id": "sand_basalt_setts",
+   "file": "surfaces/sand_basalt_setts.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#51453e"
+  },
+  {
+   "id": "sand_broken_red_brick",
+   "file": "surfaces/sand_broken_red_brick.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#926140"
+  },
+  {
+   "id": "sand_shell_inlay_paving",
+   "file": "surfaces/sand_shell_inlay_paving.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9e8971"
+  },
+  {
+   "id": "sand_sand_buried_courtyard",
+   "file": "surfaces/sand_sand_buried_courtyard.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#aa865c"
+  },
+  {
+   "id": "sand_copper_ore_floor",
+   "file": "surfaces/sand_copper_ore_floor.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#634a33"
+  },
+  {
+   "id": "sand_turquoise_seam_stone",
+   "file": "surfaces/sand_turquoise_seam_stone.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#606857"
+  },
+  {
+   "id": "sand_amber_chip_rock",
+   "file": "surfaces/sand_amber_chip_rock.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#af9d8e"
+  },
+  {
+   "id": "sand_rose_stone",
+   "file": "surfaces/sand_rose_stone.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#835428"
+  },
+  {
+   "id": "sand_obsidian_shard_bed",
+   "file": "surfaces/sand_obsidian_shard_bed.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#996f5c"
+  },
+  {
+   "id": "sand_fossil_bedrock",
+   "file": "surfaces/sand_fossil_bedrock.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#392e26"
+  },
+  {
+   "id": "sand_quartz_vein_stone",
+   "file": "surfaces/sand_quartz_vein_stone.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#997c5c"
+  },
+  {
+   "id": "sand_sulfur_crust",
+   "file": "surfaces/sand_sulfur_crust.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8f775f"
+  },
+  {
+   "id": "sand_lapis_flecked_slate",
+   "file": "surfaces/sand_lapis_flecked_slate.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a07639"
+  },
+  {
+   "id": "sand_salt_cavern_floor",
+   "file": "surfaces/sand_salt_cavern_floor.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#706056"
+  },
+  {
+   "id": "sand_weathered_palm_boards",
+   "file": "surfaces/sand_weathered_palm_boards.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#876a4e"
+  },
+  {
+   "id": "sand_reed_weave_mat",
+   "file": "surfaces/sand_reed_weave_mat.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#6f5338"
+  },
+  {
+   "id": "sand_tent_packed_earth",
+   "file": "surfaces/sand_tent_packed_earth.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7c5a37"
+  },
+  {
+   "id": "sand_caravan_yard_dust",
+   "file": "surfaces/sand_caravan_yard_dust.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7c6045"
+  },
+  {
+   "id": "sand_oasis_edge_mud",
+   "file": "surfaces/sand_oasis_edge_mud.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#96714b"
+  },
+  {
+   "id": "sand_dry_grass_patch",
+   "file": "surfaces/sand_dry_grass_patch.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6f4f34"
+  },
+  {
+   "id": "sand_brittle_root_loam",
+   "file": "surfaces/sand_brittle_root_loam.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8a6841"
+  },
+  {
+   "id": "sand_volcanic_black_sand",
+   "file": "surfaces/sand_volcanic_black_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#775a3f"
+  },
+  {
+   "id": "sand_pale_moon_sand",
+   "file": "surfaces/sand_pale_moon_sand.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#362f2a"
+  },
+  {
+   "id": "sand_date_press_planks",
+   "file": "surfaces/sand_date_press_planks.png",
+   "kind": "floor",
+   "source": "tiles/sea_of_sand/floor.webp",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cdbaa1"
+  },
+  {
+   "id": "town_olive_meadow",
+   "file": "surfaces/town_olive_meadow.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_01_olive_meadow.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a4921"
+  },
+  {
+   "id": "town_dense_meadow",
+   "file": "surfaces/town_dense_meadow.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_02_dense_meadow.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2c3414"
+  },
+  {
+   "id": "town_dry_grass",
+   "file": "surfaces/town_dry_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_03_dry_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#685232"
+  },
+  {
+   "id": "town_sparse_grass",
+   "file": "surfaces/town_sparse_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_04_sparse_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4e4126"
+  },
+  {
+   "id": "town_rough_field",
+   "file": "surfaces/town_rough_field.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_05_rough_field.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b3f26"
+  },
+  {
+   "id": "town_moss_cover",
+   "file": "surfaces/town_moss_cover.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_06_moss_cover.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#383416"
+  },
+  {
+   "id": "town_trampled_verge",
+   "file": "surfaces/town_trampled_verge.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_07_trampled_verge.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#54482b"
+  },
+  {
+   "id": "town_wildflower_grass",
+   "file": "surfaces/town_wildflower_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_08_wildflower_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#464420"
+  },
+  {
+   "id": "town_leaf_litter_grass",
+   "file": "surfaces/town_leaf_litter_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_09_leaf_litter_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#483a1e"
+  },
+  {
+   "id": "town_damp_grass",
+   "file": "surfaces/town_damp_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_10_damp_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#282c1b"
+  },
+  {
+   "id": "town_straw_grass",
+   "file": "surfaces/town_straw_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_11_straw_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#615232"
+  },
+  {
+   "id": "town_clover_grass",
+   "file": "surfaces/town_clover_grass.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_12_clover_grass.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#403d1f"
+  },
+  {
+   "id": "town_fine_gravel",
+   "file": "surfaces/town_fine_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_13_fine_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#504941"
+  },
+  {
+   "id": "town_coarse_gravel",
+   "file": "surfaces/town_coarse_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_14_coarse_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a4037"
+  },
+  {
+   "id": "town_limestone_gravel",
+   "file": "surfaces/town_limestone_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_15_limestone_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7f6f5c"
+  },
+  {
+   "id": "town_dark_grit",
+   "file": "surfaces/town_dark_grit.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_16_dark_grit.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#272423"
+  },
+  {
+   "id": "town_wheel_worn_gravel",
+   "file": "surfaces/town_wheel_worn_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_17_wheel_worn_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c4036"
+  },
+  {
+   "id": "town_pebble_gravel",
+   "file": "surfaces/town_pebble_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_18_pebble_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#55483b"
+  },
+  {
+   "id": "town_muddy_gravel",
+   "file": "surfaces/town_muddy_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_19_muddy_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#362b21"
+  },
+  {
+   "id": "town_dusty_gravel",
+   "file": "surfaces/town_dusty_gravel.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_20_dusty_gravel.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6e5944"
+  },
+  {
+   "id": "town_packed_dirt",
+   "file": "surfaces/town_packed_dirt.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_21_packed_dirt.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#614125"
+  },
+  {
+   "id": "town_damp_mud",
+   "file": "surfaces/town_damp_mud.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_22_damp_mud.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#37251a"
+  },
+  {
+   "id": "town_cracked_clay",
+   "file": "surfaces/town_cracked_clay.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_23_cracked_clay.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7c5937"
+  },
+  {
+   "id": "town_cart_rut_earth",
+   "file": "surfaces/town_cart_rut_earth.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_24_cart_rut_earth.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#533a24"
+  },
+  {
+   "id": "town_red_earth",
+   "file": "surfaces/town_red_earth.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_25_red_earth.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5b2f1b"
+  },
+  {
+   "id": "town_dusty_earth",
+   "file": "surfaces/town_dusty_earth.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_26_dusty_earth.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d4835"
+  },
+  {
+   "id": "town_mud_puddles",
+   "file": "surfaces/town_mud_puddles.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_27_mud_puddles.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3a2c21"
+  },
+  {
+   "id": "town_churned_clay",
+   "file": "surfaces/town_churned_clay.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_28_churned_clay.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#432a1d"
+  },
+  {
+   "id": "town_rooty_dirt",
+   "file": "surfaces/town_rooty_dirt.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_29_rooty_dirt.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c3421"
+  },
+  {
+   "id": "town_sandy_earth",
+   "file": "surfaces/town_sandy_earth.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_30_sandy_earth.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6b44"
+  },
+  {
+   "id": "town_twig_earth",
+   "file": "surfaces/town_twig_earth.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_31_twig_earth.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#453222"
+  },
+  {
+   "id": "town_stable_yard",
+   "file": "surfaces/town_stable_yard.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_32_stable_yard.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5c4125"
+  },
+  {
+   "id": "town_grey_cobbles",
+   "file": "surfaces/town_grey_cobbles.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_33_grey_cobbles.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4f453a"
+  },
+  {
+   "id": "town_irregular_flagstone",
+   "file": "surfaces/town_irregular_flagstone.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_34_irregular_flagstone.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#554737"
+  },
+  {
+   "id": "town_limestone_paving",
+   "file": "surfaces/town_limestone_paving.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_35_limestone_paving.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#907b63"
+  },
+  {
+   "id": "town_slate_paving",
+   "file": "surfaces/town_slate_paving.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_36_slate_paving.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#323233"
+  },
+  {
+   "id": "town_brick_street",
+   "file": "surfaces/town_brick_street.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_37_brick_street.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#553625"
+  },
+  {
+   "id": "town_granite_setts",
+   "file": "surfaces/town_granite_setts.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_38_granite_setts.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#534a3f"
+  },
+  {
+   "id": "town_moss_pavers",
+   "file": "surfaces/town_moss_pavers.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_39_moss_pavers.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#453d2f"
+  },
+  {
+   "id": "town_herringbone_brick",
+   "file": "surfaces/town_herringbone_brick.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_40_herringbone_brick.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#543728"
+  },
+  {
+   "id": "town_rough_concrete",
+   "file": "surfaces/town_rough_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_41_rough_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7d7264"
+  },
+  {
+   "id": "town_dark_concrete",
+   "file": "surfaces/town_dark_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_42_dark_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c3730"
+  },
+  {
+   "id": "town_cracked_concrete",
+   "file": "surfaces/town_cracked_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_43_cracked_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#63594b"
+  },
+  {
+   "id": "town_coarse_mortar",
+   "file": "surfaces/town_coarse_mortar.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_44_coarse_mortar.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#514537"
+  },
+  {
+   "id": "town_damp_concrete",
+   "file": "surfaces/town_damp_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_45_damp_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#40392d"
+  },
+  {
+   "id": "town_patched_concrete",
+   "file": "surfaces/town_patched_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_46_patched_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#564c40"
+  },
+  {
+   "id": "town_lime_screed",
+   "file": "surfaces/town_lime_screed.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_47_lime_screed.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#685b4b"
+  },
+  {
+   "id": "town_aggregate_concrete",
+   "file": "surfaces/town_aggregate_concrete.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_48_aggregate_concrete.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#786b5c"
+  },
+  {
+   "id": "town_oak_boards",
+   "file": "surfaces/town_oak_boards.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_49_oak_boards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#45372a"
+  },
+  {
+   "id": "town_dark_pine",
+   "file": "surfaces/town_dark_pine.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_50_dark_pine.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#291a11"
+  },
+  {
+   "id": "town_bleached_boards",
+   "file": "surfaces/town_bleached_boards.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_51_bleached_boards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#736352"
+  },
+  {
+   "id": "town_cedar_boards",
+   "file": "surfaces/town_cedar_boards.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_52_cedar_boards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c2d1e"
+  },
+  {
+   "id": "town_tavern_planks",
+   "file": "surfaces/town_tavern_planks.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_53_tavern_planks.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#473220"
+  },
+  {
+   "id": "town_barn_boards",
+   "file": "surfaces/town_barn_boards.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_54_barn_boards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#463729"
+  },
+  {
+   "id": "town_diagonal_parquet",
+   "file": "surfaces/town_diagonal_parquet.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_55_diagonal_parquet.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#473523"
+  },
+  {
+   "id": "town_nailed_decking",
+   "file": "surfaces/town_nailed_decking.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_56_nailed_decking.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c2f22"
+  },
+  {
+   "id": "town_repaired_planks",
+   "file": "surfaces/town_repaired_planks.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_57_repaired_planks.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c3d2d"
+  },
+  {
+   "id": "town_split_boards",
+   "file": "surfaces/town_split_boards.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_58_split_boards.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#604a34"
+  },
+  {
+   "id": "town_workshop_planks",
+   "file": "surfaces/town_workshop_planks.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_59_workshop_planks.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b2e21"
+  },
+  {
+   "id": "town_oak_parquet",
+   "file": "surfaces/town_oak_parquet.png",
+   "kind": "floor",
+   "source": "sprites/floors/floor_60_oak_parquet.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#413325"
+  },
+  {
+   "id": "town_wall_oak_plaster",
+   "file": "surfaces/town_wall_oak_plaster.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_01_oak_plaster_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#524537"
+  },
+  {
+   "id": "town_wall_pine_siding",
+   "file": "surfaces/town_wall_pine_siding.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_02_pine_siding_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#31271d"
+  },
+  {
+   "id": "town_wall_fieldstone",
+   "file": "surfaces/town_wall_fieldstone.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_03_fieldstone_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e362b"
+  },
+  {
+   "id": "town_wall_dressed_limestone",
+   "file": "surfaces/town_wall_dressed_limestone.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_04_dressed_limestone_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#7a6852"
+  },
+  {
+   "id": "town_wall_town_brick",
+   "file": "surfaces/town_wall_town_brick.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_05_town_brick_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#492c1e"
+  },
+  {
+   "id": "town_wall_wattle_daub",
+   "file": "surfaces/town_wall_wattle_daub.png",
+   "kind": "wall",
+   "source": "sprites/walls/wall_06_wattle_daub_straight_SE_NW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#453321"
+  },
+  {
+   "id": "town_roof_oak_shingles",
+   "file": "surfaces/town_roof_oak_shingles.png",
+   "kind": "roof",
+   "source": "sprites/roofs/roof_01_oak_shingles_slope_SW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#372a1e",
+   "note": "un-projected from the camera-facing (SW) slope"
+  },
+  {
+   "id": "town_roof_blue_slate",
+   "file": "surfaces/town_roof_blue_slate.png",
+   "kind": "roof",
+   "source": "sprites/roofs/roof_02_blue_slate_slope_SW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#373634",
+   "note": "un-projected from the camera-facing (SW) slope"
+  },
+  {
+   "id": "town_roof_terracotta",
+   "file": "surfaces/town_roof_terracotta.png",
+   "kind": "roof",
+   "source": "sprites/roofs/roof_03_terracotta_slope_SW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#522c1a",
+   "note": "un-projected from the camera-facing (SW) slope"
+  },
+  {
+   "id": "town_roof_straw_thatch",
+   "file": "surfaces/town_roof_straw_thatch.png",
+   "kind": "roof",
+   "source": "sprites/roofs/roof_04_straw_thatch_slope_SW.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#58432d",
+   "note": "un-projected from the camera-facing (SW) slope"
+  }
+ ],
+ "sprites": [
+  {
+   "id": "castle_keep_broken_throne",
+   "file": "sprites/castle_keep_broken_throne.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    142,
+    165
+   ],
+   "anchor": [
+    71,
+    129
+   ],
+   "height_m": 2.58
+  },
+  {
+   "id": "castle_keep_royal_sarcophagus",
+   "file": "sprites/castle_keep_royal_sarcophagus.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    160,
+    147
+   ],
+   "anchor": [
+    98,
+    115
+   ],
+   "height_m": 2.3
+  },
+  {
+   "id": "castle_keep_shield_rack",
+   "file": "sprites/castle_keep_shield_rack.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    141,
+    145
+   ],
+   "anchor": [
+    70,
+    109
+   ],
+   "height_m": 2.27
+  },
+  {
+   "id": "castle_keep_crossed_swords_trophy",
+   "file": "sprites/castle_keep_crossed_swords_trophy.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    75,
+    110
+   ],
+   "anchor": [
+    36,
+    94
+   ],
+   "height_m": 1.72
+  },
+  {
+   "id": "castle_keep_empty_suit_of_armor",
+   "file": "sprites/castle_keep_empty_suit_of_armor.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    76,
+    150
+   ],
+   "anchor": [
+    38,
+    130
+   ],
+   "height_m": 2.34
+  },
+  {
+   "id": "castle_keep_stone_gargoyle",
+   "file": "sprites/castle_keep_stone_gargoyle.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    109,
+    150
+   ],
+   "anchor": [
+    54,
+    122
+   ],
+   "height_m": 2.34
+  },
+  {
+   "id": "castle_keep_carved_lion_statue",
+   "file": "sprites/castle_keep_carved_lion_statue.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    98,
+    150
+   ],
+   "anchor": [
+    49,
+    124
+   ],
+   "height_m": 2.34
+  },
+  {
+   "id": "castle_keep_royal_banner_stand",
+   "file": "sprites/castle_keep_royal_banner_stand.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    72,
+    160
+   ],
+   "anchor": [
+    38,
+    146
+   ],
+   "height_m": 2.5
+  },
+  {
+   "id": "castle_keep_iron_chandelier",
+   "file": "sprites/castle_keep_iron_chandelier.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    118,
+    120
+   ],
+   "anchor": [
+    59,
+    92
+   ],
+   "height_m": 1.88
+  },
+  {
+   "id": "castle_keep_wall_brazier",
+   "file": "sprites/castle_keep_wall_brazier.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    56,
+    110
+   ],
+   "anchor": [
+    33,
+    102
+   ],
+   "height_m": 1.72
+  },
+  {
+   "id": "castle_keep_keep_candelabrum",
+   "file": "sprites/castle_keep_keep_candelabrum.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    62,
+    130
+   ],
+   "anchor": [
+    31,
+    118
+   ],
+   "height_m": 2.03
+  },
+  {
+   "id": "castle_keep_weapon_chest",
+   "file": "sprites/castle_keep_weapon_chest.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    112,
+    115
+   ],
+   "anchor": [
+    52,
+    88
+   ],
+   "height_m": 1.8
+  },
+  {
+   "id": "castle_keep_treasury_chest",
+   "file": "sprites/castle_keep_treasury_chest.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    105,
+    88
+   ],
+   "anchor": [
+    51,
+    62
+   ],
+   "height_m": 1.38
+  },
+  {
+   "id": "castle_keep_broken_crown",
+   "file": "sprites/castle_keep_broken_crown.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    55,
+    33
+   ],
+   "anchor": [
+    29,
+    19
+   ],
+   "height_m": 0.52
+  },
+  {
+   "id": "castle_keep_smashed_heraldic_shield",
+   "file": "sprites/castle_keep_smashed_heraldic_shield.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    95,
+    77
+   ],
+   "anchor": [
+    52,
+    55
+   ],
+   "height_m": 1.2
+  },
+  {
+   "id": "castle_keep_toppled_column",
+   "file": "sprites/castle_keep_toppled_column.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    145,
+    127
+   ],
+   "anchor": [
+    63,
+    95
+   ],
+   "height_m": 1.98
+  },
+  {
+   "id": "castle_keep_stone_bench",
+   "file": "sprites/castle_keep_stone_bench.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    140,
+    110
+   ],
+   "anchor": [
+    26,
+    96
+   ],
+   "height_m": 1.72
+  },
+  {
+   "id": "castle_keep_knight_memorial",
+   "file": "sprites/castle_keep_knight_memorial.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    131,
+    165
+   ],
+   "anchor": [
+    65,
+    131
+   ],
+   "height_m": 2.58
+  },
+  {
+   "id": "castle_keep_cracked_statue_head",
+   "file": "sprites/castle_keep_cracked_statue_head.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    100,
+    97
+   ],
+   "anchor": [
+    48,
+    72
+   ],
+   "height_m": 1.52
+  },
+  {
+   "id": "castle_keep_siege_cannon_wreck",
+   "file": "sprites/castle_keep_siege_cannon_wreck.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    165,
+    139
+   ],
+   "anchor": [
+    83,
+    98
+   ],
+   "height_m": 2.17
+  },
+  {
+   "id": "castle_keep_keep_ballista",
+   "file": "sprites/castle_keep_keep_ballista.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    150,
+    131
+   ],
+   "anchor": [
+    71,
+    96
+   ],
+   "height_m": 2.05
+  },
+  {
+   "id": "castle_keep_cannonball_pile",
+   "file": "sprites/castle_keep_cannonball_pile.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    80,
+    62
+   ],
+   "anchor": [
+    40,
+    41
+   ],
+   "height_m": 0.97
+  },
+  {
+   "id": "castle_keep_chain_winch",
+   "file": "sprites/castle_keep_chain_winch.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    145,
+    129
+   ],
+   "anchor": [
+    68,
+    94
+   ],
+   "height_m": 2.02
+  },
+  {
+   "id": "castle_keep_drawbridge_crank",
+   "file": "sprites/castle_keep_drawbridge_crank.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    125,
+    135
+   ],
+   "anchor": [
+    55,
+    107
+   ],
+   "height_m": 2.11
+  },
+  {
+   "id": "castle_keep_stained_glass_shards",
+   "file": "sprites/castle_keep_stained_glass_shards.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    95,
+    92
+   ],
+   "anchor": [
+    46,
+    68
+   ],
+   "height_m": 1.44
+  },
+  {
+   "id": "castle_keep_chapel_window_ruin",
+   "file": "sprites/castle_keep_chapel_window_ruin.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    151,
+    170
+   ],
+   "anchor": [
+    75,
+    131
+   ],
+   "height_m": 2.66
+  },
+  {
+   "id": "castle_keep_royal_lectern",
+   "file": "sprites/castle_keep_royal_lectern.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    91,
+    125
+   ],
+   "anchor": [
+    43,
+    102
+   ],
+   "height_m": 1.95
+  },
+  {
+   "id": "castle_keep_fallen_tapestry",
+   "file": "sprites/castle_keep_fallen_tapestry.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    130,
+    104
+   ],
+   "anchor": [
+    75,
+    77
+   ],
+   "height_m": 1.62
+  },
+  {
+   "id": "castle_keep_armory_barrel",
+   "file": "sprites/castle_keep_armory_barrel.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    77,
+    115
+   ],
+   "anchor": [
+    35,
+    97
+   ],
+   "height_m": 1.8
+  },
+  {
+   "id": "castle_keep_spear_bundle",
+   "file": "sprites/castle_keep_spear_bundle.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    99,
+    130
+   ],
+   "anchor": [
+    49,
+    104
+   ],
+   "height_m": 2.03
+  },
+  {
+   "id": "castle_keep_cracked_tile_rubble",
+   "file": "sprites/castle_keep_cracked_tile_rubble.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    120,
+    86
+   ],
+   "anchor": [
+    54,
+    63
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "castle_keep_ironbound_door_slab",
+   "file": "sprites/castle_keep_ironbound_door_slab.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    126,
+    130
+   ],
+   "anchor": [
+    63,
+    98
+   ],
+   "height_m": 2.03
+  },
+  {
+   "id": "castle_keep_keep_keyring",
+   "file": "sprites/castle_keep_keep_keyring.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    43,
+    45
+   ],
+   "anchor": [
+    22,
+    33
+   ],
+   "height_m": 0.7
+  },
+  {
+   "id": "castle_keep_prison_shackle",
+   "file": "sprites/castle_keep_prison_shackle.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    50,
+    44
+   ],
+   "anchor": [
+    29,
+    32
+   ],
+   "height_m": 0.69
+  },
+  {
+   "id": "castle_keep_brazier_ash",
+   "file": "sprites/castle_keep_brazier_ash.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    100,
+    86
+   ],
+   "anchor": [
+    50,
+    60
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "castle_keep_war_map_table",
+   "file": "sprites/castle_keep_war_map_table.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    140,
+    122
+   ],
+   "anchor": [
+    68,
+    91
+   ],
+   "height_m": 1.91
+  },
+  {
+   "id": "castle_keep_broken_lance",
+   "file": "sprites/castle_keep_broken_lance.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    120,
+    106
+   ],
+   "anchor": [
+    68,
+    80
+   ],
+   "height_m": 1.66
+  },
+  {
+   "id": "castle_keep_stone_keep_crest",
+   "file": "sprites/castle_keep_stone_keep_crest.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    124,
+    130
+   ],
+   "anchor": [
+    66,
+    102
+   ],
+   "height_m": 2.03
+  },
+  {
+   "id": "castle_keep_ruined_doorway",
+   "file": "sprites/castle_keep_ruined_doorway.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    116,
+    170
+   ],
+   "anchor": [
+    58,
+    140
+   ],
+   "height_m": 2.66
+  },
+  {
+   "id": "castle_keep_jeweled_reliquary",
+   "file": "sprites/castle_keep_jeweled_reliquary.png",
+   "category": "scatter",
+   "source": "tiles/castle_keep/scatter.webp",
+   "size": [
+    50,
+    90
+   ],
+   "anchor": [
+    25,
+    76
+   ],
+   "height_m": 1.41
+  },
+  {
+   "id": "catacombs_effigy_sarcophagus",
+   "file": "sprites/catacombs_effigy_sarcophagus.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    136,
+    119
+   ],
+   "anchor": [
+    68,
+    97
+   ],
+   "height_m": 1.86
+  },
+  {
+   "id": "catacombs_open_sarcophagus",
+   "file": "sprites/catacombs_open_sarcophagus.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    136,
+    116
+   ],
+   "anchor": [
+    68,
+    94
+   ],
+   "height_m": 1.81
+  },
+  {
+   "id": "catacombs_broken_sarcophagus_lid",
+   "file": "sprites/catacombs_broken_sarcophagus_lid.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    122,
+    99
+   ],
+   "anchor": [
+    61,
+    79
+   ],
+   "height_m": 1.55
+  },
+  {
+   "id": "catacombs_skull_pyramid",
+   "file": "sprites/catacombs_skull_pyramid.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    86,
+    64
+   ],
+   "anchor": [
+    43,
+    50
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "catacombs_long_bone_heap",
+   "file": "sprites/catacombs_long_bone_heap.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    97,
+    72
+   ],
+   "anchor": [
+    49,
+    56
+   ],
+   "height_m": 1.12
+  },
+  {
+   "id": "catacombs_supine_skeleton",
+   "file": "sprites/catacombs_supine_skeleton.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    131,
+    84
+   ],
+   "anchor": [
+    66,
+    63
+   ],
+   "height_m": 1.31
+  },
+  {
+   "id": "catacombs_ossuary_urn",
+   "file": "sprites/catacombs_ossuary_urn.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    54,
+    43
+   ],
+   "anchor": [
+    27,
+    34
+   ],
+   "height_m": 0.67
+  },
+  {
+   "id": "catacombs_broken_amphora",
+   "file": "sprites/catacombs_broken_amphora.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    78,
+    58
+   ],
+   "anchor": [
+    39,
+    46
+   ],
+   "height_m": 0.91
+  },
+  {
+   "id": "catacombs_reliquary_chest",
+   "file": "sprites/catacombs_reliquary_chest.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    86,
+    93
+   ],
+   "anchor": [
+    43,
+    79
+   ],
+   "height_m": 1.45
+  },
+  {
+   "id": "catacombs_grave_lantern",
+   "file": "sprites/catacombs_grave_lantern.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    38,
+    72
+   ],
+   "anchor": [
+    19,
+    66
+   ],
+   "height_m": 1.12
+  },
+  {
+   "id": "catacombs_vigil_candles",
+   "file": "sprites/catacombs_vigil_candles.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    50,
+    47
+   ],
+   "anchor": [
+    25,
+    39
+   ],
+   "height_m": 0.73
+  },
+  {
+   "id": "catacombs_iron_candelabrum",
+   "file": "sprites/catacombs_iron_candelabrum.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    58,
+    94
+   ],
+   "anchor": [
+    29,
+    85
+   ],
+   "height_m": 1.47
+  },
+  {
+   "id": "catacombs_shrouded_altar",
+   "file": "sprites/catacombs_shrouded_altar.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    136,
+    89
+   ],
+   "anchor": [
+    68,
+    67
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "catacombs_prayer_lectern",
+   "file": "sprites/catacombs_prayer_lectern.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    76,
+    105
+   ],
+   "anchor": [
+    38,
+    93
+   ],
+   "height_m": 1.64
+  },
+  {
+   "id": "catacombs_kneeling_mourner",
+   "file": "sprites/catacombs_kneeling_mourner.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    68,
+    86
+   ],
+   "anchor": [
+    34,
+    75
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "catacombs_headless_angel",
+   "file": "sprites/catacombs_headless_angel.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    88,
+    131
+   ],
+   "anchor": [
+    44,
+    117
+   ],
+   "height_m": 2.05
+  },
+  {
+   "id": "catacombs_fallen_column",
+   "file": "sprites/catacombs_fallen_column.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    107,
+    80
+   ],
+   "anchor": [
+    54,
+    63
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "catacombs_column_stump",
+   "file": "sprites/catacombs_column_stump.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    80,
+    72
+   ],
+   "anchor": [
+    40,
+    59
+   ],
+   "height_m": 1.12
+  },
+  {
+   "id": "catacombs_gothic_rubble",
+   "file": "sprites/catacombs_gothic_rubble.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    122,
+    80
+   ],
+   "anchor": [
+    61,
+    60
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "catacombs_cross_grave_marker",
+   "file": "sprites/catacombs_cross_grave_marker.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    64,
+    90
+   ],
+   "anchor": [
+    32,
+    80
+   ],
+   "height_m": 1.41
+  },
+  {
+   "id": "catacombs_closed_wood_coffin",
+   "file": "sprites/catacombs_closed_wood_coffin.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    128,
+    98
+   ],
+   "anchor": [
+    64,
+    78
+   ],
+   "height_m": 1.53
+  },
+  {
+   "id": "catacombs_broken_open_coffin",
+   "file": "sprites/catacombs_broken_open_coffin.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    134,
+    102
+   ],
+   "anchor": [
+    67,
+    81
+   ],
+   "height_m": 1.59
+  },
+  {
+   "id": "catacombs_funerary_handcart",
+   "file": "sprites/catacombs_funerary_handcart.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    148,
+    101
+   ],
+   "anchor": [
+    74,
+    77
+   ],
+   "height_m": 1.58
+  },
+  {
+   "id": "catacombs_ritual_basin",
+   "file": "sprites/catacombs_ritual_basin.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    101,
+    68
+   ],
+   "anchor": [
+    51,
+    52
+   ],
+   "height_m": 1.06
+  },
+  {
+   "id": "catacombs_incense_brazier",
+   "file": "sprites/catacombs_incense_brazier.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    58,
+    109
+   ],
+   "anchor": [
+    29,
+    100
+   ],
+   "height_m": 1.7
+  },
+  {
+   "id": "catacombs_torch_stand",
+   "file": "sprites/catacombs_torch_stand.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    60,
+    131
+   ],
+   "anchor": [
+    30,
+    121
+   ],
+   "height_m": 2.05
+  },
+  {
+   "id": "catacombs_burial_urn_cluster",
+   "file": "sprites/catacombs_burial_urn_cluster.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    84,
+    76
+   ],
+   "anchor": [
+    42,
+    63
+   ],
+   "height_m": 1.19
+  },
+  {
+   "id": "catacombs_rolled_shroud",
+   "file": "sprites/catacombs_rolled_shroud.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    79,
+    53
+   ],
+   "anchor": [
+    40,
+    40
+   ],
+   "height_m": 0.83
+  },
+  {
+   "id": "catacombs_coffin_plank_heap",
+   "file": "sprites/catacombs_coffin_plank_heap.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    112,
+    69
+   ],
+   "anchor": [
+    56,
+    51
+   ],
+   "height_m": 1.08
+  },
+  {
+   "id": "catacombs_chain_and_shackle",
+   "file": "sprites/catacombs_chain_and_shackle.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    70,
+    53
+   ],
+   "anchor": [
+    35,
+    42
+   ],
+   "height_m": 0.83
+  },
+  {
+   "id": "catacombs_leaning_ossuary_seal",
+   "file": "sprites/catacombs_leaning_ossuary_seal.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    80,
+    66
+   ],
+   "anchor": [
+    40,
+    53
+   ],
+   "height_m": 1.03
+  },
+  {
+   "id": "catacombs_funerary_obelisk",
+   "file": "sprites/catacombs_funerary_obelisk.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    58,
+    108
+   ],
+   "anchor": [
+    29,
+    99
+   ],
+   "height_m": 1.69
+  },
+  {
+   "id": "catacombs_skull_corbel",
+   "file": "sprites/catacombs_skull_corbel.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    90,
+    82
+   ],
+   "anchor": [
+    45,
+    68
+   ],
+   "height_m": 1.28
+  },
+  {
+   "id": "catacombs_votive_idol",
+   "file": "sprites/catacombs_votive_idol.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    58,
+    79
+   ],
+   "anchor": [
+    29,
+    70
+   ],
+   "height_m": 1.23
+  },
+  {
+   "id": "catacombs_offering_bowl",
+   "file": "sprites/catacombs_offering_bowl.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    50,
+    40
+   ],
+   "anchor": [
+    25,
+    32
+   ],
+   "height_m": 0.62
+  },
+  {
+   "id": "catacombs_funerary_bell",
+   "file": "sprites/catacombs_funerary_bell.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    100,
+    110
+   ],
+   "anchor": [
+    50,
+    94
+   ],
+   "height_m": 1.72
+  },
+  {
+   "id": "catacombs_fallen_iron_railing",
+   "file": "sprites/catacombs_fallen_iron_railing.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    110,
+    105
+   ],
+   "anchor": [
+    55,
+    87
+   ],
+   "height_m": 1.64
+  },
+  {
+   "id": "catacombs_stone_bench",
+   "file": "sprites/catacombs_stone_bench.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    125,
+    95
+   ],
+   "anchor": [
+    63,
+    75
+   ],
+   "height_m": 1.48
+  },
+  {
+   "id": "catacombs_hourglass_and_prayer_book",
+   "file": "sprites/catacombs_hourglass_and_prayer_book.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    70,
+    39
+   ],
+   "anchor": [
+    35,
+    28
+   ],
+   "height_m": 0.61
+  },
+  {
+   "id": "catacombs_burial_boots_and_belt",
+   "file": "sprites/catacombs_burial_boots_and_belt.png",
+   "category": "scatter",
+   "source": "tiles/catacombs/scatter.webp",
+   "size": [
+    74,
+    64
+   ],
+   "anchor": [
+    37,
+    52
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "cathedral_graveyard_celtic_cross",
+   "file": "sprites/cathedral_graveyard_celtic_cross.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    64,
+    110
+   ],
+   "anchor": [
+    32,
+    100
+   ],
+   "height_m": 1.72
+  },
+  {
+   "id": "cathedral_graveyard_rounded_headstone",
+   "file": "sprites/cathedral_graveyard_rounded_headstone.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    66,
+    80
+   ],
+   "anchor": [
+    33,
+    69
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "cathedral_graveyard_gothic_marker",
+   "file": "sprites/cathedral_graveyard_gothic_marker.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    62,
+    81
+   ],
+   "anchor": [
+    31,
+    71
+   ],
+   "height_m": 1.27
+  },
+  {
+   "id": "cathedral_graveyard_broken_headstone",
+   "file": "sprites/cathedral_graveyard_broken_headstone.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    89,
+    69
+   ],
+   "anchor": [
+    45,
+    55
+   ],
+   "height_m": 1.08
+  },
+  {
+   "id": "cathedral_graveyard_squat_cross",
+   "file": "sprites/cathedral_graveyard_squat_cross.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    58,
+    84
+   ],
+   "anchor": [
+    29,
+    75
+   ],
+   "height_m": 1.31
+  },
+  {
+   "id": "cathedral_graveyard_knight_chest_tomb",
+   "file": "sprites/cathedral_graveyard_knight_chest_tomb.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    146,
+    106
+   ],
+   "anchor": [
+    73,
+    83
+   ],
+   "height_m": 1.66
+  },
+  {
+   "id": "cathedral_graveyard_sealed_sarcophagus",
+   "file": "sprites/cathedral_graveyard_sealed_sarcophagus.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    141,
+    103
+   ],
+   "anchor": [
+    71,
+    80
+   ],
+   "height_m": 1.61
+  },
+  {
+   "id": "cathedral_graveyard_open_stone_coffin",
+   "file": "sprites/cathedral_graveyard_open_stone_coffin.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    139,
+    96
+   ],
+   "anchor": [
+    70,
+    74
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "cathedral_graveyard_bordered_fresh_grave",
+   "file": "sprites/cathedral_graveyard_bordered_fresh_grave.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    146,
+    90
+   ],
+   "anchor": [
+    73,
+    67
+   ],
+   "height_m": 1.41
+  },
+  {
+   "id": "cathedral_graveyard_old_grave_mound",
+   "file": "sprites/cathedral_graveyard_old_grave_mound.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    138,
+    81
+   ],
+   "anchor": [
+    69,
+    59
+   ],
+   "height_m": 1.27
+  },
+  {
+   "id": "cathedral_graveyard_hooded_mourner",
+   "file": "sprites/cathedral_graveyard_hooded_mourner.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    68,
+    98
+   ],
+   "anchor": [
+    34,
+    87
+   ],
+   "height_m": 1.53
+  },
+  {
+   "id": "cathedral_graveyard_mourning_angel",
+   "file": "sprites/cathedral_graveyard_mourning_angel.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    81,
+    132
+   ],
+   "anchor": [
+    41,
+    119
+   ],
+   "height_m": 2.06
+  },
+  {
+   "id": "cathedral_graveyard_funerary_obelisk",
+   "file": "sprites/cathedral_graveyard_funerary_obelisk.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    66,
+    100
+   ],
+   "anchor": [
+    33,
+    89
+   ],
+   "height_m": 1.56
+  },
+  {
+   "id": "cathedral_graveyard_draped_urn",
+   "file": "sprites/cathedral_graveyard_draped_urn.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    72,
+    89
+   ],
+   "anchor": [
+    36,
+    77
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "cathedral_graveyard_grave_lantern",
+   "file": "sprites/cathedral_graveyard_grave_lantern.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    38,
+    71
+   ],
+   "anchor": [
+    19,
+    65
+   ],
+   "height_m": 1.11
+  },
+  {
+   "id": "cathedral_graveyard_dry_wreath",
+   "file": "sprites/cathedral_graveyard_dry_wreath.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    65,
+    59
+   ],
+   "anchor": [
+    33,
+    48
+   ],
+   "height_m": 0.92
+  },
+  {
+   "id": "cathedral_graveyard_shovel_bucket",
+   "file": "sprites/cathedral_graveyard_shovel_bucket.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    72,
+    86
+   ],
+   "anchor": [
+    36,
+    74
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "cathedral_graveyard_wooden_coffin",
+   "file": "sprites/cathedral_graveyard_wooden_coffin.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    132,
+    88
+   ],
+   "anchor": [
+    66,
+    67
+   ],
+   "height_m": 1.38
+  },
+  {
+   "id": "cathedral_graveyard_coffin_boards",
+   "file": "sprites/cathedral_graveyard_coffin_boards.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    121,
+    75
+   ],
+   "anchor": [
+    61,
+    56
+   ],
+   "height_m": 1.17
+  },
+  {
+   "id": "cathedral_graveyard_fallen_railing",
+   "file": "sprites/cathedral_graveyard_fallen_railing.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    125,
+    93
+   ],
+   "anchor": [
+    63,
+    73
+   ],
+   "height_m": 1.45
+  },
+  {
+   "id": "cathedral_graveyard_cathedral_altar",
+   "file": "sprites/cathedral_graveyard_cathedral_altar.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    152,
+    127
+   ],
+   "anchor": [
+    76,
+    103
+   ],
+   "height_m": 1.98
+  },
+  {
+   "id": "cathedral_graveyard_oak_pew",
+   "file": "sprites/cathedral_graveyard_oak_pew.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    152,
+    111
+   ],
+   "anchor": [
+    76,
+    87
+   ],
+   "height_m": 1.73
+  },
+  {
+   "id": "cathedral_graveyard_prayer_lectern",
+   "file": "sprites/cathedral_graveyard_prayer_lectern.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    70,
+    111
+   ],
+   "anchor": [
+    35,
+    100
+   ],
+   "height_m": 1.73
+  },
+  {
+   "id": "cathedral_graveyard_baptismal_font",
+   "file": "sprites/cathedral_graveyard_baptismal_font.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    94,
+    128
+   ],
+   "anchor": [
+    47,
+    113
+   ],
+   "height_m": 2.0
+  },
+  {
+   "id": "cathedral_graveyard_iron_candelabrum",
+   "file": "sprites/cathedral_graveyard_iron_candelabrum.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    62,
+    90
+   ],
+   "anchor": [
+    31,
+    80
+   ],
+   "height_m": 1.41
+  },
+  {
+   "id": "cathedral_graveyard_votive_candles",
+   "file": "sprites/cathedral_graveyard_votive_candles.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    54,
+    54
+   ],
+   "anchor": [
+    27,
+    45
+   ],
+   "height_m": 0.84
+  },
+  {
+   "id": "cathedral_graveyard_confessional",
+   "file": "sprites/cathedral_graveyard_confessional.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    110,
+    147
+   ],
+   "anchor": [
+    55,
+    129
+   ],
+   "height_m": 2.3
+  },
+  {
+   "id": "cathedral_graveyard_pipe_organ",
+   "file": "sprites/cathedral_graveyard_pipe_organ.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    111,
+    150
+   ],
+   "anchor": [
+    56,
+    132
+   ],
+   "height_m": 2.34
+  },
+  {
+   "id": "cathedral_graveyard_buttress_fragment",
+   "file": "sprites/cathedral_graveyard_buttress_fragment.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    96,
+    143
+   ],
+   "anchor": [
+    48,
+    128
+   ],
+   "height_m": 2.23
+  },
+  {
+   "id": "cathedral_graveyard_saint_statue",
+   "file": "sprites/cathedral_graveyard_saint_statue.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    61,
+    150
+   ],
+   "anchor": [
+    31,
+    140
+   ],
+   "height_m": 2.34
+  },
+  {
+   "id": "cathedral_graveyard_fallen_capital",
+   "file": "sprites/cathedral_graveyard_fallen_capital.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    103,
+    75
+   ],
+   "anchor": [
+    52,
+    59
+   ],
+   "height_m": 1.17
+  },
+  {
+   "id": "cathedral_graveyard_tracery_rubble",
+   "file": "sprites/cathedral_graveyard_tracery_rubble.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    123,
+    67
+   ],
+   "anchor": [
+    62,
+    47
+   ],
+   "height_m": 1.05
+  },
+  {
+   "id": "cathedral_graveyard_reliquary_chest",
+   "file": "sprites/cathedral_graveyard_reliquary_chest.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    92,
+    92
+   ],
+   "anchor": [
+    46,
+    77
+   ],
+   "height_m": 1.44
+  },
+  {
+   "id": "cathedral_graveyard_resting_censer",
+   "file": "sprites/cathedral_graveyard_resting_censer.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    66,
+    56
+   ],
+   "anchor": [
+    33,
+    45
+   ],
+   "height_m": 0.88
+  },
+  {
+   "id": "cathedral_graveyard_church_bell",
+   "file": "sprites/cathedral_graveyard_church_bell.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    110,
+    93
+   ],
+   "anchor": [
+    55,
+    75
+   ],
+   "height_m": 1.45
+  },
+  {
+   "id": "cathedral_graveyard_dead_shrub",
+   "file": "sprites/cathedral_graveyard_dead_shrub.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    113,
+    86
+   ],
+   "anchor": [
+    57,
+    68
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "cathedral_graveyard_ivy_roots",
+   "file": "sprites/cathedral_graveyard_ivy_roots.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    92,
+    58
+   ],
+   "anchor": [
+    46,
+    44
+   ],
+   "height_m": 0.91
+  },
+  {
+   "id": "cathedral_graveyard_stone_bench",
+   "file": "sprites/cathedral_graveyard_stone_bench.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    130,
+    91
+   ],
+   "anchor": [
+    65,
+    70
+   ],
+   "height_m": 1.42
+  },
+  {
+   "id": "cathedral_graveyard_broken_urn",
+   "file": "sprites/cathedral_graveyard_broken_urn.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    83,
+    49
+   ],
+   "anchor": [
+    42,
+    36
+   ],
+   "height_m": 0.77
+  },
+  {
+   "id": "cathedral_graveyard_funeral_flowers",
+   "file": "sprites/cathedral_graveyard_funeral_flowers.png",
+   "category": "scatter",
+   "source": "tiles/cathedral_graveyard/scatter.webp",
+   "size": [
+    76,
+    55
+   ],
+   "anchor": [
+    38,
+    43
+   ],
+   "height_m": 0.86
+  },
+  {
+   "id": "dark_forest_moss_boulder",
+   "file": "sprites/dark_forest_moss_boulder.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    110,
+    83
+   ],
+   "anchor": [
+    55,
+    65
+   ],
+   "height_m": 1.3
+  },
+  {
+   "id": "dark_forest_split_stump",
+   "file": "sprites/dark_forest_split_stump.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    90,
+    67
+   ],
+   "anchor": [
+    45,
+    53
+   ],
+   "height_m": 1.05
+  },
+  {
+   "id": "dark_forest_fallen_log",
+   "file": "sprites/dark_forest_fallen_log.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    139,
+    87
+   ],
+   "anchor": [
+    70,
+    65
+   ],
+   "height_m": 1.36
+  },
+  {
+   "id": "dark_forest_hollow_stump",
+   "file": "sprites/dark_forest_hollow_stump.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    90,
+    70
+   ],
+   "anchor": [
+    45,
+    56
+   ],
+   "height_m": 1.09
+  },
+  {
+   "id": "dark_forest_twisted_roots",
+   "file": "sprites/dark_forest_twisted_roots.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    120,
+    91
+   ],
+   "anchor": [
+    60,
+    72
+   ],
+   "height_m": 1.42
+  },
+  {
+   "id": "dark_forest_fern_clump",
+   "file": "sprites/dark_forest_fern_clump.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    75,
+    48
+   ],
+   "anchor": [
+    38,
+    36
+   ],
+   "height_m": 0.75
+  },
+  {
+   "id": "dark_forest_thorn_bush",
+   "file": "sprites/dark_forest_thorn_bush.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    111,
+    69
+   ],
+   "anchor": [
+    56,
+    51
+   ],
+   "height_m": 1.08
+  },
+  {
+   "id": "dark_forest_poison_mushrooms",
+   "file": "sprites/dark_forest_poison_mushrooms.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    69,
+    59
+   ],
+   "anchor": [
+    34,
+    48
+   ],
+   "height_m": 0.92
+  },
+  {
+   "id": "dark_forest_pale_mushrooms",
+   "file": "sprites/dark_forest_pale_mushrooms.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    68,
+    57
+   ],
+   "anchor": [
+    34,
+    46
+   ],
+   "height_m": 0.89
+  },
+  {
+   "id": "dark_forest_dead_bramble",
+   "file": "sprites/dark_forest_dead_bramble.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    100,
+    67
+   ],
+   "anchor": [
+    50,
+    51
+   ],
+   "height_m": 1.05
+  },
+  {
+   "id": "dark_forest_stone_cairn",
+   "file": "sprites/dark_forest_stone_cairn.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    75,
+    64
+   ],
+   "anchor": [
+    38,
+    52
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "dark_forest_trail_sign",
+   "file": "sprites/dark_forest_trail_sign.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    70,
+    78
+   ],
+   "anchor": [
+    35,
+    67
+   ],
+   "height_m": 1.22
+  },
+  {
+   "id": "dark_forest_lantern_stake",
+   "file": "sprites/dark_forest_lantern_stake.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    50,
+    79
+   ],
+   "anchor": [
+    25,
+    71
+   ],
+   "height_m": 1.23
+  },
+  {
+   "id": "dark_forest_campfire",
+   "file": "sprites/dark_forest_campfire.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    95,
+    66
+   ],
+   "anchor": [
+    48,
+    51
+   ],
+   "height_m": 1.03
+  },
+  {
+   "id": "dark_forest_bedroll",
+   "file": "sprites/dark_forest_bedroll.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    85,
+    54
+   ],
+   "anchor": [
+    43,
+    40
+   ],
+   "height_m": 0.84
+  },
+  {
+   "id": "dark_forest_broken_wagon",
+   "file": "sprites/dark_forest_broken_wagon.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    145,
+    81
+   ],
+   "anchor": [
+    73,
+    58
+   ],
+   "height_m": 1.27
+  },
+  {
+   "id": "dark_forest_wooden_crate",
+   "file": "sprites/dark_forest_wooden_crate.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    90,
+    87
+   ],
+   "anchor": [
+    45,
+    73
+   ],
+   "height_m": 1.36
+  },
+  {
+   "id": "dark_forest_hunter_trap",
+   "file": "sprites/dark_forest_hunter_trap.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    80,
+    50
+   ],
+   "anchor": [
+    40,
+    37
+   ],
+   "height_m": 0.78
+  },
+  {
+   "id": "dark_forest_wolf_bones",
+   "file": "sprites/dark_forest_wolf_bones.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    111,
+    53
+   ],
+   "anchor": [
+    56,
+    35
+   ],
+   "height_m": 0.83
+  },
+  {
+   "id": "dark_forest_deer_skull",
+   "file": "sprites/dark_forest_deer_skull.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    60,
+    54
+   ],
+   "anchor": [
+    30,
+    44
+   ],
+   "height_m": 0.84
+  },
+  {
+   "id": "dark_forest_druid_stone",
+   "file": "sprites/dark_forest_druid_stone.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    75,
+    66
+   ],
+   "anchor": [
+    38,
+    54
+   ],
+   "height_m": 1.03
+  },
+  {
+   "id": "dark_forest_vine_altar",
+   "file": "sprites/dark_forest_vine_altar.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    110,
+    86
+   ],
+   "anchor": [
+    55,
+    68
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "dark_forest_ruined_shrine",
+   "file": "sprites/dark_forest_ruined_shrine.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    125,
+    89
+   ],
+   "anchor": [
+    63,
+    69
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "dark_forest_wooden_chest",
+   "file": "sprites/dark_forest_wooden_chest.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    90,
+    68
+   ],
+   "anchor": [
+    45,
+    54
+   ],
+   "height_m": 1.06
+  },
+  {
+   "id": "dark_forest_buried_urn",
+   "file": "sprites/dark_forest_buried_urn.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    65,
+    42
+   ],
+   "anchor": [
+    33,
+    32
+   ],
+   "height_m": 0.66
+  },
+  {
+   "id": "dark_forest_bridge_planks",
+   "file": "sprites/dark_forest_bridge_planks.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    130,
+    85
+   ],
+   "anchor": [
+    65,
+    64
+   ],
+   "height_m": 1.33
+  },
+  {
+   "id": "dark_forest_rope_post",
+   "file": "sprites/dark_forest_rope_post.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    55,
+    39
+   ],
+   "anchor": [
+    28,
+    30
+   ],
+   "height_m": 0.61
+  },
+  {
+   "id": "dark_forest_stone_well",
+   "file": "sprites/dark_forest_stone_well.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    120,
+    97
+   ],
+   "anchor": [
+    60,
+    78
+   ],
+   "height_m": 1.52
+  },
+  {
+   "id": "dark_forest_glowing_crystal",
+   "file": "sprites/dark_forest_glowing_crystal.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    65,
+    50
+   ],
+   "anchor": [
+    33,
+    40
+   ],
+   "height_m": 0.78
+  },
+  {
+   "id": "dark_forest_spider_eggs",
+   "file": "sprites/dark_forest_spider_eggs.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    90,
+    63
+   ],
+   "anchor": [
+    45,
+    49
+   ],
+   "height_m": 0.98
+  },
+  {
+   "id": "dark_forest_wrapped_corpse",
+   "file": "sprites/dark_forest_wrapped_corpse.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    110,
+    68
+   ],
+   "anchor": [
+    55,
+    50
+   ],
+   "height_m": 1.06
+  },
+  {
+   "id": "dark_forest_hanging_effigy",
+   "file": "sprites/dark_forest_hanging_effigy.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    70,
+    131
+   ],
+   "anchor": [
+    35,
+    120
+   ],
+   "height_m": 2.05
+  },
+  {
+   "id": "dark_forest_raven_perch",
+   "file": "sprites/dark_forest_raven_perch.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    70,
+    68
+   ],
+   "anchor": [
+    35,
+    57
+   ],
+   "height_m": 1.06
+  },
+  {
+   "id": "dark_forest_hollow_log",
+   "file": "sprites/dark_forest_hollow_log.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    131,
+    70
+   ],
+   "anchor": [
+    66,
+    49
+   ],
+   "height_m": 1.09
+  },
+  {
+   "id": "dark_forest_reeds",
+   "file": "sprites/dark_forest_reeds.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    79,
+    60
+   ],
+   "anchor": [
+    40,
+    47
+   ],
+   "height_m": 0.94
+  },
+  {
+   "id": "dark_forest_dead_sapling",
+   "file": "sprites/dark_forest_dead_sapling.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    64,
+    54
+   ],
+   "anchor": [
+    32,
+    44
+   ],
+   "height_m": 0.84
+  },
+  {
+   "id": "dark_forest_firewood",
+   "file": "sprites/dark_forest_firewood.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    100,
+    59
+   ],
+   "anchor": [
+    50,
+    43
+   ],
+   "height_m": 0.92
+  },
+  {
+   "id": "dark_forest_lost_shield",
+   "file": "sprites/dark_forest_lost_shield.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    85,
+    57
+   ],
+   "anchor": [
+    43,
+    43
+   ],
+   "height_m": 0.89
+  },
+  {
+   "id": "dark_forest_forest_obelisk",
+   "file": "sprites/dark_forest_forest_obelisk.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    65,
+    61
+   ],
+   "anchor": [
+    33,
+    51
+   ],
+   "height_m": 0.95
+  },
+  {
+   "id": "dark_forest_dungeon_marker",
+   "file": "sprites/dark_forest_dungeon_marker.png",
+   "category": "scatter",
+   "source": "tiles/dark_forest/scatter.webp",
+   "size": [
+    100,
+    64
+   ],
+   "anchor": [
+    50,
+    48
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "sewers_grime_bound_stone_coffer",
+   "file": "sprites/sewers_grime_bound_stone_coffer.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    135,
+    116
+   ],
+   "anchor": [
+    67,
+    94
+   ],
+   "height_m": 1.81
+  },
+  {
+   "id": "sewers_open_sluice_reliquary",
+   "file": "sprites/sewers_open_sluice_reliquary.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    136,
+    114
+   ],
+   "anchor": [
+    68,
+    92
+   ],
+   "height_m": 1.78
+  },
+  {
+   "id": "sewers_fallen_iron_manhole",
+   "file": "sprites/sewers_fallen_iron_manhole.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    122,
+    75
+   ],
+   "anchor": [
+    61,
+    55
+   ],
+   "height_m": 1.17
+  },
+  {
+   "id": "sewers_rat_infested_skull_pile",
+   "file": "sprites/sewers_rat_infested_skull_pile.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    86,
+    55
+   ],
+   "anchor": [
+    43,
+    41
+   ],
+   "height_m": 0.86
+  },
+  {
+   "id": "sewers_muck_rubble_scatter",
+   "file": "sprites/sewers_muck_rubble_scatter.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    98,
+    58
+   ],
+   "anchor": [
+    49,
+    42
+   ],
+   "height_m": 0.91
+  },
+  {
+   "id": "sewers_sludge_soaked_remains",
+   "file": "sprites/sewers_sludge_soaked_remains.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    130,
+    79
+   ],
+   "anchor": [
+    65,
+    58
+   ],
+   "height_m": 1.23
+  },
+  {
+   "id": "sewers_green_mold_amphora",
+   "file": "sprites/sewers_green_mold_amphora.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    54,
+    96
+   ],
+   "anchor": [
+    27,
+    87
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "sewers_broken_sludge_urn",
+   "file": "sprites/sewers_broken_sludge_urn.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    78,
+    52
+   ],
+   "anchor": [
+    39,
+    40
+   ],
+   "height_m": 0.81
+  },
+  {
+   "id": "sewers_rusted_sewer_strongbox",
+   "file": "sprites/sewers_rusted_sewer_strongbox.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    86,
+    80
+   ],
+   "anchor": [
+    43,
+    66
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "sewers_yellow_cage_lantern",
+   "file": "sprites/sewers_yellow_cage_lantern.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    38,
+    63
+   ],
+   "anchor": [
+    19,
+    57
+   ],
+   "height_m": 0.98
+  },
+  {
+   "id": "sewers_dripping_candle_cluster",
+   "file": "sprites/sewers_dripping_candle_cluster.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    50,
+    39
+   ],
+   "anchor": [
+    25,
+    31
+   ],
+   "height_m": 0.61
+  },
+  {
+   "id": "sewers_tall_iron_candelabrum",
+   "file": "sprites/sewers_tall_iron_candelabrum.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    58,
+    112
+   ],
+   "anchor": [
+    29,
+    103
+   ],
+   "height_m": 1.75
+  },
+  {
+   "id": "sewers_bone_offering_altar",
+   "file": "sprites/sewers_bone_offering_altar.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    135,
+    105
+   ],
+   "anchor": [
+    67,
+    83
+   ],
+   "height_m": 1.64
+  },
+  {
+   "id": "sewers_corroded_sewer_lectern",
+   "file": "sprites/sewers_corroded_sewer_lectern.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    76,
+    112
+   ],
+   "anchor": [
+    38,
+    100
+   ],
+   "height_m": 1.75
+  },
+  {
+   "id": "sewers_kneeling_hooded_statue",
+   "file": "sprites/sewers_kneeling_hooded_statue.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    68,
+    81
+   ],
+   "anchor": [
+    34,
+    70
+   ],
+   "height_m": 1.27
+  },
+  {
+   "id": "sewers_standing_warden_statue",
+   "file": "sprites/sewers_standing_warden_statue.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    87,
+    130
+   ],
+   "anchor": [
+    44,
+    116
+   ],
+   "height_m": 2.03
+  },
+  {
+   "id": "sewers_fallen_grated_pipe",
+   "file": "sprites/sewers_fallen_grated_pipe.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    106,
+    74
+   ],
+   "anchor": [
+    53,
+    57
+   ],
+   "height_m": 1.16
+  },
+  {
+   "id": "sewers_broken_column_stump",
+   "file": "sprites/sewers_broken_column_stump.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    80,
+    68
+   ],
+   "anchor": [
+    40,
+    55
+   ],
+   "height_m": 1.06
+  },
+  {
+   "id": "sewers_collapsed_wall_rubble",
+   "file": "sprites/sewers_collapsed_wall_rubble.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    122,
+    77
+   ],
+   "anchor": [
+    61,
+    57
+   ],
+   "height_m": 1.2
+  },
+  {
+   "id": "sewers_circular_drain_marker",
+   "file": "sprites/sewers_circular_drain_marker.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    64,
+    79
+   ],
+   "anchor": [
+    32,
+    69
+   ],
+   "height_m": 1.23
+  },
+  {
+   "id": "sewers_sealed_rotwood_crate",
+   "file": "sprites/sewers_sealed_rotwood_crate.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    128,
+    105
+   ],
+   "anchor": [
+    64,
+    85
+   ],
+   "height_m": 1.64
+  },
+  {
+   "id": "sewers_splintered_supply_crate",
+   "file": "sprites/sewers_splintered_supply_crate.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    134,
+    102
+   ],
+   "anchor": [
+    67,
+    81
+   ],
+   "height_m": 1.59
+  },
+  {
+   "id": "sewers_sewer_scrap_handcart",
+   "file": "sprites/sewers_sewer_scrap_handcart.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    147,
+    98
+   ],
+   "anchor": [
+    74,
+    74
+   ],
+   "height_m": 1.53
+  },
+  {
+   "id": "sewers_algae_catch_basin",
+   "file": "sprites/sewers_algae_catch_basin.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    99,
+    70
+   ],
+   "anchor": [
+    50,
+    54
+   ],
+   "height_m": 1.09
+  },
+  {
+   "id": "sewers_green_fire_brazier",
+   "file": "sprites/sewers_green_fire_brazier.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    58,
+    127
+   ],
+   "anchor": [
+    29,
+    118
+   ],
+   "height_m": 1.98
+  },
+  {
+   "id": "sewers_green_flame_torch",
+   "file": "sprites/sewers_green_flame_torch.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    60,
+    135
+   ],
+   "anchor": [
+    30,
+    125
+   ],
+   "height_m": 2.11
+  },
+  {
+   "id": "sewers_mud_streaked_urn_cluster",
+   "file": "sprites/sewers_mud_streaked_urn_cluster.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    84,
+    74
+   ],
+   "anchor": [
+    42,
+    61
+   ],
+   "height_m": 1.16
+  },
+  {
+   "id": "sewers_mildewed_bedroll",
+   "file": "sprites/sewers_mildewed_bedroll.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    80,
+    52
+   ],
+   "anchor": [
+    40,
+    39
+   ],
+   "height_m": 0.81
+  },
+  {
+   "id": "sewers_rotten_timber_heap",
+   "file": "sprites/sewers_rotten_timber_heap.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    113,
+    71
+   ],
+   "anchor": [
+    57,
+    53
+   ],
+   "height_m": 1.11
+  },
+  {
+   "id": "sewers_rusty_chains_shackles",
+   "file": "sprites/sewers_rusty_chains_shackles.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    70,
+    53
+   ],
+   "anchor": [
+    35,
+    42
+   ],
+   "height_m": 0.83
+  },
+  {
+   "id": "sewers_fallen_skull_warning_slab",
+   "file": "sprites/sewers_fallen_skull_warning_slab.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    80,
+    71
+   ],
+   "anchor": [
+    40,
+    58
+   ],
+   "height_m": 1.11
+  },
+  {
+   "id": "sewers_stone_sewer_obelisk",
+   "file": "sprites/sewers_stone_sewer_obelisk.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    58,
+    93
+   ],
+   "anchor": [
+    29,
+    84
+   ],
+   "height_m": 1.45
+  },
+  {
+   "id": "sewers_rat_gargoyle_spout",
+   "file": "sprites/sewers_rat_gargoyle_spout.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    90,
+    96
+   ],
+   "anchor": [
+    45,
+    82
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "sewers_sewer_rat_idol",
+   "file": "sprites/sewers_sewer_rat_idol.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    58,
+    77
+   ],
+   "anchor": [
+    29,
+    68
+   ],
+   "height_m": 1.2
+  },
+  {
+   "id": "sewers_stagnant_offering_bowl",
+   "file": "sprites/sewers_stagnant_offering_bowl.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    49,
+    41
+   ],
+   "anchor": [
+    25,
+    33
+   ],
+   "height_m": 0.64
+  },
+  {
+   "id": "sewers_corroded_warning_bell",
+   "file": "sprites/sewers_corroded_warning_bell.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    100,
+    102
+   ],
+   "anchor": [
+    50,
+    86
+   ],
+   "height_m": 1.59
+  },
+  {
+   "id": "sewers_fallen_iron_spike_railing",
+   "file": "sprites/sewers_fallen_iron_spike_railing.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    109,
+    96
+   ],
+   "anchor": [
+    55,
+    79
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "sewers_wet_stone_bench",
+   "file": "sprites/sewers_wet_stone_bench.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    127,
+    86
+   ],
+   "anchor": [
+    64,
+    66
+   ],
+   "height_m": 1.34
+  },
+  {
+   "id": "sewers_sewer_tools_and_ledger",
+   "file": "sprites/sewers_sewer_tools_and_ledger.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    69,
+    47
+   ],
+   "anchor": [
+    35,
+    36
+   ],
+   "height_m": 0.73
+  },
+  {
+   "id": "sewers_filthy_boots_and_kit",
+   "file": "sprites/sewers_filthy_boots_and_kit.png",
+   "category": "scatter",
+   "source": "tiles/sewers/scatter.webp",
+   "size": [
+    74,
+    55
+   ],
+   "anchor": [
+    37,
+    43
+   ],
+   "height_m": 0.86
+  },
+  {
+   "id": "dark_forest_ancient_black_oak",
+   "file": "sprites/dark_forest_ancient_black_oak.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    118,
+    372
+   ],
+   "anchor": [
+    59,
+    361
+   ],
+   "height_m": 13.29
+  },
+  {
+   "id": "dark_forest_spire_pine",
+   "file": "sprites/dark_forest_spire_pine.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    95,
+    406
+   ],
+   "anchor": [
+    48,
+    396
+   ],
+   "height_m": 14.5
+  },
+  {
+   "id": "dark_forest_twisted_yew",
+   "file": "sprites/dark_forest_twisted_yew.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    122,
+    380
+   ],
+   "anchor": [
+    60,
+    369
+   ],
+   "height_m": 13.57
+  },
+  {
+   "id": "dark_forest_dead_crowned_elm",
+   "file": "sprites/dark_forest_dead_crowned_elm.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    122,
+    365
+   ],
+   "anchor": [
+    61,
+    355
+   ],
+   "height_m": 13.04
+  },
+  {
+   "id": "dark_forest_cathedral_redwood",
+   "file": "sprites/dark_forest_cathedral_redwood.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    116,
+    415
+   ],
+   "anchor": [
+    58,
+    404
+   ],
+   "height_m": 14.82
+  },
+  {
+   "id": "dark_forest_weeping_willow",
+   "file": "sprites/dark_forest_weeping_willow.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    113,
+    364
+   ],
+   "anchor": [
+    57,
+    353
+   ],
+   "height_m": 13.0
+  },
+  {
+   "id": "dark_forest_split_lightning_oak",
+   "file": "sprites/dark_forest_split_lightning_oak.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    128,
+    392
+   ],
+   "anchor": [
+    64,
+    381
+   ],
+   "height_m": 14.0
+  },
+  {
+   "id": "dark_forest_thornbound_cypress",
+   "file": "sprites/dark_forest_thornbound_cypress.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    124,
+    395
+   ],
+   "anchor": [
+    62,
+    385
+   ],
+   "height_m": 14.11
+  },
+  {
+   "id": "dark_forest_hollow_ash",
+   "file": "sprites/dark_forest_hollow_ash.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    120,
+    372
+   ],
+   "anchor": [
+    60,
+    362
+   ],
+   "height_m": 13.29
+  },
+  {
+   "id": "dark_forest_fungal_beech",
+   "file": "sprites/dark_forest_fungal_beech.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    125,
+    383
+   ],
+   "anchor": [
+    63,
+    373
+   ],
+   "height_m": 13.68
+  },
+  {
+   "id": "dark_forest_bone_white_birch",
+   "file": "sprites/dark_forest_bone_white_birch.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    102,
+    367
+   ],
+   "anchor": [
+    52,
+    357
+   ],
+   "height_m": 13.11
+  },
+  {
+   "id": "dark_forest_root_fused_twins",
+   "file": "sprites/dark_forest_root_fused_twins.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    131,
+    399
+   ],
+   "anchor": [
+    66,
+    389
+   ],
+   "height_m": 14.25
+  },
+  {
+   "id": "dark_forest_hanging_moss_fir",
+   "file": "sprites/dark_forest_hanging_moss_fir.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    126,
+    411
+   ],
+   "anchor": [
+    63,
+    400
+   ],
+   "height_m": 14.68
+  },
+  {
+   "id": "dark_forest_blighted_chestnut",
+   "file": "sprites/dark_forest_blighted_chestnut.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    115,
+    380
+   ],
+   "anchor": [
+    58,
+    369
+   ],
+   "height_m": 13.57
+  },
+  {
+   "id": "dark_forest_elder_heartwood",
+   "file": "sprites/dark_forest_elder_heartwood.png",
+   "category": "tree",
+   "source": "tiles/dark_forest/trees.webp",
+   "size": [
+    142,
+    420
+   ],
+   "anchor": [
+    71,
+    409
+   ],
+   "height_m": 15.0
+  },
+  {
+   "id": "window_rose_stained_glass",
+   "file": "sprites/window_rose_stained_glass.png",
+   "category": "window",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    64,
+    86
+   ],
+   "anchor": [
+    32,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "window_blue_lancet_glass",
+   "file": "sprites/window_blue_lancet_glass.png",
+   "category": "window",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    56,
+    86
+   ],
+   "anchor": [
+    22,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "window_crimson_crown_glass",
+   "file": "sprites/window_crimson_crown_glass.png",
+   "category": "window",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    75,
+    86
+   ],
+   "anchor": [
+    38,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "window_green_lion_glass",
+   "file": "sprites/window_green_lion_glass.png",
+   "category": "window",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    80,
+    86
+   ],
+   "anchor": [
+    41,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_plain_arrow_slit",
+   "file": "sprites/hanging_plain_arrow_slit.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    72,
+    86
+   ],
+   "anchor": [
+    36,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_iron_lattice_arrow_slit",
+   "file": "sprites/hanging_iron_lattice_arrow_slit.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    74,
+    86
+   ],
+   "anchor": [
+    43,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_keyhole_arrow_slit",
+   "file": "sprites/hanging_keyhole_arrow_slit.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    61,
+    86
+   ],
+   "anchor": [
+    31,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_double_arrow_slit",
+   "file": "sprites/hanging_double_arrow_slit.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    78,
+    86
+   ],
+   "anchor": [
+    42,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_crimson_tower_banner",
+   "file": "sprites/hanging_crimson_tower_banner.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    77,
+    86
+   ],
+   "anchor": [
+    41,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_navy_crossed_lances_banner",
+   "file": "sprites/hanging_navy_crossed_lances_banner.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    81,
+    86
+   ],
+   "anchor": [
+    43,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_ivory_lion_banner",
+   "file": "sprites/hanging_ivory_lion_banner.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    68,
+    86
+   ],
+   "anchor": [
+    30,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_black_keep_banner",
+   "file": "sprites/hanging_black_keep_banner.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    64,
+    86
+   ],
+   "anchor": [
+    31,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_war_map_tapestry",
+   "file": "sprites/hanging_war_map_tapestry.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    80,
+    86
+   ],
+   "anchor": [
+    40,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_royal_genealogy_cloth",
+   "file": "sprites/hanging_royal_genealogy_cloth.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    83,
+    86
+   ],
+   "anchor": [
+    42,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_carved_shield_plaque",
+   "file": "sprites/hanging_carved_shield_plaque.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    78,
+    85
+   ],
+   "anchor": [
+    41,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "hanging_chapel_icon_frame",
+   "file": "sprites/hanging_chapel_icon_frame.png",
+   "category": "hanging",
+   "source": "tiles/castle_keep/wall_hangings.webp",
+   "size": [
+    57,
+    86
+   ],
+   "anchor": [
+    27,
+    91
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "sand_tree_01_palm_seedling",
+   "file": "sprites/sand_tree_01_palm_seedling.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    74,
+    84
+   ],
+   "anchor": [
+    37,
+    84
+   ],
+   "height_m": 3.0
+  },
+  {
+   "id": "sand_tree_02_dwarf_palm",
+   "file": "sprites/sand_tree_02_dwarf_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    84,
+    64
+   ],
+   "anchor": [
+    42,
+    64
+   ],
+   "height_m": 2.29
+  },
+  {
+   "id": "sand_tree_03_young_thorn_acacia",
+   "file": "sprites/sand_tree_03_young_thorn_acacia.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    82,
+    61
+   ],
+   "anchor": [
+    41,
+    61
+   ],
+   "height_m": 2.18
+  },
+  {
+   "id": "sand_tree_04_saltbush",
+   "file": "sprites/sand_tree_04_saltbush.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    84,
+    62
+   ],
+   "anchor": [
+    42,
+    62
+   ],
+   "height_m": 2.21
+  },
+  {
+   "id": "sand_tree_05_dry_reeds",
+   "file": "sprites/sand_tree_05_dry_reeds.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    84,
+    84
+   ],
+   "anchor": [
+    42,
+    84
+   ],
+   "height_m": 3.0
+  },
+  {
+   "id": "sand_tree_06_spiny_aloe",
+   "file": "sprites/sand_tree_06_spiny_aloe.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    84,
+    73
+   ],
+   "anchor": [
+    42,
+    73
+   ],
+   "height_m": 2.61
+  },
+  {
+   "id": "sand_tree_07_short_bent_palm",
+   "file": "sprites/sand_tree_07_short_bent_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    116,
+    88
+   ],
+   "anchor": [
+    58,
+    88
+   ],
+   "height_m": 3.14
+  },
+  {
+   "id": "sand_tree_08_wind_bent_acacia",
+   "file": "sprites/sand_tree_08_wind_bent_acacia.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    115,
+    70
+   ],
+   "anchor": [
+    57,
+    70
+   ],
+   "height_m": 2.5
+  },
+  {
+   "id": "sand_tree_09_dead_thorn_snag",
+   "file": "sprites/sand_tree_09_dead_thorn_snag.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    116,
+    89
+   ],
+   "anchor": [
+    58,
+    89
+   ],
+   "height_m": 3.18
+  },
+  {
+   "id": "sand_tree_10_date_palm",
+   "file": "sprites/sand_tree_10_date_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    115,
+    116
+   ],
+   "anchor": [
+    57,
+    116
+   ],
+   "height_m": 4.14
+  },
+  {
+   "id": "sand_tree_11_doum_palm",
+   "file": "sprites/sand_tree_11_doum_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    113,
+    116
+   ],
+   "anchor": [
+    56,
+    116
+   ],
+   "height_m": 4.14
+  },
+  {
+   "id": "sand_tree_12_umbrella_acacia",
+   "file": "sprites/sand_tree_12_umbrella_acacia.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    116,
+    84
+   ],
+   "anchor": [
+    58,
+    84
+   ],
+   "height_m": 3.0
+  },
+  {
+   "id": "sand_tree_13_tall_slender_palm",
+   "file": "sprites/sand_tree_13_tall_slender_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    112,
+    164
+   ],
+   "anchor": [
+    56,
+    164
+   ],
+   "height_m": 5.86
+  },
+  {
+   "id": "sand_tree_14_twin_palms",
+   "file": "sprites/sand_tree_14_twin_palms.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    164,
+    164
+   ],
+   "anchor": [
+    82,
+    164
+   ],
+   "height_m": 5.86
+  },
+  {
+   "id": "sand_tree_15_split_trunk_palm",
+   "file": "sprites/sand_tree_15_split_trunk_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    158,
+    164
+   ],
+   "anchor": [
+    79,
+    164
+   ],
+   "height_m": 5.86
+  },
+  {
+   "id": "sand_tree_16_fruiting_oasis_palm",
+   "file": "sprites/sand_tree_16_fruiting_oasis_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    151,
+    164
+   ],
+   "anchor": [
+    75,
+    164
+   ],
+   "height_m": 5.86
+  },
+  {
+   "id": "sand_tree_17_storm_broken_giant_palm",
+   "file": "sprites/sand_tree_17_storm_broken_giant_palm.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    164,
+    142
+   ],
+   "anchor": [
+    82,
+    142
+   ],
+   "height_m": 5.07
+  },
+  {
+   "id": "sand_tree_18_fossilized_dead_tree",
+   "file": "sprites/sand_tree_18_fossilized_dead_tree.png",
+   "category": "tree",
+   "source": "tiles/sea_of_sand/tree.webp",
+   "size": [
+    160,
+    164
+   ],
+   "anchor": [
+    80,
+    164
+   ],
+   "height_m": 5.86
+  },
+  {
+   "id": "sand_scatter_01_palm_stump",
+   "file": "sprites/sand_scatter_01_palm_stump.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    144
+   ],
+   "anchor": [
+    74,
+    144
+   ],
+   "height_m": 2.25
+  },
+  {
+   "id": "sand_scatter_02_date_palm_sapling",
+   "file": "sprites/sand_scatter_02_date_palm_sapling.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    134,
+    148
+   ],
+   "anchor": [
+    67,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_03_bent_desert_palm",
+   "file": "sprites/sand_scatter_03_bent_desert_palm.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    139,
+    148
+   ],
+   "anchor": [
+    69,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_04_thorn_acacia",
+   "file": "sprites/sand_scatter_04_thorn_acacia.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    112
+   ],
+   "anchor": [
+    74,
+    112
+   ],
+   "height_m": 1.75
+  },
+  {
+   "id": "sand_scatter_05_dead_snag",
+   "file": "sprites/sand_scatter_05_dead_snag.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    137
+   ],
+   "anchor": [
+    74,
+    137
+   ],
+   "height_m": 2.14
+  },
+  {
+   "id": "sand_scatter_06_spiny_aloe",
+   "file": "sprites/sand_scatter_06_spiny_aloe.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    124,
+    148
+   ],
+   "anchor": [
+    62,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_07_reed_bundle",
+   "file": "sprites/sand_scatter_07_reed_bundle.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    129,
+    148
+   ],
+   "anchor": [
+    64,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_08_dry_scrub",
+   "file": "sprites/sand_scatter_08_dry_scrub.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    126
+   ],
+   "anchor": [
+    74,
+    126
+   ],
+   "height_m": 1.97
+  },
+  {
+   "id": "sand_scatter_09_wind_carved_boulder",
+   "file": "sprites/sand_scatter_09_wind_carved_boulder.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    132
+   ],
+   "anchor": [
+    74,
+    132
+   ],
+   "height_m": 2.06
+  },
+  {
+   "id": "sand_scatter_10_basalt_shards",
+   "file": "sprites/sand_scatter_10_basalt_shards.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    125,
+    148
+   ],
+   "anchor": [
+    62,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_11_fossil_ribcage",
+   "file": "sprites/sand_scatter_11_fossil_ribcage.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    102
+   ],
+   "anchor": [
+    74,
+    102
+   ],
+   "height_m": 1.59
+  },
+  {
+   "id": "sand_scatter_12_giant_skull",
+   "file": "sprites/sand_scatter_12_giant_skull.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    113
+   ],
+   "anchor": [
+    74,
+    113
+   ],
+   "height_m": 1.77
+  },
+  {
+   "id": "sand_scatter_13_obelisk_fragment",
+   "file": "sprites/sand_scatter_13_obelisk_fragment.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    117,
+    148
+   ],
+   "anchor": [
+    58,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_14_toppled_column",
+   "file": "sprites/sand_scatter_14_toppled_column.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    96
+   ],
+   "anchor": [
+    74,
+    96
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "sand_scatter_15_buried_statue_head",
+   "file": "sprites/sand_scatter_15_buried_statue_head.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    122
+   ],
+   "anchor": [
+    74,
+    122
+   ],
+   "height_m": 1.91
+  },
+  {
+   "id": "sand_scatter_16_carved_standing_stone",
+   "file": "sprites/sand_scatter_16_carved_standing_stone.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    126,
+    148
+   ],
+   "anchor": [
+    63,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_17_clay_water_jar",
+   "file": "sprites/sand_scatter_17_clay_water_jar.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    143
+   ],
+   "anchor": [
+    74,
+    143
+   ],
+   "height_m": 2.23
+  },
+  {
+   "id": "sand_scatter_18_waterskin_rack",
+   "file": "sprites/sand_scatter_18_waterskin_rack.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    128
+   ],
+   "anchor": [
+    74,
+    128
+   ],
+   "height_m": 2.0
+  },
+  {
+   "id": "sand_scatter_19_caravan_chest",
+   "file": "sprites/sand_scatter_19_caravan_chest.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    116
+   ],
+   "anchor": [
+    74,
+    116
+   ],
+   "height_m": 1.81
+  },
+  {
+   "id": "sand_scatter_20_reed_crate",
+   "file": "sprites/sand_scatter_20_reed_crate.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    123
+   ],
+   "anchor": [
+    74,
+    123
+   ],
+   "height_m": 1.92
+  },
+  {
+   "id": "sand_scatter_21_rolled_carpet_stack",
+   "file": "sprites/sand_scatter_21_rolled_carpet_stack.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    95
+   ],
+   "anchor": [
+    74,
+    95
+   ],
+   "height_m": 1.48
+  },
+  {
+   "id": "sand_scatter_22_market_awning",
+   "file": "sprites/sand_scatter_22_market_awning.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    116
+   ],
+   "anchor": [
+    74,
+    116
+   ],
+   "height_m": 1.81
+  },
+  {
+   "id": "sand_scatter_23_broken_cart_wheel",
+   "file": "sprites/sand_scatter_23_broken_cart_wheel.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    103
+   ],
+   "anchor": [
+    74,
+    103
+   ],
+   "height_m": 1.61
+  },
+  {
+   "id": "sand_scatter_24_pack_saddle",
+   "file": "sprites/sand_scatter_24_pack_saddle.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    147,
+    148
+   ],
+   "anchor": [
+    73,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_25_bronze_brazier",
+   "file": "sprites/sand_scatter_25_bronze_brazier.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    113,
+    148
+   ],
+   "anchor": [
+    56,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_26_cold_firepit",
+   "file": "sprites/sand_scatter_26_cold_firepit.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    114
+   ],
+   "anchor": [
+    74,
+    114
+   ],
+   "height_m": 1.78
+  },
+  {
+   "id": "sand_scatter_27_rope_pulley_well",
+   "file": "sprites/sand_scatter_27_rope_pulley_well.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    144,
+    148
+   ],
+   "anchor": [
+    72,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_28_salt_trough",
+   "file": "sprites/sand_scatter_28_salt_trough.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    97
+   ],
+   "anchor": [
+    74,
+    97
+   ],
+   "height_m": 1.52
+  },
+  {
+   "id": "sand_scatter_29_tent_poles",
+   "file": "sprites/sand_scatter_29_tent_poles.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    100,
+    148
+   ],
+   "anchor": [
+    50,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_30_canvas_tent",
+   "file": "sprites/sand_scatter_30_canvas_tent.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    107
+   ],
+   "anchor": [
+    74,
+    107
+   ],
+   "height_m": 1.67
+  },
+  {
+   "id": "sand_scatter_31_desert_wind_vane",
+   "file": "sprites/sand_scatter_31_desert_wind_vane.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    118,
+    148
+   ],
+   "anchor": [
+    59,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_32_hanging_lantern",
+   "file": "sprites/sand_scatter_32_hanging_lantern.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    103,
+    148
+   ],
+   "anchor": [
+    51,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_33_turquoise_ore",
+   "file": "sprites/sand_scatter_33_turquoise_ore.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    127
+   ],
+   "anchor": [
+    74,
+    127
+   ],
+   "height_m": 1.98
+  },
+  {
+   "id": "sand_scatter_34_amber_crystal",
+   "file": "sprites/sand_scatter_34_amber_crystal.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    134,
+    148
+   ],
+   "anchor": [
+    67,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_35_salt_spires",
+   "file": "sprites/sand_scatter_35_salt_spires.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    146,
+    148
+   ],
+   "anchor": [
+    73,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_36_broken_pottery",
+   "file": "sprites/sand_scatter_36_broken_pottery.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    106
+   ],
+   "anchor": [
+    74,
+    106
+   ],
+   "height_m": 1.66
+  },
+  {
+   "id": "sand_scatter_37_buried_weapon_cache",
+   "file": "sprites/sand_scatter_37_buried_weapon_cache.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    133
+   ],
+   "anchor": [
+    74,
+    133
+   ],
+   "height_m": 2.08
+  },
+  {
+   "id": "sand_scatter_38_quest_shrine",
+   "file": "sprites/sand_scatter_38_quest_shrine.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    148,
+    141
+   ],
+   "anchor": [
+    74,
+    141
+   ],
+   "height_m": 2.2
+  },
+  {
+   "id": "sand_scatter_39_desert_cairn",
+   "file": "sprites/sand_scatter_39_desert_cairn.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    140,
+    148
+   ],
+   "anchor": [
+    70,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "sand_scatter_40_sand_swept_milestone",
+   "file": "sprites/sand_scatter_40_sand_swept_milestone.png",
+   "category": "scatter",
+   "source": "tiles/sea_of_sand/scatter.webp",
+   "size": [
+    117,
+    148
+   ],
+   "anchor": [
+    58,
+    148
+   ],
+   "height_m": 2.31
+  },
+  {
+   "id": "town_scatter_01_closed_barrel",
+   "file": "sprites/town_scatter_01_closed_barrel.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_01_closed_barrel.png",
+   "size": [
+    58,
+    77
+   ],
+   "anchor": [
+    29,
+    68
+   ],
+   "height_m": 1.2
+  },
+  {
+   "id": "town_scatter_02_water_barrel",
+   "file": "sprites/town_scatter_02_water_barrel.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_02_water_barrel.png",
+   "size": [
+    62,
+    80
+   ],
+   "anchor": [
+    31,
+    71
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "town_scatter_03_crate_stack",
+   "file": "sprites/town_scatter_03_crate_stack.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_03_crate_stack.png",
+   "size": [
+    96,
+    98
+   ],
+   "anchor": [
+    48,
+    84
+   ],
+   "height_m": 1.53
+  },
+  {
+   "id": "town_scatter_04_cloth_crate",
+   "file": "sprites/town_scatter_04_cloth_crate.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_04_cloth_crate.png",
+   "size": [
+    104,
+    92
+   ],
+   "anchor": [
+    52,
+    76
+   ],
+   "height_m": 1.44
+  },
+  {
+   "id": "town_scatter_05_grain_sacks",
+   "file": "sprites/town_scatter_05_grain_sacks.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_05_grain_sacks.png",
+   "size": [
+    84,
+    93
+   ],
+   "anchor": [
+    42,
+    80
+   ],
+   "height_m": 1.45
+  },
+  {
+   "id": "town_scatter_06_hay_bale",
+   "file": "sprites/town_scatter_06_hay_bale.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_06_hay_bale.png",
+   "size": [
+    96,
+    78
+   ],
+   "anchor": [
+    48,
+    64
+   ],
+   "height_m": 1.22
+  },
+  {
+   "id": "town_scatter_07_handcart",
+   "file": "sprites/town_scatter_07_handcart.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_07_handcart.png",
+   "size": [
+    153,
+    112
+   ],
+   "anchor": [
+    77,
+    89
+   ],
+   "height_m": 1.75
+  },
+  {
+   "id": "town_scatter_08_broken_wheel",
+   "file": "sprites/town_scatter_08_broken_wheel.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_08_broken_wheel.png",
+   "size": [
+    102,
+    89
+   ],
+   "anchor": [
+    51,
+    74
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "town_scatter_09_village_well",
+   "file": "sprites/town_scatter_09_village_well.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_09_village_well.png",
+   "size": [
+    124,
+    143
+   ],
+   "anchor": [
+    62,
+    124
+   ],
+   "height_m": 2.23
+  },
+  {
+   "id": "town_scatter_10_horse_trough",
+   "file": "sprites/town_scatter_10_horse_trough.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_10_horse_trough.png",
+   "size": [
+    136,
+    102
+   ],
+   "anchor": [
+    68,
+    82
+   ],
+   "height_m": 1.59
+  },
+  {
+   "id": "town_scatter_11_anvil_stump",
+   "file": "sprites/town_scatter_11_anvil_stump.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_11_anvil_stump.png",
+   "size": [
+    80,
+    89
+   ],
+   "anchor": [
+    40,
+    77
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "town_scatter_12_cold_forge",
+   "file": "sprites/town_scatter_12_cold_forge.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_12_cold_forge.png",
+   "size": [
+    114,
+    123
+   ],
+   "anchor": [
+    57,
+    106
+   ],
+   "height_m": 1.92
+  },
+  {
+   "id": "town_scatter_13_smith_bellows",
+   "file": "sprites/town_scatter_13_smith_bellows.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_13_smith_bellows.png",
+   "size": [
+    108,
+    94
+   ],
+   "anchor": [
+    54,
+    78
+   ],
+   "height_m": 1.47
+  },
+  {
+   "id": "town_scatter_14_tool_rack",
+   "file": "sprites/town_scatter_14_tool_rack.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_14_tool_rack.png",
+   "size": [
+    100,
+    96
+   ],
+   "anchor": [
+    50,
+    81
+   ],
+   "height_m": 1.5
+  },
+  {
+   "id": "town_scatter_15_axe_stump",
+   "file": "sprites/town_scatter_15_axe_stump.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_15_axe_stump.png",
+   "size": [
+    74,
+    85
+   ],
+   "anchor": [
+    37,
+    74
+   ],
+   "height_m": 1.33
+  },
+  {
+   "id": "town_scatter_16_firewood_stack",
+   "file": "sprites/town_scatter_16_firewood_stack.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_16_firewood_stack.png",
+   "size": [
+    106,
+    83
+   ],
+   "anchor": [
+    53,
+    67
+   ],
+   "height_m": 1.3
+  },
+  {
+   "id": "town_scatter_17_workbench",
+   "file": "sprites/town_scatter_17_workbench.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_17_workbench.png",
+   "size": [
+    128,
+    90
+   ],
+   "anchor": [
+    64,
+    71
+   ],
+   "height_m": 1.41
+  },
+  {
+   "id": "town_scatter_18_stone_bench",
+   "file": "sprites/town_scatter_18_stone_bench.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_18_stone_bench.png",
+   "size": [
+    132,
+    80
+   ],
+   "anchor": [
+    66,
+    60
+   ],
+   "height_m": 1.25
+  },
+  {
+   "id": "town_scatter_19_split_rail_fence",
+   "file": "sprites/town_scatter_19_split_rail_fence.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_19_split_rail_fence.png",
+   "size": [
+    148,
+    126
+   ],
+   "anchor": [
+    74,
+    104
+   ],
+   "height_m": 1.97
+  },
+  {
+   "id": "town_scatter_20_stone_boundary",
+   "file": "sprites/town_scatter_20_stone_boundary.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_20_stone_boundary.png",
+   "size": [
+    150,
+    115
+   ],
+   "anchor": [
+    75,
+    93
+   ],
+   "height_m": 1.8
+  },
+  {
+   "id": "town_scatter_21_moss_boulder",
+   "file": "sprites/town_scatter_21_moss_boulder.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_21_moss_boulder.png",
+   "size": [
+    128,
+    100
+   ],
+   "anchor": [
+    64,
+    81
+   ],
+   "height_m": 1.56
+  },
+  {
+   "id": "town_scatter_22_fieldstone_cluster",
+   "file": "sprites/town_scatter_22_fieldstone_cluster.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_22_fieldstone_cluster.png",
+   "size": [
+    93,
+    61
+   ],
+   "anchor": [
+    47,
+    47
+   ],
+   "height_m": 0.95
+  },
+  {
+   "id": "town_scatter_23_leafy_shrub",
+   "file": "sprites/town_scatter_23_leafy_shrub.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_23_leafy_shrub.png",
+   "size": [
+    106,
+    88
+   ],
+   "anchor": [
+    53,
+    72
+   ],
+   "height_m": 1.38
+  },
+  {
+   "id": "town_scatter_24_thorn_bush",
+   "file": "sprites/town_scatter_24_thorn_bush.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_24_thorn_bush.png",
+   "size": [
+    106,
+    89
+   ],
+   "anchor": [
+    53,
+    73
+   ],
+   "height_m": 1.39
+  },
+  {
+   "id": "town_scatter_25_dry_reeds",
+   "file": "sprites/town_scatter_25_dry_reeds.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_25_dry_reeds.png",
+   "size": [
+    78,
+    101
+   ],
+   "anchor": [
+    39,
+    89
+   ],
+   "height_m": 1.58
+  },
+  {
+   "id": "town_scatter_26_wildflowers",
+   "file": "sprites/town_scatter_26_wildflowers.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_26_wildflowers.png",
+   "size": [
+    67,
+    64
+   ],
+   "anchor": [
+    34,
+    54
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "town_scatter_27_mushrooms",
+   "file": "sprites/town_scatter_27_mushrooms.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_27_mushrooms.png",
+   "size": [
+    60,
+    40
+   ],
+   "anchor": [
+    30,
+    31
+   ],
+   "height_m": 0.62
+  },
+  {
+   "id": "town_scatter_28_hollow_stump",
+   "file": "sprites/town_scatter_28_hollow_stump.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_28_hollow_stump.png",
+   "size": [
+    84,
+    71
+   ],
+   "anchor": [
+    42,
+    58
+   ],
+   "height_m": 1.11
+  },
+  {
+   "id": "town_scatter_29_fallen_log",
+   "file": "sprites/town_scatter_29_fallen_log.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_29_fallen_log.png",
+   "size": [
+    138,
+    77
+   ],
+   "anchor": [
+    69,
+    56
+   ],
+   "height_m": 1.2
+  },
+  {
+   "id": "town_scatter_30_sawn_stump",
+   "file": "sprites/town_scatter_30_sawn_stump.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_30_sawn_stump.png",
+   "size": [
+    76,
+    61
+   ],
+   "anchor": [
+    38,
+    50
+   ],
+   "height_m": 0.95
+  },
+  {
+   "id": "town_scatter_31_vegetable_basket",
+   "file": "sprites/town_scatter_31_vegetable_basket.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_31_vegetable_basket.png",
+   "size": [
+    72,
+    65
+   ],
+   "anchor": [
+    36,
+    54
+   ],
+   "height_m": 1.02
+  },
+  {
+   "id": "town_scatter_32_market_table",
+   "file": "sprites/town_scatter_32_market_table.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_32_market_table.png",
+   "size": [
+    120,
+    95
+   ],
+   "anchor": [
+    60,
+    77
+   ],
+   "height_m": 1.48
+  },
+  {
+   "id": "town_scatter_33_scroll_rack",
+   "file": "sprites/town_scatter_33_scroll_rack.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_33_scroll_rack.png",
+   "size": [
+    100,
+    120
+   ],
+   "anchor": [
+    50,
+    105
+   ],
+   "height_m": 1.88
+  },
+  {
+   "id": "town_scatter_34_potion_jars",
+   "file": "sprites/town_scatter_34_potion_jars.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_34_potion_jars.png",
+   "size": [
+    81,
+    75
+   ],
+   "anchor": [
+    41,
+    63
+   ],
+   "height_m": 1.17
+  },
+  {
+   "id": "town_scatter_35_grain_handmill",
+   "file": "sprites/town_scatter_35_grain_handmill.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_35_grain_handmill.png",
+   "size": [
+    100,
+    100
+   ],
+   "anchor": [
+    50,
+    85
+   ],
+   "height_m": 1.56
+  },
+  {
+   "id": "town_scatter_36_water_bucket",
+   "file": "sprites/town_scatter_36_water_bucket.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_36_water_bucket.png",
+   "size": [
+    54,
+    64
+   ],
+   "anchor": [
+    27,
+    56
+   ],
+   "height_m": 1.0
+  },
+  {
+   "id": "town_scatter_37_rope_and_hook",
+   "file": "sprites/town_scatter_37_rope_and_hook.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_37_rope_and_hook.png",
+   "size": [
+    76,
+    55
+   ],
+   "anchor": [
+    38,
+    44
+   ],
+   "height_m": 0.86
+  },
+  {
+   "id": "town_scatter_38_cart_debris",
+   "file": "sprites/town_scatter_38_cart_debris.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_38_cart_debris.png",
+   "size": [
+    134,
+    85
+   ],
+   "anchor": [
+    67,
+    65
+   ],
+   "height_m": 1.33
+  },
+  {
+   "id": "town_scatter_39_tiles_and_bricks",
+   "file": "sprites/town_scatter_39_tiles_and_bricks.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_39_tiles_and_bricks.png",
+   "size": [
+    82,
+    55
+   ],
+   "anchor": [
+    41,
+    43
+   ],
+   "height_m": 0.86
+  },
+  {
+   "id": "town_scatter_40_arrow_milestone",
+   "file": "sprites/town_scatter_40_arrow_milestone.png",
+   "category": "scatter",
+   "source": "sprites/scatter/scatter_40_arrow_milestone.png",
+   "size": [
+    72,
+    83
+   ],
+   "anchor": [
+    36,
+    72
+   ],
+   "height_m": 1.3
+  },
+  {
+   "id": "town_tree_01_small_young_apple",
+   "file": "sprites/town_tree_01_small_young_apple.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_01_small_young_apple.png",
+   "size": [
+    115,
+    112
+   ],
+   "anchor": [
+    58,
+    106
+   ],
+   "height_m": 4.31
+  },
+  {
+   "id": "town_tree_02_small_young_birch",
+   "file": "sprites/town_tree_02_small_young_birch.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_02_small_young_birch.png",
+   "size": [
+    84,
+    126
+   ],
+   "anchor": [
+    42,
+    121
+   ],
+   "height_m": 4.85
+  },
+  {
+   "id": "town_tree_03_small_young_pine",
+   "file": "sprites/town_tree_03_small_young_pine.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_03_small_young_pine.png",
+   "size": [
+    88,
+    117
+   ],
+   "anchor": [
+    44,
+    113
+   ],
+   "height_m": 4.54
+  },
+  {
+   "id": "town_tree_04_small_crooked_oak",
+   "file": "sprites/town_tree_04_small_crooked_oak.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_04_small_crooked_oak.png",
+   "size": [
+    139,
+    104
+   ],
+   "anchor": [
+    70,
+    96
+   ],
+   "height_m": 4.0
+  },
+  {
+   "id": "town_tree_05_small_wind_juniper",
+   "file": "sprites/town_tree_05_small_wind_juniper.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_05_small_wind_juniper.png",
+   "size": [
+    119,
+    96
+   ],
+   "anchor": [
+    60,
+    89
+   ],
+   "height_m": 3.69
+  },
+  {
+   "id": "town_tree_06_small_dead_thorn",
+   "file": "sprites/town_tree_06_small_dead_thorn.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_06_small_dead_thorn.png",
+   "size": [
+    87,
+    109
+   ],
+   "anchor": [
+    44,
+    104
+   ],
+   "height_m": 4.23
+  },
+  {
+   "id": "town_tree_07_medium_mature_ash",
+   "file": "sprites/town_tree_07_medium_mature_ash.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_07_medium_mature_ash.png",
+   "size": [
+    196,
+    208
+   ],
+   "anchor": [
+    98,
+    197
+   ],
+   "height_m": 8.0
+  },
+  {
+   "id": "town_tree_08_medium_orchard_pear",
+   "file": "sprites/town_tree_08_medium_orchard_pear.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_08_medium_orchard_pear.png",
+   "size": [
+    207,
+    194
+   ],
+   "anchor": [
+    104,
+    183
+   ],
+   "height_m": 7.46
+  },
+  {
+   "id": "town_tree_09_medium_medium_fir",
+   "file": "sprites/town_tree_09_medium_medium_fir.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_09_medium_medium_fir.png",
+   "size": [
+    161,
+    226
+   ],
+   "anchor": [
+    81,
+    217
+   ],
+   "height_m": 8.69
+  },
+  {
+   "id": "town_tree_10_medium_twin_birch",
+   "file": "sprites/town_tree_10_medium_twin_birch.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_10_medium_twin_birch.png",
+   "size": [
+    211,
+    216
+   ],
+   "anchor": [
+    106,
+    204
+   ],
+   "height_m": 8.31
+  },
+  {
+   "id": "town_tree_11_medium_medium_willow",
+   "file": "sprites/town_tree_11_medium_medium_willow.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_11_medium_medium_willow.png",
+   "size": [
+    206,
+    202
+   ],
+   "anchor": [
+    103,
+    191
+   ],
+   "height_m": 7.77
+  },
+  {
+   "id": "town_tree_12_medium_dead_oak",
+   "file": "sprites/town_tree_12_medium_dead_oak.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_12_medium_dead_oak.png",
+   "size": [
+    213,
+    214
+   ],
+   "anchor": [
+    107,
+    202
+   ],
+   "height_m": 8.23
+  },
+  {
+   "id": "town_tree_13_large_ancient_oak",
+   "file": "sprites/town_tree_13_large_ancient_oak.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_13_large_ancient_oak.png",
+   "size": [
+    360,
+    307
+   ],
+   "anchor": [
+    180,
+    287
+   ],
+   "height_m": 11.81
+  },
+  {
+   "id": "town_tree_14_large_tall_elm",
+   "file": "sprites/town_tree_14_large_tall_elm.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_14_large_tall_elm.png",
+   "size": [
+    297,
+    350
+   ],
+   "anchor": [
+    149,
+    334
+   ],
+   "height_m": 13.46
+  },
+  {
+   "id": "town_tree_15_large_old_cedar",
+   "file": "sprites/town_tree_15_large_old_cedar.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_15_large_old_cedar.png",
+   "size": [
+    347,
+    326
+   ],
+   "anchor": [
+    174,
+    307
+   ],
+   "height_m": 12.54
+  },
+  {
+   "id": "town_tree_16_large_scots_pine",
+   "file": "sprites/town_tree_16_large_scots_pine.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_16_large_scots_pine.png",
+   "size": [
+    272,
+    352
+   ],
+   "anchor": [
+    136,
+    337
+   ],
+   "height_m": 13.54
+  },
+  {
+   "id": "town_tree_17_large_ancient_willow",
+   "file": "sprites/town_tree_17_large_ancient_willow.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_17_large_ancient_willow.png",
+   "size": [
+    360,
+    303
+   ],
+   "anchor": [
+    180,
+    283
+   ],
+   "height_m": 11.65
+  },
+  {
+   "id": "town_tree_18_large_storm_deadwood",
+   "file": "sprites/town_tree_18_large_storm_deadwood.png",
+   "category": "tree",
+   "source": "sprites/trees/tree_18_large_storm_deadwood.png",
+   "size": [
+    360,
+    317
+   ],
+   "anchor": [
+    180,
+    297
+   ],
+   "height_m": 12.19
+  }
+ ]
+}

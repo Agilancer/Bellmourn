@@ -1,0 +1,39 @@
+{
+ "id": "war_hammer",
+ "name": "War Hammer",
+ "kind": "one-handed weapon",
+ "description": "A steel hammer face with a back spike and top spike on an iron haft.",
+ "texture_size": 128,
+ "triangles": 176,
+ "files": [
+  "war_hammer.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "grip"
+  },
+  {
+   "number": 3,
+   "name": "hammer head"
+  },
+  {
+   "number": 4,
+   "name": "back spike"
+  },
+  {
+   "number": 5,
+   "name": "top spike"
+  },
+  {
+   "number": 6,
+   "name": "pommel"
+  }
+ ],
+ "set": "set06",
+ "set_name": "model 6"
+}

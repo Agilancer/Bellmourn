@@ -1,0 +1,33 @@
+{
+ "id": "pillar_fluted",
+ "name": "Fluted Column",
+ "kind": "world prop",
+ "description": "A classical fluted stone column with a torus base and echinus capital. 4 m tall.",
+ "texture_size": 128,
+ "triangles": 256,
+ "files": [
+  "pillar_fluted.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "plinth"
+  },
+  {
+   "number": 2,
+   "name": "torus"
+  },
+  {
+   "number": 3,
+   "name": "fluted shaft"
+  },
+  {
+   "number": 4,
+   "name": "echinus"
+  },
+  {
+   "number": 5,
+   "name": "abacus"
+  }
+ ]
+}

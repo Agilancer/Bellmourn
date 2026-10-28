@@ -1,0 +1,29 @@
+{
+ "id": "sarcophagus",
+ "name": "Sarcophagus",
+ "kind": "world prop",
+ "description": "A stone sarcophagus with a marble lid and a carved effigy.",
+ "texture_size": 128,
+ "triangles": 100,
+ "files": [
+  "sarcophagus.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "sarcophagus body"
+  },
+  {
+   "number": 2,
+   "name": "sarcophagus lid"
+  },
+  {
+   "number": 3,
+   "name": "effigy body"
+  },
+  {
+   "number": 4,
+   "name": "effigy head"
+  }
+ ]
+}

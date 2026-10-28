@@ -1,0 +1,31 @@
+{
+ "id": "flamberge",
+ "name": "Flamberge",
+ "kind": "two-handed weapon",
+ "description": "A wavy-bladed great sword with a gilded guard and pommel and a red grip.",
+ "texture_size": 128,
+ "triangles": 372,
+ "files": [
+  "flamberge.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  }
+ ],
+ "set": "set07",
+ "set_name": "model 7"
+}

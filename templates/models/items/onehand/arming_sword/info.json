@@ -1,0 +1,31 @@
+{
+ "id": "arming_sword",
+ "name": "Arming Sword",
+ "kind": "one-handed weapon",
+ "description": "A plain knightly sword: steel blade with a fuller, iron crossguard, brown leather grip, wheel pommel.",
+ "texture_size": 128,
+ "triangles": 296,
+ "files": [
+  "arming_sword.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  }
+ ],
+ "set": "set01",
+ "set_name": "model 1"
+}

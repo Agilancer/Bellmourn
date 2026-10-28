@@ -1,0 +1,35 @@
+{
+ "id": "greatsword",
+ "name": "Greatsword",
+ "kind": "two-handed weapon",
+ "description": "A long two-handed sword with a ricasso and parrying lugs, iron crossguard, dark leather grip, iron ball pommel.",
+ "texture_size": 128,
+ "triangles": 348,
+ "files": [
+  "greatsword.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "parrying lugs"
+  },
+  {
+   "number": 4,
+   "name": "grip"
+  },
+  {
+   "number": 5,
+   "name": "pommel"
+  }
+ ],
+ "set": "set01",
+ "set_name": "model 1"
+}
