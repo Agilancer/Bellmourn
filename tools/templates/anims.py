@@ -273,6 +273,21 @@ R2H_SWING_3D = ([dict(R2H_SWING[0], name="UPRIGHT", **UPRIGHT_2H)] + R2H_SWING[1
                 + [lerp_key(dict(R2H_SWING[13]), UPRIGHT_2H, 0.5, name="RAISE BACK", tics=2),
                    dict(R2H_SWING[15], name="UPRIGHT", **UPRIGHT_2H)])
 
+# 3D-only: the one-handed carry for the real models. The sprite carry holds the blade square
+# to the forearm, which on a model reads as a sideways, torch-like hold; this one keeps the
+# blade running on from the forearm with the edge leading, the way it is held all through the
+# swing (the swing's LIFT, brought down into the walking position). The 3D swing and the
+# weapon-back-while-blocking pose start from and return to it.
+CARRY_3D = dict(S=(*at(0.80, 0.73), 0.40), ang=82, dz=0.0)
+R1H_SWING_3D = ([dict(R1H_SWING[0], name="CARRY", **CARRY_3D)] + R1H_SWING[1:13]
+                + [lerp_key(dict(R1H_SWING[12]), CARRY_3D, s, name=f"RECOVER {i + 1}", tics=2)
+                   for i, s in enumerate((0.4, 0.75, 0.96))])
+R1H_SHIELD_BACK_3D = [
+    lerp_key(CARRY_3D, SWORD_BACK, s, name=k["name"], tics=k["tics"], **({"hit": True} if k.get("hit") else {}))
+    for s, k in zip(PULL, R1H_SHIELD_BACK)
+]
+R1H_SHIELD_BACK_3D[4]["S"] = R1H_SHIELD_BACK[4]["S"]
+
 
 
 # ---------------------------------------------------------------- empty-hand spellcasting
@@ -500,6 +515,26 @@ ANIMS = {
         id="r2h_swing_3d", title="TWO-HANDED SWING FROM UPRIGHT (3D ONLY)", model_only=True,
         frames=_two_handed(R2H_SWING_3D, "sword2h"),
         notes=["3D models only: r2h_swing, starting from and returning to the upright carry."]),
+    "r1h_walk_3d": dict(
+        id="r1h_walk_3d", title="ONE-HANDED CARRY / WALK, EDGE FORWARD (3D ONLY) — RIGHT HAND", model_only=True,
+        frames=_frames(walk_cycle(CARRY_3D), "R", "sword1h"),
+        notes=["3D models only: the blade carried on from the forearm, as in the swing."]),
+    "r1h_swing_3d": dict(
+        id="r1h_swing_3d", title="ONE-HANDED OVERHAND SWING FROM THE 3D CARRY — RIGHT HAND", model_only=True,
+        frames=_frames(R1H_SWING_3D, "R", "sword1h"),
+        notes=["3D models only: r1h_swing, starting from and returning to r1h_walk_3d's carry."]),
+    "l1h_walk_3d": dict(
+        id="l1h_walk_3d", title="ONE-HANDED CARRY / WALK, EDGE FORWARD (3D ONLY) — LEFT HAND", model_only=True,
+        frames=_frames(walk_cycle(CARRY_3D), "L", "sword1h"),
+        notes=["3D models only: the mirror image of r1h_walk_3d."]),
+    "l1h_swing_3d": dict(
+        id="l1h_swing_3d", title="ONE-HANDED OVERHAND SWING FROM THE 3D CARRY — LEFT HAND", model_only=True,
+        frames=_frames(R1H_SWING_3D, "L", "sword1h"),
+        notes=["3D models only: the mirror image of r1h_swing_3d."]),
+    "r1h_shield_back_3d": dict(
+        id="r1h_shield_back_3d", title="WEAPON DRAWN BACK WHILE BLOCKING, FROM THE 3D CARRY", model_only=True,
+        frames=_frames(R1H_SHIELD_BACK_3D, "R", "sword1h"),
+        notes=["3D models only: r1h_shield_back starting from r1h_walk_3d's carry."]),
     "r1c_walk": dict(
         id="r1c_walk", title="EMPTY HAND WALK — RIGHT HAND",
         frames=_frames(walk_cycle(HAND_READY, rock=0), "R", None),

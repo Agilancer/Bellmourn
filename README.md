@@ -1,4 +1,41 @@
-# Bellmourn : Castle Velscour
+# Bellmourn
+
+A first-person retro RPG in the spirit of Heretic, Hexen and Daggerfall, in three.js. This build
+is the first walkable piece of the world: the village of Bellmourn in its forest clearing, ten
+buildings you can walk into, the Cathedral of the Mourning Bell, the walled graveyard behind it,
+and the Undercroft, a 30-room dungeon reached by the stairs in the office behind the pulpit.
+
+## Run
+
+```
+python tools/serve.py 8124
+```
+
+Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
+`/velscour.html`).
+
+| Key | Action |
+|---|---|
+| W A S D, mouse | move, look (Shift runs, Space jumps) |
+| Left click | right hand: swing, or shoot with a wand or staff |
+| Right click | left hand: hold a shield up, swing, or shoot a wand |
+| F, R | cast the spells set to F and R |
+| Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
+| 1 to 6 | quick-equip sword, greatsword, wand, staff, round shield, kite shield |
+| Esc | pause (pixel size, look speed, graphics, time of day) |
+
+On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
+and the buttons attack, use the left hand, cast F and R, jump, open the bag and pause.
+
+The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
+`lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
+lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `effects.js` the
+magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
+sprite in `assets/textures/library.json` is used somewhere in the world.
+
+---
+
+## Castle Velscour (the earlier 2D test)
 
 A love letter to *Castlevania: Symphony of the Night*. This is the first playable test: the
 Agilancer in three rooms of Castle Velscour, so you can feel the movement and physics.
@@ -9,7 +46,7 @@ Agilancer in three rooms of Castle Velscour, so you can feel the movement and ph
 python tools/serve.py 8124
 ```
 
-Then open http://127.0.0.1:8124/. (Any static server works, but this one turns off caching so
+Then open http://127.0.0.1:8124/velscour.html. (Any static server works, but this one turns off caching so
 edits show up on reload.)
 
 | Key | Action |

@@ -2,27 +2,138 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bellmourn : Castle Velscour</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#07060a">
+<title>Bellmourn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
 <style>
-  html, body { margin: 0; height: 100%; background: #050307; overflow: hidden; }
-  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-  #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-  #game { image-rendering: pixelated; image-rendering: crisp-edges; }
-  #text { pointer-events: none; }
-  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: #8a7a9a;
-             font: 16px Cinzel, serif; letter-spacing: .2em; }
+  :root { --gold: #d8b870; --gold-dim: #8a7448; --ink: #07060a; --panel: rgba(16, 12, 18, .92); --edge: #5a4a3a; }
+  html, body { margin: 0; height: 100%; background: var(--ink); overflow: hidden; touch-action: none;
+               -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #ui { position: fixed; inset: 0; pointer-events: none; font: 14px Cinzel, Georgia, serif; color: #e8dcc0; }
+  #ui > * { pointer-events: auto; }
+  #ui .hud { pointer-events: none; position: absolute; inset: 0; }
+  .hidden { display: none !important; }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--gold-dim); font: 16px Cinzel, serif; letter-spacing: .2em; }
+
+  /* ---------------- HUD */
+  .crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); }
+  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: rgba(255, 240, 210, .75); box-shadow: 0 0 2px #000; }
+  .crosshair::before { left: 6px; top: 0; width: 2px; height: 14px; }
+  .crosshair::after { top: 6px; left: 0; height: 2px; width: 14px; }
+  .bars { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 18px; width: min(260px, 32vw); display: grid; gap: 6px; }
+  .bar { position: relative; height: 14px; background: #1a1016; border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, inset 0 0 6px #000; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .15s; }
+  .bar.hp i { background: linear-gradient(#e0483a, #8a1c1c); }
+  .bar.mp i { background: linear-gradient(#5a8aff, #1c2c8a); }
+  .bar span { position: absolute; right: 6px; top: -1px; font-size: 11px; text-shadow: 0 1px 2px #000; }
+  .bar.flash { animation: flash .5s; }
+  @keyframes flash { 0%, 60% { border-color: #ff6a50; } 100% { border-color: var(--edge); } }
+  .slots { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: 18px; display: flex; gap: 8px; }
+  .slot { position: relative; width: 58px; height: 58px; background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000; display: grid; place-items: center; }
+  .slot img { width: 40px; height: 40px; image-rendering: pixelated; }
+  .slot b { position: absolute; left: 3px; top: 1px; font-size: 12px; color: var(--gold); text-shadow: 0 1px 2px #000; }
+  .slot small { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; color: #b8a888; margin-top: 3px; text-shadow: 0 1px 2px #000; }
+  .slot.low img { opacity: .35; filter: grayscale(1); }
+  .hands { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 11px; color: #b8a888; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+  .hands span { color: var(--gold); }
+  .zone { position: absolute; left: 0; right: 0; top: 16%; text-align: center; font: 700 30px 'Cinzel Decorative', Cinzel, serif;
+          color: var(--gold); letter-spacing: .08em; text-shadow: 0 2px 8px #000, 0 0 2px #000; opacity: 0; }
+  .zone.show { animation: zone 4s ease-out; }
+  @keyframes zone { 0% { opacity: 0; transform: translateY(6px); } 15%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+  .toast { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; font-size: 15px; text-shadow: 0 1px 3px #000; opacity: 0; }
+  .toast.show { animation: toast 2.2s ease-out; }
+  @keyframes toast { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* ---------------- panels */
+  .panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(880px, 94vw); max-height: 88vh; overflow: auto;
+           background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000; padding: 14px 18px 18px; box-sizing: border-box; }
+  .panel h2 { margin: 0 0 6px; font: 700 22px 'Cinzel Decorative', Cinzel, serif; color: var(--gold); letter-spacing: .06em; }
+  .panel h3 { margin: 14px 0 8px; font-size: 13px; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1px solid #3a3028; padding-bottom: 4px; }
+  .panel h3 em { text-transform: none; letter-spacing: 0; color: #8a7a60; font-style: normal; font-size: 12px; }
+  .panel .close { position: absolute; right: 10px; top: 8px; width: 34px; height: 34px; font-size: 22px; }
+  .grid { display: grid; gap: 8px; }
+  .grid.items { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+  .grid.spells { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .grid.gaunts { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .card { background: #120e14; border: 1px solid #3a3028; padding: 8px; display: grid; justify-items: center; gap: 2px; text-align: center; }
+  .card.on { border-color: var(--gold-dim); background: #1c1610; }
+  .card img { width: 72px; height: 72px; image-rendering: pixelated; }
+  .card.spell img { width: 48px; height: 48px; }
+  .card .nm { font-weight: 700; font-size: 13px; }
+  .card .ty { font-size: 11px; color: #9a8a6a; }
+  .card .ds { font-size: 11px; color: #b8aa90; font-family: Georgia, serif; }
+  .hb { display: flex; gap: 6px; margin-top: 6px; }
+  button { font: 700 12px Cinzel, serif; color: #e8dcc0; background: #241c18; border: 1px solid var(--edge); padding: 6px 10px; min-width: 40px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--gold); }
+  button.sel { background: #5a4420; border-color: var(--gold); color: #fff4d0; }
+  button:disabled { opacity: .25; cursor: default; }
+  button.gaunt { font-size: 11px; }
+
+  /* ---------------- title / pause */
+  .overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center;
+             background: radial-gradient(ellipse at center, rgba(7, 6, 10, .55), rgba(7, 6, 10, .92)); cursor: pointer; }
+  .overlay .title { font: 700 clamp(40px, 9vw, 92px) 'Cinzel Decorative', Cinzel, serif; color: var(--gold); letter-spacing: .1em; text-shadow: 0 4px 20px #000; }
+  .overlay .sub { color: #a89878; letter-spacing: .3em; font-size: 13px; text-transform: uppercase; margin-top: -6px; }
+  .overlay .go { margin: 18px 0 8px; font-size: 18px; letter-spacing: .2em; color: #fff0d0; animation: pulse 1.6s infinite; }
+  .overlay.loading .go { animation: none; color: #8a7a60; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .keys { border-collapse: collapse; font-size: 12px; color: #c8b898; }
+  .keys td { padding: 3px 10px; text-align: left; }
+  .keys td:nth-child(odd) { color: var(--gold); text-align: right; white-space: nowrap; }
+  .touchkeys { display: none; font-size: 13px; color: #c8b898; max-width: 80vw; }
+  .overlay.is-touch .keys { display: none; }
+  .overlay.is-touch .touchkeys { display: block; }
+  .opts { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #a89878; cursor: default; }
+  .opts select, .opts input { margin-left: 6px; vertical-align: middle; font: 12px Cinzel, serif; background: #241c18; color: #e8dcc0; border: 1px solid var(--edge); }
+
+  .rotate { position: absolute; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 10; text-align: center; }
+  .rotate.show { display: grid; }
+  .rotate div { font-size: 64px; animation: spin 2.4s ease-in-out infinite; }
+  @keyframes spin { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
+
+  /* ---------------- touch */
+  .touch { position: absolute; inset: 0; pointer-events: none; }
+  #touchlayer { position: absolute; inset: 0; pointer-events: auto; }
+  #stick { position: absolute; left: 12vw; top: 60vh; width: 112px; height: 112px; border-radius: 50%; border: 2px solid rgba(216, 184, 112, .5);
+           background: rgba(20, 14, 18, .35); opacity: .35; pointer-events: none; }
+  #knob { position: absolute; left: 32px; top: 32px; width: 48px; height: 48px; border-radius: 50%; background: rgba(216, 184, 112, .55); }
+  .tbtn { position: absolute; pointer-events: auto; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%;
+          background: rgba(20, 14, 18, .55); border: 2px solid rgba(216, 184, 112, .55); color: #f0e0c0; font-size: 26px; }
+  .tbtn.down { background: rgba(216, 184, 112, .45); }
+  .tbtn img { width: 34px; height: 34px; image-rendering: pixelated; }
+  .tbtn b { position: absolute; right: 4px; bottom: 0; font-size: 11px; color: var(--gold); }
+  .tbtn.big { right: calc(24px + env(safe-area-inset-right)); bottom: 28px; width: 86px; height: 86px; font-size: 36px; }
+  .tbtn.left { right: calc(126px + env(safe-area-inset-right)); bottom: 18px; }
+  .tbtn.spellF { right: calc(122px + env(safe-area-inset-right)); bottom: 96px; }
+  .tbtn.spellR { right: calc(46px + env(safe-area-inset-right)); bottom: 132px; }
+  .tbtn.jump { right: calc(200px + env(safe-area-inset-right)); bottom: 26px; width: 54px; height: 54px; font-size: 22px; }
+  .tbtn.bag { right: calc(80px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font-size: 20px; border-radius: 8px; }
+  .tbtn.pause { right: calc(18px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font-size: 14px; border-radius: 8px; }
+  @media (pointer: coarse) {
+    .bars { bottom: auto; top: 14px; width: 30vw; }
+    .slots { display: none; }
+    .hands { bottom: auto; top: 54px; left: max(18px, env(safe-area-inset-left)); transform: none; }
+    .zone { font-size: 22px; top: 22%; }
+    .toast { bottom: auto; top: 30%; }
+  }
 </style>
 </head>
 <body>
-<div id="stage">
-  <canvas id="game" width="640" height="360"></canvas>
-  <canvas id="text"></canvas>
-</div>
-<div id="loading">SUMMONING THE CASTLE…</div>
-<script type="module" src="src/main.js"></script>
+<canvas id="game"></canvas>
+<div id="ui"></div>
+<div id="boot">BELLMOURN</div>
+<script type="module" src="src/fps/main.js"></script>
 </body>
 </html>
