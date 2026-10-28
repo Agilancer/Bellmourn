@@ -59,7 +59,7 @@ FIST = (0.055, 0.055, 0.035)  # half extents along hand axis A, handle D, back-o
 # Weapon proxies: offsets along D from the grip (metres).
 PROXY = {
     "sword1h": dict(pommel=-0.09, guard=0.065, tip=0.60, width=0.05, guard_half=0.085),
-    "sword2h": dict(pommel=-0.30, guard=0.10, tip=1.25, width=0.07, guard_half=0.14),
+    "sword2h": dict(pommel=-0.28, guard=0.08, tip=1.00, width=0.065, guard_half=0.13),
     "spear":   dict(pommel=-0.90, guard=0.60, tip=0.95, width=0.045, guard_half=0.04),
     "wand":    dict(pommel=-0.06, guard=0.04, tip=0.34, width=0.022, guard_half=0.0),
     "shield":  None,
@@ -140,15 +140,32 @@ def pose_arm(side, key):
     return arm
 
 
+def pose_frame(f):
+    """Pose every arm in a frame. A `support` arm puts its fist on the other arm's weapon, that
+    many metres further down the grip, so two-handed weapons stay locked in both hands."""
+    arms = [pose_arm(side, f[side]) for side in ("R", "L") if side in f and "support" not in f[side]]
+    for side in ("R", "L"):
+        if side in f and "support" in f[side]:
+            main = next(a for a in arms if a["weapon"])
+            key = dict(f[side], G3=main["G"] - main["D"] * f[side]["support"], D3=main["D"],
+                       ang=90)
+            arms.append(dict(pose_arm(side, key), support=True))
+    return arms
+
+
 def _pose_arm(side, key):
     """Grip and weapon come from the key; the elbow comes from IK and the hand keeps in line
     with the forearm (plus an optional small `bend`), so the wrist never breaks."""
-    g = from_screen(*key["S"])
+    g = np.array(key["G3"], float) if "G3" in key else from_screen(*key["S"])
+    want_g = g
     s = SHOULDER[side]
     pole = np.asarray(key.get("pole", POLE[side]), float)
     bend = np.asarray(key.get("bend", (0, 0, 0)), float)
     wrist = key.get("wrist")  # rigid wrist: the item sits at this fixed angle in the fist
-    d = weapon_dir(key["ang"], key.get("dz", 0.3))  # with a rigid wrist, only a starting guess
+    if "D3" in key:  # a direction fixed in 3D (a support hand on another hand's weapon)
+        d = norm(key["D3"])
+    else:  # with a rigid wrist, only a starting guess
+        d = weapon_dir(key["ang"], key.get("dz", 0.3))
     a = norm(g - s)
     for _ in range(8 if wrist is None else 12):  # (8 keeps approved rigs bit-identical)
         a = norm(a - d * np.dot(a, d))  # the fist closes at right angles to the handle
@@ -178,6 +195,7 @@ def _pose_arm(side, key):
     w = g - a * HAND
     k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
     return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h,
+                reach_miss=float(np.linalg.norm(g - want_g)),
                 weapon=key.get("weapon"), shield=key.get("shield"),
                 face=norm(key["face"]) if "face" in key else None)
 
@@ -494,7 +512,7 @@ def draw_frame(arms, tip_path, tip_now, label, tags, ghosts=None):
 
 def build(anim):
     frames = anim["frames"]
-    posed = [[pose_arm(side, f[side]) for side in ("R", "L") if side in f] for f in frames]
+    posed = [pose_frame(f) for f in frames]
 
     def tips(arms):
         out = []

@@ -197,6 +197,50 @@ def _frames(keys, side, weapon):
     return out
 
 
+# Two-handed broadsword: the right fist under the guard, the left fist (`support`) further down
+# the same grip, solved by its own IK so both stay locked to the hilt. A blade this long can't
+# be carried upright without leaving the top of the screen, so its carry is the video's guard
+# pose: arms forward, blade pointing at the target. The swing is the video's first swing
+# (frames 126-165), which starts and ends in that guard: lift up and right, cock back over the
+# right shoulder, come over the top and chop down to guard.
+GRIP_2H = 0.11  # metres between the two fists
+GUARD_2H = dict(S=(*at(0.50, 0.70), 0.46), ang=94, dz=2.0)
+R2H_SWING = [
+    dict(name="GUARD", tics=2, ref=126, **GUARD_2H),
+    dict(name="LIFT", tics=2, ref=128, S=(*at(0.55, 0.62), 0.44), ang=80, dz=0.9),
+    dict(name="LIFT 2", tics=2, ref=130, S=(*at(0.61, 0.52), 0.42), ang=66, dz=0.30),
+    dict(name="COCK", tics=2, ref=132, S=(*at(0.66, 0.44), 0.40), ang=34, dz=0.0, pole=RAISED),
+    dict(name="COCK 2", tics=2, ref=134, S=(*at(0.70, 0.38), 0.40), ang=22, dz=-0.10,
+         pole=RAISED),
+    dict(name="COCK BACK", tics=2, ref=136, S=(*at(0.72, 0.34), 0.40), ang=17, dz=-0.15,
+         pole=RAISED),
+    dict(name="OVERHEAD", tics=3, ref=142, S=(*at(0.73, 0.30), 0.40), ang=16, dz=-0.15,
+         pole=RAISED),
+    dict(name="RE-ENTER", tics=1, ref=148, S=(*at(0.70, 0.30), 0.42), ang=22, dz=-0.10,
+         pole=RAISED),
+    dict(name="COME OVER", tics=1, ref=150, S=(*at(0.66, 0.32), 0.44), ang=29, dz=-0.05,
+         pole=RAISED),
+    dict(name="CHOP 1", tics=1, smear=True, ref=152, S=(*at(0.62, 0.38), 0.45), ang=37,
+         dz=0.0),
+    dict(name="CHOP 2", tics=1, smear=True, ref=154, S=(*at(0.57, 0.46), 0.46), ang=62,
+         dz=0.15),
+    dict(name="CHOP 3", tics=2, smear=True, hit=True, ref=155, S=(*at(0.54, 0.54), 0.46),
+         ang=76, dz=0.50),
+    dict(name="DRIVE", tics=2, ref=156, S=(*at(0.51, 0.62), 0.47), ang=88, dz=1.20),
+    dict(name="DIP", tics=2, ref=158, S=(*at(0.49, 0.72), 0.47), ang=94, dz=2.0),
+    dict(name="SETTLE", tics=2, ref=160, S=(*at(0.50, 0.71), 0.46), ang=94, dz=2.0),
+    dict(name="GUARD", tics=2, ref=165, **GUARD_2H),
+]
+
+
+def _two_handed(keys, weapon):
+    """Right-hand keys -> frames with the left hand supporting lower on the same grip."""
+    out = _frames(keys, "R", weapon)
+    for f in out:
+        f["L"] = dict(support=GRIP_2H)
+    return out
+
+
 ANIMS = {
     "r1h_walk": dict(
         id="r1h_walk", title="ONE-HANDED CARRY / WALK — RIGHT HAND",
@@ -301,5 +345,22 @@ ANIMS = {
         notes=[
             "Left hand only: the mirror image of r1w_cast.",
             "05 FIRE: the bolt spawns at the orange burst; 02-03 charge, 07-11 settle.",
+        ]),
+    "r2h_walk": dict(
+        id="r2h_walk", title="TWO-HANDED GUARD / WALK",
+        frames=_two_handed(walk_cycle(GUARD_2H), "sword2h"),
+        notes=[
+            "Both hands on one long grip (right under the guard, left below), blade forward.",
+            "8-frame loop, same bob as r1h_walk; frame 00 is also the idle pose.",
+            "The yellow proxy is a 1 m blade; greatswords and greataxes keep the same grip.",
+        ]),
+    "r2h_swing": dict(
+        id="r2h_swing", title="TWO-HANDED OVERHAND SWING",
+        frames=_two_handed(R2H_SWING, "sword2h"),
+        notes=[
+            "Both hands stay on the grip all the way. Starts and ends in the guard pose.",
+            "Lift up and right, cock the blade back over the right shoulder (03-07).",
+            "Come over the top and chop down to centre (09-11 smear). Frame 11 is the hit.",
+            "12-15 drive down and settle back into guard.",
         ]),
 }

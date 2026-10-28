@@ -31,13 +31,17 @@ def check(name):
     bad = 0
     for i, f in enumerate(anims.ANIMS[name]["frames"]):
         R.set_view(f.get("view", R.REST_SCALE))
-        raw = [q for side in ("R", "L") if side in f for q in points(R.pose_arm(side, f[side]))]
+        arms = R.pose_frame(f)
+        raw = [q for arm in arms for q in points(arm)]
+        # a support fist pulled off the two-handed grip because it can't reach, in metres
+        slip = max([arm["reach_miss"] for arm in arms if arm.get("support")] or [0])
         behind = sum(q[2] <= R.NEAR for q in raw)  # these smear off the screen when drawn
         pts = [R.project(q) for q in raw if q[2] > R.NEAR]
         top = min(p[1] for p in pts)
         left, right = min(p[0] for p in pts), max(p[0] for p in pts)
         flag = ("  <-- OFF TOP" if top < 0 else "") + ("  <-- BEHIND CAMERA" if behind else "")
-        bad += int(top < 0 or behind > 0)
+        flag += f"  <-- HAND SLIPS {slip * 100:.1f} cm (out of reach)" if slip > 0.01 else ""
+        bad += int(top < 0 or behind > 0 or slip > 0.01)
         print(f"{name} {i:02d} {f['name']:<10} top {top:7.1f}  x {left:6.1f}..{right:6.1f}{flag}")
     return bad
 
