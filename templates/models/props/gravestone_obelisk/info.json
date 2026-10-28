@@ -1,0 +1,21 @@
+{
+ "id": "gravestone_obelisk",
+ "name": "Obelisk Monument",
+ "kind": "world prop",
+ "description": "A marble obelisk on a square base.",
+ "texture_size": 128,
+ "triangles": 50,
+ "files": [
+  "gravestone_obelisk.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "obelisk base"
+  },
+  {
+   "number": 2,
+   "name": "obelisk"
+  }
+ ]
+}

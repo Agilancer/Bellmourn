@@ -1,0 +1,29 @@
+{
+ "id": "pillar_twisted",
+ "name": "Twisted Column",
+ "kind": "world prop",
+ "description": "A solomonic marble column twisting up to a gilded capital. 4 m tall.",
+ "texture_size": 128,
+ "triangles": 348,
+ "files": [
+  "pillar_twisted.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "plinth"
+  },
+  {
+   "number": 2,
+   "name": "twisted shaft"
+  },
+  {
+   "number": 3,
+   "name": "capital"
+  },
+  {
+   "number": 4,
+   "name": "abacus"
+  }
+ ]
+}

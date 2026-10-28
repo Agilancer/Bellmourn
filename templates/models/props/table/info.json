@@ -1,0 +1,37 @@
+{
+ "id": "table",
+ "name": "Table",
+ "kind": "world prop",
+ "description": "A heavy plank table on four legs with a stretcher.",
+ "texture_size": 128,
+ "triangles": 72,
+ "files": [
+  "table.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "table top"
+  },
+  {
+   "number": 2,
+   "name": "leg 1"
+  },
+  {
+   "number": 3,
+   "name": "leg 2"
+  },
+  {
+   "number": 4,
+   "name": "leg 3"
+  },
+  {
+   "number": 5,
+   "name": "leg 4"
+  },
+  {
+   "number": 6,
+   "name": "stretcher"
+  }
+ ]
+}

@@ -812,5 +812,147 @@
    0.542857,
    0.6
   ]
- }
+ },
+ "events": {
+  "r1h_walk": {
+   "duration": 0.914286
+  },
+  "r1h_swing": {
+   "hit": [
+    0.428571
+   ],
+   "duration": 0.857143
+  },
+  "l1h_walk": {
+   "duration": 0.914286
+  },
+  "l1h_swing": {
+   "hit": [
+    0.428571
+   ],
+   "duration": 0.857143
+  },
+  "lsh_walk": {
+   "duration": 0.914286
+  },
+  "lsh_block": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "lks_walk": {
+   "duration": 0.914286
+  },
+  "lks_block": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "r1h_shield_back": {
+   "hit": [
+    0.228571
+   ],
+   "duration": 0.457143
+  },
+  "r1w_walk": {
+   "duration": 0.914286
+  },
+  "r1w_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "l1w_walk": {
+   "duration": 0.914286
+  },
+  "l1w_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "r2h_walk": {
+   "duration": 0.914286
+  },
+  "r2h_swing": {
+   "hit": [
+    0.542857
+   ],
+   "duration": 0.828571
+  },
+  "r1s_walk": {
+   "duration": 0.914286
+  },
+  "r1s_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.685714
+  },
+  "r2h_walk_3d": {
+   "duration": 0.914286
+  },
+  "r2h_swing_3d": {
+   "hit": [
+    0.542857
+   ],
+   "duration": 0.828571
+  },
+  "r1c_walk": {
+   "duration": 0.914286
+  },
+  "r1c_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.628571
+  },
+  "l1c_walk": {
+   "duration": 0.914286
+  },
+  "l1c_cast": {
+   "fire": [
+    0.285714
+   ],
+   "duration": 0.628571
+  },
+  "b2c_walk": {
+   "duration": 0.914286
+  },
+  "b2c_cast": {
+   "fire": [
+    0.314286
+   ],
+   "duration": 0.657143
+  }
+ },
+ "props": [
+  "altar",
+  "anvil",
+  "barrel",
+  "bed",
+  "bookshelf",
+  "candelabrum",
+  "crate",
+  "gravestone_cross",
+  "gravestone_obelisk",
+  "gravestone_round",
+  "pew",
+  "pillar_broken",
+  "pillar_fluted",
+  "pillar_gothic",
+  "pillar_round",
+  "pillar_square",
+  "pillar_twisted",
+  "pulpit",
+  "sarcophagus",
+  "stool",
+  "table",
+  "treasure_chest",
+  "wall_torch",
+  "well"
+ ]
 }

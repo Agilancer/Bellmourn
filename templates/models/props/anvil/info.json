@@ -1,0 +1,33 @@
+{
+ "id": "anvil",
+ "name": "Anvil",
+ "kind": "world prop",
+ "description": "A blacksmith's iron anvil on a wooden stump.",
+ "texture_size": 128,
+ "triangles": 92,
+ "files": [
+  "anvil.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "anvil face"
+  },
+  {
+   "number": 2,
+   "name": "anvil waist"
+  },
+  {
+   "number": 3,
+   "name": "anvil foot"
+  },
+  {
+   "number": 4,
+   "name": "stump"
+  },
+  {
+   "number": 5,
+   "name": "horn"
+  }
+ ]
+}

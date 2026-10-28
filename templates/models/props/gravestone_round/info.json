@@ -1,0 +1,21 @@
+{
+ "id": "gravestone_round",
+ "name": "Round Headstone",
+ "kind": "world prop",
+ "description": "A round-topped stone headstone over a low grave mound.",
+ "texture_size": 128,
+ "triangles": 52,
+ "files": [
+  "gravestone_round.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "headstone"
+  },
+  {
+   "number": 2,
+   "name": "grave mound"
+  }
+ ]
+}

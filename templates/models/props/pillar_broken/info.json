@@ -1,0 +1,49 @@
+{
+ "id": "pillar_broken",
+ "name": "Broken Column",
+ "kind": "world prop",
+ "description": "A mossy column snapped off at a jagged break, its fallen drum lying beside it.",
+ "texture_size": 128,
+ "triangles": 202,
+ "files": [
+  "pillar_broken.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "plinth"
+  },
+  {
+   "number": 2,
+   "name": "stump"
+  },
+  {
+   "number": 3,
+   "name": "break shard 1"
+  },
+  {
+   "number": 4,
+   "name": "break shard 2"
+  },
+  {
+   "number": 5,
+   "name": "break shard 3"
+  },
+  {
+   "number": 6,
+   "name": "break shard 4"
+  },
+  {
+   "number": 7,
+   "name": "break shard 5"
+  },
+  {
+   "number": 8,
+   "name": "break shard 6"
+  },
+  {
+   "number": 9,
+   "name": "fallen drum"
+  }
+ ]
+}

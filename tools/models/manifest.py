@@ -46,17 +46,25 @@ def write():
                                                set=meta.get("set", iid),
                                                path=os.path.relpath(path, MODELS).replace("\\", "/")))
         sets.setdefault(meta.get("set", iid), meta.get("set_name", meta.get("set", iid)))
-    anim_map, starts = {}, {}
+    anim_map, starts, events = {}, {}, {}
     for aid, a in anims.ANIMS.items():
         f0 = a["frames"][0]
         anim_map[aid] = {side: item_kind(f0[side]) for side in ("R", "L") if side in f0}
-        t, starts[aid] = 0.0, []
+        t, starts[aid], ev = 0.0, [], {}
         for f in a["frames"]:
             starts[aid].append(round(t, 6))
+            for e in ("hit", "fire"):
+                if f.get(e):
+                    ev.setdefault(e, []).append(round(t, 6))
             t += f["tics"] / 35
+        ev["duration"] = round(t, 6)
+        events[aid] = ev
     out = dict(view_scale=R.REST_SCALE, tic=1 / 35, arms=arms, items=items,
                item_sets=[dict(id=k, name=v) for k, v in sets.items()] or
-               [dict(id="none", name="(none yet)")], anims=anim_map, frame_starts=starts)
+               [dict(id="none", name="(none yet)")], anims=anim_map, frame_starts=starts,
+               events=events,
+               props=sorted(os.path.basename(d) for d in glob.glob(os.path.join(MODELS, "props", "*"))
+                            if os.path.isdir(d)))
     with open(os.path.join(MODELS, "manifest.json"), "w") as f:
         json.dump(out, f, indent=1)
     return out

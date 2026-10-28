@@ -1,0 +1,53 @@
+{
+ "id": "well",
+ "name": "Well",
+ "kind": "world prop",
+ "description": "A round stone well with a windlass, rope, bucket and a little wooden roof.",
+ "texture_size": 128,
+ "triangles": 316,
+ "files": [
+  "well.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "well wall"
+  },
+  {
+   "number": 2,
+   "name": "water"
+  },
+  {
+   "number": 3,
+   "name": "post 1"
+  },
+  {
+   "number": 4,
+   "name": "post 2"
+  },
+  {
+   "number": 5,
+   "name": "windlass"
+  },
+  {
+   "number": 6,
+   "name": "crank"
+  },
+  {
+   "number": 7,
+   "name": "roof 1"
+  },
+  {
+   "number": 8,
+   "name": "roof 2"
+  },
+  {
+   "number": 9,
+   "name": "bucket"
+  },
+  {
+   "number": 10,
+   "name": "rope"
+  }
+ ]
+}

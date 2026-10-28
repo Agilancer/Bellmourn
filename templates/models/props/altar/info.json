@@ -1,0 +1,61 @@
+{
+ "id": "altar",
+ "name": "Altar",
+ "kind": "world prop",
+ "description": "A marble altar with a red cloth, gold candlesticks and a gold cross.",
+ "texture_size": 128,
+ "triangles": 284,
+ "files": [
+  "altar.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "altar block"
+  },
+  {
+   "number": 2,
+   "name": "altar step"
+  },
+  {
+   "number": 3,
+   "name": "altar cloth"
+  },
+  {
+   "number": 4,
+   "name": "cloth front"
+  },
+  {
+   "number": 5,
+   "name": "candlestick 1"
+  },
+  {
+   "number": 6,
+   "name": "candle 1"
+  },
+  {
+   "number": 7,
+   "name": "flame 1"
+  },
+  {
+   "number": 8,
+   "name": "candlestick 2"
+  },
+  {
+   "number": 9,
+   "name": "candle 2"
+  },
+  {
+   "number": 10,
+   "name": "flame 2"
+  },
+  {
+   "number": 11,
+   "name": "gold cross"
+  },
+  {
+   "number": 12,
+   "name": "gold cross arm"
+  }
+ ]
+}

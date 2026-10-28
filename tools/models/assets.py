@@ -47,10 +47,17 @@ def write(folder, model_id, name, kind, desc, models_and_files, sheet_model, not
     """`models_and_files` = [(model, glb filename, exporter callable)]. The sheet, mask and
     placeholder come from `sheet_model` (all models in a folder share one UV layout)."""
     os.makedirs(folder, exist_ok=True)
+    if any(i.px is None for _, i in sheet_model.islands()):
+        sheet_model.pack()
+    try:  # painted from the texture library; flat colours if the library is missing
+        import autotexture
+        tex = autotexture.paint(sheet_model)
+    except (OSError, StopIteration, KeyError, json.JSONDecodeError) as e:
+        print(f"  ({model_id}: no library texture, using flat colours: {e})")
+        tex = texkit.placeholder_texture(sheet_model)
     tris = 0
     for model, fname, export in models_and_files:
-        tris = export(model, os.path.join(folder, fname))
-    tex = texkit.placeholder_texture(sheet_model)
+        tris = export(model, os.path.join(folder, fname), tex)
     tex.save(os.path.join(folder, f"{model_id}_texture.png"))
     texkit.mask(sheet_model).convert("1").save(os.path.join(folder, f"{model_id}_mask.png"))
     kw = dict(angles=angles) if angles else {}

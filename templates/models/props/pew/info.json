@@ -1,0 +1,33 @@
+{
+ "id": "pew",
+ "name": "Church Pew",
+ "kind": "world prop",
+ "description": "A dark wooden pew with a backrest, kneeler and carved ends. 3 m long.",
+ "texture_size": 128,
+ "triangles": 76,
+ "files": [
+  "pew.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "seat"
+  },
+  {
+   "number": 2,
+   "name": "backrest"
+  },
+  {
+   "number": 3,
+   "name": "kneeler"
+  },
+  {
+   "number": 4,
+   "name": "pew end 1"
+  },
+  {
+   "number": 5,
+   "name": "pew end 2"
+  }
+ ]
+}

@@ -31,8 +31,8 @@ def build_one(gid):
     folder = os.path.join(OUT, gid)
     return assets.write(
         folder, gid, name, "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
-        desc, [(right, f"{gid}_R.glb", lambda m, p: export.export_arm_model(m, "R", p)),
-               (left, f"{gid}_L.glb", lambda m, p: export.export_arm_model(m, "L", p))],
+        desc, [(right, f"{gid}_R.glb", lambda m, p, t: export.export_arm_model(m, "R", p, t)),
+               (left, f"{gid}_L.glb", lambda m, p, t: export.export_arm_model(m, "L", p, t))],
         right, notes=["One texture serves both the right and the left arm."], angles=VIEWS)
 
 

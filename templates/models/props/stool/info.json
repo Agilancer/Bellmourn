@@ -1,0 +1,29 @@
+{
+ "id": "stool",
+ "name": "Stool",
+ "kind": "world prop",
+ "description": "A round three-legged stool.",
+ "texture_size": 128,
+ "triangles": 84,
+ "files": [
+  "stool.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "seat"
+  },
+  {
+   "number": 2,
+   "name": "leg 1"
+  },
+  {
+   "number": 3,
+   "name": "leg 2"
+  },
+  {
+   "number": 4,
+   "name": "leg 3"
+  }
+ ]
+}

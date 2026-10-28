@@ -1,0 +1,49 @@
+{
+ "id": "crate",
+ "name": "Wooden Crate",
+ "kind": "world prop",
+ "description": "A pale plank crate with darker braces and corner posts.",
+ "texture_size": 128,
+ "triangles": 108,
+ "files": [
+  "crate.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "crate box"
+  },
+  {
+   "number": 2,
+   "name": "brace 1"
+  },
+  {
+   "number": 3,
+   "name": "brace 2"
+  },
+  {
+   "number": 4,
+   "name": "brace 3"
+  },
+  {
+   "number": 5,
+   "name": "brace 4"
+  },
+  {
+   "number": 6,
+   "name": "corner post 1"
+  },
+  {
+   "number": 7,
+   "name": "corner post 2"
+  },
+  {
+   "number": 8,
+   "name": "corner post 3"
+  },
+  {
+   "number": 9,
+   "name": "corner post 4"
+  }
+ ]
+}

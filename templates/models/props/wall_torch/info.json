@@ -1,0 +1,37 @@
+{
+ "id": "wall_torch",
+ "name": "Wall Torch",
+ "kind": "world prop",
+ "description": "An iron wall bracket holding a burning torch.",
+ "texture_size": 128,
+ "triangles": 176,
+ "files": [
+  "wall_torch.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "wall plate"
+  },
+  {
+   "number": 2,
+   "name": "bracket"
+  },
+  {
+   "number": 3,
+   "name": "bracket ring"
+  },
+  {
+   "number": 4,
+   "name": "torch handle"
+  },
+  {
+   "number": 5,
+   "name": "torch head"
+  },
+  {
+   "number": 6,
+   "name": "torch flame"
+  }
+ ]
+}

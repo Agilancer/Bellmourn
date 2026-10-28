@@ -64,8 +64,9 @@ def gauntlet_sheet(out):
 
 def item_sheet(kind, out):
     import items as I
+    import props as P
     tiles = []
-    for spec in I.ITEMS[kind]:
+    for spec in (P.PROPS if kind == "props" else I.ITEMS[kind]):
         model = spec["build"]()
         tris, cols = [], []
         for part, isl in model.islands():
@@ -75,7 +76,8 @@ def item_sheet(kind, out):
         pts = np.concatenate([i.v for _, i in model.islands()])
         c = (pts.max(0) + pts.min(0)) / 2
         r = np.linalg.norm(pts - c, axis=1).max()
-        eye = c + np.array([-r * 2.2, r * 0.5, -r * 1.1])  # from the camera's side (-x, -z)
+        eye = (c + np.array([r * 1.3, r * 0.9, r * 2.0]) if kind == "props"  # props: 3/4 front
+               else c + np.array([-r * 2.2, r * 0.5, -r * 1.1]))  # held: the camera's side
         img = render(tris, cols, eye, c, size=300)
         ImageDraw.Draw(img).text((8, 6), spec["name"], fill=(240, 220, 170),
                                  font=texkit.font(14, True))
@@ -98,6 +100,8 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(ROOT, "templates", "models", "catalog"), exist_ok=True)
     if what == "gauntlets":
         print(gauntlet_sheet(os.path.join(ROOT, "templates", "models", "catalog", "gauntlets.png")))
+    elif what == "props":
+        print(item_sheet("props", os.path.join(ROOT, "templates", "models", "catalog", "props.png")))
     else:
         import items as I
         for kind in I.ITEMS:

@@ -1,0 +1,37 @@
+{
+ "id": "pulpit",
+ "name": "Pulpit",
+ "kind": "world prop",
+ "description": "A hexagonal wooden pulpit with steps, a lectern and a red book.",
+ "texture_size": 128,
+ "triangles": 100,
+ "files": [
+  "pulpit.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "pulpit base"
+  },
+  {
+   "number": 2,
+   "name": "pulpit drum"
+  },
+  {
+   "number": 3,
+   "name": "lectern board"
+  },
+  {
+   "number": 4,
+   "name": "bible"
+  },
+  {
+   "number": 5,
+   "name": "step 1"
+  },
+  {
+   "number": 6,
+   "name": "step 2"
+  }
+ ]
+}
