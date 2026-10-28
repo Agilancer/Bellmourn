@@ -17,7 +17,8 @@ import fp_rig as R  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
 MODELS = os.path.join(ROOT, "templates", "models")
-KIND = dict(sword1h="onehand", sword2h="twohand", wand="wand", round="shield_round",
+KIND = dict(sword1h="onehand", sword2h="twohand", wand="wand", staff="staff",
+            round="shield_round",
             kite="shield_kite")
 
 

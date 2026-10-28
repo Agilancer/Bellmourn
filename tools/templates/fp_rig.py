@@ -63,6 +63,9 @@ PROXY = {
     "spear":   dict(pommel=-0.22, guard=0.76, tip=1.06, width=0.075, guard_half=0.03,
                     shaft=0.017),
     "wand":    dict(pommel=-0.06, guard=0.04, tip=0.34, width=0.022, guard_half=0.0),
+    # a long staff held a third of the way down: shaft below the hand, the head on top
+    "staff":   dict(pommel=-0.70, guard=0.58, tip=0.78, width=0.07, guard_half=0.04,
+                    shaft=0.016),
     "shield":  None,
 }
 
