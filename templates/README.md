@@ -53,3 +53,27 @@ Watch them animate: `tools/models/viewer.html` (served by `tools/serve.py`).
 
 Rebuild: `python tools/models/build_arms.py`, `build_gauntlets.py`, `build_items.py`,
 `manifest.py`, then `python tools/templates/package.py` for the zips in `templates/packs/`.
+
+## Creature templates (`creatures/`)
+
+Blank sprite templates for every NPC, enemy and boss: no rigs and no creature designs, only the
+art-style locks (`style/STYLE_GUIDE.md` + `style/CREATURE_GUIDE.md`). A creature is painted on
+the set for its size class and direction set, e.g. `creatures/M8/`:
+
+- Size classes S / M / L / H / E (64, 64, 48, 32, 16 px per metre; E is for huge dragons).
+- `…5` = symmetric, paint D1-D5 (the game mirrors D6-D8); `…8` = every direction.
+- `<set>_model_p1.png` (paint first: the creature's design lock), one template per animation
+  kind (6 frames across, a row per direction: idle, walk, run, jump, fly, float, slither, talk,
+  melee, heavy, leap, cast, shoot, throw, breath, roar, summon, blink, block, takeoff, land,
+  hurt, death, …) and `<set>_corpse_p1.png`; `<set>_layout.json` maps every cell.
+- `TEMPLATES.md` lists the classes and the frame timing and events of every kind.
+
+```
+python tools/templates/creature_sheets.py       # redraw every template set
+python tools/templates/package_creatures.py     # templates/packs/bellmourn_creatures.zip
+python tools/templates/import_creatures.py X_painted.zip   # painted zip -> assets/creatures/
+```
+
+Painted sheets come back named `<creature>__<anim>__<template>.png`; the importer keys,
+palette-snaps, trims, mirrors and atlases them into `assets/creatures/<creature>/`, which
+`src/creature_sprites.js` loads (direction picking, frame timing, events).

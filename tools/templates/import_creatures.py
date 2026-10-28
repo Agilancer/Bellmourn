@@ -1,9 +1,15 @@
 """Import painted creature sheets from ChatGPT straight into the game.
 
-    python tools/templates/import_creatures.py bell_ogre_painted.zip [more.zip | folder ...]
+    python tools/templates/import_creatures.py some_painted.zip [more.zip | folder | png ...]
 
-Takes zips (zips inside zips too) or folders of painted sheets, named like the templates
-(`<id>_<anim>_p<n>.png`). For every creature found it:
+Takes zips (zips inside zips too), folders or PNGs. Each painted sheet is named
+
+    <creature>__<anim>__<template>.png      e.g. bog_hound__bite__S5_melee_p1.png
+    <creature>__<template>.png              anim = the template's kind, e.g. bog_hound__S5_walk_p1
+
+where <template> is the template it was painted on (templates/creatures/<set>/). A
+`<creature>.json` card in the same zip ({"name", "tier", "height_m"}) is optional.
+Model sheets are reference only and are skipped. For every creature found it:
 
   1. lines each sheet up with its template grid (resizes and nudges it if ChatGPT moved it),
   2. cuts out every cell's art box, turns #FF00FF (and leftover cyan guides) transparent,
@@ -11,12 +17,12 @@ Takes zips (zips inside zips too) or folders of painted sheets, named like the t
   3. trims each frame, keeping its foot anchor, and fills in the mirrored directions,
   4. packs the frames into 2048x2048 atlas pages and writes
 
-       assets/creatures/<id>/atlas_<n>.png
-       assets/creatures/<id>/creature.json     (read by src/creature_sprites.js)
-       assets/creatures/<id>/preview/<anim>.gif  every direction side by side, real timing
-       assets/creatures/index.json             every imported creature
+       assets/creatures/<creature>/atlas_<n>.png
+       assets/creatures/<creature>/creature.json     (read by src/creature_sprites.js)
+       assets/creatures/<creature>/preview/<anim>.gif  every direction side by side, real timing
+       assets/creatures/index.json                   every imported creature
 
-and prints a report: missing sheets, empty frames, art touching the cell edge.
+and prints a report: missing pages, empty frames, art touching the cell edge.
 
 creature.json:
   { id, name, tier, size_class, px_per_m, height_m, tic_rate, pages: ["atlas_0.png", ...],
@@ -41,6 +47,7 @@ TPL = os.path.join(ROOT, "templates", "creatures")
 OUT = os.path.join(ROOT, "assets", "creatures")
 PAGE = 2048
 PAD = 1
+INSET = 3  # px trimmed off each side of an art box: the cell border blurs into it on resize
 
 with open(os.path.join(ROOT, "templates", "style", "bellmourn_palette.json")) as _f:
     _pal = json.load(_f)
@@ -52,56 +59,69 @@ PALETTE = np.array([[int(h[i:i + 2], 16) for i in (1, 3, 5)]
 
 
 def collect(paths):
-    """Every PNG in the given zips / folders, by lower-case file stem."""
-    found = {}
+    """Every PNG and JSON card in the given zips / folders, by lower-case file stem."""
+    pngs, cards = {}, {}
 
     def add(name, data):
-        stem = os.path.splitext(os.path.basename(name))[0].lower()
-        stem = re.sub(r"_(template|painted|final)$", "", stem)
-        found[stem] = data
+        stem, ext = os.path.splitext(os.path.basename(name))
+        stem, ext = stem.lower(), ext.lower()
+        if ext == ".png":
+            pngs[re.sub(r"_(template|painted|final)$", "", stem)] = data
+        elif ext == ".json":
+            try:
+                cards[stem] = json.loads(data)
+            except ValueError:
+                pass
+        elif ext == ".zip":
+            walk_zip(zipfile.ZipFile(io.BytesIO(data)))
 
     def walk_zip(z):
         for info in z.infolist():
-            low = info.filename.lower()
-            if low.endswith(".png") and "__macosx" not in low:
+            if "__macosx" not in info.filename.lower() and not info.is_dir():
                 add(info.filename, z.read(info))
-            elif low.endswith(".zip"):
-                walk_zip(zipfile.ZipFile(io.BytesIO(z.read(info))))
 
     for p in paths:
         if os.path.isdir(p):
             for dirpath, _, files in os.walk(p):
                 for f in files:
-                    full = os.path.join(dirpath, f)
-                    if f.lower().endswith(".png"):
-                        with open(full, "rb") as fh:
-                            add(f, fh.read())
-                    elif f.lower().endswith(".zip"):
-                        walk_zip(zipfile.ZipFile(full))
-        elif p.lower().endswith(".zip"):
-            walk_zip(zipfile.ZipFile(p))
-        elif p.lower().endswith(".png"):
+                    with open(os.path.join(dirpath, f), "rb") as fh:
+                        add(f, fh.read())
+        elif os.path.isfile(p):
             with open(p, "rb") as fh:
                 add(p, fh.read())
         else:
-            sys.exit(f"not a zip, png or folder: {p}")
-    return found
+            sys.exit(f"not found: {p}")
+    return pngs, cards
 
 
-def load_specs():
-    specs = {}
-    for cid in sorted(os.listdir(TPL)):
-        path = os.path.join(TPL, cid, f"{cid}_sheets.json")
+def load_templates():
+    """Template stem (lower case) -> (layout, sheet)."""
+    out = {}
+    for sid in sorted(os.listdir(TPL)):
+        path = os.path.join(TPL, sid, f"{sid}_layout.json")
         if os.path.isfile(path):
             with open(path) as f:
-                specs[cid] = json.load(f)
-    return specs
+                layout = json.load(f)
+            for sheet in layout["sheets"]:
+                out[sheet["file"][:-4].lower()] = (layout, sheet)
+    return out
+
+
+def parse(stem, templates):
+    """'<creature>__<anim>__<template>' or '<creature>__<template>' -> (creature, anim,
+    layout, sheet), or None."""
+    parts = stem.split("__")
+    if len(parts) not in (2, 3) or parts[-1] not in templates:
+        return None
+    layout, sheet = templates[parts[-1]]
+    anim = parts[1] if len(parts) == 3 else sheet["kind"]
+    return parts[0], anim, layout, sheet
 
 
 # ----------------------------------------------------------------- cleaning
 
 
-def align(img, spec, sheet):
+def align(img, layout, sheet):
     """Find how far ChatGPT shifted the grid: slide the template's black borders over the
     painted sheet's dark pixels and keep the best offset."""
     a = np.asarray(img, np.int32)
@@ -157,7 +177,8 @@ def clean(rgb):
 def cut(img, cell, dx, dy):
     """One cell -> (trimmed RGBA, anchor x, anchor y, touches edge) or None if empty."""
     x, y, w, h = cell["art"]
-    box = np.asarray(img.crop((x + dx + 1, y + dy + 1, x + dx + w - 1, y + dy + h - 1)))
+    box = np.asarray(img.crop((x + dx + INSET, y + dy + INSET, x + dx + w - INSET,
+                               y + dy + h - INSET)))
     rgba = clean(box)
     alpha = rgba[..., 3] > 0
     if alpha.sum() < 12:  # a few stray pixels are not a frame
@@ -165,8 +186,8 @@ def cut(img, cell, dx, dy):
     ys, xs = np.nonzero(alpha)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     edge = x0 == 0 or y0 == 0 or x1 == alpha.shape[1] or y1 == alpha.shape[0]
-    ax = cell["anchor"][0] - (x + 1) - x0 + 0.5  # anchor at the centre of its pixel column
-    ay = cell["anchor"][1] - (y + 1) - y0 + 1.0  # anchor on the ground line's lower edge
+    ax = cell["anchor"][0] - (x + INSET) - x0 + 0.5  # anchor at the centre of its pixel column
+    ay = cell["anchor"][1] - (y + INSET) - y0 + 1.0  # anchor on the ground line's lower edge
     return Image.fromarray(rgba[y0:y1, x0:x1], "RGBA"), ax, ay, edge
 
 
@@ -207,36 +228,49 @@ def _pow2(n):
 # ----------------------------------------------------------------- import
 
 
-def import_creature(spec, found, report):
-    cid = spec["id"]
-    frames = {}  # (anim or "corpse", frame, dir) -> (img, ax, ay)
-    resized = []
-    for sheet in spec["sheets"]:
-        stem = sheet["file"][:-4].lower()
+def import_creature(cid, items, card, report):
+    """items: [(anim, layout, sheet, png bytes)] for one creature."""
+    sets = {layout["set"] for _, layout, _, _ in items}
+    if len(sets) > 1:
+        report.append(f"  ERROR painted on more than one template set ({', '.join(sorted(sets))})"
+                      f": every sheet of a creature must use the same set")
+        return None
+    layout = items[0][1]
+    frames = {}  # (anim, frame, dir) -> (img, ax, ay)
+    kinds, pages_seen, resized = {}, {}, []
+    for anim, _, sheet, data in items:
         if sheet["kind"] == "model":
             continue  # reference only
-        if stem not in found:
-            report.append(f"  MISSING sheet {sheet['file']}")
+        if anim in kinds and kinds[anim] != sheet["kind"]:
+            report.append(f"  ERROR {anim} painted on both {kinds[anim]} and {sheet['kind']}")
             continue
-        img = Image.open(io.BytesIO(found[stem])).convert("RGB")
-        if img.size != tuple(spec["sheet"]):
-            resized.append(f"{sheet['file']} {img.size[0]}x{img.size[1]}")
-            img = img.resize(tuple(spec["sheet"]), Image.NEAREST)
-        dx, dy = align(img, spec, sheet)
+        kinds[anim] = sheet["kind"]
+        pages_seen.setdefault(anim, set()).add(sheet["page"])
+        img = Image.open(io.BytesIO(data)).convert("RGB")
+        if img.size != tuple(layout["sheet"]):
+            resized.append(f"{anim} p{sheet['page']} {img.size[0]}x{img.size[1]}")
+            img = img.resize(tuple(layout["sheet"]), Image.NEAREST)
+        dx, dy = align(img, layout, sheet)
         if dx or dy:
-            report.append(f"  shifted {sheet['file']} by ({dx}, {dy}) to fit the grid")
+            report.append(f"  shifted {anim} p{sheet['page']} by ({dx}, {dy}) to fit the grid")
         for cell in sheet["cells"]:
             got = cut(img, cell, dx, dy)
-            name = sheet["anim"] or "corpse"
-            where = f"{name} D{cell['dir']}" + ("" if cell["frame"] is None
-                                                 else f" F{cell['frame'] + 1}")
+            where = f"{anim} D{cell['dir']}" + ("" if cell["frame"] is None
+                                                else f" F{cell['frame'] + 1}")
             if got is None:
                 report.append(f"  EMPTY {where}")
                 continue
             im, ax, ay, edge = got
             if edge:
                 report.append(f"  edge  {where}: art touches the cell border (may be cut off)")
-            frames[(name, cell["frame"] or 0, cell["dir"])] = (im, ax, ay)
+            frames[(anim, cell["frame"] or 0, cell["dir"])] = (im, ax, ay)
+    for anim, seen in pages_seen.items():
+        total = next(s["pages"] for s in layout["sheets"] if s["kind"] == kinds[anim])
+        missing = sorted(set(range(1, total + 1)) - seen)
+        if missing:
+            report.append(f"  MISSING {anim} page(s) {', '.join(map(str, missing))} of {total}")
+    if "death" in kinds and "corpse" not in kinds:
+        report.append("  MISSING corpse (the game will hold the last death frame instead)")
     if resized:
         report.append(f"  resized to 1536x1024: {', '.join(resized)}")
     if not frames:
@@ -245,7 +279,7 @@ def import_creature(spec, found, report):
     keys = list(frames)
     place, pages = pack([frames[k][0] for k in keys])
     where = {k: place[i] for i, k in enumerate(keys)}
-    mirror = {int(k): v for k, v in spec["mirror"].items()}
+    mirror = {int(k): v for k, v in layout["mirror"].items()}
 
     def entry(name, f, d):
         flip = False
@@ -259,15 +293,21 @@ def import_creature(spec, found, report):
                     ax=round(im.width - ax if flip else ax, 1), ay=round(ay, 1), flip=flip)
 
     anims = {}
-    for aid, a in spec["anims"].items():
-        anims[aid] = dict(kind=a["kind"], loop=a["loop"], frames=[
+    for anim, kind in kinds.items():
+        if kind == "corpse":
+            continue
+        k = layout["kinds"][kind]
+        anims[anim] = dict(kind=kind, loop=k["loop"], frames=[
             dict(name=fr["name"], tics=fr["tics"], events=fr["events"],
-                 dirs=[entry(aid, i, d) for d in range(1, 9)])
-            for i, fr in enumerate(a["frames"])])
-    out = dict(id=cid, name=spec["name"], tier=spec["tier"], size_class=spec["size_class"],
-               px_per_m=spec["px_per_m"], height_m=spec["height_m"], tic_rate=spec["tic_rate"],
+                 dirs=[entry(anim, i, d) for d in range(1, 9)])
+            for i, fr in enumerate(k["frames"])])
+    corpse = next((a for a, k in kinds.items() if k == "corpse"), None)
+    out = dict(id=cid, name=card.get("name", cid.replace("_", " ").title()),
+               tier=card.get("tier"), size_class=layout["size_class"],
+               template_set=layout["set"], px_per_m=layout["px_per_m"],
+               height_m=card.get("height_m"), tic_rate=layout["tic_rate"],
                pages=[f"atlas_{i}.png" for i in range(len(pages))], anims=anims,
-               corpse=dict(dirs=[entry("corpse", 0, d) for d in range(1, 9)]))
+               corpse=dict(dirs=[entry(corpse, 0, d) if corpse else None for d in range(1, 9)]))
 
     folder = os.path.join(OUT, cid)
     os.makedirs(os.path.join(folder, "preview"), exist_ok=True)
@@ -316,34 +356,37 @@ def write_previews(folder, out, pages):
 
 
 def main(paths):
-    found = collect(paths)
-    if not found:
+    pngs, cards = collect(paths)
+    if not pngs:
         sys.exit("no PNG sheets found")
-    specs = load_specs()
-    claimed = set()
+    templates = load_templates()
+    by_creature = {}
+    for stem, data in sorted(pngs.items()):
+        got = parse(stem, templates)
+        if got is None:
+            print(f"ignored {stem}.png (expected <creature>__<anim>__<template>.png, "
+                  f"e.g. bog_hound__bite__S5_melee_p1.png)")
+            continue
+        cid, anim, layout, sheet = got
+        by_creature.setdefault(cid, []).append((anim, layout, sheet, data))
     index_path = os.path.join(OUT, "index.json")
     index = {}
     if os.path.isfile(index_path):
         with open(index_path) as f:
             index = json.load(f)
-    for cid, spec in specs.items():
-        stems = {s["file"][:-4].lower() for s in spec["sheets"]}
-        if not stems & set(found):
-            continue
-        claimed |= stems & set(found)
+    for cid, items in by_creature.items():
         report = []
-        out = import_creature(spec, found, report)
-        n = sum(1 for a in out["anims"].values() for fr in a["frames"]
-                for e in fr["dirs"] if e) if out else 0
-        print(f"{cid}: " + (f"imported, {n} frame views (mirrors included) on {len(out['pages'])} "
-                            f"atlas page(s)" if out else "NOTHING imported"))
-        for line in report:
-            print(line)
+        out = import_creature(cid, items, cards.get(cid, {}), report)
         if out:
+            n = sum(1 for a in out["anims"].values() for fr in a["frames"] for e in fr["dirs"] if e)
+            print(f"{cid}: imported {len(out['anims'])} animations, {n} frame views (mirrors "
+                  f"included) on {len(out['pages'])} atlas page(s)")
             index[cid] = dict(name=out["name"], tier=out["tier"],
                               path=f"assets/creatures/{cid}/creature.json")
-    for stem in sorted(set(found) - claimed):
-        print(f"ignored {stem}.png (matches no template)")
+        else:
+            print(f"{cid}: NOTHING imported")
+        for line in report:
+            print(line)
     os.makedirs(OUT, exist_ok=True)
     with open(index_path, "w") as f:
         json.dump(dict(sorted(index.items())), f, indent=1)
