@@ -64,7 +64,7 @@ PROXY = {
                     shaft=0.017),
     "wand":    dict(pommel=-0.06, guard=0.04, tip=0.34, width=0.022, guard_half=0.0),
     # a long staff held a third of the way down: shaft below the hand, the head on top
-    "staff":   dict(pommel=-0.70, guard=0.58, tip=0.78, width=0.07, guard_half=0.04,
+    "staff":   dict(pommel=-0.60, guard=0.45, tip=0.62, width=0.065, guard_half=0.04,
                     shaft=0.016),
     "shield":  None,
 }

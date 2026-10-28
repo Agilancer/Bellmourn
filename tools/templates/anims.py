@@ -185,8 +185,8 @@ R1W_CAST = [
 # the way down, head up. The cast lifts it straight up, holds it high to charge, then tips
 # the head forward toward the target and FIRES: projectiles come out of the head (the tip).
 # Then it settles back. (The reference video has no casting; only its walking bob applies.)
-STAFF_CARRY = dict(S=(*at(0.86, 1.04), 0.34), ang=90, dz=0.05)
-STAFF_FIRE = dict(S=(*at(0.66, 0.62), 0.42), ang=108, dz=1.50)
+STAFF_CARRY = dict(S=(*at(0.86, 0.88), 0.34), ang=90, dz=0.05)
+STAFF_FIRE = dict(S=(*at(0.66, 0.58), 0.42), ang=108, dz=1.50)
 R1S_CAST = [
     dict(name="CARRY", tics=2, **STAFF_CARRY),
     dict(name="RAISE 1", tics=2, S=(*at(0.82, 0.82), 0.34), ang=91, dz=0.30),
