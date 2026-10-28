@@ -1,0 +1,7 @@
+{
+ "grotesque_zombie": {
+  "name": "Grotesque Zombie",
+  "tier": "enemy",
+  "path": "assets/creatures/grotesque_zombie/creature.json"
+ }
+}

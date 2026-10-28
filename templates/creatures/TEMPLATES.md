@@ -22,7 +22,7 @@ Pick the folder for the creature's size class and direction set, then paint its 
 | `idle` | yes | REST 10, BREATHE IN 10, HOLD 10, BREATHE OUT 10 | Standing at rest, slow breathing and a small weight shift; F4 flows back into F1. |
 | `walk` | yes | CONTACT A 6 **step**, PASS A 6, CONTACT B 6 **step**, PASS B 6 | Walking loop in place (the game moves the sprite): F1 and F3 are the two foot contacts, F2 and F4 the passing poses; F4 flows into F1. |
 | `run` | yes | PUSH A 4 **step**, FLIGHT A 4, PUSH B 4 **step**, FLIGHT B 4 | Running loop in place, leaning into the run: F1 and F3 push off, F2 and F4 are in the air; F4 flows into F1. |
-| `jump` | no | CROUCH 5, LAUNCH 4 **takeoff**, AIRBORNE 8, LAND 6 **land** | Jump. Keep the body near the ground line: the game lifts the sprite, the frames only change the pose. |
+| `jump` | no | CROUCH 5, LAUNCH 4 **takeoff**, TUCK 8, LAND 6 **land** | Jump. Keep the body near the ground line: the game lifts the sprite, the frames only change the pose. |
 | `fly` | yes | WINGS UP 5, DOWNBEAT 4, WINGS DOWN 5, UPSTROKE 5 | Flying loop, one full wingbeat. The game sets the altitude; draw the lowest point (feet or tail) just above the ground line. |
 | `fly_fast` | yes | WINGS UP 3, DOWNBEAT 3, TUCK 3, UPSTROKE 3 | Fast flight: body stretched out flat, hard short wingbeats. |
 | `float` | yes | DRIFT 1 8, DRIFT 2 8, DRIFT 3 8, DRIFT 4 8 | Gliding above the ground line without walking; trailing cloth and hair ripple through one loop. |
@@ -30,7 +30,7 @@ Pick the folder for the creature's size class and direction set, then paint its 
 | `slither` | yes | CURVE 1 6, CURVE 2 6, CURVE 3 6, CURVE 4 6 | Serpent locomotion: an S-curve wave travels down the body each loop. |
 | `slither_fast` | yes | SURGE 1 4, SURGE 2 4, SURGE 3 4, SURGE 4 4 | Fast serpent surge: tighter, quicker waves, head held low. |
 | `talk` | yes | LISTEN 9, GESTURE 1 9, NOD 9, GESTURE 2 9 | Talking loop: head and hand gestures, feet planted. |
-| `melee` | no | WIND-UP 6, STRIKE 3 **smear**, IMPACT 5 **hit**, RECOVER 7 | Melee attack; damage lands on F3. |
+| `melee` | no | READY 4, WIND-UP 6, IMPACT 5 **smear/hit**, RECOVER 7 | Melee attack; damage lands on F3. |
 | `heavy` | no | WIND-UP 10, PEAK 7, IMPACT 7 **smear/hit**, RECOVER 12 | Slow heavy attack with a long, readable wind-up; damage lands on F3. |
 | `leap` | no | CROUCH 7, SPRING 4 **takeoff**, STRIKE 6 **smear/hit/land**, RECOVER 8 | Leaping attack: the game moves the creature forward and up; damage lands on F3 as it comes down. |
 | `cast` | no | GATHER 7, CHARGE 6, RELEASE 5 **fire**, RECOVER 7 | Spell: magic gathers in F1-F2 and the projectile leaves on F3. Magic is solid pixels with a hard edge (STYLE_GUIDE §4). |

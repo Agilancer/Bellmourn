@@ -77,3 +77,9 @@ python tools/templates/import_creatures.py X_painted.zip   # painted zip -> asse
 Painted sheets come back named `<creature>__<anim>__<template>.png`; the importer keys,
 palette-snaps, trims, mirrors and atlases them into `assets/creatures/<creature>/`, which
 `src/creature_sprites.js` loads (direction picking, frame timing, events).
+
+ChatGPT's own four-frame bundles (painted sheets + `animation_layout.json`, e.g. the zombie)
+go in with `python tools/templates/import_bundle.py X_bundle.zip`: frames are cut with a lasso
+(connected blobs, so poses that reach over a cell border stay whole), then
+`tools/creatures/<id>.py` applies that creature's hand repairs (`frame_ops.py`: mirror the
+legs, reorder, rescale, drop stray specks) before packing into `assets/creatures/<id>/`.

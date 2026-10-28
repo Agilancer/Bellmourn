@@ -58,7 +58,7 @@ KINDS = {
                 note="Running loop in place, leaning into the run: F1 and F3 push off, F2 and "
                      "F4 are in the air; F4 flows into F1."),
     "jump": dict(loop=False, frames=[("CROUCH", 5, []), ("LAUNCH", 4, ["takeoff"]),
-                                     ("AIRBORNE", 8, []), ("LAND", 6, ["land"])],
+                                     ("TUCK", 8, []), ("LAND", 6, ["land"])],
                  note="Jump. Keep the body near the ground line: the game lifts the sprite, "
                       "the frames only change the pose."),
     "fly": dict(loop=True, frames=[("WINGS UP", 5, []), ("DOWNBEAT", 4, []),
@@ -84,8 +84,8 @@ KINDS = {
     "talk": dict(loop=True, frames=[("LISTEN", 9, []), ("GESTURE 1", 9, []), ("NOD", 9, []),
                                     ("GESTURE 2", 9, [])],
                  note="Talking loop: head and hand gestures, feet planted."),
-    "melee": dict(loop=False, frames=[("WIND-UP", 6, []), ("STRIKE", 3, ["smear"]),
-                                      ("IMPACT", 5, ["hit"]), ("RECOVER", 7, [])],
+    "melee": dict(loop=False, frames=[("READY", 4, []), ("WIND-UP", 6, []),
+                                      ("IMPACT", 5, ["smear", "hit"]), ("RECOVER", 7, [])],
                   note="Melee attack; damage lands on F3."),
     "heavy": dict(loop=False, frames=[("WIND-UP", 10, []), ("PEAK", 7, []),
                                       ("IMPACT", 7, ["smear", "hit"]), ("RECOVER", 12, [])],

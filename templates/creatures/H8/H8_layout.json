@@ -130,7 +130,7 @@
      ]
     },
     {
-     "name": "AIRBORNE",
+     "name": "TUCK",
      "tics": 8,
      "events": []
     },
@@ -330,21 +330,20 @@
    "note": "Melee attack; damage lands on F3.",
    "frames": [
     {
+     "name": "READY",
+     "tics": 4,
+     "events": []
+    },
+    {
      "name": "WIND-UP",
      "tics": 6,
      "events": []
     },
     {
-     "name": "STRIKE",
-     "tics": 3,
-     "events": [
-      "smear"
-     ]
-    },
-    {
      "name": "IMPACT",
      "tics": 5,
      "events": [
+      "smear",
       "hit"
      ]
     },
