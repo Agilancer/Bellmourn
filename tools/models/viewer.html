@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellmourn Model Viewer</title>
+<style>
+  :root { --bg: #16141a; --panel: #211e26; --ink: #e8e2d4; --dim: #9a93a6; --accent: #f0dca8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 Consolas, monospace; }
+  header { padding: 10px 16px; color: var(--accent); font-weight: bold; letter-spacing: .05em; }
+  main { display: flex; gap: 16px; padding: 0 16px 16px; flex-wrap: wrap; }
+  .view { background: #000; border: 2px solid #000; }
+  #fp { width: 768px; height: 480px; image-rendering: pixelated; display: block; }
+  #orbit { width: 480px; height: 480px; display: block; }
+  .controls { background: var(--panel); padding: 12px; width: 100%; display: flex; gap: 18px;
+              flex-wrap: wrap; align-items: center; }
+  label { color: var(--dim); }
+  select, button { background: #2c2833; color: var(--ink); border: 1px solid #4a4454;
+                   font: inherit; padding: 4px 8px; }
+  #info { color: var(--dim); }
+  .caption { color: var(--dim); padding: 4px 2px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>BELLMOURN · FIRST-PERSON MODEL VIEWER</header>
+<main>
+  <div><canvas id="fp" class="view" width="384" height="240"></canvas>
+    <div class="caption">first person, 384×240 game screen (the rig's exact projection)</div></div>
+  <div><canvas id="orbit" class="view"></canvas>
+    <div class="caption">inspect: drag to orbit, wheel to zoom</div></div>
+  <div class="controls">
+    <label>animation <select id="anim"></select></label>
+    <label>gauntlet <select id="arm"></select></label>
+    <label>weapon <select id="item"></select></label>
+    <button id="play">pause</button>
+    <button id="step">step frame</button>
+    <label>speed <select id="speed"><option>1</option><option>0.33</option><option>0.1</option></select></label>
+    <span id="info"></span>
+  </div>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const ROOT = '../../templates/models/';
+const manifest = await (await fetch(ROOT + 'manifest.json', { cache: 'no-store' })).json();
+const loader = new GLTFLoader();
+const load = (p) => new Promise((ok, bad) => loader.load(ROOT + p, ok, undefined, bad));
+
+// --- first-person camera: the rig's pinhole projection, including the 0.58 shrink toward the
+// bottom centre of the screen (focal 192*0.58 px, principal point lowered to y=170.4)
+const W = 384, H = 240, S = manifest.view_scale, F = (W / 2) * S;
+const CX = W / 2, CY = H - (H - H / 2) * S;  // anchor (W/2, H) shrink of the centre (W/2, H/2)
+const fpCam = new THREE.Camera();
+const near = 0.02, far = 50;
+fpCam.projectionMatrix.set(
+  2 * F / W, 0, 1 - 2 * CX / W, 0,
+  0, 2 * F / H, 2 * CY / H - 1, 0,
+  0, 0, -(far + near) / (far - near), -2 * far * near / (far - near),
+  0, 0, -1, 0);
+fpCam.projectionMatrixInverse.copy(fpCam.projectionMatrix).invert();
+
+const fpR = new THREE.WebGLRenderer({ canvas: document.getElementById('fp'), antialias: false });
+fpR.setPixelRatio(1); fpR.setSize(W, H, false);
+const orbitCanvas = document.getElementById('orbit');
+const orR = new THREE.WebGLRenderer({ canvas: orbitCanvas, antialias: true });
+orR.setPixelRatio(devicePixelRatio); orR.setSize(480, 480, false);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3a3440);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302838, 1.3));
+const sun = new THREE.DirectionalLight(0xffe0b0, 1.6);
+sun.position.set(-0.5, 0.8, 0.4);  // above-left, in front of the viewer (the style guide light)
+scene.add(sun);
+const grid = new THREE.GridHelper(2, 20, 0x554c60, 0x40384a);
+grid.position.y = -0.45; scene.add(grid);
+
+const orCam = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
+orCam.position.set(0.5, 0.25, 0.35);
+const controls = new OrbitControls(orCam, orbitCanvas);
+controls.target.set(0.1, -0.1, -0.35); controls.update();
+
+const arms = {};      // side -> { gltf, mixer, actions }
+const items = {};     // side -> Object3D attached to the item socket
+let playing = true, speed = 1, current = null;
+
+function retro(obj) {
+  obj.traverse((o) => {
+    if (o.isMesh) {
+      o.frustumCulled = false;
+      const m = o.material; if (m.map) { m.map.magFilter = m.map.minFilter = THREE.NearestFilter; m.map.generateMipmaps = false; }
+      o.material = new THREE.MeshLambertMaterial({ map: m.map, flatShading: false });
+    }
+  });
+}
+
+async function loadArms(entry) {
+  for (const side of ['R', 'L']) {
+    if (arms[side]) scene.remove(arms[side].gltf.scene);
+    const gltf = await load(entry[side]);
+    retro(gltf.scene);
+    scene.add(gltf.scene);
+    const mixer = new THREE.AnimationMixer(gltf.scene);
+    const actions = {};
+    for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
+    arms[side] = { gltf, mixer, actions, socket: gltf.scene.getObjectByName('item') };
+  }
+}
+
+function itemKind(anim, side) {
+  const a = manifest.anims[anim];
+  return a ? a[side] : null;
+}
+
+async function attachItems() {
+  for (const side of ['R', 'L']) {
+    if (items[side]) { items[side].parent?.remove(items[side]); items[side] = null; }
+    const kind = itemKind(current, side);
+    const sel = document.getElementById('item').value;
+    if (!kind || !arms[side]) continue;
+    const list = manifest.items[kind] || [];
+    const entry = list.find((e) => e.set === sel) || list[0];
+    if (!entry) continue;
+    const g = await load(entry.path);
+    retro(g.scene);
+    arms[side].socket.add(g.scene);
+    items[side] = g.scene;
+  }
+}
+
+function play(name) {
+  current = name;
+  for (const side of ['R', 'L']) {
+    const arm = arms[side]; if (!arm) continue;
+    arm.mixer.stopAllAction();
+    const act = arm.actions[name];
+    arm.gltf.scene.visible = !!act;
+    if (act) { act.reset().play(); }
+  }
+  attachItems();
+}
+
+function stepAll(dt) { for (const s of ['R', 'L']) arms[s]?.mixer.update(dt); }
+
+// UI
+const animSel = document.getElementById('anim');
+for (const name of Object.keys(manifest.anims)) animSel.add(new Option(name, name));
+const armSel = document.getElementById('arm');
+for (const a of manifest.arms) armSel.add(new Option(a.name, a.id));
+const itemSel = document.getElementById('item');
+for (const s of manifest.item_sets) itemSel.add(new Option(s.name, s.id));
+animSel.onchange = () => play(animSel.value);
+armSel.onchange = async () => { await loadArms(manifest.arms.find((a) => a.id === armSel.value)); play(current); };
+itemSel.onchange = () => attachItems();
+document.getElementById('play').onclick = (e) => { playing = !playing; e.target.textContent = playing ? 'pause' : 'play'; };
+document.getElementById('step').onclick = () => { playing = false; document.getElementById('play').textContent = 'play'; stepAll(1 / 35); };
+document.getElementById('speed').onchange = (e) => { speed = +e.target.value; };
+
+const params = new URLSearchParams(location.search);
+await loadArms(manifest.arms.find((a) => a.id === (params.get('arm') || manifest.arms[0].id)));
+armSel.value = params.get('arm') || manifest.arms[0].id;
+if (params.get('item')) itemSel.value = params.get('item');
+play(params.get('anim') || Object.keys(manifest.anims)[0]);
+animSel.value = current;
+
+const clock = new THREE.Clock();
+function frame() {
+  const dt = clock.getDelta();
+  if (playing) stepAll(dt * speed);
+  grid.visible = false; fpR.render(scene, fpCam);
+  grid.visible = true; orR.render(scene, orCam);
+  document.getElementById('info').textContent =
+    `${current}  ·  t=${(arms.R?.mixer.time ?? arms.L?.mixer.time ?? 0).toFixed(2)}s`;
+  requestAnimationFrame(frame);
+}
+frame();
+// capture the first-person (or inspect) view to art/view/shots/<name>.png via tools/serve.py
+async function shot(name, which = 'fp') {
+  if (which === 'fp') { grid.visible = false; fpR.render(scene, fpCam); }
+  else { grid.visible = true; orR.render(scene, orCam); }
+  const blob = await new Promise((ok) => (which === 'fp' ? fpR : orR).domElement.toBlob(ok));
+  await fetch(`/shot?name=${name}`, { method: 'POST', body: blob });
+}
+// pose every arm at rig frame `i` of the current animation (frame starts, from the manifest)
+function seekFrame(i) {
+  const starts = manifest.frame_starts[current];
+  for (const s of ['R', 'L']) {
+    const arm = arms[s]; if (!arm) continue;
+    arm.mixer.setTime(starts[Math.min(i, starts.length - 1)] + 1e-4);
+  }
+}
+window.viewer = { play, stepAll, seekFrame, shot, arms, items, scene, orCam, controls,
+                  set playing(v) { playing = v; } };
+</script>
+</body>
+</html>

@@ -293,7 +293,41 @@ def box_faces(cv, centre, axes, half, fingers=()):
     return out
 
 
+_ARM_MODELS = {}
+# guide tones: palm and arm mid grey, fingers alternating light/dark so each one reads, thumb
+# darker still
+_GUIDE_TONE = dict(palm=(184, 184, 192), thumb=(150, 150, 162), index=(214, 214, 222),
+                   middle=(176, 176, 186), ring=(214, 214, 222), pinky=(176, 176, 186))
+
+
 def draw_mannequin(cv, arm):
+    """The guide arm: the real 3D arm model (tools/models/arm.py) with modelled fingers and
+    thumb, posed by this rig and painter-sorted with the weapon proxy."""
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              "models")
+    if models_dir not in sys.path:
+        sys.path.insert(0, models_dir)
+    import arm as arm_model  # noqa: E402  (lazy: arm.py imports this module)
+    import raster  # noqa: E402
+
+    side = arm["side"]
+    if side not in _ARM_MODELS:
+        model = arm_model.bare_arm(side)
+        for part in model.parts:
+            part.color = _GUIDE_TONE.get(part.name.split()[0], MANNEQUIN[:3])
+        _ARM_MODELS[side] = model
+    mats = arm_model.world_mats(arm, side)
+    tris, cols = arm_model.posed_triangles(_ARM_MODELS[side], mats, side)
+    parts = []
+    for depth, pts, col in raster.faces(tris, cols, project, NEAR, LIGHT):
+        parts.append((np.array([0.0, 0.0, depth]),
+                      lambda pts=pts, col=col: cv.d.polygon([cv.pt(p) for p in pts],
+                                                            fill=col)))
+    return parts
+
+
+def draw_mannequin_box(cv, arm):
+    """The original block-fist guide, kept for reference."""
     s, e, w, g, a, k = (arm[j] for j in ("S", "E", "W", "G", "A", "K"))
     d = arm.get("H", arm["D"])  # the fist closes around this axis
     fore = norm(w - e)
