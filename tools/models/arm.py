@@ -124,6 +124,15 @@ def hand_parts(color=SKIN, scale=1.0):
     palm = [(x * scale, z) for x, z in palm]
     parts.append(Part("palm", "hand", color, extrude(
         "palm", palm, (0, 0, 0), (1, 0, 0), (0, 0, 1), 0.068 * scale), label="palm", weight=2.2))
+    # the wrist: a joint ball centred on the wrist pivot, riding with the hand. Being round about
+    # the point the hand turns on, it fills the seam at any bend and never pokes out (the
+    # classic low-poly joint)
+    hs = (-0.03, -0.024, -0.014, 0.0, 0.014, 0.024, 0.03)
+    secs = [circle(max(0.031 * math.sqrt(max(1 - (h / 0.031) ** 2, 0.02)), 1e-3) * scale, 10,
+                   max(0.026 * math.sqrt(max(1 - (h / 0.031) ** 2, 0.02)), 1e-3) * scale)
+            for h in hs]
+    parts.append(Part("wrist", "hand", color, loft(
+        "wrist", [(0, 0, h) for h in hs], secs, caps=(True, True)), weight=1.5))
     for f in FINGERS + ("thumb",):
         j = finger_joints(f)
         w = finger_width(f) * scale
@@ -141,8 +150,9 @@ def bare_arm(side="R"):
             [circle(0.050, 8, 0.046), circle(0.045, 8, 0.041)], caps=(False, False)),
              weight=0.3),
         Part("forearm", "fore", SKIN, loft(
-            "forearm", [(0, 0, -0.30), (0, 0, -0.15), (0, 0, -0.004)],
-            [circle(0.042, 8, 0.038), circle(0.039, 8, 0.035), circle(0.031, 8, 0.027)]),
+            "forearm", [(0, 0, -0.30), (0, 0, -0.15), (0, 0, -0.008)],
+            [circle(0.042, 8, 0.038), circle(0.039, 8, 0.035), circle(0.030, 8, 0.026)],
+            caps=(False, True)),  # ends inside the wrist ball
              weight=0.8),
     ] + hand_parts()
     model = Model(f"arm_bare_{side}", parts, tex=128)
