@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A mage's fingerless violet glove and robe sleeve, silver bands carved with runes around the forearm, and a pale blue focus crystal set in a silver mount on the back of the hand.",
  "texture_size": 256,
- "triangles": 1382,
+ "triangles": 2192,
  "files": [
   "runebound_R.glb",
   "runebound_L.glb"

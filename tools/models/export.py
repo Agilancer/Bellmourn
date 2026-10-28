@@ -81,7 +81,8 @@ def export_arm_model(model, side, path, texture=None):
     skin = g.skin([bone_nodes[n] for n in joint_names], bind)
     g.node(f"{model.name} mesh", root, mesh=mesh, skin=skin)
     for anim_id, frames in side_anims(side).items():
-        times, tracks = [], {bone_nodes[b]: [] for b in ANIMATED}
+        fingers = [n for n, parent, _ in A.bones(side) if parent == "hand"]
+        times, tracks = [], {bone_nodes[b]: [] for b in ANIMATED + tuple(fingers)}
         t = 0.0
         for f in frames + [frames[-1]]:  # the closing key holds the last frame its full time
             R.set_view(f.get("view", R.REST_SCALE))
@@ -89,6 +90,10 @@ def export_arm_model(model, side, path, texture=None):
             mats = A.pose(arm)
             for b in ANIMATED:
                 tracks[bone_nodes[b]].append(mats[b])
+            # fingers are keyed in every clip (closed round the grip unless the rig opens
+            # them), so switching clips never leaves a hand stuck open
+            for n, local in A.finger_mats(arm, side).items():
+                tracks[bone_nodes[n]].append(local)
             times.append(t)
             t += f["tics"] * TIC
         times[-1] = times[-2] + frames[-1]["tics"] * TIC

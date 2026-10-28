@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Overlapping rows of green drake scales down the forearm and over the fingers, bronze hand plate and elbow cap, horn studs on the knuckles, a dark red sleeve.",
  "texture_size": 256,
- "triangles": 1970,
+ "triangles": 2780,
  "files": [
   "drake_R.glb",
   "drake_L.glb"

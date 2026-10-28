@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Tribal: bleached bone plates bound to a dark hide glove with sinew, bone ribs lashed around a hide bracer, a bone elbow cap, and a shaggy brown fur sleeve.",
  "texture_size": 256,
- "triangles": 1778,
+ "triangles": 2588,
  "files": [
   "boneward_R.glb",
   "boneward_L.glb"

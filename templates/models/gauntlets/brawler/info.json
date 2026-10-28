@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Studded brown leather with iron spikes on every knuckle and down the bracer, a thick leather knuckle pad, a dark leather sleeve. A pit fighter's gear.",
  "texture_size": 256,
- "triangles": 1464,
+ "triangles": 2274,
  "files": [
   "brawler_R.glb",
   "brawler_L.glb"

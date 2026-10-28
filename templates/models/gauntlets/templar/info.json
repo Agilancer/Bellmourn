@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Holy plate: polished steel with gold trim, a fluted bell cuff, a gilded knuckle bar, a gold sun medallion on the back of the hand, a royal blue tabard sleeve over mail.",
  "texture_size": 256,
- "triangles": 2150,
+ "triangles": 2960,
  "files": [
   "templar_R.glb",
   "templar_L.glb"

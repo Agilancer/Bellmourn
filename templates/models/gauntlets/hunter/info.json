@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A soft brown leather glove with a short cuff, the forearm bound in pale linen wraps over a thin leather bracer, a mossy green wool sleeve. Worn, stitched, practical.",
  "texture_size": 256,
- "triangles": 1474,
+ "triangles": 2284,
  "files": [
   "hunter_R.glb",
   "hunter_L.glb"

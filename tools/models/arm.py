@@ -112,15 +112,66 @@ def pose(arm):
     return out
 
 
+def _turn(a, b, frac):
+    """Rotation turning direction a toward b by `frac` of the way (about their common axis)."""
+    a, b = norm(a), norm(b)
+    ax = np.cross(a, b)
+    s = np.linalg.norm(ax)
+    if s < 1e-9:
+        return np.eye(3)
+    ax /= s
+    t = math.atan2(s, np.dot(a, b)) * frac
+    k = np.array([[0, -ax[2], ax[1]], [ax[2], 0, -ax[0]], [-ax[1], ax[0], 0]])
+    return np.eye(3) + math.sin(t) * k + (1 - math.cos(t)) * k @ k
+
+
+# Open-hand finger directions per segment (right hand bind space: +z toward the fingers, +x
+# the back of the hand, +y the index/thumb side). The fingers fan a little apart and curve
+# gently toward the palm; the thumb swings out to the side.
+FAN = dict(index=0.16, middle=0.03, ring=-0.10, pinky=-0.22)
+
+
+def _open_dirs(f, spread):
+    if f == "thumb":
+        return [norm((-0.30, 0.80, 0.50)), norm((-0.20, 0.62, 0.76)), norm((-0.14, 0.45, 0.88))]
+    sy = FAN[f] * spread
+    return [norm((0.06, sy, 1.0)), norm((-0.10, sy * 1.1, 1.0)), norm((-0.24, sy * 1.2, 1.0))]
+
+
+def finger_locals(curl=1.0, spread=1.0):
+    """Finger and thumb bone matrices relative to the hand (right-hand bind space): curl 1 is
+    the bind grip, 0 a fully open hand, in between a cupped hand. Each segment turns from its
+    grip direction toward its open direction, chained from the knuckle out."""
+    out = {}
+    for f in FINGERS + ("thumb",):
+        j = finger_joints(f)
+        t = j[0].copy()
+        for k, o in enumerate(_open_dirs(f, spread)):
+            r = _turn(j[k + 1] - j[k], o, 1.0 - curl)
+            m = np.eye(4)
+            m[:3, :3], m[:3, 3] = r, t
+            out[f"{f}{k + 1}"] = m
+            t = t + r @ (j[k + 1] - j[k])
+    return out
+
+
+MIRROR4 = np.diag([-1.0, 1.0, 1.0, 1.0])
+
+
+def finger_mats(arm, side):
+    """Finger bone matrices relative to the hand for this arm's hand pose."""
+    loc = finger_locals(arm.get("curl", 1.0) if arm.get("curl") is not None else 1.0,
+                        arm.get("spread", 1.0))
+    if side == "L":
+        loc = {n: MIRROR4 @ m @ MIRROR4 for n, m in loc.items()}
+    return loc
+
+
 def world_mats(arm, side):
-    """Every bone's world matrix for a posed arm (fingers follow the hand)."""
+    """Every bone's world matrix for a posed arm (fingers follow the hand, in its hand pose)."""
     m = pose(arm)
-    bind = {n: o for n, _, o in bones(side)}
-    for n, parent, o in bones(side):
-        if parent == "hand":
-            local = np.eye(4)
-            local[:3, 3] = o - bind["hand"]
-            m[n] = m["hand"] @ local
+    for n, local in finger_mats(arm, side).items():
+        m[n] = m["hand"] @ local
     return m
 
 
@@ -128,12 +179,26 @@ def world_mats(arm, side):
 
 
 def segment(name, a, b, width, thick, up=(0, 1, 0), extend=0.003, cap_end=False, taper=0.9):
-    """One finger/thumb segment: a rounded box swept from joint a to joint b."""
+    """One finger/thumb segment from joint a to joint b: a rounded box with a short rounded
+    end at the knuckle that tucks into the segment before it, so a bent joint stays closed
+    and never shows a step or an open end. A fingertip (cap_end) narrows to a rounded,
+    slightly flattened tip."""
     a, b = np.asarray(a, float), np.asarray(b, float)
     d = norm(b - a)
-    path = [a - d * extend, b + d * extend]
-    secs = [rounded_rect(thick, width), rounded_rect(thick * taper, width * taper)]
-    return loft(name, path, secs, up=up, caps=(False, cap_end))
+    r = min(width, thick) * 0.5
+
+    def sec(k, flat=1.0):
+        return rounded_rect(thick * k * flat, width * k, n_corner=1)
+
+    path = [a - d * r * 0.85, a - d * r * 0.35, a, b]
+    secs = [sec(0.45), sec(0.88), sec(1.0), sec(taper)]
+    if cap_end:  # the fingertip: rounded off over its last few millimetres
+        path += [b + d * r * 0.55, b + d * r * 1.05]
+        secs += [sec(taper * 0.82, 0.9), sec(taper * 0.42, 0.8)]
+    else:  # a short rounded end that tucks into the next segment's knuckle
+        path += [b + d * extend]
+        secs += [sec(taper * 0.8)]
+    return loft(name, path, secs, up=up, caps=(True, True))
 
 
 def hand_parts(color=SKIN, scale=1.0):

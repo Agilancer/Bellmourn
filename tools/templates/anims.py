@@ -24,7 +24,7 @@ def mirror(key):
     sx, sy, z = key["S"]
     out["S"] = (W - sx, sy, z)
     out["ang"] = 180 - key["ang"]
-    for k in ("bend", "pole", "face"):
+    for k in ("bend", "pole", "face", "fing", "palm"):
         if k in key:
             x, y, z = key[k]
             out[k] = (-x, y, z)
@@ -274,6 +274,86 @@ R2H_SWING_3D = ([dict(R2H_SWING[0], name="UPRIGHT", **UPRIGHT_2H)] + R2H_SWING[1
                    dict(R2H_SWING[15], name="UPRIGHT", **UPRIGHT_2H)])
 
 
+
+# ---------------------------------------------------------------- empty-hand spellcasting
+# Open-hand keys: S = where the palm (the fist's grip point) sits, `fing` the way the fingers
+# point and `palm` the way the palm faces (camera space, right hand; the left is the mirror),
+# `curl` 0 open .. 1 fist, `spread` fans the fingers. `cast` marks where the spell leaves:
+# just in front of the palm (the orange burst on FIRE frames). (The reference video has no
+# casting; only its walking bob applies.)
+
+
+def hand(name, tics, fx, fy, z, fing, palm, curl, spread=1.0, **extra):
+    return dict(name=name, tics=tics, S=(*at(fx, fy), z), fing=fing, palm=palm, curl=curl,
+                spread=spread, ang=90, cast=True, **extra)
+
+
+def lerp_hand(a, b, s, **extra):
+    """An open-hand pose part-way (s = 0..1) from key a to key b."""
+    out = dict(a, **extra)
+    for k in ("S", "fing", "palm"):
+        out[k] = tuple(p + (q - p) * s for p, q in zip(a[k], b[k]))
+    for k in ("curl", "spread"):
+        out[k] = a[k] + (b[k] - a[k]) * s
+    return out
+
+
+# One hand: relaxed and half open at the side; draw it back beside the head with the palm
+# turned up, cupping the gathering spell; thrust it at the target and open the palm wide to
+# release; follow through and settle back.
+HAND_READY = hand("READY", 2, 0.72, 0.84, 0.30, (-0.15, 0.35, 0.92), (-0.85, -0.45, 0.10), 0.55)
+HAND_FIRE = hand("RELEASE", 2, 0.60, 0.40, 0.38, (0.00, 0.75, 0.66), (-0.05, -0.20, 1.00), 0.0,
+                 1.35, fire=True)
+R1C_CAST = [
+    HAND_READY,
+    hand("DRAW", 2, 0.78, 0.66, 0.27, (-0.25, 0.25, 0.93), (-0.20, 0.95, -0.10), 0.45),
+    hand("GATHER", 2, 0.80, 0.58, 0.26, (-0.30, 0.20, 0.93), (-0.15, 1.00, -0.15), 0.38),
+    hand("CHARGE", 3, 0.80, 0.57, 0.26, (-0.30, 0.20, 0.93), (-0.15, 1.00, -0.15), 0.35),
+    hand("THRUST", 1, 0.68, 0.46, 0.33, (-0.05, 0.60, 0.80), (-0.20, 0.20, 1.00), 0.12,
+         smear=True),
+    HAND_FIRE,
+    hand("FOLLOW", 2, 0.61, 0.43, 0.37, (0.00, 0.74, 0.67), (-0.08, -0.25, 1.00), 0.08, 1.25),
+    lerp_hand(HAND_FIRE, HAND_READY, 0.35, name="RETURN 1", tics=2, fire=False),
+    lerp_hand(HAND_FIRE, HAND_READY, 0.65, name="RETURN 2", tics=2, fire=False),
+    lerp_hand(HAND_FIRE, HAND_READY, 0.90, name="RETURN 3", tics=2, fire=False),
+    dict(HAND_READY, name="SETTLE"),
+]
+
+# Both hands: start low and half open, bring them together in front of the chest with the
+# palms facing each other around the gathering spell (a hand's width apart), push both
+# forward and turn the palms out to release from between them. Keyed for the right hand;
+# the left mirrors it.
+BOTH_READY = hand("READY", 2, 0.66, 0.88, 0.30, (-0.20, 0.35, 0.90), (-0.85, -0.40, 0.25), 0.55)
+BOTH_FIRE = hand("RELEASE", 2, 0.595, 0.46, 0.38, (0.10, 0.75, 0.66), (-0.35, -0.15, 1.00), 0.0,
+                 1.35, fire=True)
+B2C_CAST = [
+    BOTH_READY,
+    hand("BRING IN", 2, 0.62, 0.72, 0.28, (-0.10, 0.55, 0.83), (-1.00, 0.10, 0.10), 0.45),
+    hand("GATHER", 2, 0.615, 0.66, 0.28, (-0.10, 0.55, 0.83), (-1.00, 0.10, 0.10), 0.38),
+    hand("CHARGE", 4, 0.615, 0.65, 0.28, (-0.10, 0.55, 0.83), (-1.00, 0.10, 0.10), 0.35),
+    hand("PUSH", 1, 0.60, 0.54, 0.34, (0.05, 0.75, 0.66), (-0.70, -0.05, 0.70), 0.15,
+         smear=True),
+    BOTH_FIRE,
+    hand("FOLLOW", 2, 0.60, 0.49, 0.37, (0.10, 0.76, 0.64), (-0.45, -0.20, 1.00), 0.08, 1.25),
+    lerp_hand(BOTH_FIRE, BOTH_READY, 0.35, name="RETURN 1", tics=2, fire=False),
+    lerp_hand(BOTH_FIRE, BOTH_READY, 0.65, name="RETURN 2", tics=2, fire=False),
+    lerp_hand(BOTH_FIRE, BOTH_READY, 0.90, name="RETURN 3", tics=2, fire=False),
+    dict(BOTH_READY, name="SETTLE"),
+]
+
+
+def _both_hands(keys):
+    """Right-hand keys -> frames with both hands, the left mirroring the right."""
+    out = []
+    for k in keys:
+        k = dict(k)
+        meta = {m: k.pop(m) for m in ("name", "tics", "hit", "fire", "smear") if m in k}
+        meta["R"] = dict(k, weapon=None)
+        meta["L"] = dict(mirror(k), weapon=None)
+        out.append(meta)
+    return out
+
+
 ANIMS = {
     "r1h_walk": dict(
         id="r1h_walk", title="ONE-HANDED CARRY / WALK — RIGHT HAND",
@@ -420,4 +500,41 @@ ANIMS = {
         id="r2h_swing_3d", title="TWO-HANDED SWING FROM UPRIGHT (3D ONLY)", model_only=True,
         frames=_two_handed(R2H_SWING_3D, "sword2h"),
         notes=["3D models only: r2h_swing, starting from and returning to the upright carry."]),
+    "r1c_walk": dict(
+        id="r1c_walk", title="EMPTY HAND WALK — RIGHT HAND",
+        frames=_frames(walk_cycle(HAND_READY, rock=0), "R", None),
+        notes=[
+            "Right hand empty and relaxed, half open, ready to cast. Same bob as r1h_walk.",
+            "Frame 00 is also the idle pose and the first frame of r1c_cast.",
+        ]),
+    "r1c_cast": dict(
+        id="r1c_cast", title="ONE-HAND SPELL CAST — RIGHT HAND",
+        frames=_frames(R1C_CAST, "R", None),
+        notes=[
+            "01-03: draw the hand back beside the head, palm up and cupped (paint the gathering",
+            "spell glowing in the palm). 04 thrusts at the target (smear).",
+            "05 RELEASE: palm open and spread toward the target; the spell leaves at the orange",
+            "burst (paint a flash there; the bolt itself is separate). 06-10 settle back.",
+        ]),
+    "l1c_walk": dict(
+        id="l1c_walk", title="EMPTY HAND WALK — LEFT HAND",
+        frames=_frames(walk_cycle(HAND_READY, sway=-22, rock=0), "L", None),
+        notes=["Left hand only: the mirror image of r1c_walk."]),
+    "l1c_cast": dict(
+        id="l1c_cast", title="ONE-HAND SPELL CAST — LEFT HAND",
+        frames=_frames(R1C_CAST, "L", None),
+        notes=["Left hand only: the mirror image of r1c_cast. 05 RELEASE at the orange burst."]),
+    "b2c_walk": dict(
+        id="b2c_walk", title="EMPTY HANDS WALK — BOTH HANDS",
+        frames=_both_hands(walk_cycle(BOTH_READY, rock=0)),
+        notes=["Both hands empty, relaxed and half open in front, ready to cast."]),
+    "b2c_cast": dict(
+        id="b2c_cast", title="TWO-HAND SPELL CAST",
+        frames=_both_hands(B2C_CAST),
+        notes=[
+            "01-03: bring both hands together in front of the chest, palms facing, cupping the",
+            "gathering spell between them (paint it glowing there).",
+            "04 pushes forward (smear). 05 RELEASE: both palms turn out; the spell leaves from",
+            "between the two orange bursts. 06-10 settle back.",
+        ]),
 }

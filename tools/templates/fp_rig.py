@@ -157,9 +157,40 @@ def pose_frame(f):
     return arms
 
 
+def _pose_open_hand(side, key):
+    """An empty hand posed directly: `fing` is the way the fingers point and `palm` the way
+    the palm faces (camera space, given for the right hand and mirrored for the left like
+    everything else). `curl` (0 open .. 1 fist) and `spread` shape the fingers; with `cast`
+    the spell leaves from in front of the palm."""
+    g = from_screen(*key["S"])
+    want_g = g
+    s = SHOULDER[side]
+    pole = np.asarray(key.get("pole", POLE[side]), float)
+    a = norm(key["fing"])
+    k = norm(-np.asarray(key["palm"], float))  # back of the hand
+    k = norm(k - a * np.dot(k, a))
+    h = np.cross(a, k) * (1 if side == "R" else -1)  # the axis the fingers curl around
+    w = g - a * HAND
+    if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:  # out of reach: pull the hand in
+        w = s + norm(w - s) * (UPPER + FORE - 1e-3)
+        g = w + a * HAND
+    e = solve_elbow(s, w, pole)
+    return dict(side=side, S=s, E=e, W=w, G=g, D=h, A=a, K=k, H=h, pole=pole,
+                reach_miss=float(np.linalg.norm(g - want_g)), weapon=None, shield=None,
+                face=None, curl=key.get("curl", 0.5), spread=key.get("spread", 1.0),
+                cast=bool(key.get("cast")))
+
+
+def cast_point(arm):
+    """Where a spell leaves an empty hand: just in front of the palm."""
+    return arm["G"] - arm["K"] * 0.06
+
+
 def _pose_arm(side, key):
     """Grip and weapon come from the key; the elbow comes from IK and the hand keeps in line
     with the forearm (plus an optional small `bend`), so the wrist never breaks."""
+    if "fing" in key:
+        return _pose_open_hand(side, key)
     g = np.array(key["G3"], float) if "G3" in key else from_screen(*key["S"])
     want_g = g
     s = SHOULDER[side]
@@ -567,6 +598,9 @@ def build(anim):
         for arm in arms:
             if arm["weapon"]:
                 t = arm["G"] + arm["D"] * PROXY[arm["weapon"]]["tip"]
+                out.append(project(t) if t[2] > NEAR else None)
+            elif arm.get("cast"):  # an empty casting hand: the spell leaves from the palm
+                t = cast_point(arm)
                 out.append(project(t) if t[2] > NEAR else None)
         return out
 

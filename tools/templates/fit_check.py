@@ -9,7 +9,10 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "models"))
 import anims  # noqa: E402
+import arm as arm_model  # noqa: E402  (tools/models: the open-hand finger poses)
 import fp_rig as R  # noqa: E402
 
 
@@ -37,6 +40,14 @@ def points(arm):
         out += [g + d * p[j] for j in ("pommel", "guard", "tip")]
     if arm["shield"]:
         out += R.shield_ring(arm)[1]
+    if arm.get("curl") is not None:  # an open hand: its fingertips reach past the fist
+        mats = arm_model.world_mats(arm, arm["side"])
+        for f in arm_model.FINGERS + ("thumb",):
+            j = arm_model.finger_joints(f)
+            if arm["side"] == "L":
+                j = [p * np.array([-1, 1, 1]) for p in j]
+            m = mats[f"{f}3"]
+            out.append(m[:3, :3] @ (j[3] - j[2]) + m[:3, 3])
     return out
 
 

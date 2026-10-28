@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A riveted chain-mail glove and mail sleeve, a polished steel plate cuff, a steel knuckle bar and a plain steel elbow cop. Grey, cold, functional.",
  "texture_size": 256,
- "triangles": 1294,
+ "triangles": 2104,
  "files": [
   "mailed_R.glb",
   "mailed_L.glb"

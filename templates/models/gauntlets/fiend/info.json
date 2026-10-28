@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Blackened, ridged demon-iron with a saw-toothed spine fin, hooked claws on every finger, a spiked elbow, and a glowing ember stone set in the back of the hand.",
  "texture_size": 256,
- "triangles": 2002,
+ "triangles": 2812,
  "files": [
   "fiend_R.glb",
   "fiend_L.glb"

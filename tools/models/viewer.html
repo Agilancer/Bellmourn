@@ -98,7 +98,8 @@ function retro(obj) {
     if (o.isMesh) {
       o.frustumCulled = false;
       const m = o.material; if (m.map) { m.map.magFilter = m.map.minFilter = THREE.NearestFilter; m.map.generateMipmaps = false; }
-      o.material = new THREE.MeshLambertMaterial({ map: m.map, flatShading: false });
+      // keep the model's double-sided flag (thin shells such as cuffs and shield boards)
+      o.material = new THREE.MeshLambertMaterial({ map: m.map, flatShading: false, side: m.side });
     }
   });
 }

@@ -4,7 +4,7 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Full plate: an hourglass cuff that flares over the wrist, broad steel finger lames, knuckle bar and hand plate, a steel vambrace and a winged elbow couter over chain mail.",
  "texture_size": 256,
- "triangles": 2022,
+ "triangles": 2832,
  "files": [
   "knight_R.glb",
   "knight_L.glb"
