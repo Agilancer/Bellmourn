@@ -1,0 +1,262 @@
+// Geometry builder for the world: boxes, walls with openings, gable roofs, cones and stairs,
+// all with UVs in world metres (divided by each material's tile size) so every texture tiles
+// at a real-world size. Geometry is batched per material and per 32 m chunk of the map, so
+// the camera and every shadow-casting light only draw the chunks they can see; solid pieces
+// register colliders with the physics world.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+export class Builder {
+  constructor(physics) {
+    this.physics = physics;
+    this.batches = new Map(); // material -> chunk key -> [geometry]
+  }
+
+  push(mat, geo) {
+    if (!this.batches.has(mat)) this.batches.set(mat, new Map());
+    const p = geo.attributes.position.array, C = mat.userData.chunk || 32;
+    let x = 0, y = 0, z = 0;
+    const n = p.length / 3;
+    for (let i = 0; i < p.length; i += 3) { x += p[i]; y += p[i + 1]; z += p[i + 2]; }
+    const key = `${Math.floor(x / n / C)},${Math.floor(y / n / 8)},${Math.floor(z / n / C)}`;
+    const chunks = this.batches.get(mat);
+    if (!chunks.has(key)) chunks.set(key, []);
+    chunks.get(key).push(geo);
+  }
+
+  /** Raw triangles: positions [[x,y,z]...], uvs [[u,v]...] in metres, tris [[a,b,c]...]. */
+  mesh(mat, pos, uv, tris, shade = 1) {
+    const g = new THREE.BufferGeometry();
+    const tu = mat.userData.tileU || 1, tv = mat.userData.tileV || 1;
+    const P = new Float32Array(tris.length * 9), U = new Float32Array(tris.length * 6);
+    tris.forEach(([a, b, c], i) => {
+      [a, b, c].forEach((v, j) => {
+        P.set(pos[v], i * 9 + j * 3);
+        U.set([uv[v][0] / tu, uv[v][1] / tv], i * 6 + j * 2);
+      });
+    });
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+    g.computeVertexNormals();
+    const C = new Float32Array(tris.length * 9).fill(shade);
+    g.setAttribute('color', new THREE.BufferAttribute(C, 3));
+    this.push(mat, g);
+  }
+
+  /** A quad from four corners (counter-clockwise seen from the front), UVs in metres. */
+  quad(mat, a, b, c, d, uvs, shade = 1) {
+    this.mesh(mat, [a, b, c, d], uvs, [[0, 1, 2], [0, 2, 3]], shade);
+  }
+
+  /** An axis-aligned box. mats: one material or {top, bottom, side}. Collides unless
+   * opts.solid === false. opts.shade darkens it (interiors, undersides). */
+  box(min, max, mats, opts = {}) {
+    const m = mats.isMaterial ? { top: mats, bottom: mats, side: mats } : mats;
+    const [x0, y0, z0] = min, [x1, y1, z1] = max;
+    const sh = opts.shade ?? 1;
+    const top = opts.faces?.top !== false, bot = opts.faces?.bottom !== false;
+    if (top) this.quad(m.top, [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0],
+      [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]], sh);
+    if (bot) this.quad(m.bottom, [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1],
+      [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], sh * 0.8);
+    const f = opts.faces || {};
+    const s = m.side;
+    // UV v runs up the wall from y0 (or a fixed base so stacked walls line up)
+    const vb = opts.vbase ?? 0;
+    if (f.south !== false) this.quad(s, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+      [[x0, y0 - vb], [x1, y0 - vb], [x1, y1 - vb], [x0, y1 - vb]], sh);
+    if (f.north !== false) this.quad(s, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0],
+      [[-x1, y0 - vb], [-x0, y0 - vb], [-x0, y1 - vb], [-x1, y1 - vb]], sh);
+    if (f.east !== false) this.quad(s, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1],
+      [[-z1, y0 - vb], [-z0, y0 - vb], [-z0, y1 - vb], [-z1, y1 - vb]], sh);
+    if (f.west !== false) this.quad(s, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0],
+      [[z0, y0 - vb], [z1, y0 - vb], [z1, y1 - vb], [z0, y1 - vb]], sh);
+    if (opts.solid !== false) this.physics.add(min, max, opts.tag);
+  }
+
+  /** A straight wall from (x0, z0) to (x1, z1) (axis-aligned), y0..y1, `thick` metres, with
+   * openings [{at (metres from the start), w, y0, y1}] cut out (doors, windows). */
+  wall(x0, z0, x1, z1, y0, y1, thick, mat, openings = [], opts = {}) {
+    const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+    const len = alongX ? Math.abs(x1 - x0) : Math.abs(z1 - z0);
+    const dir = alongX ? Math.sign(x1 - x0) : Math.sign(z1 - z0);
+    const seg = (a, b, ya, yb) => { // along-wall span a..b (metres from the start), heights ya..yb
+      if (b - a < 0.01 || yb - ya < 0.01) return;
+      const p = (t) => (alongX ? x0 : z0) + dir * t;
+      const lo = Math.min(p(a), p(b)), hi = Math.max(p(a), p(b));
+      if (alongX) this.box([lo, ya, z0 - thick / 2], [hi, yb, z0 + thick / 2], mat, { ...opts, vbase: 0 });
+      else this.box([x0 - thick / 2, ya, lo], [x0 + thick / 2, yb, hi], mat, { ...opts, vbase: 0 });
+    };
+    const ops = [...openings].sort((a, b) => a.at - b.at);
+    let cur = 0;
+    for (const o of ops) {
+      const a = o.at - o.w / 2, b = o.at + o.w / 2;
+      seg(cur, a, y0, y1);
+      seg(a, b, y0, o.y0 ?? y0);              // below a window
+      seg(a, b, o.y1, y1);                     // above the opening
+      cur = b;
+    }
+    seg(cur, len, y0, y1);
+  }
+
+  /** A gable roof over the rectangle x0..x1, z0..z1 with the ridge along `ridge` ('x' or 'z'),
+   * eaves at y, ridge at y + rise, `over` metres of overhang. Also fills the two gable ends
+   * with wall material (if given). Roofs don't collide. */
+  gable(x0, z0, x1, z1, y, rise, roofMat, gableMat, ridge = 'x', over = 0.5, shade = 1) {
+    const t = 0.12;
+    if (ridge === 'x') {
+      const zm = (z0 + z1) / 2, X0 = x0 - over, X1 = x1 + over, Z0 = z0 - over, Z1 = z1 + over;
+      const ry = y + rise, ey = y - over * rise / ((z1 - z0) / 2);
+      const slope = Math.hypot((z1 - z0) / 2 + over, rise + (y - ey));
+      // south and north slopes (top faces), UV: across = x, up-slope = metres along the slope
+      this.quad(roofMat, [X0, ey, Z1], [X1, ey, Z1], [X1, ry, zm], [X0, ry, zm], [[X0, 0], [X1, 0], [X1, slope], [X0, slope]], shade);
+      this.quad(roofMat, [X1, ey, Z0], [X0, ey, Z0], [X0, ry, zm], [X1, ry, zm], [[-X1, 0], [-X0, 0], [-X0, slope], [-X1, slope]], shade);
+      // undersides
+      this.quad(roofMat, [X1, ey - t, Z1], [X0, ey - t, Z1], [X0, ry - t, zm], [X1, ry - t, zm], [[X1, 0], [X0, 0], [X0, slope], [X1, slope]], shade * 0.55);
+      this.quad(roofMat, [X0, ey - t, Z0], [X1, ey - t, Z0], [X1, ry - t, zm], [X0, ry - t, zm], [[X0, 0], [X1, 0], [X1, slope], [X0, slope]], shade * 0.55);
+      if (gableMat) for (const [x, s] of [[x0, -1], [x1, 1]]) {
+        const tri = s > 0 ? [[x, y, z1], [x, y, z0], [x, ry, zm]] : [[x, y, z0], [x, y, z1], [x, ry, zm]];
+        this.mesh(gableMat, tri, tri.map((p) => [s > 0 ? -p[2] : p[2], p[1]]), [[0, 1, 2]], shade);
+        const inner = tri.map((p) => [p[0] - s * 0.25, p[1], p[2]]).reverse();
+        this.mesh(gableMat, inner, inner.map((p) => [p[2], p[1]]), [[0, 1, 2]], shade * 0.6);
+      }
+    } else {
+      const xm = (x0 + x1) / 2, X0 = x0 - over, X1 = x1 + over, Z0 = z0 - over, Z1 = z1 + over;
+      const ry = y + rise, ey = y - over * rise / ((x1 - x0) / 2);
+      const slope = Math.hypot((x1 - x0) / 2 + over, rise + (y - ey));
+      this.quad(roofMat, [X1, ey, Z1], [X1, ey, Z0], [xm, ry, Z0], [xm, ry, Z1], [[-Z1, 0], [-Z0, 0], [-Z0, slope], [-Z1, slope]], shade);
+      this.quad(roofMat, [X0, ey, Z0], [X0, ey, Z1], [xm, ry, Z1], [xm, ry, Z0], [[Z0, 0], [Z1, 0], [Z1, slope], [Z0, slope]], shade);
+      this.quad(roofMat, [X1, ey - t, Z0], [X1, ey - t, Z1], [xm, ry - t, Z1], [xm, ry - t, Z0], [[Z0, 0], [Z1, 0], [Z1, slope], [Z0, slope]], shade * 0.55);
+      this.quad(roofMat, [X0, ey - t, Z1], [X0, ey - t, Z0], [xm, ry - t, Z0], [xm, ry - t, Z1], [[-Z1, 0], [-Z0, 0], [-Z0, slope], [-Z1, slope]], shade * 0.55);
+      if (gableMat) for (const [z, s] of [[z0, -1], [z1, 1]]) {
+        const tri = s > 0 ? [[x0, y, z], [x1, y, z], [xm, ry, z]] : [[x1, y, z], [x0, y, z], [xm, ry, z]];
+        this.mesh(gableMat, tri, tri.map((p) => [s > 0 ? p[0] : -p[0], p[1]]), [[0, 1, 2]], shade);
+        const inner = tri.map((p) => [p[0], p[1], p[2] - s * 0.25]).reverse();
+        this.mesh(gableMat, inner, inner.map((p) => [p[0], p[1]]), [[0, 1, 2]], shade * 0.6);
+      }
+    }
+  }
+
+  /** A timber of cross-section w x h from point a to point b at any angle (braces, rafters,
+   * barge boards). `up` steers which way its h side faces. Never collides. */
+  beam(a, b, w, h, mat, { up = [0, 1, 0], shade = 1, caps = true } = {}) {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+    const len = A.distanceTo(B);
+    if (len < 1e-4) return;
+    const d = B.clone().sub(A).divideScalar(len);
+    let u = new THREE.Vector3(...up);
+    if (Math.abs(u.dot(d)) > 0.95) u = Math.abs(d.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const s = new THREE.Vector3().crossVectors(d, u).normalize().multiplyScalar(w / 2);
+    u = new THREE.Vector3().crossVectors(s, d).normalize().multiplyScalar(h / 2);
+    const c = (p, i, j) => p.clone().addScaledVector(s, i).addScaledVector(u, j).toArray();
+    const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]]; // wound so every face points out
+    const ring0 = corners.map(([i, j]) => c(A, i, j)), ring1 = corners.map(([i, j]) => c(B, i, j));
+    const sideLen = [h, w, h, w];
+    for (let k = 0; k < 4; k++) { // four long faces, UV u along the timber
+      const k1 = (k + 1) % 4;
+      this.quad(mat, ring0[k], ring0[k1], ring1[k1], ring1[k], [[0, 0], [sideLen[k], 0], [sideLen[k], len], [0, len]].map(([x, y]) => [y, x]), shade);
+    }
+    if (caps) {
+      this.quad(mat, ring0[3], ring0[2], ring0[1], ring0[0], [[0, h], [w, h], [w, 0], [0, 0]], shade * 0.8);
+      this.quad(mat, ring1[0], ring1[1], ring1[2], ring1[3], [[0, 0], [w, 0], [w, h], [0, h]], shade * 0.8);
+    }
+  }
+
+  /** A cylinder of radius r from a to b with n sides (wheels, posts, bells' shoulders). */
+  cylinder(a, b, r, n, mat, { shade = 1, caps = true, r1 = r } = {}) {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+    const d = B.clone().sub(A), len = d.length();
+    d.normalize();
+    const s = Math.abs(d.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const e1 = new THREE.Vector3().crossVectors(d, s).normalize(), e2 = new THREE.Vector3().crossVectors(d, e1);
+    const ring = (P, R, k) => { const t = (k / n) * Math.PI * 2; return P.clone().addScaledVector(e1, Math.cos(t) * R).addScaledVector(e2, Math.sin(t) * R).toArray(); };
+    const circ = 2 * Math.PI * r / n;
+    for (let k = 0; k < n; k++) {
+      this.quad(mat, ring(A, r, k), ring(A, r, k + 1), ring(B, r1, k + 1), ring(B, r1, k),
+        [[k * circ, 0], [(k + 1) * circ, 0], [(k + 1) * circ, len], [k * circ, len]], shade);
+      if (caps) {
+        this.mesh(mat, [A.toArray(), ring(A, r, k + 1), ring(A, r, k)], [[0, 0], [Math.cos((k + 1) / n * 6.283) * r, Math.sin((k + 1) / n * 6.283) * r], [Math.cos(k / n * 6.283) * r, Math.sin(k / n * 6.283) * r]], [[0, 1, 2]], shade * 0.85);
+        if (r1 > 0) this.mesh(mat, [B.toArray(), ring(B, r1, k), ring(B, r1, k + 1)], [[0, 0], [Math.cos(k / n * 6.283) * r1, Math.sin(k / n * 6.283) * r1], [Math.cos((k + 1) / n * 6.283) * r1, Math.sin((k + 1) / n * 6.283) * r1]], [[0, 1, 2]], shade * 0.85);
+      }
+    }
+  }
+
+  /** An n-sided cone (spires, tower roofs) centred at (x, z), base radius r at y, apex at
+   * y + h. */
+  cone(x, z, r, y, h, n, mat, shade = 1) {
+    const pos = [], uv = [], tris = [];
+    const slant = Math.hypot(r, h);
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2, a1 = ((k + 1) / n) * Math.PI * 2;
+      const i = pos.length;
+      pos.push([x + r * Math.cos(a0), y, z + r * Math.sin(a0)], [x + r * Math.cos(a1), y, z + r * Math.sin(a1)], [x, y + h, z]);
+      const w = 2 * r * Math.sin(Math.PI / n);
+      uv.push([0, 0], [w, 0], [w / 2, slant]);
+      tris.push([i, i + 2, i + 1]);
+    }
+    this.mesh(mat, pos, uv, tris, shade);
+  }
+
+  /** An n-sided prism wall ring (towers): radius r, y0..y1, solid. */
+  ring(x, z, r, y0, y1, n, mat, opts = {}) {
+    const side = 2 * r * Math.sin(Math.PI / n);
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2, a1 = ((k + 1) / n) * Math.PI * 2;
+      const p0 = [x + r * Math.cos(a0), z + r * Math.sin(a0)], p1 = [x + r * Math.cos(a1), z + r * Math.sin(a1)];
+      if (opts.door === k) continue;
+      this.quad(mat, [p1[0], y0, p1[1]], [p0[0], y0, p0[1]], [p0[0], y1, p0[1]], [p1[0], y1, p1[1]],
+        [[k * side, y0], [(k + 1) * side, y0], [(k + 1) * side, y1], [k * side, y1]].map(([u, v]) => [-u, v]), opts.shade ?? 1);
+      this.quad(mat, [p0[0] * 0.94 + x * 0.06, y0, p0[1] * 0.94 + z * 0.06], [p1[0] * 0.94 + x * 0.06, y0, p1[1] * 0.94 + z * 0.06],
+        [p1[0] * 0.94 + x * 0.06, y1, p1[1] * 0.94 + z * 0.06], [p0[0] * 0.94 + x * 0.06, y1, p0[1] * 0.94 + z * 0.06],
+        [[k * side, y0], [(k + 1) * side, y0], [(k + 1) * side, y1], [k * side, y1]], (opts.shade ?? 1) * 0.6);
+      const mx = (p0[0] + p1[0]) / 2, mz = (p0[1] + p1[1]) / 2;
+      const hw = side / 2 + 0.2;
+      this.physics.add([Math.min(p0[0], p1[0]) - 0.15, y0, Math.min(p0[1], p1[1]) - 0.15],
+        [Math.max(p0[0], p1[0]) + 0.15, y1, Math.max(p0[1], p1[1]) + 0.15]);
+      void mx; void mz; void hw;
+    }
+  }
+
+  /** Stairs climbing from (x, y0, z0) along `dir` ('+z', '-z', '+x', '-x'), `width`, `rise`
+   * metres total, steps of `step` height and `run` depth. Each step is a solid box. */
+  stairs(x, z, y0, rise, width, dir, mat, { step = 0.25, run = 0.36, shade = 1 } = {}) {
+    const n = Math.round(Math.abs(rise) / step);
+    const sgn = Math.sign(rise);
+    for (let i = 0; i < n; i++) {
+      const top = y0 + sgn * (i + 1) * step;
+      const lo = Math.min(top, y0) - (sgn < 0 ? 0 : 0);
+      const a = i * run, b = (i + 1) * run;
+      // a descending flight: each step's top is `top`, filled down to well below
+      const yb = sgn > 0 ? y0 : top - 0.6;
+      let min, max;
+      if (dir === '+z') { min = [x - width / 2, yb, z + a]; max = [x + width / 2, top, z + b]; }
+      else if (dir === '-z') { min = [x - width / 2, yb, z - b]; max = [x + width / 2, top, z - a]; }
+      else if (dir === '+x') { min = [x + a, yb, z - width / 2]; max = [x + b, top, z + width / 2]; }
+      else { min = [x - b, yb, z - width / 2]; max = [x - a, top, z + width / 2]; }
+      void lo;
+      this.box(min, max, mat, { shade });
+    }
+    return n * run;
+  }
+
+  /** Merge every batch into one mesh per material and chunk, and add them to `scene`. Every
+   * mesh receives shadows; all but the ground (userData.noCast) cast them. */
+  finish(scene) {
+    const meshes = [];
+    for (const [mat, chunks] of this.batches) {
+      mat.vertexColors = true;
+      for (const geos of chunks.values()) {
+        const g = mergeGeometries(geos, false);
+        g.computeBoundingSphere();
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.matrixAutoUpdate = false;
+        mesh.castShadow = !mat.userData.noCast;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        meshes.push(mesh);
+      }
+    }
+    this.batches.clear();
+    return meshes;
+  }
+}
