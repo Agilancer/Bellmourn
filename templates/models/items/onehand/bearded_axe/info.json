@@ -1,0 +1,31 @@
+{
+ "id": "bearded_axe",
+ "name": "Bearded Axe",
+ "kind": "one-handed weapon",
+ "description": "A Norse-style axe: steel head with a long beard on an ash haft, iron socket and band.",
+ "texture_size": 128,
+ "triangles": 204,
+ "files": [
+  "bearded_axe.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "axe head"
+  },
+  {
+   "number": 3,
+   "name": "eye socket"
+  },
+  {
+   "number": 4,
+   "name": "haft band"
+  }
+ ],
+ "set": "set04",
+ "set_name": "model 4"
+}

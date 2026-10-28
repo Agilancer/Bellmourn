@@ -1,0 +1,39 @@
+{
+ "id": "ironbound",
+ "name": "Iron-Bound Roundshield",
+ "kind": "round shield",
+ "description": "A painted wooden round shield with an iron rim and domed iron boss. The player sees the inside: planks and the grip bar.",
+ "texture_size": 128,
+ "triangles": 592,
+ "files": [
+  "ironbound.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "rim"
+  },
+  {
+   "number": 3,
+   "name": "boss"
+  },
+  {
+   "number": 4,
+   "name": "grip bar"
+  },
+  {
+   "number": 5,
+   "name": "grip post top"
+  },
+  {
+   "number": 6,
+   "name": "grip post bottom"
+  }
+ ],
+ "set": "set01",
+ "set_name": "model 1"
+}

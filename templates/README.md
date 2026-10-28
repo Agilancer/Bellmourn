@@ -31,3 +31,25 @@ python tools/templates/fit_check.py         # fails if any frame goes above the 
 
 Poses live in `tools/templates/anims.py` (screen position of the fist, weapon angle, lean,
 shield facing); the IK, projection and drawing in `tools/templates/fp_rig.py`.
+
+## 3D first-person models (`templates/models/`)
+
+Low-poly three.js models (`.glb`) on the same rig, with texture sheets for ChatGPT.
+
+- `arms/`: the bare arm (both sides). Skeleton: `upper`, `elbow`, `fore`, `hand`, three bones
+  per finger and thumb, and an `item` socket at the grip. The wrist is skinned across forearm
+  and hand, so it bends like skin. Every rig animation is in the file, by rig id.
+- `gauntlets/<id>/`: ten gauntlets on that skeleton (`<id>_R.glb`, `<id>_L.glb`).
+- `items/<kind>/<id>/`: fifty held items (10 one-handed, 10 two-handed, 10 wands, 10 staffs,
+  5 round and 5 kite shields), modelled around the item socket: add them to the arm's `item`
+  node. `r2h_walk_3d` / `r2h_swing_3d` are the 3D-only upright two-hander carry.
+- Each model folder: `<id>_sheet.png` (for ChatGPT), `PROMPT.md` (what to paste),
+  `<id>_mask.png`, `<id>_texture.png` (placeholder), `info.json`.
+- `catalog/`: preview sheets of every model.
+
+Paint a model: give ChatGPT `STYLE_GUIDE.md`, the palette and the sheet with its `PROMPT.md`,
+then `python tools/models/apply_texture.py painted.png templates/models/<...>/<id>`.
+Watch them animate: `tools/models/viewer.html` (served by `tools/serve.py`).
+
+Rebuild: `python tools/models/build_arms.py`, `build_gauntlets.py`, `build_items.py`,
+`manifest.py`, then `python tools/templates/package.py` for the zips in `templates/packs/`.

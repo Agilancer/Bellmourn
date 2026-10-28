@@ -61,6 +61,64 @@ def pack_fp_weapons():
     return path, len(rigs)
 
 
+MODELS = os.path.join(TPL, "models")
+TOOLS = os.path.join(ROOT, "tools", "models")
+
+
+def _model_folders(sub):
+    base = os.path.join(MODELS, sub)
+    out = []
+    for dirpath, dirs, files in os.walk(base):
+        if "info.json" in files:
+            out.append(dirpath)
+    return sorted(out)
+
+
+def pack_models(name, title, subs):
+    """A 3D model pack: models + sheets + prompts + apply script + viewer + style guide."""
+    out_dir = os.path.join(TPL, "packs")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{name}.zip")
+    folders = [f for sub in subs for f in _model_folders(sub)]
+    listing = ["## Models", ""]
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for fn in ("STYLE_GUIDE.md", "bellmourn_palette.png", "bellmourn_palette.gpl",
+                   "bellmourn_palette.json"):
+            z.write(os.path.join(TPL, "style", fn), fn)
+        z.write(os.path.join(TOOLS, "apply_texture.py"), "apply_texture.py")
+        # the viewer, rewritten to read the models from this folder
+        with open(os.path.join(TOOLS, "viewer.html"), encoding="utf8") as f:
+            z.writestr("viewer.html", f.read().replace("const ROOT = '../../templates/models/';",
+                                                       "const ROOT = './';"))
+        z.write(os.path.join(MODELS, "manifest.json"), "manifest.json")
+        # the bare arms always come along (the viewer and the game fall back to them)
+        for fn in os.listdir(os.path.join(MODELS, "arms")):
+            if fn.endswith((".glb", ".png")):
+                z.write(os.path.join(MODELS, "arms", fn), f"arms/{fn}")
+        for folder in folders:
+            rel = os.path.relpath(folder, MODELS).replace("\\", "/")
+            with open(os.path.join(folder, "info.json")) as f:
+                info = json.load(f)
+            listing.append(f"- `{rel}`: **{info['name']}** ({info['triangles']} triangles, "
+                           f"{info['texture_size']}px texture). {info['description']}")
+            for fn in sorted(os.listdir(folder)):
+                z.write(os.path.join(folder, fn), f"{rel}/{fn}")
+        cat = os.path.join(MODELS, "catalog")
+        for fn in sorted(os.listdir(cat)) if os.path.isdir(cat) else []:
+            if (fn == "gauntlets.png") == ("gauntlets" in subs):  # each pack its own previews
+                z.write(os.path.join(cat, fn), f"catalog/{fn}")
+        with open(os.path.join(TOOLS, "README_PACK.md"), encoding="utf8") as f:
+            z.writestr("README.md", f.read().replace("{title}", title).replace(
+                "{listing}", "\n".join(listing)))
+    return path, len(folders)
+
+
 if __name__ == "__main__":
     path, n = pack_fp_weapons()
     print(f"wrote {path} ({n} rigs, {os.path.getsize(path) // 1024} KB)")
+    if os.path.isdir(MODELS):
+        for name, title, subs in (("bellmourn_3d_gauntlets", "gauntlets", ["gauntlets"]),
+                                  ("bellmourn_3d_weapons", "weapons, shields, wands and staffs",
+                                   ["items"])):
+            p, n = pack_models(name, title, subs)
+            print(f"wrote {p} ({n} models, {os.path.getsize(p) // 1024} KB)")

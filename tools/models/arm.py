@@ -50,6 +50,7 @@ def bones(side="R"):
     """[(name, parent, bind origin)] in rig space; all bind rotations are identity."""
     sx = 1 if side == "R" else -1
     out = [("upper", None, np.array([0, 0, -0.60])),
+           ("elbow", None, np.array([0, 0, -0.30])),
            ("fore", None, np.array([0, 0, -0.30])),
            ("hand", None, np.zeros(3)),
            ("item", None, np.array([0, 0, HAND]))]
@@ -84,9 +85,29 @@ def pose(arm):
     out["fore"] = mat(arm["E"], fx, fy, fz)
     ux, uy, uz = _frame(arm["E"] - arm["S"], fx)
     out["upper"] = mat(arm["S"], ux, uy, uz)
+    # elbow helper: halfway between the upper arm and the forearm, its +x (-x on the mirrored
+    # left arm) toward the outside of the bend, where the elbow point sticks out. That
+    # direction is the IK pole across the shoulder-wrist line, defined even for a straight arm
+    sw = norm(arm["W"] - arm["S"])
+    pole = np.asarray(arm.get("pole", (1.0, -0.6, -0.1)), float)
+    out_dir = norm(pole - sw * np.dot(pole, sw)) * (1 if arm["side"] == "R" else -1)
+    ex, ey, ez = _frame(uz + fz, out_dir)
+    out["elbow"] = mat(arm["E"], ex, ey, ez)
+    # item socket: +y along the handle/blade, +z toward the knuckles (weapons) or out of the
+    # shield's face. Blades are modelled flat across x, which is what faces the camera.
     iy = norm(arm["D"])
-    aim = arm["face"] if arm.get("face") is not None else arm["A"]
-    iz = norm(aim - iy * np.dot(aim, iy))
+    if arm.get("shield"):
+        # shields ride on the fist: the grip bar runs along the hand's grip axis, so the board
+        # turns with the hand however the arm moves. The face points along +z of the socket,
+        # which the block poses aim at the enemy; the board sits in front of the knuckles.
+        iz = norm(arm["face"])
+        if arm["shield"] == "kite":
+            iy = norm(np.array([0.0, 1.0, 0.0]) - iz * iz[1])  # upright, like the 2D rig
+        else:
+            iy = norm(h_y - iz * np.dot(h_y, iz))
+    else:
+        aim = arm["A"]
+        iz = norm(aim - iy * np.dot(aim, iy))
     out["item"] = mat(arm["G"], np.cross(iy, iz), iy, iz)
     return out
 
@@ -124,15 +145,7 @@ def hand_parts(color=SKIN, scale=1.0):
     palm = [(x * scale, z) for x, z in palm]
     parts.append(Part("palm", "hand", color, extrude(
         "palm", palm, (0, 0, 0), (1, 0, 0), (0, 0, 1), 0.068 * scale), label="palm", weight=2.2))
-    # the wrist: a joint ball centred on the wrist pivot, riding with the hand. Being round about
-    # the point the hand turns on, it fills the seam at any bend and never pokes out (the
-    # classic low-poly joint)
-    hs = (-0.03, -0.024, -0.014, 0.0, 0.014, 0.024, 0.03)
-    secs = [circle(max(0.031 * math.sqrt(max(1 - (h / 0.031) ** 2, 0.02)), 1e-3) * scale, 10,
-                   max(0.026 * math.sqrt(max(1 - (h / 0.031) ** 2, 0.02)), 1e-3) * scale)
-            for h in hs]
-    parts.append(Part("wrist", "hand", color, loft(
-        "wrist", [(0, 0, h) for h in hs], secs, caps=(True, True)), weight=1.5))
+    # (the wrist itself is the end of the forearm skin: see forearm_skin)
     for f in FINGERS + ("thumb",):
         j = finger_joints(f)
         w = finger_width(f) * scale
@@ -143,17 +156,85 @@ def hand_parts(color=SKIN, scale=1.0):
     return parts
 
 
+def _ellipsoid(name, bone, color, c, rx, ry, rz, n=8, rings=6, **kw):
+    hs = [-rz * math.cos(math.pi * k / rings) for k in range(rings + 1)]
+    secs = [circle(max(ry * math.sin(math.pi * k / rings), 1e-4), n,
+                   max(rx * math.sin(math.pi * k / rings), 1e-4)) for k in range(rings + 1)]
+    return Part(name, bone, color, loft(name, [(c[0], c[1], c[2] + h) for h in hs], secs,
+                                        caps=(True, True)), **kw)
+
+
+# The wrist bends over this band of bind z: behind it the skin rides the forearm, in front of
+# it the hand; in between it blends, so the wrist bends like skin instead of hinging.
+WRIST_BLEND = (-0.04, 0.010)
+# forearm skin cross-sections: (z, x radius, y radius, x centre). The last rings narrow a
+# little at the wrist, then fill out into the base of the palm (x -0.020..0.027).
+FOREARM = [(-0.275, 0.038, 0.042, 0.0), (-0.24, 0.040, 0.045, 0.0), (-0.15, 0.034, 0.039, 0.0),
+           (-0.07, 0.029, 0.033, 0.0), (-0.04, 0.027, 0.031, 0.0), (-0.02, 0.025, 0.030, 0.001),
+           (-0.005, 0.0245, 0.031, 0.002), (0.008, 0.0235, 0.0325, 0.0030),
+           (0.018, 0.022, 0.032, 0.0035)]
+
+
+def forearm_skin(name, color, z_start=-0.275, pad=0.0, n=12, weight=0.8):
+    """The forearm as one surface running on through the wrist into the palm, skinned across
+    the wrist (WRIST_BLEND) so it bends smoothly with the hand. `z_start` > -0.275 gives just
+    the wrist end (a glove's wrist under a bracer); `pad` makes it fuller."""
+    rings = [r for r in FOREARM if r[0] >= z_start - 1e-9]
+    if rings[0][0] > z_start + 1e-9:  # start part-way down the forearm
+        lo = max(r for r in FOREARM if r[0] < z_start)
+        hi = rings[0]
+        t = (z_start - lo[0]) / (hi[0] - lo[0])
+        rings.insert(0, tuple([z_start] + [lo[i] + (hi[i] - lo[i]) * t for i in (1, 2, 3)]))
+    secs = [[(cx + (rx + pad) * math.cos(2 * math.pi * k / n),
+              (ry + pad) * math.sin(2 * math.pi * k / n)) for k in range(n)]
+            for z, rx, ry, cx in rings]
+    return Part(name, "fore", color, loft(name, [(0, 0, z) for z, *_ in rings], secs,
+                                          caps=(True, True)),
+                weight=weight, v_label="toward hand", blend=("hand",) + WRIST_BLEND)
+
+
+def elbow_parts(sleeve=SLEEVE, cuff_color=SLEEVE, scale=1.0):
+    """The elbow, riding on the elbow helper bone (bind space, elbow at z=-0.30, +x = the
+    outside of the bend). The joint keeps the arm's own thickness so the outline runs on
+    smoothly through the bend; what makes it read as an elbow is the point (olecranon), a
+    rounded wedge on the outside of the bend, and the two knobs at the ends of the hinge
+    (epicondyles). A rolled sleeve cuff sits just below the joint."""
+    zc = -0.30
+    hs = (-0.045, -0.03, -0.012, 0.006, 0.024, 0.04)
+    secs = []
+    for h in hs:
+        k = math.sqrt(max(1 - (h / 0.05) ** 2, 0.2))
+        secs.append(circle(0.046 * k * scale, 10, 0.040 * k * scale))
+    joint = Part("elbow", "elbow", sleeve, loft(
+        "elbow", [(0, 0, zc + h) for h in hs], secs, caps=(True, True)), weight=0.6,
+        v_label="toward hand")
+    # the elbow point: a wedge narrowing outward from the back of the joint to a blunt tip
+    pts = [(0.016, zc + 0.006), (0.036, zc + 0.003), (0.054, zc - 0.002)]
+    psec = [rounded_rect(0.042 * scale, 0.036 * scale), rounded_rect(0.027 * scale, 0.025 * scale),
+            rounded_rect(0.011 * scale, 0.012 * scale)]
+    point = Part("elbow point", "elbow", sleeve, loft(
+        "elbow point", [(x * scale, 0, z) for x, z in pts], psec, up=(0, 1, 0),
+        caps=(True, True)), weight=0.6)
+    knobs = [_ellipsoid(f"elbow knob {s}", "elbow", sleeve, (0.008 * scale, s * 0.037 * scale,
+                                                             zc - 0.006),
+                        0.010 * scale, 0.008 * scale, 0.014 * scale, weight=0.4)
+             for s in (1, -1)]
+    knobs[0].name, knobs[1].name = "elbow knob top", "elbow knob bottom"
+    cuff = Part("sleeve cuff", "fore", cuff_color, loft(
+        "sleeve cuff", [(0, 0, -0.27), (0, 0, -0.245), (0, 0, -0.225)],
+        [circle(0.047 * scale, 10, 0.043 * scale), circle(0.049 * scale, 10, 0.045 * scale),
+         circle(0.046 * scale, 10, 0.042 * scale)], caps=(True, True)), weight=0.6)
+    return [joint, point] + knobs + [cuff]
+
+
 def bare_arm(side="R"):
     parts = [
         Part("upper arm", "upper", SLEEVE, loft(
-            "upper arm", [(0, 0, -0.60), (0, 0, -0.30)],
-            [circle(0.050, 8, 0.046), circle(0.045, 8, 0.041)], caps=(False, False)),
-             weight=0.3),
-        Part("forearm", "fore", SKIN, loft(
-            "forearm", [(0, 0, -0.30), (0, 0, -0.15), (0, 0, -0.008)],
-            [circle(0.042, 8, 0.038), circle(0.039, 8, 0.035), circle(0.030, 8, 0.026)],
-            caps=(False, True)),  # ends inside the wrist ball
-             weight=0.8),
+            "upper arm", [(0, 0, -0.60), (0, 0, -0.42), (0, 0, -0.30)],
+            [circle(0.052, 10, 0.048), circle(0.048, 10, 0.044), circle(0.043, 10, 0.038)],
+            caps=(False, True)), weight=0.3, v_label="toward elbow"),
+    ] + elbow_parts(SLEEVE, SLEEVE) + [
+        forearm_skin("forearm", SKIN),
     ] + hand_parts()
     model = Model(f"arm_bare_{side}", parts, tex=128)
     return mirrored(model) if side == "L" else model
@@ -178,10 +259,12 @@ def posed_triangles(model, mats, side):
     bind = {n: o for n, _, o in bones(side)}
     tris, cols = [], []
     for part in model.parts:
-        m = mats[part.bone]
-        o = bind[part.bone]
         for isl in part.islands:
-            v = (isl.v - o) @ m[:3, :3].T + m[:3, 3]
+            b0, b1, w = part.skin(isl)
+            m0, m1 = mats[b0], mats[b1]
+            v0 = (isl.v - bind[b0]) @ m0[:3, :3].T + m0[:3, 3]
+            v1 = (isl.v - bind[b1]) @ m1[:3, :3].T + m1[:3, 3]
+            v = v0 * (1 - w)[:, None] + v1 * w[:, None]
             for t in isl.t:
                 tris.append(v[t])
                 cols.append(part.color)

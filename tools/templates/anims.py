@@ -264,6 +264,16 @@ def _two_handed(keys, weapon, grip=GRIP_2H, **support):
     return out
 
 
+
+# 3D-only: with a real model there is no sprite sheet to stay inside, so the two-hander can be
+# carried Conan-style: hilt in front of the chest in both hands, blade standing straight up.
+# The 3D swing starts from that pose and returns to it; the approved sprite rigs are unchanged.
+UPRIGHT_2H = dict(S=(*at(0.58, 0.78), 0.38), ang=91, dz=0.10)
+R2H_SWING_3D = ([dict(R2H_SWING[0], name="UPRIGHT", **UPRIGHT_2H)] + R2H_SWING[1:14]
+                + [lerp_key(dict(R2H_SWING[13]), UPRIGHT_2H, 0.5, name="RAISE BACK", tics=2),
+                   dict(R2H_SWING[15], name="UPRIGHT", **UPRIGHT_2H)])
+
+
 ANIMS = {
     "r1h_walk": dict(
         id="r1h_walk", title="ONE-HANDED CARRY / WALK — RIGHT HAND",
@@ -402,4 +412,12 @@ ANIMS = {
             "04 tips the head forward (smear); 05 FIRE: the projectile leaves the head at the",
             "orange burst (paint a flash there; the bolt itself is separate). 06-11 settle back.",
         ]),
+    "r2h_walk_3d": dict(
+        id="r2h_walk_3d", title="TWO-HANDED UPRIGHT WALK (3D ONLY)", model_only=True,
+        frames=_two_handed(walk_cycle(UPRIGHT_2H, rock=1.5), "sword2h"),
+        notes=["3D models only: blade held upright in front, both hands on the grip."]),
+    "r2h_swing_3d": dict(
+        id="r2h_swing_3d", title="TWO-HANDED SWING FROM UPRIGHT (3D ONLY)", model_only=True,
+        frames=_two_handed(R2H_SWING_3D, "sword2h"),
+        notes=["3D models only: r2h_swing, starting from and returning to the upright carry."]),
 }

@@ -1,0 +1,59 @@
+{
+ "id": "ogre_club",
+ "name": "Ogre Greatclub",
+ "kind": "two-handed weapon",
+ "description": "A massive tree-limb club bound with iron bands and spiked.",
+ "texture_size": 128,
+ "triangles": 388,
+ "files": [
+  "ogre_club.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "club"
+  },
+  {
+   "number": 2,
+   "name": "iron band 1"
+  },
+  {
+   "number": 3,
+   "name": "iron band 2"
+  },
+  {
+   "number": 4,
+   "name": "spike 1"
+  },
+  {
+   "number": 5,
+   "name": "spike 2"
+  },
+  {
+   "number": 6,
+   "name": "spike 3"
+  },
+  {
+   "number": 7,
+   "name": "spike 4"
+  },
+  {
+   "number": 8,
+   "name": "spike 5"
+  },
+  {
+   "number": 9,
+   "name": "spike 6"
+  },
+  {
+   "number": 10,
+   "name": "spike 7"
+  },
+  {
+   "number": 11,
+   "name": "spike 8"
+  }
+ ],
+ "set": "set09",
+ "set_name": "model 9"
+}

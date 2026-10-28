@@ -1,0 +1,35 @@
+{
+ "id": "monk_staff",
+ "name": "Ringed Monk Staff",
+ "kind": "magic staff",
+ "description": "A pale wooden staff with a brass loop and jingle rings.",
+ "texture_size": 128,
+ "triangles": 370,
+ "files": [
+  "monk_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "top loop"
+  },
+  {
+   "number": 3,
+   "name": "jingle ring 1"
+  },
+  {
+   "number": 4,
+   "name": "jingle ring 2"
+  },
+  {
+   "number": 5,
+   "name": "grip wrap"
+  }
+ ],
+ "set": "set10",
+ "set_name": "model 10"
+}

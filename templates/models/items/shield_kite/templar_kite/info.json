@@ -1,0 +1,47 @@
+{
+ "id": "templar_kite",
+ "name": "Templar Kite",
+ "kind": "kite shield",
+ "description": "A silver kite shield with a raised red cross and gold edging.",
+ "texture_size": 128,
+ "triangles": 652,
+ "files": [
+  "templar_kite.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "edging"
+  },
+  {
+   "number": 3,
+   "name": "grip strap"
+  },
+  {
+   "number": 4,
+   "name": "strap post top"
+  },
+  {
+   "number": 5,
+   "name": "strap post bottom"
+  },
+  {
+   "number": 6,
+   "name": "arm pad"
+  },
+  {
+   "number": 7,
+   "name": "cross upright"
+  },
+  {
+   "number": 8,
+   "name": "cross bar"
+  }
+ ],
+ "set": "set04",
+ "set_name": "model 4"
+}

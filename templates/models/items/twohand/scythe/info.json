@@ -1,0 +1,31 @@
+{
+ "id": "scythe",
+ "name": "Reaper's Scythe",
+ "kind": "two-handed weapon",
+ "description": "A long curved scythe blade on a dark wooden snath with a hand peg.",
+ "texture_size": 128,
+ "triangles": 189,
+ "files": [
+  "scythe.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "snath"
+  },
+  {
+   "number": 2,
+   "name": "blade"
+  },
+  {
+   "number": 3,
+   "name": "blade collar"
+  },
+  {
+   "number": 4,
+   "name": "hand peg"
+  }
+ ],
+ "set": "set08",
+ "set_name": "model 8"
+}

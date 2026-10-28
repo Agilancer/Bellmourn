@@ -1,0 +1,130 @@
+{
+ "id": "hunter",
+ "name": "Hunter's Wraps",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "A soft brown leather glove with a short cuff, the forearm bound in pale linen wraps over a thin leather bracer, a mossy green wool sleeve. Worn, stitched, practical.",
+ "texture_size": 256,
+ "triangles": 1474,
+ "files": [
+  "hunter_R.glb",
+  "hunter_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "elbow knob top"
+  },
+  {
+   "number": 5,
+   "name": "elbow knob bottom"
+  },
+  {
+   "number": 6,
+   "name": "sleeve cuff"
+  },
+  {
+   "number": 7,
+   "name": "bracer"
+  },
+  {
+   "number": 8,
+   "name": "wrap 1"
+  },
+  {
+   "number": 9,
+   "name": "wrap 2"
+  },
+  {
+   "number": 10,
+   "name": "wrap 3"
+  },
+  {
+   "number": 11,
+   "name": "wrap 4"
+  },
+  {
+   "number": 12,
+   "name": "glove wrist"
+  },
+  {
+   "number": 13,
+   "name": "palm"
+  },
+  {
+   "number": 14,
+   "name": "index 1"
+  },
+  {
+   "number": 15,
+   "name": "index 2"
+  },
+  {
+   "number": 16,
+   "name": "index 3"
+  },
+  {
+   "number": 17,
+   "name": "middle 1"
+  },
+  {
+   "number": 18,
+   "name": "middle 2"
+  },
+  {
+   "number": 19,
+   "name": "middle 3"
+  },
+  {
+   "number": 20,
+   "name": "ring 1"
+  },
+  {
+   "number": 21,
+   "name": "ring 2"
+  },
+  {
+   "number": 22,
+   "name": "ring 3"
+  },
+  {
+   "number": 23,
+   "name": "pinky 1"
+  },
+  {
+   "number": 24,
+   "name": "pinky 2"
+  },
+  {
+   "number": 25,
+   "name": "pinky 3"
+  },
+  {
+   "number": 26,
+   "name": "thumb 1"
+  },
+  {
+   "number": 27,
+   "name": "thumb 2"
+  },
+  {
+   "number": 28,
+   "name": "thumb 3"
+  },
+  {
+   "number": 29,
+   "name": "glove cuff"
+  }
+ ]
+}

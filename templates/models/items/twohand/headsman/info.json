@@ -1,0 +1,31 @@
+{
+ "id": "headsman",
+ "name": "Headsman's Sword",
+ "kind": "two-handed weapon",
+ "description": "A broad square-tipped executioner's blade with a plain dark-iron guard and pommel.",
+ "texture_size": 128,
+ "triangles": 296,
+ "files": [
+  "headsman.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  }
+ ],
+ "set": "set06",
+ "set_name": "model 6"
+}

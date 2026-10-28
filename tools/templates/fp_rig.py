@@ -205,7 +205,7 @@ def _pose_arm(side, key):
         g = w + a * HAND
     w = g - a * HAND
     k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
-    return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h,
+    return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)),
                 weapon=key.get("weapon"), shield=key.get("shield"),
                 face=norm(key["face"]) if "face" in key else None)
@@ -697,6 +697,7 @@ if __name__ == "__main__":
     import anims  # noqa: E402
 
     palette.write(os.path.join(ROOT, "templates", "style"))
-    names = sys.argv[1:] or list(anims.ANIMS)
+    # 3D-only animations have no sprite sheet unless asked for by name
+    names = sys.argv[1:] or [k for k, a in anims.ANIMS.items() if not a.get("model_only")]
     for n in names:
         print("wrote", build(anims.ANIMS[n]))

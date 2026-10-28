@@ -1,0 +1,43 @@
+{
+ "id": "knights_kite",
+ "name": "Knight's Kite",
+ "kind": "kite shield",
+ "description": "A painted wooden kite shield with iron edging and a small boss.",
+ "texture_size": 128,
+ "triangles": 680,
+ "files": [
+  "knights_kite.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "edging"
+  },
+  {
+   "number": 3,
+   "name": "grip strap"
+  },
+  {
+   "number": 4,
+   "name": "strap post top"
+  },
+  {
+   "number": 5,
+   "name": "strap post bottom"
+  },
+  {
+   "number": 6,
+   "name": "arm pad"
+  },
+  {
+   "number": 7,
+   "name": "boss"
+  }
+ ],
+ "set": "set01",
+ "set_name": "model 1"
+}

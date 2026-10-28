@@ -20,11 +20,12 @@ import texkit  # noqa: E402
 from gltf import GLB  # noqa: E402
 
 TIC = 1 / 35
+ANIMATED = ("upper", "elbow", "fore", "hand", "item")  # bones the rig drives each frame
 
 
 def merged(model, bone_index=None):
     """Concatenate a packed model's islands into vertex arrays (rig space)."""
-    pos, nrm, uv, idx, joints = [], [], [], [], []
+    pos, nrm, uv, idx, j0, j1, w1 = [], [], [], [], [], [], []
     base = 0
     for part, isl in model.islands():
         pos.append(isl.v)
@@ -32,14 +33,18 @@ def merged(model, bone_index=None):
         uv.append(isl.px / model.tex)
         idx.append(isl.t + base)
         if bone_index is not None:
-            joints += [bone_index[part.bone]] * len(isl.v)
+            b0, b1, w = part.skin(isl)
+            j0 += [bone_index[b0]] * len(isl.v)
+            j1 += [bone_index[b1]] * len(isl.v)
+            w1.append(w)
         base += len(isl.v)
     out = [np.concatenate(pos), np.concatenate(nrm), np.concatenate(uv), np.concatenate(idx)]
     if bone_index is not None:
         j = np.zeros((base, 4), int)
-        j[:, 0] = joints
+        j[:, 0], j[:, 1] = j0, j1
         w = np.zeros((base, 4))
-        w[:, 0] = 1.0
+        w[:, 1] = np.concatenate(w1)
+        w[:, 0] = 1.0 - w[:, 1]
         out += [j, w]
     return out
 
@@ -51,7 +56,8 @@ def side_anims(side):
 
 def export_arm_model(model, side, path, texture=None):
     """A skinned arm-rig model with all of this side's rig animations."""
-    model.pack()
+    if any(i.px is None for _, i in model.islands()):
+        model.pack()
     g = GLB()
     g.texture(texkit.png_bytes(texture or texkit.placeholder_texture(model)))
     root = g.node(f"{model.name}")
@@ -75,13 +81,13 @@ def export_arm_model(model, side, path, texture=None):
     skin = g.skin([bone_nodes[n] for n in joint_names], bind)
     g.node(f"{model.name} mesh", root, mesh=mesh, skin=skin)
     for anim_id, frames in side_anims(side).items():
-        times, tracks = [], {bone_nodes[b]: [] for b in ("upper", "fore", "hand", "item")}
+        times, tracks = [], {bone_nodes[b]: [] for b in ANIMATED}
         t = 0.0
         for f in frames + [frames[-1]]:  # the closing key holds the last frame its full time
             R.set_view(f.get("view", R.REST_SCALE))
             arm = next(a for a in R.pose_frame(f) if a["side"] == side)
             mats = A.pose(arm)
-            for b in ("upper", "fore", "hand", "item"):
+            for b in ANIMATED:
                 tracks[bone_nodes[b]].append(mats[b])
             times.append(t)
             t += f["tics"] * TIC
@@ -93,7 +99,8 @@ def export_arm_model(model, side, path, texture=None):
 
 def export_item(model, path, texture=None):
     """A held item (no skeleton), modelled around the item socket."""
-    model.pack()
+    if any(i.px is None for _, i in model.islands()):
+        model.pack()
     g = GLB()
     g.texture(texkit.png_bytes(texture or texkit.placeholder_texture(model)))
     pos, nrm, uv, idx = merged(model)

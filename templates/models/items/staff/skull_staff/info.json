@@ -1,0 +1,39 @@
+{
+ "id": "skull_staff",
+ "name": "Skull Staff",
+ "kind": "magic staff",
+ "description": "A pale wooden staff crowned with a skull with ruby eyes.",
+ "texture_size": 128,
+ "triangles": 296,
+ "files": [
+  "skull_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "skull"
+  },
+  {
+   "number": 3,
+   "name": "jaw"
+  },
+  {
+   "number": 4,
+   "name": "eye left"
+  },
+  {
+   "number": 5,
+   "name": "eye right"
+  },
+  {
+   "number": 6,
+   "name": "binding"
+  }
+ ],
+ "set": "set03",
+ "set_name": "model 3"
+}

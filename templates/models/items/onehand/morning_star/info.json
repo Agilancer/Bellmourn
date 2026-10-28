@@ -1,0 +1,83 @@
+{
+ "id": "morning_star",
+ "name": "Morning Star",
+ "kind": "one-handed weapon",
+ "description": "A dark wooden haft topped with a spiked iron ball.",
+ "texture_size": 128,
+ "triangles": 477,
+ "files": [
+  "morning_star.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "collar"
+  },
+  {
+   "number": 3,
+   "name": "ball"
+  },
+  {
+   "number": 4,
+   "name": "spike 1"
+  },
+  {
+   "number": 5,
+   "name": "spike 2"
+  },
+  {
+   "number": 6,
+   "name": "spike 3"
+  },
+  {
+   "number": 7,
+   "name": "spike 4"
+  },
+  {
+   "number": 8,
+   "name": "spike 5"
+  },
+  {
+   "number": 9,
+   "name": "spike 6"
+  },
+  {
+   "number": 10,
+   "name": "spike 7"
+  },
+  {
+   "number": 11,
+   "name": "spike 8"
+  },
+  {
+   "number": 12,
+   "name": "spike 9"
+  },
+  {
+   "number": 13,
+   "name": "spike 10"
+  },
+  {
+   "number": 14,
+   "name": "spike 11"
+  },
+  {
+   "number": 15,
+   "name": "spike 12"
+  },
+  {
+   "number": 16,
+   "name": "spike 13"
+  },
+  {
+   "number": 17,
+   "name": "pommel"
+  }
+ ],
+ "set": "set05",
+ "set_name": "model 5"
+}

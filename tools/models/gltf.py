@@ -90,7 +90,8 @@ class GLB:
         self.j["images"] = [dict(bufferView=self._view(png_bytes), mimeType="image/png")]
         self.j["samplers"] = [dict(magFilter=9728, minFilter=9728, wrapS=33071, wrapT=33071)]
         self.j["textures"] = [dict(sampler=0, source=0)]
-        self.j["materials"] = [dict(name="retro", pbrMetallicRoughness=dict(
+        # double-sided: thin shells (flared cuffs, shield boards) stay solid from inside
+        self.j["materials"] = [dict(name="retro", doubleSided=True, pbrMetallicRoughness=dict(
             baseColorTexture=dict(index=0), metallicFactor=0.0, roughnessFactor=1.0))]
 
     def mesh(self, name, pos, nrm, uv, idx, joints=None, weights=None):

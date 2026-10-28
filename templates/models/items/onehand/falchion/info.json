@@ -1,0 +1,31 @@
+{
+ "id": "falchion",
+ "name": "Falchion",
+ "kind": "one-handed weapon",
+ "description": "A heavy single-edged blade that widens toward the tip; brass guard and pommel, dark leather grip.",
+ "texture_size": 128,
+ "triangles": 262,
+ "files": [
+  "falchion.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  }
+ ],
+ "set": "set02",
+ "set_name": "model 2"
+}

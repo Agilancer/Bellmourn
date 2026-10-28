@@ -1,0 +1,55 @@
+{
+ "id": "nail_club",
+ "name": "Nail Club",
+ "kind": "one-handed weapon",
+ "description": "A crude wooden club studded with iron nails, with a leather hand strap.",
+ "texture_size": 128,
+ "triangles": 252,
+ "files": [
+  "nail_club.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "club"
+  },
+  {
+   "number": 2,
+   "name": "nail 1"
+  },
+  {
+   "number": 3,
+   "name": "nail 2"
+  },
+  {
+   "number": 4,
+   "name": "nail 3"
+  },
+  {
+   "number": 5,
+   "name": "nail 4"
+  },
+  {
+   "number": 6,
+   "name": "nail 5"
+  },
+  {
+   "number": 7,
+   "name": "nail 6"
+  },
+  {
+   "number": 8,
+   "name": "nail 7"
+  },
+  {
+   "number": 9,
+   "name": "nail 8"
+  },
+  {
+   "number": 10,
+   "name": "hand strap"
+  }
+ ],
+ "set": "set10",
+ "set_name": "model 10"
+}

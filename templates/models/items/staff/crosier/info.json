@@ -1,0 +1,31 @@
+{
+ "id": "crosier",
+ "name": "Bishop's Crosier",
+ "kind": "magic staff",
+ "description": "A golden crosier with an ornate crook, a knop and a ruby.",
+ "texture_size": 128,
+ "triangles": 304,
+ "files": [
+  "crosier.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "knop"
+  },
+  {
+   "number": 3,
+   "name": "crook"
+  },
+  {
+   "number": 4,
+   "name": "crook gem"
+  }
+ ],
+ "set": "set08",
+ "set_name": "model 8"
+}

@@ -1,0 +1,35 @@
+{
+ "id": "warmaul",
+ "name": "Warmaul",
+ "kind": "two-handed weapon",
+ "description": "A huge dark-iron hammer head bound with iron bands on a long wooden haft.",
+ "texture_size": 128,
+ "triangles": 328,
+ "files": [
+  "warmaul.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "maul head"
+  },
+  {
+   "number": 3,
+   "name": "head band 1"
+  },
+  {
+   "number": 4,
+   "name": "head band 2"
+  },
+  {
+   "number": 5,
+   "name": "grip band"
+  }
+ ],
+ "set": "set04",
+ "set_name": "model 4"
+}

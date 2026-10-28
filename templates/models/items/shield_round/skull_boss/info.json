@@ -1,0 +1,51 @@
+{
+ "id": "skull_boss",
+ "name": "Skull-Boss Shield",
+ "kind": "round shield",
+ "description": "A dark wooden shield with a horned bone skull boss and a bone rim.",
+ "texture_size": 128,
+ "triangles": 670,
+ "files": [
+  "skull_boss.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "rim"
+  },
+  {
+   "number": 3,
+   "name": "skull"
+  },
+  {
+   "number": 4,
+   "name": "jaw"
+  },
+  {
+   "number": 5,
+   "name": "horn left"
+  },
+  {
+   "number": 6,
+   "name": "horn right"
+  },
+  {
+   "number": 7,
+   "name": "grip bar"
+  },
+  {
+   "number": 8,
+   "name": "grip post top"
+  },
+  {
+   "number": 9,
+   "name": "grip post bottom"
+  }
+ ],
+ "set": "set05",
+ "set_name": "model 5"
+}

@@ -54,3 +54,47 @@ def draw(draw_ctx, polys, scale=1.0):
     """Draw [(depth, pts, rgba)] far to near."""
     for _, pts, col in sorted(polys, key=lambda f: -f[0]):
         draw_ctx.polygon([(float(x) * scale, float(y) * scale) for x, y in pts], fill=col)
+
+
+def zbuffer(tris, colors, project, size, near=0.01, light=LIGHT, bg=(30, 28, 34), ss=2,
+            cull=True):
+    """Depth-buffered render of camera-space triangles (for previews: correct overlaps even
+    with long thin triangles, unlike the painter's sort above). Returns an RGB PIL image."""
+    from PIL import Image
+    w = h = size * ss
+    depth = np.zeros((h, w))  # inverse depth: 1/z interpolates linearly on screen
+    img = np.empty((h, w, 3), np.uint8)
+    img[:] = bg
+    for tri, col in zip(tris, colors):
+        n = np.cross(tri[1] - tri[0], tri[2] - tri[0])
+        ln = np.linalg.norm(n)
+        if ln < 1e-12:
+            continue
+        n = n / ln
+        if cull and np.dot(n, tri[0]) >= 0:
+            continue
+        poly = clip_near(tri, near)
+        if len(poly) < 3:
+            continue
+        rgb = shade(col, n, light)[:3]
+        pts = np.array([[project(p)[0] * ss, project(p)[1] * ss, p[2]] for p in poly])
+        for k in range(1, len(pts) - 1):
+            a, b, c = pts[0], pts[k], pts[k + 1]
+            x0, x1 = int(max(min(a[0], b[0], c[0]), 0)), int(min(max(a[0], b[0], c[0]) + 1, w))
+            y0, y1 = int(max(min(a[1], b[1], c[1]), 0)), int(min(max(a[1], b[1], c[1]) + 1, h))
+            if x0 >= x1 or y0 >= y1:
+                continue
+            xs, ys = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5)
+            det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+            if abs(det) < 1e-9:
+                continue
+            l1 = ((b[1] - c[1]) * (xs - c[0]) + (c[0] - b[0]) * (ys - c[1])) / det
+            l2 = ((c[1] - a[1]) * (xs - c[0]) + (a[0] - c[0]) * (ys - c[1])) / det
+            l3 = 1 - l1 - l2
+            inside = (l1 >= -1e-6) & (l2 >= -1e-6) & (l3 >= -1e-6)
+            iz = l1 / a[2] + l2 / b[2] + l3 / c[2]
+            sub = depth[y0:y1, x0:x1]
+            win = inside & (iz > sub)
+            sub[win] = iz[win]
+            img[y0:y1, x0:x1][win] = rgb
+    return Image.fromarray(img).resize((size, size), Image.LANCZOS)

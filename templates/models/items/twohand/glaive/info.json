@@ -1,0 +1,35 @@
+{
+ "id": "glaive",
+ "name": "Glaive",
+ "kind": "two-handed weapon",
+ "description": "A long single-edged blade with a back hook on a wooden pole.",
+ "texture_size": 128,
+ "triangles": 222,
+ "files": [
+  "glaive.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "glaive blade"
+  },
+  {
+   "number": 3,
+   "name": "back hook"
+  },
+  {
+   "number": 4,
+   "name": "socket band"
+  },
+  {
+   "number": 5,
+   "name": "grip band"
+  }
+ ],
+ "set": "set10",
+ "set_name": "model 10"
+}

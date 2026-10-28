@@ -1,0 +1,27 @@
+{
+ "id": "crescent_staff",
+ "name": "Crescent Staff",
+ "kind": "magic staff",
+ "description": "A dark staff with a silver crescent moon and a moonstone.",
+ "texture_size": 128,
+ "triangles": 198,
+ "files": [
+  "crescent_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "crescent"
+  },
+  {
+   "number": 3,
+   "name": "moonstone"
+  }
+ ],
+ "set": "set04",
+ "set_name": "model 4"
+}

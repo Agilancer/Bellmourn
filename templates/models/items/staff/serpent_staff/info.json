@@ -1,0 +1,31 @@
+{
+ "id": "serpent_staff",
+ "name": "Serpent Staff",
+ "kind": "magic staff",
+ "description": "A green serpent coiling up a dark staff.",
+ "texture_size": 128,
+ "triangles": 384,
+ "files": [
+  "serpent_staff.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "serpent coil"
+  },
+  {
+   "number": 3,
+   "name": "serpent head"
+  },
+  {
+   "number": 4,
+   "name": "serpent eye"
+  }
+ ],
+ "set": "set05",
+ "set_name": "model 5"
+}

@@ -1,0 +1,154 @@
+{
+ "id": "brawler",
+ "name": "Spiked Brawler",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "Studded brown leather with iron spikes on every knuckle and down the bracer, a thick leather knuckle pad, a dark leather sleeve. A pit fighter's gear.",
+ "texture_size": 256,
+ "triangles": 1464,
+ "files": [
+  "brawler_R.glb",
+  "brawler_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "elbow knob top"
+  },
+  {
+   "number": 5,
+   "name": "elbow knob bottom"
+  },
+  {
+   "number": 6,
+   "name": "sleeve cuff"
+  },
+  {
+   "number": 7,
+   "name": "studded bracer"
+  },
+  {
+   "number": 8,
+   "name": "bracer spike back 1"
+  },
+  {
+   "number": 9,
+   "name": "bracer spike outer 1"
+  },
+  {
+   "number": 10,
+   "name": "bracer spike back 2"
+  },
+  {
+   "number": 11,
+   "name": "bracer spike outer 2"
+  },
+  {
+   "number": 12,
+   "name": "bracer spike back 3"
+  },
+  {
+   "number": 13,
+   "name": "bracer spike outer 3"
+  },
+  {
+   "number": 14,
+   "name": "glove wrist"
+  },
+  {
+   "number": 15,
+   "name": "palm"
+  },
+  {
+   "number": 16,
+   "name": "index 1"
+  },
+  {
+   "number": 17,
+   "name": "index 2"
+  },
+  {
+   "number": 18,
+   "name": "index 3"
+  },
+  {
+   "number": 19,
+   "name": "middle 1"
+  },
+  {
+   "number": 20,
+   "name": "middle 2"
+  },
+  {
+   "number": 21,
+   "name": "middle 3"
+  },
+  {
+   "number": 22,
+   "name": "ring 1"
+  },
+  {
+   "number": 23,
+   "name": "ring 2"
+  },
+  {
+   "number": 24,
+   "name": "ring 3"
+  },
+  {
+   "number": 25,
+   "name": "pinky 1"
+  },
+  {
+   "number": 26,
+   "name": "pinky 2"
+  },
+  {
+   "number": 27,
+   "name": "pinky 3"
+  },
+  {
+   "number": 28,
+   "name": "thumb 1"
+  },
+  {
+   "number": 29,
+   "name": "thumb 2"
+  },
+  {
+   "number": 30,
+   "name": "thumb 3"
+  },
+  {
+   "number": 31,
+   "name": "index knuckle spike"
+  },
+  {
+   "number": 32,
+   "name": "middle knuckle spike"
+  },
+  {
+   "number": 33,
+   "name": "ring knuckle spike"
+  },
+  {
+   "number": 34,
+   "name": "pinky knuckle spike"
+  },
+  {
+   "number": 35,
+   "name": "knuckle pad"
+  }
+ ]
+}

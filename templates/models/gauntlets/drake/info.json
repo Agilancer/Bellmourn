@@ -1,0 +1,206 @@
+{
+ "id": "drake",
+ "name": "Drakescale",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "Overlapping rows of green drake scales down the forearm and over the fingers, bronze hand plate and elbow cap, horn studs on the knuckles, a dark red sleeve.",
+ "texture_size": 256,
+ "triangles": 1970,
+ "files": [
+  "drake_R.glb",
+  "drake_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "scale couter"
+  },
+  {
+   "number": 5,
+   "name": "under-bracer"
+  },
+  {
+   "number": 6,
+   "name": "scales row 1"
+  },
+  {
+   "number": 7,
+   "name": "scales row 2"
+  },
+  {
+   "number": 8,
+   "name": "scales row 3"
+  },
+  {
+   "number": 9,
+   "name": "scales row 4"
+  },
+  {
+   "number": 10,
+   "name": "scales row 5"
+  },
+  {
+   "number": 11,
+   "name": "scales row 6"
+  },
+  {
+   "number": 12,
+   "name": "glove wrist"
+  },
+  {
+   "number": 13,
+   "name": "palm"
+  },
+  {
+   "number": 14,
+   "name": "index 1"
+  },
+  {
+   "number": 15,
+   "name": "index 2"
+  },
+  {
+   "number": 16,
+   "name": "index 3"
+  },
+  {
+   "number": 17,
+   "name": "middle 1"
+  },
+  {
+   "number": 18,
+   "name": "middle 2"
+  },
+  {
+   "number": 19,
+   "name": "middle 3"
+  },
+  {
+   "number": 20,
+   "name": "ring 1"
+  },
+  {
+   "number": 21,
+   "name": "ring 2"
+  },
+  {
+   "number": 22,
+   "name": "ring 3"
+  },
+  {
+   "number": 23,
+   "name": "pinky 1"
+  },
+  {
+   "number": 24,
+   "name": "pinky 2"
+  },
+  {
+   "number": 25,
+   "name": "pinky 3"
+  },
+  {
+   "number": 26,
+   "name": "thumb 1"
+  },
+  {
+   "number": 27,
+   "name": "thumb 2"
+  },
+  {
+   "number": 28,
+   "name": "thumb 3"
+  },
+  {
+   "number": 29,
+   "name": "index scale 1"
+  },
+  {
+   "number": 30,
+   "name": "index scale 2"
+  },
+  {
+   "number": 31,
+   "name": "index scale 3"
+  },
+  {
+   "number": 32,
+   "name": "middle scale 1"
+  },
+  {
+   "number": 33,
+   "name": "middle scale 2"
+  },
+  {
+   "number": 34,
+   "name": "middle scale 3"
+  },
+  {
+   "number": 35,
+   "name": "ring scale 1"
+  },
+  {
+   "number": 36,
+   "name": "ring scale 2"
+  },
+  {
+   "number": 37,
+   "name": "ring scale 3"
+  },
+  {
+   "number": 38,
+   "name": "pinky scale 1"
+  },
+  {
+   "number": 39,
+   "name": "pinky scale 2"
+  },
+  {
+   "number": 40,
+   "name": "pinky scale 3"
+  },
+  {
+   "number": 41,
+   "name": "thumb scale 1"
+  },
+  {
+   "number": 42,
+   "name": "thumb scale 2"
+  },
+  {
+   "number": 43,
+   "name": "thumb scale 3"
+  },
+  {
+   "number": 44,
+   "name": "drake plate"
+  },
+  {
+   "number": 45,
+   "name": "index knuckle spike"
+  },
+  {
+   "number": 46,
+   "name": "middle knuckle spike"
+  },
+  {
+   "number": 47,
+   "name": "ring knuckle spike"
+  },
+  {
+   "number": 48,
+   "name": "pinky knuckle spike"
+  }
+ ]
+}

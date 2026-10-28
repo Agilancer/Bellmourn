@@ -1,0 +1,10642 @@
+{
+ "id": "tolling_giant",
+ "name": "The Tolling Giant",
+ "tier": "big_boss",
+ "size_class": "H",
+ "px_per_m": 32,
+ "height_m": 8.0,
+ "symmetric": false,
+ "drawn_dirs": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "mirror": {},
+ "sheet": [
+  1536,
+  1024
+ ],
+ "key": "#FF00FF",
+ "guide": "#00FFFF",
+ "tic_rate": 35,
+ "look": "An eight-metre giant with ash-grey skin and a blindfold of chained iron, wearing a cathedral's broken roof timbers as armour, swinging a great bronze bell on a heavy chain from the RIGHT hand as a flail, bare feet, a long matted beard.",
+ "ramps": "stone 4-12 (skin), gold 4-13 (bell), iron 1-9 (chain), wood 2-8 (timbers), bone 7-11",
+ "anims": {
+  "idle": {
+   "kind": "idle",
+   "loop": true,
+   "note": "Standing at rest, slow breathing and a small weight shift; F6 flows back into F1.",
+   "frames": [
+    {
+     "name": "REST",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "BREATHE IN",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "HOLD",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "BREATHE OUT",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "SHIFT",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "SETTLE",
+     "tics": 8,
+     "events": []
+    }
+   ]
+  },
+  "walk": {
+   "kind": "walk",
+   "loop": true,
+   "note": "Walking loop in place (the game moves the sprite); F6 flows into F1.",
+   "frames": [
+    {
+     "name": "CONTACT A",
+     "tics": 5,
+     "events": [
+      "step"
+     ]
+    },
+    {
+     "name": "DOWN A",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "PASS A",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "CONTACT B",
+     "tics": 5,
+     "events": [
+      "step"
+     ]
+    },
+    {
+     "name": "DOWN B",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "PASS B",
+     "tics": 5,
+     "events": []
+    }
+   ]
+  },
+  "run": {
+   "kind": "run",
+   "loop": true,
+   "note": "Running loop in place, leaning into the run; F6 flows into F1.",
+   "frames": [
+    {
+     "name": "PUSH A",
+     "tics": 3,
+     "events": [
+      "step"
+     ]
+    },
+    {
+     "name": "FLIGHT A",
+     "tics": 3,
+     "events": []
+    },
+    {
+     "name": "REACH A",
+     "tics": 3,
+     "events": []
+    },
+    {
+     "name": "PUSH B",
+     "tics": 3,
+     "events": [
+      "step"
+     ]
+    },
+    {
+     "name": "FLIGHT B",
+     "tics": 3,
+     "events": []
+    },
+    {
+     "name": "REACH B",
+     "tics": 3,
+     "events": []
+    }
+   ]
+  },
+  "jump": {
+   "kind": "jump",
+   "loop": false,
+   "note": "Jump. Keep the body near the ground line: the game lifts the sprite, the frames only change the pose.",
+   "frames": [
+    {
+     "name": "CROUCH",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "LAUNCH",
+     "tics": 3,
+     "events": [
+      "takeoff"
+     ]
+    },
+    {
+     "name": "RISE",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "APEX",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "FALL",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "LAND",
+     "tics": 5,
+     "events": [
+      "land"
+     ]
+    }
+   ]
+  },
+  "flail": {
+   "kind": "heavy",
+   "loop": false,
+   "note": "Swings the bell flail round in a wide arc. Slow heavy attack with a long, readable wind-up; damage lands on F5.",
+   "frames": [
+    {
+     "name": "READY",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "WIND-UP",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "PEAK",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "STRIKE",
+     "tics": 3,
+     "events": [
+      "smear"
+     ]
+    },
+    {
+     "name": "IMPACT",
+     "tics": 6,
+     "events": [
+      "hit"
+     ]
+    },
+    {
+     "name": "RECOVER",
+     "tics": 10,
+     "events": []
+    }
+   ]
+  },
+  "bell_slam": {
+   "kind": "heavy",
+   "loop": false,
+   "note": "Lifts the bell overhead and slams it down; it tolls on impact. Slow heavy attack with a long, readable wind-up; damage lands on F5.",
+   "frames": [
+    {
+     "name": "READY",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "WIND-UP",
+     "tics": 8,
+     "events": []
+    },
+    {
+     "name": "PEAK",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "STRIKE",
+     "tics": 3,
+     "events": [
+      "smear"
+     ]
+    },
+    {
+     "name": "IMPACT",
+     "tics": 6,
+     "events": [
+      "hit"
+     ]
+    },
+    {
+     "name": "RECOVER",
+     "tics": 10,
+     "events": []
+    }
+   ]
+  },
+  "stomp": {
+   "kind": "leap",
+   "loop": false,
+   "note": "Raises a foot and stamps; the game spawns a shockwave on F4. Leaping attack: the game moves the creature forward and up; damage lands on F4 as it comes down.",
+   "frames": [
+    {
+     "name": "CROUCH",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "SPRING",
+     "tics": 3,
+     "events": [
+      "takeoff"
+     ]
+    },
+    {
+     "name": "AIRBORNE",
+     "tics": 4,
+     "events": [
+      "smear"
+     ]
+    },
+    {
+     "name": "STRIKE",
+     "tics": 4,
+     "events": [
+      "hit",
+      "land"
+     ]
+    },
+    {
+     "name": "RECOVER",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "RISE",
+     "tics": 6,
+     "events": []
+    }
+   ]
+  },
+  "toll": {
+   "kind": "roar",
+   "loop": false,
+   "note": "Rings the bell to stun (the game spawns a sound wave on F3). Roar / taunt: head up, jaws wide on F3-F4.",
+   "frames": [
+    {
+     "name": "LIFT",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "OPEN",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "ROAR 1",
+     "tics": 6,
+     "events": [
+      "roar"
+     ]
+    },
+    {
+     "name": "ROAR 2",
+     "tics": 6,
+     "events": []
+    },
+    {
+     "name": "CLOSE",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "SETTLE",
+     "tics": 6,
+     "events": []
+    }
+   ]
+  },
+  "hurt": {
+   "kind": "hurt",
+   "loop": false,
+   "note": "Pain flinch: knocked back on F1-F2, recovers to the idle pose by F6.",
+   "frames": [
+    {
+     "name": "STRUCK",
+     "tics": 3,
+     "events": []
+    },
+    {
+     "name": "RECOIL",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "STAGGER",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "CATCH",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "STEADY",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "READY",
+     "tics": 4,
+     "events": []
+    }
+   ]
+  },
+  "death": {
+   "kind": "death",
+   "loop": false,
+   "note": "Death: collapses onto the ground line. F6 is held, then swapped for the corpse, so F6 must match the corpse sheet in the same direction.",
+   "frames": [
+    {
+     "name": "STRUCK",
+     "tics": 4,
+     "events": []
+    },
+    {
+     "name": "STAGGER",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "BUCKLE",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "FALL",
+     "tics": 5,
+     "events": []
+    },
+    {
+     "name": "IMPACT",
+     "tics": 6,
+     "events": [
+      "thud"
+     ]
+    },
+    {
+     "name": "STILL",
+     "tics": -1,
+     "events": []
+    }
+   ]
+  }
+ },
+ "sheets": [
+  {
+   "file": "tolling_giant_model_p1.png",
+   "kind": "model",
+   "anim": null,
+   "page": 1,
+   "pages": 1,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": null,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": null,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": null,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": null,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": null,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": null,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": null,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": null,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_idle_p1.png",
+   "kind": "anim",
+   "anim": "idle",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_idle_p2.png",
+   "kind": "anim",
+   "anim": "idle",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_idle_p3.png",
+   "kind": "anim",
+   "anim": "idle",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_walk_p1.png",
+   "kind": "anim",
+   "anim": "walk",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_walk_p2.png",
+   "kind": "anim",
+   "anim": "walk",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_walk_p3.png",
+   "kind": "anim",
+   "anim": "walk",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_run_p1.png",
+   "kind": "anim",
+   "anim": "run",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_run_p2.png",
+   "kind": "anim",
+   "anim": "run",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_run_p3.png",
+   "kind": "anim",
+   "anim": "run",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_jump_p1.png",
+   "kind": "anim",
+   "anim": "jump",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_jump_p2.png",
+   "kind": "anim",
+   "anim": "jump",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_jump_p3.png",
+   "kind": "anim",
+   "anim": "jump",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_flail_p1.png",
+   "kind": "anim",
+   "anim": "flail",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_flail_p2.png",
+   "kind": "anim",
+   "anim": "flail",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_flail_p3.png",
+   "kind": "anim",
+   "anim": "flail",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_bell_slam_p1.png",
+   "kind": "anim",
+   "anim": "bell_slam",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_bell_slam_p2.png",
+   "kind": "anim",
+   "anim": "bell_slam",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_bell_slam_p3.png",
+   "kind": "anim",
+   "anim": "bell_slam",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_stomp_p1.png",
+   "kind": "anim",
+   "anim": "stomp",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_stomp_p2.png",
+   "kind": "anim",
+   "anim": "stomp",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_stomp_p3.png",
+   "kind": "anim",
+   "anim": "stomp",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_toll_p1.png",
+   "kind": "anim",
+   "anim": "toll",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_toll_p2.png",
+   "kind": "anim",
+   "anim": "toll",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_toll_p3.png",
+   "kind": "anim",
+   "anim": "toll",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_hurt_p1.png",
+   "kind": "anim",
+   "anim": "hurt",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_hurt_p2.png",
+   "kind": "anim",
+   "anim": "hurt",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_hurt_p3.png",
+   "kind": "anim",
+   "anim": "hurt",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_death_p1.png",
+   "kind": "anim",
+   "anim": "death",
+   "page": 1,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 1,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_death_p2.png",
+   "kind": "anim",
+   "anim": "death",
+   "page": 2,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 4,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 0,
+     "cell": [
+      0,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 1,
+     "cell": [
+      256,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 2,
+     "cell": [
+      512,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 3,
+     "cell": [
+      768,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 4,
+     "cell": [
+      1024,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      1015
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": 5,
+     "cell": [
+      1280,
+      700,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      714,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      1015
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_death_p3.png",
+   "kind": "anim",
+   "anim": "death",
+   "page": 3,
+   "pages": 3,
+   "cells": [
+    {
+     "dir": 7,
+     "frame": 0,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 1,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 2,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 3,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 4,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": 5,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 0,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 1,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 2,
+     "cell": [
+      512,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 3,
+     "cell": [
+      768,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 4,
+     "cell": [
+      1024,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": 5,
+     "cell": [
+      1280,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      693
+     ]
+    }
+   ]
+  },
+  {
+   "file": "tolling_giant_corpse_p1.png",
+   "kind": "corpse",
+   "anim": null,
+   "page": 1,
+   "pages": 1,
+   "cells": [
+    {
+     "dir": 1,
+     "frame": null,
+     "cell": [
+      0,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      371
+     ]
+    },
+    {
+     "dir": 2,
+     "frame": null,
+     "cell": [
+      256,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      371
+     ]
+    },
+    {
+     "dir": 3,
+     "frame": null,
+     "cell": [
+      512,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      514,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      640,
+      371
+     ]
+    },
+    {
+     "dir": 4,
+     "frame": null,
+     "cell": [
+      768,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      770,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      896,
+      371
+     ]
+    },
+    {
+     "dir": 5,
+     "frame": null,
+     "cell": [
+      1024,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1026,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1152,
+      371
+     ]
+    },
+    {
+     "dir": 6,
+     "frame": null,
+     "cell": [
+      1280,
+      56,
+      256,
+      322
+     ],
+     "art": [
+      1282,
+      70,
+      252,
+      306
+     ],
+     "anchor": [
+      1408,
+      371
+     ]
+    },
+    {
+     "dir": 7,
+     "frame": null,
+     "cell": [
+      0,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      2,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      128,
+      693
+     ]
+    },
+    {
+     "dir": 8,
+     "frame": null,
+     "cell": [
+      256,
+      378,
+      256,
+      322
+     ],
+     "art": [
+      258,
+      392,
+      252,
+      306
+     ],
+     "anchor": [
+      384,
+      693
+     ]
+    }
+   ]
+  }
+ ]
+}

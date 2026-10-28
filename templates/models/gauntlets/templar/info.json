@@ -1,0 +1,186 @@
+{
+ "id": "templar",
+ "name": "Gilded Templar",
+ "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
+ "description": "Holy plate: polished steel with gold trim, a fluted bell cuff, a gilded knuckle bar, a gold sun medallion on the back of the hand, a royal blue tabard sleeve over mail.",
+ "texture_size": 256,
+ "triangles": 2150,
+ "files": [
+  "templar_R.glb",
+  "templar_L.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "tabard sleeve"
+  },
+  {
+   "number": 2,
+   "name": "elbow"
+  },
+  {
+   "number": 3,
+   "name": "elbow point"
+  },
+  {
+   "number": 4,
+   "name": "couter"
+  },
+  {
+   "number": 5,
+   "name": "couter wing"
+  },
+  {
+   "number": 6,
+   "name": "vambrace"
+  },
+  {
+   "number": 7,
+   "name": "gold trim"
+  },
+  {
+   "number": 8,
+   "name": "glove wrist"
+  },
+  {
+   "number": 9,
+   "name": "palm"
+  },
+  {
+   "number": 10,
+   "name": "index 1"
+  },
+  {
+   "number": 11,
+   "name": "index 2"
+  },
+  {
+   "number": 12,
+   "name": "index 3"
+  },
+  {
+   "number": 13,
+   "name": "middle 1"
+  },
+  {
+   "number": 14,
+   "name": "middle 2"
+  },
+  {
+   "number": 15,
+   "name": "middle 3"
+  },
+  {
+   "number": 16,
+   "name": "ring 1"
+  },
+  {
+   "number": 17,
+   "name": "ring 2"
+  },
+  {
+   "number": 18,
+   "name": "ring 3"
+  },
+  {
+   "number": 19,
+   "name": "pinky 1"
+  },
+  {
+   "number": 20,
+   "name": "pinky 2"
+  },
+  {
+   "number": 21,
+   "name": "pinky 3"
+  },
+  {
+   "number": 22,
+   "name": "thumb 1"
+  },
+  {
+   "number": 23,
+   "name": "thumb 2"
+  },
+  {
+   "number": 24,
+   "name": "thumb 3"
+  },
+  {
+   "number": 25,
+   "name": "index plate 1"
+  },
+  {
+   "number": 26,
+   "name": "index plate 2"
+  },
+  {
+   "number": 27,
+   "name": "index plate 3"
+  },
+  {
+   "number": 28,
+   "name": "middle plate 1"
+  },
+  {
+   "number": 29,
+   "name": "middle plate 2"
+  },
+  {
+   "number": 30,
+   "name": "middle plate 3"
+  },
+  {
+   "number": 31,
+   "name": "ring plate 1"
+  },
+  {
+   "number": 32,
+   "name": "ring plate 2"
+  },
+  {
+   "number": 33,
+   "name": "ring plate 3"
+  },
+  {
+   "number": 34,
+   "name": "pinky plate 1"
+  },
+  {
+   "number": 35,
+   "name": "pinky plate 2"
+  },
+  {
+   "number": 36,
+   "name": "pinky plate 3"
+  },
+  {
+   "number": 37,
+   "name": "thumb plate 1"
+  },
+  {
+   "number": 38,
+   "name": "thumb plate 2"
+  },
+  {
+   "number": 39,
+   "name": "thumb plate 3"
+  },
+  {
+   "number": 40,
+   "name": "gilded knuckle bar"
+  },
+  {
+   "number": 41,
+   "name": "hand plate"
+  },
+  {
+   "number": 42,
+   "name": "sun medallion"
+  },
+  {
+   "number": 43,
+   "name": "fluted cuff"
+  }
+ ]
+}

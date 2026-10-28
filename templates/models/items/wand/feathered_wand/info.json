@@ -1,0 +1,35 @@
+{
+ "id": "feathered_wand",
+ "name": "Feathered Charm",
+ "kind": "magic wand",
+ "description": "A pale wooden wand with a blue bead and a fan of feathers.",
+ "texture_size": 128,
+ "triangles": 104,
+ "files": [
+  "feathered_wand.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "bead"
+  },
+  {
+   "number": 3,
+   "name": "feather 1"
+  },
+  {
+   "number": 4,
+   "name": "feather 2"
+  },
+  {
+   "number": 5,
+   "name": "feather 3"
+  }
+ ],
+ "set": "set10",
+ "set_name": "model 10"
+}

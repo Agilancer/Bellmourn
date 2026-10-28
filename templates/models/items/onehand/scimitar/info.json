@@ -1,0 +1,31 @@
+{
+ "id": "scimitar",
+ "name": "Scimitar",
+ "kind": "one-handed weapon",
+ "description": "A curved desert sabre with a gilded guard and cap, red cloth grip.",
+ "texture_size": 128,
+ "triangles": 242,
+ "files": [
+  "scimitar.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "guard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "pommel cap"
+  }
+ ],
+ "set": "set07",
+ "set_name": "model 7"
+}

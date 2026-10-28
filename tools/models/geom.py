@@ -45,11 +45,24 @@ class Part:
     """`weight` scales the part's share of the texture: 2 = twice the texels per metre (for
     the hand, always in view), 0.3 for the upper arm that is almost never on screen."""
 
-    def __init__(self, name, bone, color, islands, label=None, weight=1.0):
+    def __init__(self, name, bone, color, islands, label=None, weight=1.0, v_label=None,
+                 blend=None):
         self.name, self.bone, self.color = name, bone, color
         self.islands = islands
         self.label = label or name
         self.weight = weight
+        self.v_label = v_label  # what the islands' +v direction means, drawn as an arrow
+        # (bone, z0, z1): skin smoothly from `bone` (at bind z <= z0) to that second bone
+        # (z >= z1), so the piece bends like skin across a joint instead of hinging rigidly
+        self.blend = blend
+
+    def skin(self, isl):
+        """(first bone, second bone, weight of the second bone per vertex)."""
+        if not self.blend:
+            return self.bone, self.bone, np.zeros(len(isl.v))
+        other, z0, z1 = self.blend
+        t = np.clip((isl.v[:, 2] - z0) / (z1 - z0), 0.0, 1.0)
+        return self.bone, other, t * t * (3 - 2 * t)
 
 
 class Model:

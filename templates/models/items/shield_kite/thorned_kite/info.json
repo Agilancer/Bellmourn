@@ -1,0 +1,91 @@
+{
+ "id": "thorned_kite",
+ "name": "Thorned Kite",
+ "kind": "kite shield",
+ "description": "A black obsidian kite shield with iron thorns along the edge and a central spike.",
+ "texture_size": 128,
+ "triangles": 753,
+ "files": [
+  "thorned_kite.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "board"
+  },
+  {
+   "number": 2,
+   "name": "edging"
+  },
+  {
+   "number": 3,
+   "name": "grip strap"
+  },
+  {
+   "number": 4,
+   "name": "strap post top"
+  },
+  {
+   "number": 5,
+   "name": "strap post bottom"
+  },
+  {
+   "number": 6,
+   "name": "arm pad"
+  },
+  {
+   "number": 7,
+   "name": "thorn left 1"
+  },
+  {
+   "number": 8,
+   "name": "thorn right 1"
+  },
+  {
+   "number": 9,
+   "name": "thorn left 2"
+  },
+  {
+   "number": 10,
+   "name": "thorn right 2"
+  },
+  {
+   "number": 11,
+   "name": "thorn left 3"
+  },
+  {
+   "number": 12,
+   "name": "thorn right 3"
+  },
+  {
+   "number": 13,
+   "name": "thorn left 4"
+  },
+  {
+   "number": 14,
+   "name": "thorn right 4"
+  },
+  {
+   "number": 15,
+   "name": "thorn left 5"
+  },
+  {
+   "number": 16,
+   "name": "thorn right 5"
+  },
+  {
+   "number": 17,
+   "name": "thorn left 6"
+  },
+  {
+   "number": 18,
+   "name": "thorn right 6"
+  },
+  {
+   "number": 19,
+   "name": "centre spike"
+  }
+ ],
+ "set": "set05",
+ "set_name": "model 5"
+}

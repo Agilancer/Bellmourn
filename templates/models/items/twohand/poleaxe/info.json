@@ -1,0 +1,39 @@
+{
+ "id": "poleaxe",
+ "name": "Poleaxe",
+ "kind": "two-handed weapon",
+ "description": "An axe blade, hammer back and long top spike on a wooden pole with iron langets and a rondel.",
+ "texture_size": 128,
+ "triangles": 162,
+ "files": [
+  "poleaxe.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "axe blade"
+  },
+  {
+   "number": 3,
+   "name": "hammer back"
+  },
+  {
+   "number": 4,
+   "name": "top spike"
+  },
+  {
+   "number": 5,
+   "name": "langet"
+  },
+  {
+   "number": 6,
+   "name": "rondel"
+  }
+ ],
+ "set": "set05",
+ "set_name": "model 5"
+}

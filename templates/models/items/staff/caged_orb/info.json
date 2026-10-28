@@ -1,0 +1,43 @@
+{
+ "id": "caged_orb",
+ "name": "Caged Orb Staff",
+ "kind": "magic staff",
+ "description": "A brass cage holding a blue orb atop a wooden staff.",
+ "texture_size": 128,
+ "triangles": 248,
+ "files": [
+  "caged_orb.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "orb"
+  },
+  {
+   "number": 3,
+   "name": "cage bar 1"
+  },
+  {
+   "number": 4,
+   "name": "cage bar 2"
+  },
+  {
+   "number": 5,
+   "name": "cage bar 3"
+  },
+  {
+   "number": 6,
+   "name": "cage bar 4"
+  },
+  {
+   "number": 7,
+   "name": "cage bar 5"
+  }
+ ],
+ "set": "set06",
+ "set_name": "model 6"
+}

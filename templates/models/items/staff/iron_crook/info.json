@@ -1,0 +1,27 @@
+{
+ "id": "iron_crook",
+ "name": "Iron Crook",
+ "kind": "magic staff",
+ "description": "A dark iron staff ending in a shepherd's crook.",
+ "texture_size": 128,
+ "triangles": 236,
+ "files": [
+  "iron_crook.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "shaft"
+  },
+  {
+   "number": 2,
+   "name": "crook"
+  },
+  {
+   "number": 3,
+   "name": "grip band"
+  }
+ ],
+ "set": "set02",
+ "set_name": "model 2"
+}

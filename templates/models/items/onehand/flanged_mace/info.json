@@ -1,0 +1,55 @@
+{
+ "id": "flanged_mace",
+ "name": "Flanged Mace",
+ "kind": "one-handed weapon",
+ "description": "An all-iron mace with six steel flanges and a leather-wrapped grip.",
+ "texture_size": 128,
+ "triangles": 284,
+ "files": [
+  "flanged_mace.glb"
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "grip"
+  },
+  {
+   "number": 3,
+   "name": "head core"
+  },
+  {
+   "number": 4,
+   "name": "flange 1"
+  },
+  {
+   "number": 5,
+   "name": "flange 2"
+  },
+  {
+   "number": 6,
+   "name": "flange 3"
+  },
+  {
+   "number": 7,
+   "name": "flange 4"
+  },
+  {
+   "number": 8,
+   "name": "flange 5"
+  },
+  {
+   "number": 9,
+   "name": "flange 6"
+  },
+  {
+   "number": 10,
+   "name": "pommel"
+  }
+ ],
+ "set": "set03",
+ "set_name": "model 3"
+}

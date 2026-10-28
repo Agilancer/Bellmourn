@@ -42,6 +42,7 @@ def points(arm):
 
 def check(name):
     bad = 0
+    model_only = anims.ANIMS[name].get("model_only")  # 3D only: may leave the top of the screen
     for i, f in enumerate(anims.ANIMS[name]["frames"]):
         R.set_view(f.get("view", R.REST_SCALE))
         arms = R.pose_frame(f)
@@ -52,6 +53,8 @@ def check(name):
         pts = [R.project(q) for q in raw if q[2] > R.NEAR]
         top = min(p[1] for p in pts)
         left, right = min(p[0] for p in pts), max(p[0] for p in pts)
+        if model_only:
+            top = max(top, 0.0)
         flag = ("  <-- OFF TOP" if top < 0 else "") + ("  <-- BEHIND CAMERA" if behind else "")
         flag += f"  <-- HAND SLIPS {slip * 100:.1f} cm (out of reach)" if slip > 0.01 else ""
         bad += int(top < 0 or behind > 0 or slip > 0.01)
