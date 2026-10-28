@@ -28,6 +28,8 @@ def mirror(key):
         if k in key:
             x, y, z = key[k]
             out[k] = (-x, y, z)
+    if "aim" in key:
+        out["aim"] = (W - key["aim"][0], key["aim"][1])
     return out
 
 
@@ -144,6 +146,41 @@ R1H_SHIELD_BACK = [
 ]
 R1H_SHIELD_BACK[4]["S"] = (SWORD_BACK["S"][0] + 4, SWORD_BACK["S"][1] + 5, 0.25)
 
+# Wand: carried like the sword (same walking bob) but shorter and leaning forward. From the
+# raise on, `aim` keeps the wand pointed straight at the crosshair, so its angle only drifts
+# smoothly as the arm moves and the wrist never flips: raise, draw back toward the body to
+# charge, push out and FIRE (the projectile spawns at the tip), recoil with the tip kicking up
+# above the target, lower back to carry. (The reference video has no casting; only its
+# walking bob applies.)
+CROSSHAIR = (W / 2, H / 2)
+KICK = (W / 2, H / 2 - 30)  # the recoil throws the aim up
+
+
+def wand(name, tics, fx, fy, z, ang, dz, aim=CROSSHAIR, **extra):
+    """A wand key: pointer grip (`steady`, the fist never rolls), aimed at `aim` unless None."""
+    k = dict(name=name, tics=tics, S=(*at(fx, fy), z), ang=ang, dz=dz, steady=True, **extra)
+    if aim is not None:
+        k["aim"] = aim
+    return k
+
+
+WAND_CARRY = {k: v for k, v in wand("CARRY", 2, 0.66, 0.80, 0.30, 72, 0.55, aim=None).items()
+              if k not in ("name", "tics")}
+R1W_CAST = [
+    wand("CARRY", 2, 0.66, 0.80, 0.30, 72, 0.55, aim=None),
+    wand("RAISE", 2, 0.66, 0.62, 0.34, 110, 0.60),
+    wand("DRAW BACK", 2, 0.70, 0.52, 0.30, 120, 0.80),
+    wand("CHARGE", 3, 0.71, 0.50, 0.29, 120, 0.80),
+    wand("PUSH", 1, 0.64, 0.36, 0.40, 140, 1.30, smear=True),
+    wand("FIRE", 2, 0.60, 0.28, 0.44, 150, 1.80, fire=True),
+    wand("RECOIL", 2, 0.63, 0.34, 0.38, 130, 1.20, aim=KICK),
+    wand("RETURN 1", 2, 0.64, 0.46, 0.36, 120, 1.00),
+    wand("RETURN 2", 2, 0.65, 0.60, 0.33, 105, 0.80),
+    wand("RETURN 3", 2, 0.66, 0.72, 0.31, 88, 0.65, aim=None),
+    wand("RETURN 4", 2, 0.66, 0.78, 0.30, 77, 0.58, aim=None),
+    wand("SETTLE", 2, 0.66, 0.80, 0.30, 72, 0.55, aim=None),
+]
+
 SHIELDS = ("round", "kite")
 
 
@@ -236,5 +273,33 @@ ANIMS = {
             "Plays with lsh_block / lks_block, frame for frame.",
             "The weapon hand draws back down and right, out of the shield's way, then returns.",
             "03 holds while block is held; 04 jolts with the shield when a hit lands.",
+        ]),
+    "r1w_walk": dict(
+        id="r1w_walk", title="WAND CARRY / WALK — RIGHT HAND",
+        frames=_frames(walk_cycle(WAND_CARRY), "R", "wand"),
+        notes=[
+            "Right hand only: a wand held like a short sword, leaning forward, while walking.",
+            "8-frame loop, same bob as r1h_walk; frame 00 is also the idle pose.",
+            "The yellow proxy is a 34 cm wand; staffs and rods keep the same grip.",
+        ]),
+    "r1w_cast": dict(
+        id="r1w_cast", title="WAND CAST / SHOOT PROJECTILE — RIGHT HAND",
+        frames=_frames(R1W_CAST, "R", "wand"),
+        notes=[
+            "Raise, cock the wand back over the wrist (02-03 charge: tip may glow).",
+            "04 flicks forward (smear); 05 FIRE: the tip points at the crosshair and the bolt",
+            "spawns at the orange burst (paint a muzzle flash there; the bolt itself is separate).",
+            "06 recoils; 07-11 settle back to the carry pose.",
+        ]),
+    "l1w_walk": dict(
+        id="l1w_walk", title="WAND CARRY / WALK — LEFT HAND",
+        frames=_frames(walk_cycle(WAND_CARRY), "L", "wand"),
+        notes=["Left hand only: the mirror image of r1w_walk."]),
+    "l1w_cast": dict(
+        id="l1w_cast", title="WAND CAST / SHOOT PROJECTILE — LEFT HAND",
+        frames=_frames(R1W_CAST, "L", "wand"),
+        notes=[
+            "Left hand only: the mirror image of r1w_cast.",
+            "05 FIRE: the bolt spawns at the orange burst; 02-03 charge, 07-11 settle.",
         ]),
 }

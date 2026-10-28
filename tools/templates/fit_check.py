@@ -15,9 +15,9 @@ import fp_rig as R  # noqa: E402
 
 def points(arm):
     """Every 3D point the guide draws for one arm: fist corners and the weapon proxy."""
-    g, d, a, k = arm["G"], arm["D"], arm["A"], arm["K"]
+    g, d, a, k, h = arm["G"], arm["D"], arm["A"], arm["K"], arm.get("H", arm["D"])
     centre = g - a * (R.FIST[0] * 0.55) + k * (R.FIST[2] * 0.35)
-    out = [centre + a * sa * R.FIST[0] + d * sd * R.FIST[1] + k * sk * R.FIST[2]
+    out = [centre + a * sa * R.FIST[0] + h * sd * R.FIST[1] + k * sk * R.FIST[2]
            for sa, sd, sk in itertools.product((1, -1), repeat=3)]
     if arm["weapon"]:
         p = R.PROXY[arm["weapon"]]

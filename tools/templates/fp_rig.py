@@ -120,15 +120,37 @@ def weapon_dir(ang, dz):
 
 
 def pose_arm(side, key):
+    """Pose one arm. With `aim` (a point on the drawn screen, e.g. the crosshair) the weapon's
+    on-screen angle is solved so it points straight at that point from the fist; `dz` still
+    sets how far it leans into the scene."""
+    if "aim" not in key:
+        return _pose_arm(side, key)
+    target = np.asarray(key["aim"], float)
+    ang = key["ang"]
+    for _ in range(8):
+        arm = _pose_arm(side, dict(key, ang=ang))
+        gp = project(arm["G"])
+        tp = project(arm["G"] + arm["D"] * 0.3)
+        want = math.atan2(-(target[1] - gp[1]), target[0] - gp[0])
+        have = math.atan2(-(tp[1] - gp[1]), tp[0] - gp[0])
+        err = math.degrees((want - have + math.pi) % (2 * math.pi) - math.pi)
+        if abs(err) < 0.05:
+            break
+        ang += err
+    return arm
+
+
+def _pose_arm(side, key):
     """Grip and weapon come from the key; the elbow comes from IK and the hand keeps in line
     with the forearm (plus an optional small `bend`), so the wrist never breaks."""
     g = from_screen(*key["S"])
-    d = weapon_dir(key["ang"], key.get("dz", 0.3))
     s = SHOULDER[side]
     pole = np.asarray(key.get("pole", POLE[side]), float)
     bend = np.asarray(key.get("bend", (0, 0, 0)), float)
+    wrist = key.get("wrist")  # rigid wrist: the item sits at this fixed angle in the fist
+    d = weapon_dir(key["ang"], key.get("dz", 0.3))  # with a rigid wrist, only a starting guess
     a = norm(g - s)
-    for _ in range(8):
+    for _ in range(8 if wrist is None else 12):  # (8 keeps approved rigs bit-identical)
         a = norm(a - d * np.dot(a, d))  # the fist closes at right angles to the handle
         w = g - a * HAND
         if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:  # out of reach: slide the grip in
@@ -136,10 +158,26 @@ def pose_arm(side, key):
             g = w + a * HAND
         e = solve_elbow(s, w, pole)
         a = norm(norm(w - e) + bend)
+        if wrist is not None:
+            # measured from the forearm, upward within the plane of the arm, so the hand
+            # can never roll or twist however the arm moves
+            f = norm(w - e)
+            # (the arm's plane holds shoulder, wrist and the elbow's pole, so it stays defined
+            # even when the arm is fully straight)
+            up = np.cross(norm(np.cross(w - s, pole)), f)  # mirrors correctly for the left arm
+            r = math.radians(wrist)
+            d = norm(f * math.cos(r) + up * math.sin(r))
     a = norm(a - d * np.dot(a, d))
+    h = d  # the axis the fist closes around
+    if key.get("steady"):
+        # pointer grip: the fist stays square to the arm, never rolling, whatever the item
+        # points at; the item leaves the front of the fist along D
+        a = norm(w - e)
+        h = np.cross(norm(np.cross(w - s, pole)), a)
+        g = w + a * HAND
     w = g - a * HAND
-    k = norm(np.cross(a, d)) * (-1 if side == "R" else 1)  # back of the hand
-    return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k,
+    k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
+    return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h,
                 weapon=key.get("weapon"), shield=key.get("shield"),
                 face=norm(key["face"]) if "face" in key else None)
 
@@ -230,7 +268,8 @@ def box_faces(cv, centre, axes, half, fingers=()):
 
 
 def draw_mannequin(cv, arm):
-    s, e, w, g, a, d, k = (arm[j] for j in ("S", "E", "W", "G", "A", "D", "K"))
+    s, e, w, g, a, k = (arm[j] for j in ("S", "E", "W", "G", "A", "K"))
+    d = arm.get("H", arm["D"])  # the fist closes around this axis
     fore = norm(w - e)
     parts = [
         ((s + e) / 2, lambda: cv.capsule3d(s, e, 0.06, 0.05, MANNEQUIN)),
@@ -415,6 +454,12 @@ def draw_frame(arms, tip_path, tip_now, label, tags, ghosts=None):
                 head = [kp + v / (np.linalg.norm(v) or 1) * 4, kp + n * 3, kp - n * 3]
                 over.d.polygon([over.pt(h) for h in head], fill=(0, 230, 255, 255))
     for tp in tip_now:
+        if tp is not None and any(t == "FIRE" for t, _ in tags):
+            # the projectile spawns here: a burst around the tip
+            for r, col in ((14, (255, 120, 0, 255)), (9, (255, 200, 40, 255))):
+                pts = [tp + np.array([math.cos(t), math.sin(t)]) * (r if j % 2 else r * 0.45)
+                       for j, t in enumerate(np.linspace(0, 2 * math.pi, 16, endpoint=False))]
+                over.d.polygon([over.pt(p) for p in pts], fill=col)
         if tp is not None:
             over.dot(tp, 3.5, (255, 230, 0, 255), (120, 80, 0, 255))
             over.text(tp + np.array([5, -12]), "T", (255, 230, 0, 255), small)
