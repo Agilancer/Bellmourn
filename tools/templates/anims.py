@@ -37,7 +37,7 @@ RAISED = (1.0, 0.4, -0.3)  # elbow lifted out to the side while the arm is up
 CARRY = dict(S=(*at(0.62, 0.72), 0.28), ang=70, dz=0.15)
 
 
-def walk_cycle(base=CARRY, n=8, sway=22):
+def walk_cycle(base=CARRY, n=8, sway=22, rock=4.0):
     """Video 0-80: the carried weapon sways side to side and dips on each footfall (a Doom-style
     figure-of-eight bob), rocking a few degrees with it. Every carried item uses the same bob in
     the same phase, so a sword and a shield walk in step. Keys for the left arm get mirrored,
@@ -48,7 +48,7 @@ def walk_cycle(base=CARRY, n=8, sway=22):
         t = 2 * math.pi * i / n
         out.append(dict(base, name=f"WALK {i + 1}", tics=4,
                         S=(sx + sway * math.cos(t), sy + 10 * abs(math.sin(t)), z),
-                        ang=base["ang"] + 4 * math.cos(t) * (1 if sway > 0 else -1)))
+                        ang=base["ang"] + rock * math.cos(t) * (1 if sway > 0 else -1)))
     return out
 
 
@@ -185,7 +185,7 @@ R1W_CAST = [
 # the way down, head up. The cast lifts it straight up, holds it high to charge, then tips
 # the head forward toward the target and FIRES: projectiles come out of the head (the tip).
 # Then it settles back. (The reference video has no casting; only its walking bob applies.)
-STAFF_CARRY = dict(S=(*at(0.86, 1.00), 0.34), ang=91, dz=0.15)
+STAFF_CARRY = dict(S=(*at(0.86, 1.04), 0.34), ang=90, dz=0.05)
 STAFF_FIRE = dict(S=(*at(0.66, 0.62), 0.42), ang=108, dz=1.50)
 R1S_CAST = [
     dict(name="CARRY", tics=2, **STAFF_CARRY),
@@ -388,7 +388,7 @@ ANIMS = {
         ]),
     "r1s_walk": dict(
         id="r1s_walk", title="STAFF CARRY / WALK — RIGHT HAND",
-        frames=_frames(walk_cycle(STAFF_CARRY), "R", "staff"),
+        frames=_frames(walk_cycle(STAFF_CARRY, rock=1.5), "R", "staff"),  # stays upright
         notes=[
             "Right hand only: a long staff carried upright at the side like a walking stick.",
             "8-frame loop, same bob as r1h_walk; frame 00 is also the idle pose.",
