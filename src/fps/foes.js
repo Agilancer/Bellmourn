@@ -112,8 +112,9 @@ class Foe extends Zombie {
     this.hp = this.kind.hp;
     this.limbHp = Object.fromEntries(Object.entries(LIMB_HP).map(([k, v]) => [k, v * this.kind.limb]));
     const geo = this.mesh.geometry;
-    if (geo.attributes._shell) geo.setAttribute('shell', geo.attributes._shell);
-    else geo.setAttribute('shell', new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count), 1));
+    geo.setAttribute('shell', geo.attributes._shell
+      || (gltf.userData.noShell ||= new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count), 1)));
+    this.shared.push('shell');
     this.zone = o.zone || 'wild';
     this.area = o.area || null;            // {x, z, r} it keeps to, or a room rect via o.room
     this.patrol = o.patrol || null;        // [[x, z], ...] it walks round

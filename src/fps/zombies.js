@@ -289,9 +289,13 @@ export class Zombie {
     root.add(model);
     model.traverse((c) => { if (c.isSkinnedMesh) this.mesh = c; });
     const mesh = this.mesh;
-    mesh.geometry = mesh.geometry.clone();
-    const geo = mesh.geometry;
-    geo.setAttribute('bindPos', geo.attributes.position.clone());
+    // every body of a kind shares its vertices; each has its own triangles, as limbs come off
+    const src = mesh.geometry, geo = mesh.geometry = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(src.attributes)) geo.setAttribute(k, a);
+    geo.setAttribute('bindPos', src.attributes.position);
+    geo.setIndex(src.index.clone());
+    for (const g of src.groups) geo.addGroup(g.start, g.count, g.materialIndex);
+    this.shared = Object.keys(geo.attributes);
     mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.frustumCulled = false;
@@ -847,6 +851,7 @@ export class Zombie {
   remove() {
     this.gone = true;
     this.owner.scene.remove(this.root);
+    for (const k of this.shared) this.mesh.geometry.deleteAttribute(k); // the other bodies still draw with them
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.mixer.stopAllAction();

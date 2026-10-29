@@ -17,7 +17,7 @@ import { Kit } from './kit.js';
 import { Builder } from './geo.js';
 import { buildWorld, VILLAGE_R, GRAVEYARD } from './realm.js';
 import { buildCrypt } from './crypt.js';
-import { Input } from './input.js';
+import { Input, TOUCH } from './input.js';
 import { Player } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
@@ -34,7 +34,7 @@ import { Foes } from './foes.js';
 import { buildCave } from './cave.js';
 import { StainedGlass } from './glass.js';
 
-const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const touch = TOUCH;
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
 const HI = QUALITY === 'high';
 
@@ -95,7 +95,7 @@ const pending = { R: null, L: null };
 let pix = Number(localStorage.getItem('bm.pix') || (HI ? 2 : 2));
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
 let hour = { golden: 17.6, noon: 12, night: 23, cycle: 16.8 }[timeMode] ?? 16.8;
-let started = false, paused = false;
+let started = false, paused = false, lost = false;
 let W = 2, H = 2;
 let shake = 0, flameList = [], lightTimer = 0;
 
@@ -151,8 +151,16 @@ function resize() {
 addEventListener('resize', resize);
 
 // ------------------------------------------------------------------ build everything
+// how far through the build each step is (as it runs on a desktop), for the loading line: a
+// phone takes a minute or more, and should be seen to be getting on with it
+const LOADED = { kit: 10, world: 37, instances: 41, arms: 73, icons: 77, zombies: 80, foes: 100 };
+
 async function build() {
-  const T0 = performance.now(), times = (window.buildTimes = []), mark = (k) => times.push([k, Math.round(performance.now() - T0)]);
+  const T0 = performance.now(), times = (window.buildTimes = []);
+  const mark = async (k) => {
+    times.push([k, Math.round(performance.now() - T0)]);
+    if (LOADED[k]) { hud.loading(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
+  };
   physics = new Physics();
   // the reworked Quaternius kit: every model of the six packs, reshaped and repainted
   kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI }).load();
@@ -161,12 +169,12 @@ async function build() {
   ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
   physics.terrain = worldHeight; // the whole land: flat in the village, hills and mountains beyond
   ctx.doors = new KitDoors(ctx);
-  mark('kit');
-  buildWorld(ctx); mark('world');
-  ctx.dungeon = buildCrypt(ctx, ctx.stairBottom); mark('dungeon');
-  ctx.cave = buildCave(ctx); mark('cave');   // the Gloamhollow, in the cliff beside Brightwater Falls
-  ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); mark('merge');
-  kit.finish(); mark('instances');
+  await mark('kit');
+  buildWorld(ctx); await mark('world');
+  ctx.dungeon = buildCrypt(ctx, ctx.stairBottom); await mark('dungeon');
+  ctx.cave = buildCave(ctx); await mark('cave');   // the Gloamhollow, in the cliff beside Brightwater Falls
+  ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); await mark('merge');
+  kit.finish(); await mark('instances');
   await ctx.land.ready;
   ctx.stained.applyTo(scene);
   ctx.glass = kit.glass;
@@ -190,18 +198,18 @@ async function build() {
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
   // what the monsters drop: the packs' reworked weapons, taken up by walking over them
   ctx.loot = new Loot(ctx, { vm, onTake: (it) => { sfx.equip(); hud.toast(`You take up the ${it.title}`); hud.refresh(vm.equip, book, vm.gauntlet); } });
-  mark('arms');
-  const icons = await renderIcons(); mark('icons');
+  await mark('arms');
+  const icons = await renderIcons(); await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
   zombies = new Zombies(scene, physics, kit, sfx);
-  await zombies.load(); mark('zombies');
+  await zombies.load(); await mark('zombies');
   const G = GRAVEYARD;
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
   zombies.populateDungeon(ctx.dungeon, DUNGEON_DEAD);
   zombies.onPlayerHit = hurtPlayer;
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
-  await foes.load(); foes.populate(ctx); mark('foes');
+  await foes.load(); foes.populate(ctx); await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: SPELL_DMG[def.kind] ?? 30, dir: d, heavy: def.size > 0.4, kind: def.kind });
   magic.onBlast = (def, at) => {
@@ -524,6 +532,7 @@ function light(dt, t) {
 
 // ------------------------------------------------------------------ start, pause, menus
 function begin() {
+  if (lost) { location.reload(); return; }
   sfx.start();
   if (!ready) return;
   started = true;
@@ -539,6 +548,7 @@ function begin() {
 
 function setInventory(on) {
   hud.showInventory(on);
+  if (touch) { hud.showTouch(!on); gameInput.release(); } // the thumb controls would lie over the bag
   if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book, vm.gauntlet); }
   else if (!touch) canvas.requestPointerLock?.();
 }
@@ -547,7 +557,7 @@ function pause() {
   paused = true;
   hud.showInventory(false);
   hud.showOverlay('pause', touch);
-  if (touch) hud.showTouch(false);
+  if (touch) { hud.showTouch(false); gameInput.release(); }
 }
 
 document.addEventListener('pointerlockchange', () => {
@@ -659,6 +669,12 @@ hud = new Hud(ui, { spells: SPELLS, items: ITEMS, gauntlets: [], onEquip: equip,
 try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); } catch { /* first visit */ }
 hud.showOverlay('loading', touch);
 gameInput = new Input(canvas, ui);
+// a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
+canvas.addEventListener('webglcontextlost', () => {
+  lost = true; ready = false;
+  hud.showInventory(false); hud.showTouch(false);
+  hud.showOverlay('lost', touch);
+});
 canvas.addEventListener('mousedown', () => sfx.start());
 hud.overlay.addEventListener('click', (e) => { if (!e.target.closest('.opts')) begin(); });
 hud.overlay.addEventListener('touchend', (e) => { if (!e.target.closest('.opts')) { e.preventDefault(); begin(); } });
