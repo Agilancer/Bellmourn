@@ -52,8 +52,9 @@ const NM_FRAG = /* glsl */`
   }`;
 
 export class Kit {
-  constructor(renderer, scene, physics, { normals = true, shadows = true } = {}) {
+  constructor(renderer, scene, physics, { normals = true, shadows = true, packs = PACKS } = {}) {
     this.renderer = renderer;
+    this.packs = packs;
     this.scene = scene;
     this.physics = physics;
     this.normals = normals;
@@ -90,7 +91,7 @@ export class Kit {
     blank.needsUpdate = true;
     this.U.kBiome.value = blank;
     const loader = new GLTFLoader();
-    await Promise.all(PACKS.map(async (p) => {
+    await Promise.all(this.packs.map(async (p) => {
       const gltf = await loader.loadAsync(ROOT + p + '.glb');
       for (const node of gltf.scene.children) this.ingest(node);
     }));

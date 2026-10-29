@@ -129,11 +129,12 @@ export class Villagers {
     const add = (x, z, tag = null) => { nodes.push({ x, z, tag, n: [] }); return nodes.length - 1; };
     const link = (a, b) => { if (a !== b && !nodes[a].n.includes(b)) { nodes[a].n.push(b); nodes[b].n.push(a); } };
     const lineOf = (pts) => { let prev = null; for (const [x, z] of pts) { const i = add(x, z); if (prev !== null) link(prev, i); prev = i; } };
-    const high = [], east = [];
-    for (let z = -44; z <= 96; z += 10) if (Math.abs(z) > 16) high.push([1.4, z]);
-    for (let x = -96; x <= 96; x += 10) if (Math.abs(x) > 16) east.push([x, -1.4]);
-    lineOf(high.filter(([, z]) => z < 0)); lineOf(high.filter(([, z]) => z > 0));
-    lineOf(east.filter(([x]) => x < 0)); lineOf(east.filter(([x]) => x > 0));
+    // the four roads out from the plaza, each as far as it runs clear of the buildings
+    const blocked = (x, z) => (ctx.zones || []).some((r) => x > r.x0 - 1.5 && x < r.x1 + 1.5 && z > r.z0 - 1.5 && z < r.z1 + 1.5);
+    const road = (pts) => { const out = []; for (const p of pts) { if (blocked(...p)) break; out.push(p); } lineOf(out); };
+    const out = (to) => Array.from({ length: Math.floor((to - 26) / 10) + 1 }, (_, k) => 26 + k * 10);
+    road(out(46).map((z) => [1.4, 2 - z])); road(out(96).map((z) => [1.4, z]));
+    road(out(96).map((x) => [-x, -1.4])); road(out(96).map((x) => [x, -1.4]));
     const ring = [];
     for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; ring.push(add(Math.cos(a) * 14.5, Math.sin(a) * 14.5, 'plaza')); }
     ring.forEach((i, k) => link(i, ring[(k + 1) % ring.length]));

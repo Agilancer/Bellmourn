@@ -47,11 +47,11 @@ export function buildRegion(ctx, M, hm) {
   const H = (x, z) => terrainHeight(x, z);
 
   // ---------------------------------------------------------------- the farm
-  detailedHouse(ctx, { name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 15, d: 10, h: 3.9, storeys: 2, timber: true,
+  detailedHouse(ctx, { biome: 'downs', name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 15, d: 10, h: 3.9, storeys: 2, timber: true,
     wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'vc_planks_02', door: 's', chimney: [4, -2], dormers: 2,
     furnish: [['table', -2, 0, 0], ['stool', -2, 1.2], ['stool', -3.2, 0], ['bed', 5, -2.5, Math.PI / 2], ['barrel', -6, -3.5], ['barrel', -6, -2.4], ['bookshelf', 2, -4.2, 0], ['candelabrum', 6, 3.5]] },
   M, { ...hm, ...hm.perHouse(1) });
-  detailedHouse(ctx, { name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 14, d: 18, h: 6.2, storeys: 1, timber: true,
+  detailedHouse(ctx, { biome: 'downs', name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 14, d: 18, h: 6.2, storeys: 1, timber: true,
     wall: 'vc_planks_06', roof: 'town_roof_oak_shingles', floor: 'town_stable_yard', door: 'w', openFront: true, furnish: [] }, M, { ...hm, ...hm.perHouse(2) });
   const S = (id, x, z, s = 1, rot = null, dy = 0) => ctx.scatter.place(id, x, H(x, z) + dy, z, s, rot);
   for (const [x, z] of [[452, 100], [452, 104], [453.5, 102], [462, 114], [463, 117]]) S('town_scatter_06_hay_bale', x, z, 1, 0.1);
@@ -72,7 +72,7 @@ export function buildRegion(ctx, M, hm) {
   windmill(ctx, M, mill.x, mill.z, mill.y, hm);
 
   // ---------------------------------------------------------------- the hamlet
-  homes.forEach((h, i) => detailedHouse(ctx, { ...h, h: 3.7, storeys: 2, timber: i % 2 === 0,
+  homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0,
     furnish: [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2], ['bookshelf', 1.5, -h.d / 2 + 0.6, 0]] },
   M, { ...hm, ...hm.perHouse(3 + i) }));
   for (const h of homes) { // a little clutter by each home
@@ -246,7 +246,9 @@ function windmill(ctx, M, x, z, y, hm) {
   for (let i = 0; i < 2; i++) b.beam([x + 2.6 + i * 0.45, y + 0.25, z - 2], [x + 2.2 + i * 0.45, y + hgt - 0.3, z - 2.4], 0.07, 0.07, timber);
   for (let k = 0; k < 14; k++) b.beam([x + 2.58, y + 0.6 + k * 0.8, z - 2.05 - k * 0.028], [x + 3.07, y + 0.6 + k * 0.8, z - 2.05 - k * 0.028], 0.05, 0.05, timber);
   props.add('candelabrum', x - 2.2, y + 0.25, z + 2.2);
-  ctx.zones.push({ x0: x - r0, z0: z - r0, x1: x + r0, z1: z + r0, y0: y - 1, y1: y + hgt, name: 'The Millhaven Windmill' });
+  const zone = { x0: x - r0, z0: z - r0, x1: x + r0, z1: z + r0, y0: y - 1, y1: y + hgt, name: 'The Millhaven Windmill' };
+  ctx.zones.push(zone);
+  ctx.interiors?.push({ ...zone, x0: x - r1 + 1, z0: z - r1 + 1, x1: x + r1 - 1, z1: z + r1 - 1, floor: y + 0.25, biome: 'downs' });
   // the sails: their own mesh, turning about the hub on the side facing the wind (west)
   const sb = new Builder({ add() {} });
   const cloth = M('cloth_04_aged_cream_linen', 1.2, { side: THREE.DoubleSide });

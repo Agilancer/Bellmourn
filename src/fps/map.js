@@ -1,16 +1,16 @@
 // The map: M (or the map button) opens the whole country, drawn once at load like an old
-// chart: each country's ground in its own wash, the hills shaded from the north-west, the
-// water, the roads and paths, every building, and the names of places; you're the arrow. A
-// small round map in the corner shows what's about you, north up. Below ground the chart is of
-// what you've walked: the undercroft's passages and rooms come out of the dark as you pass
-// through them (and the caves the same, from where you've been).
-import { WORLD, worldHeight, biomeAt, BIOMES } from './land.js';
-import { POOL, STREAM, REGION } from './terrain.js';
-import { SPOTS } from './wilds.js';
-import { ROADS, GRAVEYARD, CATHEDRAL } from './realm.js';
+// chart: the Darkwood, the village clearing and the Green Downs (its hills shaded from the
+// north-west), the water, the roads and paths, every building, and the names of places;
+// you're the arrow. A small round map in the corner shows what's about you, north up. Below
+// ground the chart is of what you've walked: the undercroft's passages and rooms come out of
+// the dark as you pass through them.
+import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL } from './world.js';
+import { REGION, POOL, STREAM, terrainHeight } from './terrain.js';
+import { SPOTS } from './region.js';
 
-const WASH = { core: '#3e4a2c', downs: '#6a7a3c', deepwood: '#2c3a24', fen: '#3c4a3e', rustwood: '#6a4a26', ashen: '#8a7a5a',
-  barrow: '#5a5a3e', rimeholt: '#c8ccd0', gallows: '#4a4436' };
+// the chart's bounds: the forest round the village, the trail and the downs
+const WORLD = { x0: -WORLD_R - 20, x1: REGION.x1 + 20, z0: -WORLD_R - 20, z1: WORLD_R + 20 };
+const WASH = { forest: [44, 58, 36], deep: [26, 34, 22], downs: [106, 122, 60] };
 const PX = 2;          // metres per pixel of the chart
 const INK = '#2a1e12';
 
@@ -20,7 +20,7 @@ export class WorldMap {
     this.touch = touch;
     this.W = Math.ceil((WORLD.x1 - WORLD.x0) / PX); this.H = Math.ceil((WORLD.z1 - WORLD.z0) / PX);
     this.chart = this.draw(ctx);
-    // the explored underground: one bit a metre, over the undercroft's grid and the caves
+    // the explored underground: one bit a metre, over the undercroft's grid
     this.seen = new Map();
     // the full map
     this.panel = document.createElement('div');
@@ -61,50 +61,54 @@ export class WorldMap {
     const c = document.createElement('canvas');
     c.width = this.W; c.height = this.H;
     const g = c.getContext('2d');
-    // the ground: each country's wash, shaded by the slope of the hills (sampled every 4 px)
+    // the ground: the Darkwood, darker past where you can go, and the downs' grass shaded by
+    // the slope of the hills (sampled every 4 px)
     const S = 4, img = g.createImageData(this.W, this.H), d = img.data;
-    const rgb = Object.fromEntries(Object.entries(WASH).map(([k, h]) => [k, [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]]));
     for (let j = 0; j < this.H; j += S) for (let i = 0; i < this.W; i += S) {
       const x = WORLD.x0 + i * PX, z = WORLD.z0 + j * PX;
-      const b = biomeAt(x, z), col = rgb[b] || rgb.core;
-      const h = worldHeight(x, z), hx = worldHeight(x + 6, z), hz = worldHeight(x, z + 6);
-      const shade = Math.max(0.55, Math.min(1.35, 1 + ((h - hx) + (h - hz)) * 0.06)) * (1 + Math.min(0.25, Math.max(-0.2, h * 0.004)));
-      const wet = (ctx.fenWater && b === 'fen' && h < ctx.fenWater.y - 0.1);
+      const downs = x >= REGION.x0 && Math.abs(z) <= REGION.z1;
+      const col = downs ? WASH.downs : Math.hypot(x, z) < WORLD_R ? WASH.forest : WASH.deep;
+      let shade = 1;
+      if (downs) {
+        const h = terrainHeight(x, z), hx = terrainHeight(x + 6, z), hz = terrainHeight(x, z + 6);
+        shade = Math.max(0.55, Math.min(1.35, 1 + ((h - hx) + (h - hz)) * 0.06)) * (1 + Math.min(0.25, Math.max(-0.2, h * 0.004)));
+      }
       for (let jj = 0; jj < S && j + jj < this.H; jj++) for (let ii = 0; ii < S && i + ii < this.W; ii++) {
         const k = ((j + jj) * this.W + i + ii) * 4;
         const n = ((i + ii) * 7 + (j + jj) * 13) % 5 * 2;   // a little grain
-        if (wet) { d[k] = 34 + n; d[k + 1] = 52 + n; d[k + 2] = 50 + n; }
-        else { d[k] = col[0] * shade + n; d[k + 1] = col[1] * shade + n; d[k + 2] = col[2] * shade + n; }
+        d[k] = col[0] * shade + n; d[k + 1] = col[1] * shade + n; d[k + 2] = col[2] * shade + n;
         d[k + 3] = 255;
       }
     }
     g.putImageData(img, 0, 0);
     // the village clearing, lighter
     const [vx, vz] = this.px(0, 0);
-    g.fillStyle = 'rgba(150, 150, 90, 0.35)'; g.beginPath(); g.arc(vx, vz, 100 / PX, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(150, 150, 90, 0.35)'; g.beginPath(); g.arc(vx, vz, VILLAGE_R / PX, 0, Math.PI * 2); g.fill();
     // water
     g.fillStyle = '#3a5a6a';
     const [px0, pz0] = this.px(POOL.x, POOL.z); g.beginPath(); g.arc(px0, pz0, POOL.r / PX, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#3a5a6a'; g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round';
     g.beginPath(); STREAM.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke();
-    // roads and paths
-    const paths = [...ROADS, ...(ctx.paths || [])];
-    for (const r of paths) {
-      g.strokeStyle = r.layer === 'gravel' ? '#c8b088' : '#9a7a52';
-      g.lineWidth = Math.max(1.2, r.w / PX * 0.9);
-      g.beginPath(); r.pts.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke();
-    }
-    // the graveyard, the plaza, every building
+    // roads and paths: the village's streets, the lane to the graveyard, the trail east and the
+    // downs' paths
     const rect = (x0, z0, x1, z1, fill, stroke) => { const [a, b] = this.px(x0, z0), [c2, d2] = this.px(x1, z1); g.fillStyle = fill; g.fillRect(a, b, c2 - a, d2 - b); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(a, b, c2 - a, d2 - b); } };
+    const ROAD = '#c8b088', DIRT = '#9a7a52';
+    rect(-4, -48, 4, VILLAGE_R + 20, ROAD); rect(-VILLAGE_R - 20, -4, VILLAGE_R + 20, 4, ROAD);
+    rect(16, -50, 26, -44, DIRT); rect(20, -116, 26, -50, DIRT); rect(14, -126, 26, -116, DIRT);
+    rect(VILLAGE_R + 20, -3, REGION.x0 + 6, 3, DIRT);
+    g.strokeStyle = DIRT; g.lineWidth = 1.6;
+    for (const pts of ctx.region?.paths || []) { g.beginPath(); pts.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }
+    // the graveyard, the plaza, the cathedral's forecourt, every building
     rect(GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1, 'rgba(60, 54, 40, 0.6)', '#1a140c');
-    rect(-20, -20, 20, 20, '#8a8478');
-    for (const z of ctx.interiors || []) if (!z.outdoor && z.biome !== 'undercroft') rect(z.x0, z.z0, z.x1, z.z1, '#5a3a26', INK);
+    rect(-20, -20, 20, 20, '#8a8478'); rect(-16, -52, 16, -40, '#8a8478');
+    for (const z of ctx.zones || []) rect(z.x0, z.z0, z.x1, z.z1, '#5a3a26', INK);
     rect(CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1, '#4a3a3a', INK);
-    // crosses for the graves, a tower for the cathedral
-    g.fillStyle = INK; g.font = '700 9px Cinzel, Georgia, serif'; g.textAlign = 'center';
+    // crosses for the graves
+    g.fillStyle = INK;
     const cross = (x, z) => { const [a, b] = this.px(x, z); g.fillRect(a - 0.5, b - 3, 1, 6); g.fillRect(a - 2, b - 1.5, 4, 1); };
     for (let x = GRAVEYARD.x0 + 8; x < GRAVEYARD.x1; x += 14) for (let z = GRAVEYARD.z0 + 8; z < GRAVEYARD.z1; z += 14) cross(x, z);
     // names
+    g.textAlign = 'center';
     const name = (x, z, t, size = 11) => {
       const [a, b] = this.px(x, z);
       g.font = `700 ${size}px Cinzel, Georgia, serif`;
@@ -113,15 +117,14 @@ export class WorldMap {
     };
     name(0, -2, 'Bellmourn', 14); name(0, -102, 'Cathedral', 9); name(0, -150, 'Graveyard', 9);
     name((REGION.x0 + REGION.x1) / 2, -200, 'The Green Downs', 13);
-    for (const [k, b] of Object.entries(BIOMES)) for (const [x, z] of (b.c || []).slice(0, 1)) if (k !== 'core' && k !== 'downs') name(x, z + 90, b.name, 13);
-    name(-200, 180, 'The Darkwood', 13);
+    name(-160, 160, 'The Darkwood', 13); name((VILLAGE_R + REGION.x0) / 2 + 20, -10, 'The Bellwood Trail', 9);
     for (const [x, z, , t] of Object.values(SPOTS)) { const [a, b] = this.px(x, z); g.fillStyle = INK; g.beginPath(); g.arc(a, b, 2.2, 0, Math.PI * 2); g.fill(); name(x, z - 14, t, 9); }
     // the frame
     g.strokeStyle = '#1a120a'; g.lineWidth = 6; g.strokeRect(0, 0, this.W, this.H);
     return c;
   }
 
-  under(p) { return p.pos.y < worldHeight(p.pos.x, p.pos.z) - 3; }
+  under(p) { return p.pos.y < terrainHeight(p.pos.x, p.pos.z) - 3; }
 
   // -------------------------------------------------------------- the explored dark
   explore(p) {
@@ -171,7 +174,7 @@ export class WorldMap {
       this.scale = s;
       this.drawUnder(g, w, h, p.pos.x - this.pan[0], p.pos.z - this.pan[1], s);
       this.arrow(g, w / 2 + this.pan[0] * s, h / 2 + this.pan[1] * s, p.yaw, 9);
-      this.title.textContent = this.ctx.cave?.contains?.(p.pos) ? this.ctx.cave.name : 'The Undercroft';
+      this.title.textContent = 'The Undercroft';
       return;
     }
     const fit = Math.min(w / this.W, h / this.H) * this.zoom;
@@ -181,7 +184,7 @@ export class WorldMap {
     g.fillStyle = '#1a140c'; g.fillRect(0, 0, w, h);
     g.drawImage(this.chart, cx - w / 2 / fit, cz - h / 2 / fit, w / fit, h / fit, 0, 0, w, h);
     this.arrow(g, (ppx - cx) * fit + w / 2, (ppz - cz) * fit + h / 2, p.yaw, 10);
-    this.title.textContent = 'Bellmourn and the Countries Round';
+    this.title.textContent = 'Bellmourn, the Darkwood and the Green Downs';
   }
 
   /** The corner map, each frame (cheap: a crop of the chart). */

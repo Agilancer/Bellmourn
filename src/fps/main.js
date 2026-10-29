@@ -13,29 +13,33 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Physics } from './physics.js';
+import { Library } from './lib.js';
 import { Kit } from './kit.js';
 import { Builder } from './geo.js';
-import { buildWorld, VILLAGE_R, GRAVEYARD } from './realm.js';
-import { buildCrypt } from './crypt.js';
+import { Billboards } from './sprites.js';
+import { Props } from './props.js';
+import { buildWorld, VILLAGE_R, GRAVEYARD } from './world.js';
+import { buildDungeon } from './dungeon.js';
 import { Input, TOUCH } from './input.js';
 import { Player } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud } from './hud.js';
-import { KitDoors } from './kitdoors.js';
+import { Doors } from './doors.js';
+import { Scatter3D, isVegetation } from './scatter3d.js';
+import { Trees3D } from './trees3d.js';
+import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter } from './gear.js';
 import { Bag, armorCut } from './bag.js';
-import { REGION } from './terrain.js';
-import { worldHeight, biomeAt, BIOMES } from './land.js';
-import { SPOTS } from './wilds.js';
+import { terrainHeight, REGION } from './terrain.js';
+import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
 import { Foes } from './foes.js';
 import { Villagers } from './villagers.js';
 import { WorldMap } from './map.js';
-import { buildCave } from './cave.js';
 import { StainedGlass } from './glass.js';
 
 const touch = TOUCH;
@@ -91,7 +95,7 @@ for (let i = 0; i < TORCHES; i++) {
 
 const sfx = new Sfx();
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, gameInput, kit, zombies, foes, villagers;
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried), and more spread through the dungeon below
 const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
@@ -167,7 +171,7 @@ addEventListener('resize', resize);
 // ------------------------------------------------------------------ build everything
 // how far through the build each step is (as it runs on a desktop), for the loading line: a
 // phone takes a minute or more, and should be seen to be getting on with it
-const LOADED = { kit: 10, world: 37, instances: 41, arms: 73, icons: 77, zombies: 80, foes: 100 };
+const LOADED = { library: 10, world: 37, props: 45, arms: 73, icons: 77, zombies: 80, foes: 100 };
 
 async function build() {
   const T0 = performance.now(), times = (window.buildTimes = []);
@@ -176,28 +180,43 @@ async function build() {
     if (LOADED[k]) { hud.loading(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
   };
   physics = new Physics();
-  // the reworked Quaternius kit: every model of the six packs, reshaped and repainted
-  kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI }).load();
+  // the world is built from the Velscour texture library, its sprites and props; the kit's
+  // props bundle only gives what lies on the ground (a purse, draughts, a pouch) and the
+  // villagers' tools
+  lib = await new Library(renderer, { normals: HI }).load();
+  kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI, packs: ['props'] }).load();
   const b = new Builder(physics);
-  ctx = { kit, lib: kit, b, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
+  bill = new Billboards(lib, scene);
+  bill.shadows = HI;
+  const props = new Props(scene, physics, lib);
+  ctx = { lib, kit, b, props, bill, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
   ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
-  physics.terrain = worldHeight; // the whole land: flat in the village, hills and mountains beyond
-  ctx.doors = new KitDoors(ctx);
-  await mark('kit');
+  ctx.cutouts = await new Cutouts(ctx).load();      // the biome packs' arches and gateways
+  physics.terrain = terrainHeight; // the downs; flat ground everywhere else
+  ctx.doors = new Doors(ctx);
+  ctx.scatter = new Scatter3D(ctx);
+  ctx.trees3d = new Trees3D(ctx);
+  // every scatter sprite that isn't a plant is built as a 3D model instead
+  bill.redirect = (id, x, y, z, sc) => {
+    const s = lib.spr.get(id);
+    if (!s || s.category !== 'scatter' || isVegetation(id)) return false;
+    ctx.scatter.place(id, x, y, z, sc);
+    return true;
+  };
+  await mark('library');
   buildWorld(ctx); await mark('world');
-  ctx.dungeon = buildCrypt(ctx, ctx.stairBottom); await mark('dungeon');
-  ctx.cave = buildCave(ctx); await mark('cave');   // the Gloamhollow, in the cliff beside Brightwater Falls
+  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); await mark('dungeon');
   ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); await mark('merge');
+  bill.finish(); await mark('billboards');
+  ctx.trees3d.finish(scene); await mark('trees');
+  await props.finish();
   ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
-  ctx.containers = ctx.loot.findContainers(kit);       // before the kit's placements become instances
-  kit.finish(); await mark('instances');
-  await ctx.land.ready;
+  ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  await mark('props');
   ctx.stained.applyTo(scene);
-  ctx.glass = kit.glass;
-  if (kit.missing?.size) console.warn('kit models not found:', [...kit.missing].join(' '));
-  console.info(`kit: ${kit.used.size}/${kit.ids(() => true).length} models placed, ${kit.instances} instances in ${kit.cells.length} cells; flora`, ctx.floraCounts,
-    'late', ctx.coverage, 'land ms', ctx.land.timeHeights, ctx.land.timeMap, ctx.land.timeMesh);
-  flameList = [...kit.flames, ...ctx.flames];
+  if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
+  console.info(`3D scatter models: ${ctx.scatter.count}; textures: ${lib.used.size}/${lib.surf.size} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use; ${ctx.containers} containers`);
+  flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
   skyDome = new Sky(scene);
   shafts = new Shafts(scene, ctx.stained.shafts());
@@ -209,13 +228,14 @@ async function build() {
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
   useManifest(manifest);
+  fitCharacter(char); saveCharacter(char);   // its arms' models, and the basic sword, shield and staff
   vm = new ViewModel(manifest, kit);
   await vm.load(char.equip.hands?.model || 'bare');
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
   // what lies about to be taken up, and what the chests, crates, barrels and sacks hold
   Object.assign(ctx.loot.hooks, {
     models: lootModel,
-    zone: (p) => ({ under: p.y < worldHeight(p.x, p.z) - 3 }),
+    zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
     onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); saveCharacter(char); bag.render(); },
     full: () => hud.toast('Your bag is full'),
   });
@@ -578,18 +598,17 @@ function melee(reach, heavy, side = 'R') {
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
-  if (p.y < worldHeight(p.x, p.z) - 1.5) {
-    const d = ctx.dungeon?.bounds;
-    return { name: d && p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1 ? 'The Undercroft' : ctx.cave?.contains(p) ? ctx.cave.name : 'The Caves', kind: 'under' };
+  if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
+  if (p.x > REGION.x0) {   // the downs: see a long way
+    for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
+    for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
+    return { name: 'The Green Downs', kind: 'out', open: 1 };
   }
-  const far = Math.hypot(p.x, p.z) > 300 || p.x > REGION.x0 ? 1 : 0; // out of the forest: see a long way
-  for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: far };
-  for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
-  if (p.x > 110 && p.x < REGION.x0 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
+  if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
+  for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
-  const bio = biomeAt(p.x, p.z);
-  if (bio === 'core') return { name: Math.hypot(p.x, p.z) > VILLAGE_R + 10 ? 'The Darkwood' : 'Bellmourn', kind: 'out' };
-  return { name: BIOMES[bio].name, kind: 'out', open: 1 };
+  if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
+  return { name: 'Bellmourn', kind: 'out' };
 }
 
 const L = { out: 1, under: 0, inCathedral: 0, open: 0 }; // smoothed zone weights
@@ -631,6 +650,9 @@ function light(dt, t) {
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + 46 * L.under;   // (a phone draws less of the distance)
   skyDome.update(day, t, camera.position, surface);
+  bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
+  bill.time.value = t;
+  bill.sunDir.value.copy(ld);
   shafts.update(day, t, L.inCathedral > 0.05 || L.out > 0.5);
   ctx.stained.update(ld, day.day * surface, day.ambient * surface);
   // lit windows and lanterns come up as the light goes
@@ -676,6 +698,7 @@ function light(dt, t) {
     const d = camera.position.distanceTo(l.position);
     warm += Math.max(0, 1 - d / l.distance) ** 2 * (big ? 0.9 : 0.45) * flick;
   });
+  bill.setLights([...torchPool, ...magic.lights.map((x) => x.light)]);
   const amb = (day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor)) * surface;
   vm.setLight(amb, sun.intensity / 2.5 * (L.out + 0.25 * indoor), warm,
     magic.vmFlash.amount * 4 + (magic.wisp ? 1.6 : 0), magic.vmFlash.amount > 0.05 ? magic.vmFlash.color : magic.wisp ? new THREE.Color(0xffe8b0) : null);
@@ -839,8 +862,7 @@ function tick(dt) {
   hud.guard(guard, vm.blocking);
   ctx.doors.update(dt);
   if (active) ctx.loot.update(dt, player);
-  kit.update(camera.position, scene.fog.far, camera.position.y < -6);
-  ctx.land.update(camera.position, scene.fog.far);
+  ctx.trees3d.update(t);
   for (const m of ctx.builtUnder) m.visible = camera.position.y < 0.5; // the undercroft, only from below
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
@@ -892,7 +914,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   hud.showOverlay('start', touch);
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {

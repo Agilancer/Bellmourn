@@ -32,6 +32,9 @@ const HOLDS = [
   [/Pot_|Vase/, { items: [0, 1], gold: 0.5, goldK: 0.5, potion: 0.25, bonus: 0, name: 'pot' }],
 ];
 const KIND_OF = (id) => HOLDS.find(([re]) => re.test(id))?.[1] || null;
+// the Velscour world's props (props.js) that hold something
+const PROP_HOLDS = { treasure_chest: KIND_OF('Chest'), crate: KIND_OF('Crate'), barrel: KIND_OF('Barrel'),
+  sarcophagus: { ...KIND_OF('ossuary_chest'), name: 'sarcophagus' } };
 
 const glowTex = (() => {
   let t = null;
@@ -73,14 +76,28 @@ export class Loot {
       const hi = info.max || [0.4, 0.8, 0.4];
       for (const e of list) {
         e.m.decompose(p, q, s);
-        const c = { id, holds, x: p.x, y: p.y + hi[1] * s.y * 0.55, z: p.z, top: p.y + hi[1] * s.y, r: Math.max(hi[0], hi[2]) * Math.max(s.x, s.z), searched: false, rot: new THREE.Euler().setFromQuaternion(q, 'YXZ').y };
-        this.containers.push(c);
-        const k = `${Math.floor(c.x / 8)},${Math.floor(c.z / 8)}`;
-        if (!this.grid.has(k)) this.grid.set(k, []);
-        this.grid.get(k).push(c);
+        this.addContainer({ id, holds, x: p.x, y: p.y + hi[1] * s.y * 0.55, z: p.z, top: p.y + hi[1] * s.y, r: Math.max(hi[0], hi[2]) * Math.max(s.x, s.z), searched: false, rot: new THREE.Euler().setFromQuaternion(q, 'YXZ').y });
       }
     }
     return this.containers.length;
+  }
+
+  /** Every chest, crate, barrel and sarcophagus among the world's props (once they've loaded). */
+  findProps(props) {
+    for (const [id, list] of props.place) {
+      const holds = PROP_HOLDS[id], bb = props.boxes.get(id);
+      if (!holds || !bb) continue;
+      const r = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
+      for (const p of list) this.addContainer({ id, holds, x: p.x, y: p.y + bb.max.y * p.scale * 0.55, z: p.z, top: p.y + bb.max.y * p.scale, r: r * p.scale, searched: false, rot: p.rot });
+    }
+    return this.containers.length;
+  }
+
+  addContainer(c) {
+    this.containers.push(c);
+    const k = `${Math.floor(c.x / 8)},${Math.floor(c.z / 8)}`;
+    if (!this.grid.has(k)) this.grid.set(k, []);
+    this.grid.get(k).push(c);
   }
 
   /** The container you're looking at, close enough to reach. */
