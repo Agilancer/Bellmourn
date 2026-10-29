@@ -91,7 +91,7 @@ float gore(inout vec4 col) {
   return 1.0;
 }`;
 
-function goreMaterial(src, lib) {
+export function goreMaterial(src, lib) {
   const normals = goreMaterial.normals || (goreMaterial.normals = new Map());
   const map = src.map;
   if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
@@ -277,7 +277,9 @@ class Gore {
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3(), _f = new THREE.Vector3(), _m = new THREE.Matrix4();
 const normals = new Map();   // texture -> its normal map, made once per body
 
-class Zombie {
+export class Zombie {
+  static ONCE = ONCE;      // clips that play once (subclasses bring their own)
+
   constructor(gltf, variant, owner, o) {
     this.owner = owner;
     this.variant = variant;
@@ -290,7 +292,7 @@ class Zombie {
     mesh.geometry = mesh.geometry.clone();
     const geo = mesh.geometry;
     geo.setAttribute('bindPos', geo.attributes.position.clone());
-    mesh.material = goreMaterial(mesh.material, owner.lib);
+    mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     this.u = mesh.material.userData.u;
@@ -313,7 +315,7 @@ class Zombie {
     this.actions = {};
     for (const clip of gltf.animations) {
       const a = this.mixer.clipAction(clip);
-      if (ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+      if (this.constructor.ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
       this.actions[clip.name] = a;
     }
     this.cur = null;
@@ -359,6 +361,9 @@ class Zombie {
     this.sync();
   }
 
+  /** The skin's material: the zombies' gore shader (other bodies extend it). */
+  material(src, lib) { return goreMaterial(src, lib); }
+
   get dead() { return this.state === 'dead'; }
   get standing() { return !this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'playdead'; }
   has(b) { return !this.lost.has(b); }
@@ -372,7 +377,7 @@ class Zombie {
     if (!a) return;
     a.timeScale = speed;
     if (this.cur === name) {
-      if (ONCE.has(name) && this.done()) { a.reset().play(); this.fired = false; }   // again, from the top
+      if (this.constructor.ONCE.has(name) && this.done()) { a.reset().play(); this.fired = false; }   // again, from the top
       return;
     }
     const prev = this.actions[this.cur];
@@ -420,14 +425,14 @@ class Zombie {
     for (const b of this.skel.bones) {
       if (b.name === 'root' || this.cutAway(b.name) || (b.name === 'hips' && !this.has('waist'))) continue;
       const kind = b.name.replace(/[LR]$/, '');
-      const r = RADIUS[kind];
+      const r = this.radius?.[b.name] ?? RADIUS[kind];   // a body built with its own hit shapes, or the zombies'
       if (!r) continue;
       const a = b.getWorldPosition(new THREE.Vector3());
       const child = b.children.find((c) => c.isBone && !c.name.startsWith('shoulder') && !c.name.startsWith('thigh'));
       let e;
       if (child && kind !== 'hips') e = child.getWorldPosition(new THREE.Vector3());
       else if (kind === 'hips') e = this.bones.spine.getWorldPosition(new THREE.Vector3());
-      else e = b.localToWorld(new THREE.Vector3(0, TIP[kind] || 0.2, 0));
+      else e = b.localToWorld(new THREE.Vector3(0, this.tips?.[b.name] ?? TIP[kind] ?? 0.2, 0));
       out.push({ bone: b, a, b: e, r });
     }
     return out;
@@ -867,7 +872,7 @@ function rayCapsule(o, d, a, b, r) {
   return Math.max(0, tq - Math.sqrt(r * r - dist * dist));
 }
 
-function wrap(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
+export function wrap(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
 
 function closestOnSeg(p, a, b) {
   const ab = new THREE.Vector3().subVectors(b, a);
@@ -1117,8 +1122,8 @@ export class Zombies {
   }
 
   addPiece(z, tris, joint, dir) {
-    const src = z.mesh.geometry, uv = src.attributes.uv, bind = src.attributes.bindPos;
-    const map = new Map(), pos = [], bp = [], uvs = [], index = [];
+    const src = z.mesh.geometry, uv = src.attributes.uv, bind = src.attributes.bindPos, shell = src.attributes.shell;
+    const map = new Map(), pos = [], bp = [], uvs = [], sh = [], index = [];
     const v = new THREE.Vector3();
     z.mesh.updateMatrixWorld(true);
     for (const i of tris) {
@@ -1129,6 +1134,7 @@ export class Zombies {
         pos.push(v.x, v.y, v.z);
         bp.push(bind.getX(i), bind.getY(i), bind.getZ(i));
         uvs.push(uv.getX(i), uv.getY(i));
+        if (shell) sh.push(shell.getX(i));
       }
       index.push(map.get(i));
     }
@@ -1140,6 +1146,7 @@ export class Zombies {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('bindPos', new THREE.Float32BufferAttribute(bp, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    if (shell) g.setAttribute('shell', new THREE.Float32BufferAttribute(sh, 1));   // armour and cloth stay armour and cloth inside
     g.setIndex(index);
     g.computeVertexNormals();
     g.computeBoundingSphere();
