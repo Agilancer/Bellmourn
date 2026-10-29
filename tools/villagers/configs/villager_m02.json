@@ -1,0 +1,62 @@
+{
+ "seed": 2201,
+ "face": "03_Weathered_Veteran",
+ "morph": {
+  "caucasian-male-young": 0.35,
+  "caucasian-male-old": 0.65,
+  "forehead-scale-vert-less": 0.013,
+  "nose-volume-point": 0.27,
+  "nose-point-width-more": 0.45,
+  "eyebrows-trans-depth-less": 0.073,
+  "chin-width-max": 0.408,
+  "nose-scale-horiz-decr": 0.007,
+  "nose-hump-morehump": 0.527,
+  "head-oval": 0.341
+ },
+ "eye": "grey",
+ "iris_tint": [
+  0.5,
+  0.79,
+  0.77
+ ],
+ "dress": {
+  "Green": [
+   "quilted_red",
+   0.9,
+   0.42
+  ],
+  "LightGreen": [
+   "burlap_coarse",
+   1.0,
+   0.3
+  ],
+  "Brown": [
+   "burlap_dark",
+   1.0,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   1.0,
+   0.3
+  ],
+  "Grey": [
+   "leather_tooled",
+   0.8,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ]
+ },
+ "line": 0.1,
+ "scale": 1.02,
+ "name": "villager_m02",
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 64
+}

@@ -1,0 +1,64 @@
+{
+ "seed": 2203,
+ "face": "10_Deep_Brown_Skin",
+ "morph": {
+  "african-male-young": 0.85,
+  "african-male-old": 0.15,
+  "l-ear-flap-out": 0.509,
+  "r-ear-flap-out": 0.509,
+  "head-scale-horiz-less": 0.424,
+  "mouth-upperlip-volume-inflate": 0.122,
+  "chin-width-max": 0.328,
+  "nose-scale-horiz-incr": 0.543,
+  "l-cheek-bones-out": 0.007,
+  "r-cheek-bones-out": 0.007,
+  "eyebrows-trans-depth-less": 0.138,
+  "head-oval": 0.101
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.7,
+  0.78
+ ],
+ "dress": {
+  "Green": [
+   "damask_purple",
+   1.0,
+   0.42
+  ],
+  "LightGreen": [
+   "linen_brown",
+   1.0,
+   0.3
+  ],
+  "Brown": [
+   "linen_brown",
+   0.6,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   1.0,
+   0.3
+  ],
+  "Grey": [
+   "leather_tooled",
+   0.75,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.4,
+   0.25
+  ]
+ },
+ "line": 0.02,
+ "scale": 1.04,
+ "name": "villager_m04",
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 64
+}
