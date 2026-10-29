@@ -9,7 +9,7 @@ export class Player {
   constructor(physics, camera, bounds) {
     this.physics = physics;
     this.camera = camera;
-    this.bounds = bounds; // {r} keep inside this radius when above ground
+    this.bounds = bounds; // {contains(x, z)}: where the player may walk (above ground)
     this.pos = new THREE.Vector3(0, 0, 12);
     this.vel = new THREE.Vector3();
     this.yaw = 0;     // 0 = looking north (-z)
@@ -45,12 +45,11 @@ export class Player {
     if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; }
     this.vel.y -= GRAVITY * dt;
 
-    const p = this.pos;
+    const p = this.pos, ox = p.x, oz = p.z;
     this.physics.slide(p, this.vel.x * dt, this.vel.z * dt, R, HEIGHT, this.onGround ? STEP : 0.1);
-    // keep inside the forest when on the surface
-    if (p.y > -2) {
-      const r = Math.hypot(p.x, p.z);
-      if (r > this.bounds.r) { p.x *= this.bounds.r / r; p.z *= this.bounds.r / r; }
+    // keep to the walkable world when on the surface (slide along its edge)
+    if (p.y > this.physics.groundAt(p.x, p.z) - 2 && this.bounds.contains && !this.bounds.contains(p.x, p.z)) {
+      if (this.bounds.contains(p.x, oz)) p.z = oz; else if (this.bounds.contains(ox, p.z)) p.x = ox; else { p.x = ox; p.z = oz; }
     }
     // vertical: land on the highest floor below, step up kerbs and stairs, bump ceilings
     const floor = this.physics.floorAt(p.x, p.z, p.y, R, this.onGround ? STEP : 0.05);
@@ -66,6 +65,10 @@ export class Player {
       this.onGround = false;
     }
     if (p.y < -60) { p.set(0, 0, 12); this.vel.set(0, 0, 0); } // fell out of the world
+    if (this.physics.terrain && p.x > 286) { // on the downs nothing is below the ground: never sink into it
+      const g = this.physics.groundAt(p.x, p.z);
+      if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
+    }
 
     this.speed = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround) this.bob += this.speed * dt * 1.7;

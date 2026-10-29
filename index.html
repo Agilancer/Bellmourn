@@ -54,6 +54,8 @@
   @keyframes zone { 0% { opacity: 0; transform: translateY(6px); } 15%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; } }
   .toast { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; font-size: 15px; text-shadow: 0 1px 3px #000; opacity: 0; }
   .toast.show { animation: toast 2.2s ease-out; }
+  .prompt { position: absolute; left: 0; right: 0; top: 58%; text-align: center; font-size: 15px; color: #f4e4c0; text-shadow: 0 1px 3px #000, 0 0 8px #000; opacity: 0; transition: opacity .15s; letter-spacing: .04em; }
+  .prompt.show { opacity: 1; }
   @keyframes toast { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
   /* ---------------- panels */
@@ -121,6 +123,8 @@
   .tbtn.jump { right: calc(200px + env(safe-area-inset-right)); bottom: 26px; width: 54px; height: 54px; font-size: 22px; }
   .tbtn.bag { right: calc(80px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font-size: 20px; border-radius: 8px; }
   .tbtn.pause { right: calc(18px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font-size: 14px; border-radius: 8px; }
+  .tbtn.use { right: calc(200px + env(safe-area-inset-right)); bottom: 96px; width: 54px; height: 54px; font: 700 20px Cinzel, serif; opacity: .45; }
+  .tbtn.use.ready { opacity: 1; border-color: #f4d890; box-shadow: 0 0 10px rgba(244, 216, 144, .6); }
   @media (pointer: coarse) {
     .bars { bottom: auto; top: 14px; width: 30vw; }
     .slots { display: none; }

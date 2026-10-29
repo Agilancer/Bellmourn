@@ -25,9 +25,10 @@ export class Props {
     this.lights = [];       // [x, y, z, size] flames
   }
 
-  add(id, x, y, z, rot = 0, scale = 1) {
+  /** Place prop `id`; `fit` (metres) scales it to that height instead of by `scale`. */
+  add(id, x, y, z, rot = 0, scale = 1, fit = null) {
     if (!this.place.has(id)) this.place.set(id, []);
-    this.place.get(id).push({ x, y, z, rot, scale });
+    this.place.get(id).push({ x, y, z, rot, scale, fit });
   }
 
   async finish() {
@@ -52,6 +53,7 @@ export class Props {
       const mesh = new THREE.InstancedMesh(geo, mat, list.length);
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
       list.forEach((p, i) => {
+        if (p.fit) p.scale = p.fit / Math.max(0.05, bb.max.y - bb.min.y);
         q.setFromAxisAngle(up, p.rot);
         m.compose(new THREE.Vector3(p.x, p.y, p.z), q, new THREE.Vector3(p.scale, p.scale, p.scale));
         mesh.setMatrixAt(i, m);

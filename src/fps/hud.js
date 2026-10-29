@@ -69,7 +69,8 @@ export class Hud {
     this.hands = el('div', 'hands');
     this.zoneEl = el('div', 'zone');
     this.toastEl = el('div', 'toast');
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl);
+    this.promptEl = el('div', 'prompt');
+    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl);
     r.append(this.hud);
 
     // ---- inventory
@@ -100,7 +101,8 @@ export class Hud {
         <tr><td>Shift</td><td>run</td><td>Space</td><td>jump</td></tr>
         <tr><td>Left click</td><td>right hand: swing / shoot</td><td>Right click</td><td>left hand: block / swing / shoot</td></tr>
         <tr><td>F &nbsp; R</td><td>cast the spells set to F and R</td><td>Tab / I</td><td>inventory &amp; spellbook</td></tr>
-        <tr><td>1 – 6</td><td>quick-equip arms</td><td>Esc</td><td>pause</td></tr>
+        <tr><td>E</td><td>open and close doors</td><td>1 – 6</td><td>quick-equip arms</td></tr>
+        <tr><td>Esc</td><td>pause</td><td></td><td></td></tr>
       </table>
       <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, bag</div>
       <div class="opts"><label>Pixels <select id="optPix"><option value="1">sharp</option><option value="2" selected>chunky</option><option value="3">very chunky</option></select></label>
@@ -123,6 +125,7 @@ export class Hud {
       <div class="tbtn spellR" data-code="KeyR"><img alt=""><b>R</b></div>
       <div class="tbtn jump" data-code="Space">&#x2912;</div>
       <div class="tbtn bag" data-code="KeyI">&#x2630;</div>
+      <div class="tbtn use" data-code="KeyE">E</div>
       <div class="tbtn pause" data-code="Escape">&#x275A;&#x275A;</div>`;
     r.append(this.touch);
   }
@@ -211,6 +214,15 @@ export class Hud {
     this.toastEl.classList.remove('show');
     void this.toastEl.offsetWidth;
     this.toastEl.classList.add('show');
+  }
+
+  /** The interact prompt in the middle of the screen ('' hides it). */
+  prompt(text) {
+    if (text === this.lastPrompt) return;
+    this.lastPrompt = text;
+    this.promptEl.textContent = text;
+    this.promptEl.classList.toggle('show', !!text);
+    this.touch.querySelector('.use')?.classList.toggle('ready', !!text);
   }
 
   flashMana() {

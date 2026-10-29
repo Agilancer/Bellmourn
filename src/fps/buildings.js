@@ -7,18 +7,18 @@ import * as THREE from 'three';
 /** A house's own frame: u along its front, v out through the front, quarter turns only so
  * boxes stay axis-aligned. rot: 0 front faces +z (south), 1 +x (east), 2 -z, 3 -x. */
 export class Frame {
-  constructor(b, x, z, rot) {
-    this.b = b; this.x = x; this.z = z; this.rot = rot;
+  constructor(b, x, z, rot, y0 = 0) {
+    this.b = b; this.x = x; this.z = z; this.rot = rot; this.y0 = y0; // y0: the ground it stands on
     const th = rot * Math.PI / 2;
     this.c = Math.round(Math.cos(th)); this.s = Math.round(Math.sin(th));
   }
 
-  p(u, y, v) { return [this.x + u * this.c + v * this.s, y, this.z - u * this.s + v * this.c]; }
+  p(u, y, v) { return [this.x + u * this.c + v * this.s, y + this.y0, this.z - u * this.s + v * this.c]; }
   local(dx, dz) { return [dx * this.c - dz * this.s, dx * this.s + dz * this.c]; }
 
   box(min, max, mat, opts) {
     const a = this.p(min[0], min[1], min[2]), b = this.p(max[0], max[1], max[2]);
-    this.b.box([Math.min(a[0], b[0]), min[1], Math.min(a[2], b[2])], [Math.max(a[0], b[0]), max[1], Math.max(a[2], b[2])], mat, opts);
+    this.b.box([Math.min(a[0], b[0]), a[1], Math.min(a[2], b[2])], [Math.max(a[0], b[0]), b[1], Math.max(a[2], b[2])], mat, opts);
   }
 
   beam(a, b, w, h, mat, opts = {}) {
@@ -31,13 +31,14 @@ export class Frame {
   /** A wall along u at depth v (alongU) or along v at u, with openings measured from the start. */
   wall(alongU, a0, a1, at, y0, y1, t, mat, openings, opts) {
     const P = alongU ? [this.p(a0, 0, at), this.p(a1, 0, at)] : [this.p(at, 0, a0), this.p(at, 0, a1)];
-    this.b.wall(P[0][0], P[0][2], P[1][0], P[1][2], y0, y1, t, mat, openings, opts);
+    const ops = (openings || []).map((o) => ({ ...o, y0: o.y0 + this.y0, y1: o.y1 + this.y0 }));
+    this.b.wall(P[0][0], P[0][2], P[1][0], P[1][2], y0 + this.y0, y1 + this.y0, t, mat, ops, opts);
   }
 
   gable(u0, v0, u1, v1, y, rise, roof, gableMat, ridgeU, over, shade) {
     const a = this.p(u0, 0, v0), b = this.p(u1, 0, v1);
     const ridge = (ridgeU !== (this.rot % 2 === 1)) ? 'x' : 'z';
-    this.b.gable(Math.min(a[0], b[0]), Math.min(a[2], b[2]), Math.max(a[0], b[0]), Math.max(a[2], b[2]), y, rise, roof, gableMat, ridge, over, shade);
+    this.b.gable(Math.min(a[0], b[0]), Math.min(a[2], b[2]), Math.max(a[0], b[0]), Math.max(a[2], b[2]), y + this.y0, rise, roof, gableMat, ridge, over, shade);
   }
 
   quad(mat, a, b, c, d, uvs, shade) { this.b.quad(mat, this.p(...a), this.p(...b), this.p(...c), this.p(...d), uvs, shade); }
@@ -65,7 +66,8 @@ function windows(len, y0, y1, { skipMid = false, w = 1.1, every = 3.2, edge = 1.
 export function detailedHouse(ctx, h, M, mats) {
   const { b, props } = ctx;
   const rot = ROT[h.door];
-  const F = new Frame(b, h.x, h.z, rot);
+  const base = h.y || 0; // the ground the house stands on
+  const F = new Frame(b, h.x, h.z, rot, base);
   const W = rot % 2 ? h.d : h.w, D = rot % 2 ? h.w : h.d; // along the front, front to back
   const t = 0.32, fl = 0.4, G = h.h, U = h.storeys > 1 ? 3.0 : 0, J = h.storeys > 1 ? 0.55 : 0;
   const wallMat = M(h.wall, 3), upperMat = M(h.upper || 'town_wall_oak_plaster', 3), roofMat = M(h.roof, 2.5);
@@ -73,7 +75,7 @@ export function detailedHouse(ctx, h, M, mats) {
   const timber = mats.timber, trim = mats.trim;
   const shutter = mats.shutters[(Math.abs(Math.round(h.x * 7 + h.z * 3))) % mats.shutters.length];
   const top = G + U;
-  ctx.zones.push({ ...worldRect(F, -W / 2, -D / 2, W / 2, D / 2), y0: -1, y1: G, name: h.title || h.name });
+  ctx.zones.push({ ...worldRect(F, -W / 2, -D / 2, W / 2, D / 2), y0: base - 1, y1: base + G, name: h.title || h.name });
 
   // the stone plinth the house stands on, the floor inside, and a step at the door
   F.box([-W / 2 - 0.12, 0, -D / 2 - 0.12], [W / 2 + 0.12, fl, D / 2 + 0.12], { top: floorMat, bottom: mats.plinth, side: mats.plinth });
@@ -105,7 +107,7 @@ export function detailedHouse(ctx, h, M, mats) {
   F.box([-W / 4, fl, -D / 4], [W / 4, fl + 0.015, D / 4], mats.rug, { solid: false });
   {
     const [x, , z] = F.p(W / 2 - 1.2, 0, -D / 2 + t / 2 + 0.02);
-    props.add('wall_torch', x, fl - 0.3, z, rot * Math.PI / 2);
+    props.add('wall_torch', x, base + fl - 0.3, z, rot * Math.PI / 2);
   }
 
   // the upper storey, jettied out over the front and back
@@ -158,7 +160,7 @@ export function detailedHouse(ctx, h, M, mats) {
       F.beam([u - 0.55, yb + 1.3, V * 0.62 + 0.05], [u + 0.55, yb + 1.3, V * 0.62 + 0.05], 0.1, 0.12, trim);
       // its little roof
       const a = F.p(u - dw / 2 - 0.15, 0, v0), c = F.p(u + dw / 2 + 0.15, 0, V * 0.62 + 0.25);
-      b.gable(Math.min(a[0], c[0]), Math.min(a[2], c[2]), Math.max(a[0], c[0]), Math.max(a[2], c[2]), yb + dh, 0.9, roofMat, upperMat,
+      b.gable(Math.min(a[0], c[0]), Math.min(a[2], c[2]), Math.max(a[0], c[0]), Math.max(a[2], c[2]), base + yb + dh, 0.9, roofMat, upperMat,
         rot % 2 ? 'x' : 'z', 0.15);
     }
   } else {
@@ -193,14 +195,14 @@ export function detailedHouse(ctx, h, M, mats) {
     ctx.chimneys?.push(F.p(cu - 0.25, cy + 0.8, cv));
   }
 
-  // the door: frame, the door itself swung open inward, a lantern beside it outside
+  // the door: its frame, the door itself (opens with E, swinging inward), a lantern outside
   if (!h.openFront) {
     const du = doorU;
     for (const s of [-1, 1]) F.beam([du + s * 0.86, fl, D / 2 + t / 2 + 0.03], [du + s * 0.86, fl + 2.65, D / 2 + t / 2 + 0.03], 0.18, 0.12, trim);
     F.beam([du - 1.0, fl + 2.65, D / 2 + t / 2 + 0.05], [du + 1.0, fl + 2.65, D / 2 + t / 2 + 0.05], 0.22, 0.2, trim);
-    F.box([du - 0.8, fl, D / 2 - t / 2 - 1.55], [du - 0.72, fl + 2.5, D / 2 - t / 2 - 0.02], mats.door, { solid: false });
+    ctx.doors?.add({ hinge: F.p(du - 0.78, fl, D / 2), along: rot * Math.PI / 2, width: 1.56, height: 2.52, opens: 1, name: h.title || h.name, plank: Math.abs(Math.round(h.x + h.z)) });
     const [x, , z] = F.p(du + 1.5, 0, D / 2 + 0.17);
-    props.add('wall_torch', x, fl - 0.4, z, rot * Math.PI / 2);
+    props.add('wall_torch', x, base + fl - 0.4, z, rot * Math.PI / 2);
     // a hanging sign for the shops
     if (h.sign) {
       const sy = Math.min(G - 0.4, fl + 3.1);
@@ -210,7 +212,7 @@ export function detailedHouse(ctx, h, M, mats) {
       F.box([du - 2.14, sy - 0.85, D / 2 + 0.55], [du - 2.06, sy - 0.25, D / 2 + 1.35], mats.signs[h.sign % mats.signs.length], { solid: false });
     }
   }
-  for (const [id, fx, fz, r = 0, sc = 1] of h.furnish || []) props.add(id, h.x + fx, fl, h.z + fz, r, sc);
+  for (const [id, fx, fz, r = 0, sc = 1] of h.furnish || []) props.add(id, h.x + fx, base + fl, h.z + fz, r, sc);
   return { F, W, D, top: ry };
 }
 
@@ -372,20 +374,20 @@ export function houseMaterials(lib, M) {
   const lantern = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.6, 0.8) });
   lantern.userData = { tileU: 1, tileV: 1, noCast: true };
   const pick = (re) => lib.take((s) => re.test(s.id));
+  const planks = lib.ofKind('plank'), P = (i, tile = 1.2) => M(planks.length ? planks[i % planks.length] : 'ship_05_red_mahogany', tile);
   return {
     glass, lantern,
     timber: M('ship_01_tarblack_oak', 1.6), trim: M('ship_10_black_walnut_rift_seam', 1.2), iron: M('met_02_riveted_black_iron', 1),
     plinth: M('castle_keep_mossline_foundation_stone', 1.6), quoin: M('castle_keep_pale_keep_limestone', 1.2),
     chimney: M('town_wall_town_brick', 2.2), pot: M('castle_roof_terracotta', 0.8), ridge: M('castle_slate', 1.2),
-    sill: M('castle_keep_weathered_gatehouse_flag', 1), box: M('wood_04_weathered_cedar', 0.8), door: M('ship_05_red_mahogany', 1.4),
-    shutters: [M('ship_03_violet_teak', 1.2), M('ship_06_salt_bleached_greyboards', 1.2), M('wood_02_scroll_cut_blackwood', 1.2),
-      M('ship_04_splintered_cypress', 1.2), M('wood_05_violet_streak_blackwood', 1.2), M('ship_08_bone_nail_oak', 1.2)],
-    signs: [M('wood_03_rootwood_grain', 0.8), M('wood_01_end_grain_timber', 0.8), M('ship_07_ember_scorched', 0.8)],
+    sill: M('castle_keep_weathered_gatehouse_flag', 1), box: P(3, 0.8), door: P(8, 1.4),
+    shutters: [P(0), P(1), P(2), P(4), P(5), P(6), M('ship_03_violet_teak', 1.2), M('wood_05_violet_streak_blackwood', 1.2)],
+    signs: [P(9, 0.8), P(10, 0.8), P(11, 0.8)],
     lining: M(pick(/^town_(oak_boards|cedar_boards|bleached_boards|barn_boards|repaired_planks|split_boards|workshop_planks|nailed_decking)$/), 2),
     ceiling: M('ship_02_salt_worn_oak', 2), rug: M(pick(/^cloth_/), 1.4),
-    counter: M('town_barn_boards', 1.5), wheel: M('wood_01_end_grain_timber', 0.8), post: M('ship_09_mossed_shipboard', 1.2),
-    rail: M('town_split_boards', 1.6),
-    perHouse: () => ({ lining: M(pick(/^town_(oak_boards|cedar_boards|bleached_boards|barn_boards|repaired_planks|split_boards|workshop_planks|nailed_decking|diagonal_parquet|lime_screed|coarse_mortar)$/), 2),
+    counter: P(7, 1.5), wheel: M('wood_01_end_grain_timber', 0.8), post: M('ship_09_mossed_shipboard', 1.2),
+    rail: P(1, 1.6),
+    perHouse: (i = 0) => ({ lining: i % 2 ? P(i, 2) : M(pick(/^town_(oak_boards|cedar_boards|bleached_boards|barn_boards|repaired_planks|split_boards|workshop_planks|nailed_decking|diagonal_parquet|lime_screed|coarse_mortar)$/), 2),
       rug: M(pick(/^(cloth_|met_07|gold_)/), 1.4) }),
   };
 }

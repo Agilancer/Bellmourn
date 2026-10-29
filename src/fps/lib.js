@@ -44,7 +44,20 @@ export class Library {
     const lib = await (await fetch(ROOT + 'library.json')).json();
     for (const s of lib.surfaces) this.surf.set(s.id, s);
     for (const s of lib.sprites) this.spr.set(s.id, s);
+    // VectorClad's wood: bark, leaves and planks as surfaces, leaf cards for the 3D trees
+    // (tools/world/import_vectorclad.py)
+    this.cards = new Map();
+    try {
+      const vc = await (await fetch(ROOT + 'vectorclad.json')).json();
+      for (const s of vc.surfaces) this.surf.set(s.id, s);
+      for (const c of vc.cards) this.cards.set(c.id, c);
+    } catch (e) { console.warn('no VectorClad textures', e); }
     return this;
+  }
+
+  /** Surface ids of one kind ('bark', 'leaves', 'plank'), optionally for one species. */
+  ofKind(kind, species = null) {
+    return [...this.surf.values()].filter((s) => s.kind === kind && (!species || s.species === species)).map((s) => s.id);
   }
 
   texture(file, repeat = true) {

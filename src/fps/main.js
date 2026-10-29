@@ -25,6 +25,11 @@ import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud } from './hud.js';
+import { Doors } from './doors.js';
+import { Scatter3D, isVegetation } from './scatter3d.js';
+import { Trees3D } from './trees3d.js';
+import { terrainHeight, REGION } from './terrain.js';
+import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
 
 const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -139,18 +144,34 @@ addEventListener('resize', resize);
 
 // ------------------------------------------------------------------ build everything
 async function build() {
+  const T0 = performance.now(), times = (window.buildTimes = []), mark = (k) => times.push([k, Math.round(performance.now() - T0)]);
   physics = new Physics();
   lib = await new Library(renderer, { normals: HI }).load();
   const b = new Builder(physics);
   bill = new Billboards(lib, scene);
   bill.shadows = HI;
   const props = new Props(scene, physics, lib);
-  ctx = { lib, b, props, bill, scene, physics, flames: [], windows: [], chimneys: [] };
-  buildWorld(ctx);
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom);
-  b.finish(scene);
-  bill.finish();
-  await props.finish();
+  ctx = { lib, b, props, bill, scene, physics, flames: [], windows: [], chimneys: [], sfx, animated: [] };
+  physics.terrain = terrainHeight; // the downs; flat ground everywhere else
+  ctx.doors = new Doors(ctx);
+  ctx.scatter = new Scatter3D(ctx);
+  ctx.trees3d = new Trees3D(ctx);
+  // every scatter sprite that isn't a plant is built as a 3D model instead
+  bill.redirect = (id, x, y, z, sc) => {
+    const s = lib.spr.get(id);
+    if (!s || s.category !== 'scatter' || isVegetation(id)) return false;
+    ctx.scatter.place(id, x, y, z, sc);
+    return true;
+  };
+  mark('library');
+  buildWorld(ctx); mark('world');
+  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); mark('dungeon');
+  b.finish(scene); mark('merge');
+  bill.finish(); mark('billboards');
+  ctx.trees3d.finish(scene); mark('trees');
+  await props.finish(); mark('props');
+  if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
+  console.info(`3D scatter models: ${ctx.scatter.count}`);
   flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
   skyDome = new Sky(scene);
@@ -164,8 +185,9 @@ async function build() {
   vm.equip = { R: 'onehand', L: 'shield_round' };
   await vm.load('wayfarer');
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
-  const icons = await renderIcons();
-  player = new Player(physics, camera, { r: WORLD_R - 4 });
+  mark('arms');
+  const icons = await renderIcons(); mark('icons');
+  player = new Player(physics, camera, { contains: ctx.inBounds });
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
 
   hud.setIcons(icons);
@@ -244,6 +266,7 @@ function equip(kind, side) {
     }
     vm.blocking = false;
     pending.R = pending.L = null;
+    magic.endCharge();
     await vm.applyEquip();
     sfx.equip();
     const now = e.R === kind || e.L === kind;
@@ -272,10 +295,12 @@ function castSlot(slot) {
   const def = SPELLS[book[slot]];
   if (!def || vm.busy('R') || vm.busy('L') || vm.blocking) return;
   if (player.mana < def.mana) { noMana(); return; }
-  const side = vm.cast(def);
+  // a spell with a charge holds the cast just before it leaves the hand until it has gathered
+  const side = vm.cast(def, { charge: !!def.charge });
   if (!side) return;
   player.mana -= def.mana;
-  pending[side === 'both' ? 'R' : side] = { def, both: side === 'both', id: book[slot], side };
+  pending[side === 'both' ? 'R' : side] = { def, both: side === 'both', id: book[slot], side, charge: def.charge || 0, t: 0 };
+  if (def.charge) sfx.chargeUp?.(def.charge);
 }
 
 function noMana() { hud.flashMana(); hud.toast('Not enough mana'); sfx.fizzle(); }
@@ -343,14 +368,20 @@ function melee(reach, heavy) {
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
-  if (p.y < -1.5) return { name: 'The Undercroft', kind: 'under' };
+  if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
+  if (p.x > REGION.x0) {
+    for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
+    for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
+    return { name: 'The Green Downs', kind: 'out', open: 1 };
+  }
+  if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
   if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
   return { name: 'Bellmourn', kind: 'out' };
 }
 
-const L = { out: 1, under: 0, inCathedral: 0 }; // smoothed zone weights
+const L = { out: 1, under: 0, inCathedral: 0, open: 0 }; // smoothed zone weights
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3();
 let day = dayState(hour);
@@ -363,6 +394,7 @@ function light(dt, t) {
   L.out += ((z.kind === 'out' ? 1 : 0) - L.out) * k;
   L.under += ((z.kind === 'under' ? 1 : 0) - L.under) * k;
   L.inCathedral += ((z.name.startsWith('Cathedral') ? 1 : 0) - L.inCathedral) * k;
+  L.open += ((z.open ? 1 : 0) - L.open) * k * 0.5; // the downs: see a long way
   const indoor = Math.max(0, 1 - L.out - L.under);
   const surface = 1 - L.under; // underground nothing but torches and spells
 
@@ -386,7 +418,7 @@ function light(dt, t) {
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
-  scene.fog.far = (isDay ? 300 : 170) * surface + 46 * L.under;
+  scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface + 46 * L.under;
   skyDome.update(day, t, camera.position, surface);
   bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
   bill.time.value = t;
@@ -537,11 +569,29 @@ function tick(dt) {
 
   vm.update(dt, active ? player.speed : 0);
   camera.updateMatrixWorld();
-  // spells gathering in the hand before they leave it
+  // spells gathering in the hand before they leave it; a charged one holds there, growing,
+  // until it's ready, then the cast plays on and lets it go
   for (const side of ['R', 'L']) {
     const p = pending[side], st = vm.state[p?.both ? 'R' : side];
-    if (p && st) magic.charge(fromView(castFrom(p), 0.75), p.def, dt);
+    if (!p || !st) continue;
+    const at = fromView(castFrom(p), 0.75);
+    magic.charge(at, p.def, dt);
+    if (p.charge) {
+      p.t += dt;
+      magic.chargeBall(at, p.def, Math.min(1, p.t / p.charge), dt);
+      if (p.t >= p.charge) { p.charge = 0; for (const s2 of ['R', 'L']) if (vm.state[s2]) vm.state[s2].hold = null; magic.endCharge(); }
+    }
   }
+  // doors: the one you're looking at, and E to open or close it
+  if (active) {
+    const door = ctx.doors.aimed(camera);
+    hud.prompt(door ? `E — ${door.open ? 'close' : 'open'} the ${door.name}` : '');
+    if (door && inp.was('KeyE')) ctx.doors.toggle(door);
+  } else hud.prompt('');
+  ctx.doors.update(dt);
+  ctx.trees3d.update(t);
+  for (const f of ctx.animated) f(dt, t);
+  ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);

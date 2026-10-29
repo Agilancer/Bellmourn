@@ -1,6 +1,8 @@
 // Collision world: axis-aligned boxes in a spatial hash. The player is an upright cylinder
 // that slides along walls, steps up onto stairs and kerbs, and stands on the highest surface
-// below it (box tops, or the outdoor ground at y = 0 while above it).
+// below it (box tops, or the outdoor ground while above it). The ground is y = 0 except where
+// a terrain function gives a height (the hills); terrain too steep to step up blocks the way
+// like a wall. A box with `off` set (an open door) is ignored.
 
 const CELL = 8;
 const key = (i, k) => i * 73856093 ^ k * 19349663;
@@ -9,9 +11,12 @@ export class Physics {
   constructor() {
     this.boxes = [];
     this.grid = new Map();
-    this.ground = 0;       // the outdoor ground height
+    this.ground = 0;       // the outdoor ground height where there is no terrain
+    this.terrain = null;   // (x, z) -> height, or null to use `ground`
     this.groundHoles = []; // [x0, z0, x1, z1]: no outdoor ground here (stairwells)
   }
+
+  groundAt(x, z) { return this.terrain ? this.terrain(x, z) : this.ground; }
 
   add(min, max, tag = 'solid') {
     const b = { min: [...min], max: [...max], tag };
@@ -31,7 +36,7 @@ export class Physics {
     for (let i = Math.floor(x0 / CELL); i <= Math.floor(x1 / CELL); i++)
       for (let k = Math.floor(z0 / CELL); k <= Math.floor(z1 / CELL); k++) {
         const c = this.grid.get(key(i, k));
-        if (c) for (const b of c) out.add(b);
+        if (c) for (const b of c) if (!b.off) out.add(b);
       }
     return out;
   }
@@ -45,7 +50,7 @@ export class Physics {
    * reachable by stepping up at most `step`. */
   floorAt(x, z, y, r, step) {
     let best = -Infinity;
-    if (this.hasGround(x, z) && this.ground <= y + step) best = this.ground;
+    if (this.hasGround(x, z)) { const g = this.groundAt(x, z); if (g <= y + step) best = g; }
     for (const b of this.near(x - r, z - r, x + r, z + r)) {
       if (b.max[1] > y + step || b.max[1] < best) continue;
       if (circleBox(x, z, r * 0.7, b)) best = b.max[1];
@@ -58,7 +63,15 @@ export class Physics {
   slide(p, dx, dz, r, h, step) {
     const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / (r * 0.5)));
     for (let s = 0; s < n; s++) {
+      const ox = p.x, oz = p.z;
       p.x += dx / n; p.z += dz / n;
+      // standing on the ground (not under it, in a cellar or tunnel) and it rises too steeply
+      if (this.terrain && p.y > this.groundAt(ox, oz) - 0.5 && this.hasGround(p.x, p.z) && this.groundAt(p.x, p.z) > p.y + step) {
+        // too steep to climb: slide along the slope if one axis alone is climbable
+        p.x = ox + dx / n; p.z = oz;
+        if (this.groundAt(p.x, p.z) > p.y + step) { p.x = ox; p.z = oz + dz / n; }
+        if (this.groundAt(p.x, p.z) > p.y + step) { p.x = ox; p.z = oz; }
+      }
       for (let it = 0; it < 3; it++) {
         let moved = false;
         for (const b of this.near(p.x - r, p.z - r, p.x + r, p.z + r)) {
@@ -109,6 +122,25 @@ export class Physics {
       }
       if (best && best.t < t - CELL) break;
     }
+    if (this.terrain && o[1] > this.groundAt(o[0], o[2]) - 0.5) { // march the terrain, then refine the crossing
+      const lim = best ? best.t : far, step = 0.6;
+      let prev = 0;
+      for (let t = step; t <= lim + step; t += step) {
+        const tt = Math.min(t, lim), x = o[0] + d[0] * tt, y = o[1] + d[1] * tt, z = o[2] + d[2] * tt;
+        if (this.hasGround(x, z) && y < this.groundAt(x, z)) {
+          let a = prev, c = tt;
+          for (let i = 0; i < 8; i++) { const m = (a + c) / 2; const yy = o[1] + d[1] * m; if (yy < this.groundAt(o[0] + d[0] * m, o[2] + d[2] * m)) c = m; else a = m; }
+          const hx = o[0] + d[0] * c, hz = o[2] + d[2] * c, e = 0.3;
+          const nx = this.groundAt(hx - e, hz) - this.groundAt(hx + e, hz), nz = this.groundAt(hx, hz - e) - this.groundAt(hx, hz + e);
+          const l = Math.hypot(nx, 2 * e, nz);
+          return { t: c, normal: [nx / l, 2 * e / l, nz / l], box: null };
+        }
+        prev = tt;
+        if (tt >= lim) break;
+      }
+      return best;
+    }
+    if (this.terrain) return best;
     if (d[1] < -1e-6 && o[1] > this.ground) {
       const t = (this.ground - o[1]) / d[1];
       const gx = o[0] + d[0] * t, gz = o[2] + d[2] * t;

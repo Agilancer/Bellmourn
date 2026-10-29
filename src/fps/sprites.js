@@ -90,6 +90,7 @@ export class Billboards {
   }
 
   add(id, x, y, z, scale = 1, shade = 1) {
+    if (this.redirect && this.redirect(id, x, y, z, scale)) return; // built in 3D instead
     this.lib.usedSprites.add(id);
     if (!this.groups.has(id)) this.groups.set(id, []);
     this.groups.get(id).push({ x, y, z, scale, shade });

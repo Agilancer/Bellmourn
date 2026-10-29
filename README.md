@@ -3,7 +3,10 @@
 A first-person retro RPG in the spirit of Heretic, Hexen and Daggerfall, in three.js. This build
 is the first walkable piece of the world: the village of Bellmourn in its forest clearing, ten
 buildings you can walk into, the Cathedral of the Mourning Bell, the walled graveyard behind it,
-and the Undercroft, a 30-room dungeon reached by the stairs in the office behind the pulpit.
+and the Undercroft, a 30-room dungeon: go through the door behind the pulpit into the office,
+then through the stair-house door and down. East of the village a trail runs through the forest
+to the Green Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with
+a bridge, Millhaven farm, a windmill, and a hamlet of homes to explore.
 
 ## Run
 
@@ -19,19 +22,26 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
 | Left click | right hand: swing, or shoot with a wand or staff |
 | Right click | left hand: hold a shield up, swing, or shoot a wand |
-| F, R | cast the spells set to F and R |
+| F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
+| E | open and close doors (the interact key) |
 | Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
 | 1 to 6 | quick-equip sword, greatsword, wand, staff, round shield, kite shield |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, jump, open the bag and pause.
+and the buttons attack, use the left hand, cast F and R, use (E), jump, open the bag and pause.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
 lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `effects.js` the
 magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
-sprite in `assets/textures/library.json` is used somewhere in the world.
+texture in `assets/textures/library.json` is used somewhere in the world. Scatter art that isn't a
+plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
+trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs.
+
+VectorClad's bark, leaf and plank textures come in with
+`python tools/world/import_vectorclad.py` (it reads the sibling `vectorclad` repo's
+`origin/main`, so re-run it when that repo gets new textures).
 
 ---
 
