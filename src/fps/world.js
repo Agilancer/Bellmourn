@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { wallPanel } from './sprites.js';
 import { detailedHouse, houseMaterials, lampPost, marketStall, fence, cart, gothicDetail, belfry } from './buildings.js';
-import { buildRegion } from './region.js';
+import { buildRegion, SPOTS } from './region.js';
 import { REGION } from './terrain.js';
 
 export const VILLAGE_R = 100;   // the village clearing
@@ -30,6 +30,7 @@ export function buildWorld(ctx) {
   const { lib, b, props, bill, scene, physics } = ctx;
   const R = rng(1471);
   ctx.zones = []; // roofed interiors: {x0, z0, x1, z1, y0, y1, name}
+  ctx.interiors = []; // the houses' rooms: a zone with its floor, front door and country
   const M = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o });
   physics.groundHoles.push([CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1]);
 
@@ -125,6 +126,10 @@ export function buildWorld(ctx) {
   forestRing(ctx, R, houses);
   trail(ctx, M, R);
   ctx.region = buildRegion(ctx, M, hm);
+  // where the knights and sorcerers march on the downs: between its named places
+  // (the falls' watch keeps back from the pool)
+  const lair = (k, dx = 0, dz = 0, r = 40) => ({ x: SPOTS[k][0] + dx, z: SPOTS[k][1] + dz, r: Math.min(r, SPOTS[k][2]), name: SPOTS[k][3] });
+  ctx.biomes = { downs: { lairs: [lair('farm'), lair('mill'), lair('hamlet'), lair('falls', -40, 30, 14)] } };
   // where the player may go: the village and forest, the trail, the downs
   ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
     || (x >= REGION.x0 + 4 && x <= REGION.x1 - 4 && Math.abs(z) <= REGION.z1 - 6);
