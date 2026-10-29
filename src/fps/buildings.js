@@ -63,6 +63,22 @@ function windows(len, y0, y1, { skipMid = false, w = 1.1, every = 3.2, edge = 1.
  * timber, upper, chimney, furnish, openFront, title, sign, dormers}. M(id, tile) makes
  * materials; mats: shared {glass, timber, trim, iron, plinth, shutters[], lining, rug, door}.
  */
+/** The painted signboard for a trade (lib.biome.signs: blacksmith, inn, tavern, bakery...). */
+function signMaterial(lib, shop) {
+  lib.signMats ??= new Map();
+  if (lib.signMats.has(shop)) return lib.signMats.get(shop);
+  const s = lib.biome?.signs.get('sign_' + shop);
+  let m = null;
+  if (s) {
+    const t = lib.texture(s.file, false);
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    m = new THREE.MeshPhongMaterial({ map: t, specular: 0x14120f, shininess: 14 });
+    if (lib.normals) m.normalMap = lib.normalMap(s.file, 1.2);
+  }
+  lib.signMats.set(shop, m);
+  return m;
+}
+
 export function detailedHouse(ctx, h, M, mats) {
   const { b, props } = ctx;
   const rot = ROT[h.door];
@@ -70,7 +86,12 @@ export function detailedHouse(ctx, h, M, mats) {
   const F = new Frame(b, h.x, h.z, rot, base);
   const W = rot % 2 ? h.d : h.w, D = rot % 2 ? h.w : h.d; // along the front, front to back
   const t = 0.32, fl = 0.4, G = h.h, U = h.storeys > 1 ? 3.0 : 0, J = h.storeys > 1 ? 0.55 : 0;
-  const wallMat = M(h.wall, 3), upperMat = M(h.upper || 'town_wall_oak_plaster', 3), roofMat = M(h.roof, 2.5);
+  // the town pack's wall panels are storey-high paintings (a sill along the foot, a beam or
+  // coping along the top): one panel to each storey, its foot on that storey's floor
+  const panel = (id) => !!ctx.lib.surf.get(id)?.wall_set;
+  const upperId = h.upper || 'town_wall_oak_plaster';
+  const wallMat = M(h.wall, panel(h.wall) ? G - fl : 3), upperMat = M(upperId, panel(upperId) && U ? U - 0.28 : 3), roofMat = M(h.roof, 2.5);
+  const wallBase = panel(h.wall) ? { vbase: base + fl } : {}, upperBase = panel(upperId) && U ? { vbase: base + G + 0.28 } : {};
   const floorMat = M(h.floor, 2.5);
   const timber = mats.timber, trim = mats.trim;
   const shutter = mats.shutters[(Math.abs(Math.round(h.x * 7 + h.z * 3))) % mats.shutters.length];
@@ -97,7 +118,7 @@ export function detailedHouse(ctx, h, M, mats) {
       F.box([-W / 2, G - 0.5, D / 2 - 0.2], [W / 2, G, D / 2 + 0.2], timber);
       continue;
     }
-    F.wall(alongU, a0, a1, at, fl, G, t, wallMat, ops);
+    F.wall(alongU, a0, a1, at, fl, G, t, wallMat, ops, wallBase);
     F.wall(alongU, a0, a1, at - (alongU ? n[1] : n[0]) * (t / 2 + 0.02), fl, G - 0.15, 0.03, mats.lining, ops, { solid: false, shade: 0.9 });
     face(F, alongU, a0, a1, at, n, fl, G, ops, h.timber ? timber : null, trim, shutter, mats, t, true);
   }
@@ -122,7 +143,7 @@ export function detailedHouse(ctx, h, M, mats) {
       [false, V, -V, -W / 2, [-1, 0], uw(D + 2 * J)], [false, -V, V, W / 2, [1, 0], uw(D + 2 * J)],
     ];
     for (const [alongU, a0, a1, at, n, ops] of up) {
-      F.wall(alongU, a0, a1, at, G + 0.28, top, t * 0.8, upperMat, ops, { solid: false });
+      F.wall(alongU, a0, a1, at, G + 0.28, top, t * 0.8, upperMat, ops, { solid: false, ...upperBase });
       face(F, alongU, a0, a1, at, n, G + 0.28, top, ops, timber, trim, shutter, mats, t * 0.8, false);
     }
     F.box([-W / 2 - 0.05, top - 0.25, -V - 0.05], [W / 2 + 0.05, top, V + 0.05], timber, { solid: false }); // wall plate
@@ -200,16 +221,22 @@ export function detailedHouse(ctx, h, M, mats) {
     const du = doorU;
     for (const s of [-1, 1]) F.beam([du + s * 0.86, fl, D / 2 + t / 2 + 0.03], [du + s * 0.86, fl + 2.65, D / 2 + t / 2 + 0.03], 0.18, 0.12, trim);
     F.beam([du - 1.0, fl + 2.65, D / 2 + t / 2 + 0.05], [du + 1.0, fl + 2.65, D / 2 + t / 2 + 0.05], 0.22, 0.2, trim);
-    ctx.doors?.add({ hinge: F.p(du - 0.78, fl, D / 2), along: rot * Math.PI / 2, width: 1.56, height: 2.52, opens: 1, name: h.title || h.name, plank: Math.abs(Math.round(h.x + h.z)) });
+    ctx.doors?.add({ hinge: F.p(du - 0.78, fl, D / 2), along: rot * Math.PI / 2, width: 1.56, height: 2.52, opens: 1, name: h.title || h.name, plank: Math.abs(Math.round(h.x + h.z)),
+      design: h.doorArt || 'town_cottage_oak' });
     const [x, , z] = F.p(du + 1.5, 0, D / 2 + 0.17);
     props.add('wall_torch', x, base + fl - 0.4, z, rot * Math.PI / 2);
-    // a hanging sign for the shops
-    if (h.sign) {
+    // a hanging sign for the shops: the town pack's signboard for its trade, both faces
+    if (h.shop) {
       const sy = Math.min(G - 0.4, fl + 3.1);
-      F.beam([du - 2.1, sy, D / 2 + t / 2], [du - 2.1, sy, D / 2 + 1.35], 0.08, 0.1, mats.iron);
+      F.beam([du - 2.1, sy, D / 2 + t / 2], [du - 2.1, sy, D / 2 + 1.45], 0.08, 0.1, mats.iron);
       F.beam([du - 2.1, sy - 0.25, D / 2 + t / 2], [du - 2.1, sy, D / 2 + 0.7], 0.05, 0.05, mats.iron);
-      for (const dv of [0.7, 1.2]) F.beam([du - 2.1, sy, D / 2 + dv], [du - 2.1, sy - 0.25, D / 2 + dv], 0.02, 0.02, mats.iron);
-      F.box([du - 2.14, sy - 0.85, D / 2 + 0.55], [du - 2.06, sy - 0.25, D / 2 + 1.35], mats.signs[h.sign % mats.signs.length], { solid: false });
+      for (const dv of [0.62, 1.28]) F.beam([du - 2.1, sy, D / 2 + dv], [du - 2.1, sy - 0.22, D / 2 + dv], 0.02, 0.02, mats.iron);
+      const art = signMaterial(ctx.lib, h.shop), edge = mats.signs[Math.abs(Math.round(h.x)) % mats.signs.length];
+      const board = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.74, 0.8), art ? [art, art, edge, edge, edge, edge] : edge);
+      board.position.set(...F.p(du - 2.1, sy - 0.22 - 0.37, D / 2 + 0.95));
+      board.rotation.y = rot * Math.PI / 2;
+      board.castShadow = board.receiveShadow = true;
+      ctx.scene.add(board);
     }
   }
   for (const [id, fx, fz, r = 0, sc = 1] of h.furnish || []) props.add(id, h.x + fx, base + fl, h.z + fz, r, sc);
@@ -396,7 +423,7 @@ export function houseMaterials(lib, M) {
  * pinnacles, a corbel table under the eaves, pointed hood moulds over the windows, a deep
  * stepped portal, tracery in the rose window, a crested ridge with a cross on the gable, rib
  * arches over the nave and aisles, and candle chandeliers hanging in the nave. */
-export function gothicDetail(ctx, C, { F, H, t, M, windowsAt, pillarsZ, rise }) {
+export function gothicDetail(ctx, C, { F, H, t, M, windowsAt, pillarsZ, rise, hoods = null, lancet = null, roseY = null }) {
   const { b } = ctx;
   const trim = M('castle_keep_pale_keep_limestone', 1.5), stone = M('castle_ashlar', 3), lead = M('met_01_hammered_gunmetal', 1);
   const iron = M('met_02_riveted_black_iron', 1), cap = M('castle_keep_rough_battlement_block', 1.5);
@@ -433,14 +460,15 @@ export function gothicDetail(ctx, C, { F, H, t, M, windowsAt, pillarsZ, rise }) 
     b.box([Math.min(xw, xw + s * 0.32), H - 0.75, z - 0.14], [Math.max(xw, xw + s * 0.32), H - 0.35, z + 0.14], trim, { solid: false });
   }
   // pointed hood moulds over the windows, outside and in
-  for (const at of windowsAt) for (const s of [-1, 1]) for (const side of [1, -1]) {
+  for (const s of [-1, 1]) for (const at of (hoods ? hoods[s] : windowsAt)) for (const side of [1, -1]) {
     const z = C.z0 + at;
     const x = s < 0 ? (side > 0 ? xo0 - 0.06 : C.x0 + t / 2 + 0.06) : (side > 0 ? xo1 + 0.06 : C.x1 - t / 2 - 0.06);
-    const y0 = F + 3.5, y1 = F + 9.5, hw = 0.92;
+    const y0 = lancet ? lancet.y0 : F + 3.5, y1 = lancet ? lancet.y1 : F + 9.5, hw = lancet ? lancet.w / 2 + 0.08 : 0.92;
+    const peak = lancet ? 0.65 : 1.5; // kept low so the oculus above has room
     b.beam([x, y0 - 0.1, z - hw], [x, y1, z - hw], 0.14, 0.2, trim);
     b.beam([x, y0 - 0.1, z + hw], [x, y1, z + hw], 0.14, 0.2, trim);
-    b.beam([x, y1, z - hw], [x, y1 + 1.5, z], 0.14, 0.2, trim);
-    b.beam([x, y1, z + hw], [x, y1 + 1.5, z], 0.14, 0.2, trim);
+    b.beam([x, y1, z - hw], [x, y1 + peak, z], 0.14, 0.2, trim);
+    b.beam([x, y1, z + hw], [x, y1 + peak, z], 0.14, 0.2, trim);
     b.beam([x, y0 - 0.15, z - hw - 0.1], [x, y0 - 0.15, z + hw + 0.1], 0.3, 0.16, trim);
   }
   // the west portal: three receding orders of jambs and pointed arches round the door
@@ -449,17 +477,13 @@ export function gothicDetail(ctx, C, { F, H, t, M, windowsAt, pillarsZ, rise }) 
     for (const s of [-1, 1]) b.box([Math.min(s * hw, s * (hw + 0.36)), F, zo1], [Math.max(s * hw, s * (hw + 0.36)), top, zo1 + d], trim);
     for (const s of [-1, 1]) b.beam([s * (hw + 0.18), top, zo1 + d / 2], [0, top + 1.6 + k * 0.4, zo1 + d / 2], 0.36, d, trim, { up: [0, 0, 1] });
   }
-  // rose window tracery
-  const rc = [0, F + 9.5, zo1 + 0.08], R = 2.35;
+  // the rose window's stone ring (its glass has its own tracery)
+  const rc = [0, roseY ?? F + 9.5, zo1 + 0.08], R = 2.3;
   for (let i = 0; i < 20; i++) {
     const a0 = i / 20 * Math.PI * 2, a1 = (i + 1) / 20 * Math.PI * 2;
     b.beam([Math.cos(a0) * R, rc[1] + Math.sin(a0) * R, rc[2]], [Math.cos(a1) * R, rc[1] + Math.sin(a1) * R, rc[2]], 0.26, 0.2, trim, { up: [0, 0, 1] });
   }
-  for (let i = 0; i < 10; i++) {
-    const a = i / 10 * Math.PI * 2;
-    b.beam([Math.cos(a) * 0.42, rc[1] + Math.sin(a) * 0.42, rc[2]], [Math.cos(a) * R, rc[1] + Math.sin(a) * R, rc[2]], 0.1, 0.12, trim, { up: [0, 0, 1] });
-  }
-  b.cylinder([0, rc[1], rc[2] - 0.05], [0, rc[1], rc[2] + 0.12], 0.45, 10, trim);
+
   // a crested ridge, and a cross on the west gable
   const ry = H + rise;
   for (let z = C.z0 + 1; z < C.z1; z += 2.2) b.cone(0, z, 0.14, ry + 0.05, 0.55, 4, lead);

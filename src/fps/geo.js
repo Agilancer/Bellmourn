@@ -84,8 +84,8 @@ export class Builder {
       if (b - a < 0.01 || yb - ya < 0.01) return;
       const p = (t) => (alongX ? x0 : z0) + dir * t;
       const lo = Math.min(p(a), p(b)), hi = Math.max(p(a), p(b));
-      if (alongX) this.box([lo, ya, z0 - thick / 2], [hi, yb, z0 + thick / 2], mat, { ...opts, vbase: 0 });
-      else this.box([x0 - thick / 2, ya, lo], [x0 + thick / 2, yb, hi], mat, { ...opts, vbase: 0 });
+      if (alongX) this.box([lo, ya, z0 - thick / 2], [hi, yb, z0 + thick / 2], mat, { vbase: 0, ...opts });
+      else this.box([x0 - thick / 2, ya, lo], [x0 + thick / 2, yb, hi], mat, { vbase: 0, ...opts });
     };
     const ops = [...openings].sort((a, b) => a.at - b.at);
     let cur = 0;
@@ -97,6 +97,65 @@ export class Builder {
       cur = b;
     }
     seg(cur, len, y0, y1);
+  }
+
+  /** A straight axis-aligned wall like wall(), but its holes may sit above one another (a
+   * window over a door, an oculus over a lancet): holes [{a0, a1, y0, y1}] in metres along the
+   * wall from its start and in height. Built as rows of boxes round the holes. */
+  holeyWall(x0, z0, x1, z1, y0, y1, thick, mat, holes, opts = {}) {
+    if (opts.thinShadow) { // the stone is drawn but casts no shadow; a thin sheet in its middle
+      // plane does, so slanting sun gets through the whole window instead of the reveals
+      // swallowing it (and lands where the stained glass shader expects it)
+      const { thinShadow, ...rest } = opts;
+      void thinShadow;
+      this.holeyWall(x0, z0, x1, z1, y0, y1, thick, this.uncast(mat), holes, rest);
+      this.holeyWall(x0, z0, x1, z1, y0, y1, 0.1, this.shadowOnly(), holes, { ...rest, solid: false });
+      return;
+    }
+    const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+    const len = alongX ? Math.abs(x1 - x0) : Math.abs(z1 - z0), dir = alongX ? Math.sign(x1 - x0) : Math.sign(z1 - z0);
+    const as = [...new Set([0, len, ...holes.flatMap((h) => [h.a0, h.a1])])].filter((a) => a >= 0 && a <= len).sort((a, b) => a - b);
+    const ys = [...new Set([y0, y1, ...holes.flatMap((h) => [h.y0, h.y1])])].filter((y) => y >= y0 && y <= y1).sort((a, b) => a - b);
+    const open = (a, y) => holes.some((h) => a > h.a0 && a < h.a1 && y > h.y0 && y < h.y1);
+    for (let j = 0; j + 1 < ys.length; j++) {
+      const ym = (ys[j] + ys[j + 1]) / 2;
+      let i = 0;
+      while (i + 1 < as.length) { // a run of solid cells along this band
+        if (open((as[i] + as[i + 1]) / 2, ym)) { i++; continue; }
+        let k = i + 1;
+        while (k + 1 < as.length && !open((as[k] + as[k + 1]) / 2, ym)) k++;
+        const p = (a) => (alongX ? x0 : z0) + dir * a, lo = Math.min(p(as[i]), p(as[k])), hi = Math.max(p(as[i]), p(as[k]));
+        if (alongX) this.box([lo, ys[j], z0 - thick / 2], [hi, ys[j + 1], z0 + thick / 2], mat, { vbase: 0, ...opts });
+        else this.box([x0 - thick / 2, ys[j], lo], [x0 + thick / 2, ys[j + 1], hi], mat, { vbase: 0, ...opts });
+        i = k;
+      }
+    }
+  }
+
+  /** A square floor decal (one of the biome packs' one-off floor tiles: a grate, a memorial
+   * brass, a mosaic), `size` metres, flat at height y, centred on (x, z), turned by rot (its
+   * top toward -z at 0). mat: an overlay material made with tile = size. */
+  decal(mat, x, y, z, size, rot = 0) {
+    const c = Math.cos(rot), s = Math.sin(rot), h = size / 2;
+    const P = [[-h, h], [h, h], [h, -h], [-h, -h]].map(([u, v]) => [x + u * c + v * s, y, z - u * s + v * c]);
+    this.quad(mat, P[0], P[1], P[2], P[3], [[0, 0], [size, 0], [size, size], [0, size]]);
+  }
+
+  /** A copy of `mat` that casts no shadow. */
+  uncast(mat) {
+    this._uncast ??= new Map();
+    if (!this._uncast.has(mat)) {
+      const m = mat.clone();
+      m.userData = { ...mat.userData, noCast: true };
+      this._uncast.set(mat, m);
+    }
+    return this._uncast.get(mat);
+  }
+
+  /** A material that is never seen and only casts shadows. */
+  shadowOnly() {
+    this._shadowOnly ??= Object.assign(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }), { userData: { tileU: 1, tileV: 1 } });
+    return this._shadowOnly;
   }
 
   /** A gable roof over the rectangle x0..x1, z0..z1 with the ridge along `ridge` ('x' or 'z'),

@@ -171,7 +171,7 @@ export class Shafts {
 
 /** Low drifting mist: a few stacked sheets with noise in them, lit by the sky. */
 export class Mist {
-  constructor(scene, rect, { layers = 4, height = 1.4, color = 0xc8d0d8, density = 0.22 } = {}) {
+  constructor(scene, rect, { layers = 4, height = 1.4, color = 0xc8d0d8, density = 0.22, exclude = [] } = {}) {
     this.uniforms = { time: { value: 0 }, color: { value: new THREE.Color(color) }, light: { value: 1 }, density: { value: density } };
     const [x0, z0, x1, z1] = rect;
     const m = new THREE.ShaderMaterial({
@@ -185,6 +185,7 @@ export class Mist {
           float a = smoothstep(0.35, 0.8, n) * density;
           vec2 e = min(vW.xz - vec2(${x0.toFixed(1)}, ${z0.toFixed(1)}), vec2(${x1.toFixed(1)}, ${z1.toFixed(1)}) - vW.xz);
           a *= smoothstep(0.0, 10.0, min(e.x, e.y));
+          ${exclude.map(([a0, b0, a1, b1]) => `if (vW.x > ${a0.toFixed(1)} && vW.x < ${a1.toFixed(1)} && vW.z > ${b0.toFixed(1)} && vW.z < ${b1.toFixed(1)}) a = 0.0;`).join(' ')}
           gl_FragColor = vec4(color * light, a);
         }`,
     });

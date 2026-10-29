@@ -1,5 +1,6 @@
 // Doors you open and close with E (the main interact key): a plank leaf with iron straps and a
-// ring handle, hinged on one side of its doorway. Shut, it blocks the way (a collider in the
+// ring handle, or one of the biome packs' painted door leaves (front and back, grilles and
+// gates with real gaps), hinged on one side of its doorway. Shut, it blocks the way (a collider in the
 // doorway); it swings open over half a second, out of the way, and shuts again on E.
 import * as THREE from 'three';
 
@@ -22,7 +23,11 @@ export class Doors {
    * the shut door runs from its hinge toward its latch (0 = +x); width, height; opens: +1 swings
    * one way (counter-clockwise seen from above), -1 the other; name for the prompt.
    */
-  add({ hinge, along, width = 1.6, height = 2.5, thick = 0.09, opens = 1, name = 'door', double = false, plank = 0 }) {
+  add({ hinge, along, width = 1.6, height = 2.5, thick = 0.09, opens = 1, name = 'door', double = false, plank = 0, design = null }) {
+    const art = design && this.art(design);
+    // a double doorway about as wide as the painting splits it down the middle between its
+    // leaves; a wider one gives each leaf the whole painting
+    const split = art && double && width / height < (art.aspect * 1.6);
     const leaves = double ? [{ h: hinge, a: along, w: width / 2, o: opens },
       { h: [hinge[0] + Math.cos(along) * width, hinge[1], hinge[2] - Math.sin(along) * width], a: along + Math.PI, w: width / 2, o: -opens }]
       : [{ h: hinge, a: along, w: width, o: opens }];
@@ -32,18 +37,29 @@ export class Doors {
       pivot.position.set(...L.h);
       pivot.rotation.y = L.a;
       const mat = this.mats[(plank + this.list.length) % this.mats.length];
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(L.w, height, thick), mat);
-      fitUV(slab.geometry, L.w, height, mat);
-      slab.position.set(L.w / 2, height / 2, 0);
-      pivot.add(slab);
-      for (const y of [0.35, height - 0.4]) { // iron straps and the ring handle
+      if (art) { // the painted leaf: front on one face, back on the other, edges in iron
+        const g = new THREE.BoxGeometry(L.w, height, thick);
+        const second = leaves.length > 1 && L === leaves[1];
+        artUV(g, split);
+        const slab = new THREE.Mesh(g, [this.iron, this.iron, this.iron, this.iron, second ? art.back : art.front, second ? art.front : art.back]);
+        slab.position.set(L.w / 2, height / 2, 0);
+        pivot.add(slab);
+      } else {
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(L.w, height, thick), mat);
+        fitUV(slab.geometry, L.w, height, mat);
+        slab.position.set(L.w / 2, height / 2, 0);
+        pivot.add(slab);
+      }
+      if (!art) for (const y of [0.35, height - 0.4]) { // iron straps and the ring handle
         const strap = new THREE.Mesh(new THREE.BoxGeometry(L.w * 0.82, 0.07, thick + 0.03), this.iron);
         strap.position.set(L.w * 0.42, y, 0);
         pivot.add(strap);
       }
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 5, 10), this.iron);
-      ring.position.set(L.w - 0.15, height * 0.45, thick / 2 + 0.03);
-      pivot.add(ring);
+      if (!art) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 5, 10), this.iron);
+        ring.position.set(L.w - 0.15, height * 0.45, thick / 2 + 0.03);
+        pivot.add(ring);
+      }
       pivot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       this.group.add(pivot);
       // its collider while shut: the slab's bounds in the doorway
@@ -55,6 +71,25 @@ export class Doors {
     door.center = new THREE.Vector3(hinge[0] + Math.cos(along) * width / 2, hinge[1] + height * 0.5, hinge[2] - Math.sin(along) * width / 2);
     this.list.push(door);
     return door;
+  }
+
+  /** The front and back materials of a biome pack door design (lib.biome.doors). */
+  art(design) {
+    this.artMats ??= new Map();
+    if (this.artMats.has(design)) return this.artMats.get(design);
+    const d = this.ctx.lib.biome?.doors.get(design);
+    if (!d) { console.warn('no door design', design); return null; }
+    const mat = (file) => {
+      const t = this.ctx.lib.texture(file, false);
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      const m = new THREE.MeshPhongMaterial({ map: t, specular: 0x1a1816, shininess: 18, alphaTest: d.holes ? 0.5 : 0, side: d.holes ? THREE.DoubleSide : THREE.FrontSide });
+      if (this.ctx.lib.normals) m.normalMap = this.ctx.lib.normalMap(file, 1.3);
+      m.userData.door = true;
+      return m;
+    };
+    const out = { front: mat(d.front), back: mat(d.back), aspect: d.size[0] / d.size[1] };
+    this.artMats.set(design, out);
+    return out;
   }
 
   /** The door the player is looking at, within reach. */
@@ -87,6 +122,17 @@ export class Doors {
       for (const L of door.leaves) L.pivot.rotation.y = L.base + L.dir * e * Math.PI * 0.52;
       if (door.t === 0) for (const b of door.boxes) b.off = false; // shut again: solid
     }
+  }
+}
+
+/** A painted leaf's UVs: the painting across the front (+z) and back (-z) faces, or, for half
+ * of a split pair, the half of it this leaf carries (the hinge side outermost on both faces). */
+function artUV(g, split) {
+  const uv = g.attributes.uv;
+  // BoxGeometry faces: +x, -x, +y, -y, +z, -z, four vertices each
+  for (let i = 16; i < 24; i++) {
+    const u = uv.getX(i);
+    uv.setX(i, !split ? u : i < 20 ? u * 0.5 : 0.5 + u * 0.5);
   }
 }
 

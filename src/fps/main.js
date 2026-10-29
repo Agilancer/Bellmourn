@@ -13,25 +13,24 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Physics } from './physics.js';
-import { Library } from './lib.js';
+import { Kit } from './kit.js';
 import { Builder } from './geo.js';
-import { Billboards } from './sprites.js';
-import { Props } from './props.js';
-import { buildWorld, WORLD_R, VILLAGE_R, GRAVEYARD } from './world.js';
-import { buildDungeon } from './dungeon.js';
+import { buildWorld, VILLAGE_R, GRAVEYARD } from './realm.js';
+import { buildCrypt } from './crypt.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud } from './hud.js';
-import { Doors } from './doors.js';
-import { Scatter3D, isVegetation } from './scatter3d.js';
-import { Trees3D } from './trees3d.js';
-import { terrainHeight, REGION } from './terrain.js';
-import { SPOTS } from './region.js';
+import { KitDoors } from './kitdoors.js';
+import { Loot } from './loot.js';
+import { REGION } from './terrain.js';
+import { worldHeight, biomeAt, BIOMES } from './land.js';
+import { SPOTS } from './wilds.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
+import { StainedGlass } from './glass.js';
 
 const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
@@ -82,7 +81,7 @@ for (let i = 0; i < TORCHES; i++) {
 
 const sfx = new Sfx();
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, zombies;
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, gameInput, kit, zombies;
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried), and more spread through the dungeon below
 const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
@@ -153,50 +152,46 @@ addEventListener('resize', resize);
 async function build() {
   const T0 = performance.now(), times = (window.buildTimes = []), mark = (k) => times.push([k, Math.round(performance.now() - T0)]);
   physics = new Physics();
-  lib = await new Library(renderer, { normals: HI }).load();
+  // the reworked Quaternius kit: every model of the six packs, reshaped and repainted
+  kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI }).load();
   const b = new Builder(physics);
-  bill = new Billboards(lib, scene);
-  bill.shadows = HI;
-  const props = new Props(scene, physics, lib);
-  ctx = { lib, b, props, bill, scene, physics, flames: [], windows: [], chimneys: [], sfx, animated: [] };
-  physics.terrain = terrainHeight; // the downs; flat ground everywhere else
-  ctx.doors = new Doors(ctx);
-  ctx.scatter = new Scatter3D(ctx);
-  ctx.trees3d = new Trees3D(ctx);
-  // every scatter sprite that isn't a plant is built as a 3D model instead
-  bill.redirect = (id, x, y, z, sc) => {
-    const s = lib.spr.get(id);
-    if (!s || s.category !== 'scatter' || isVegetation(id)) return false;
-    ctx.scatter.place(id, x, y, z, sc);
-    return true;
-  };
-  mark('library');
+  ctx = { kit, lib: kit, b, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
+  ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
+  physics.terrain = worldHeight; // the whole land: flat in the village, hills and mountains beyond
+  ctx.doors = new KitDoors(ctx);
+  mark('kit');
   buildWorld(ctx); mark('world');
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); mark('dungeon');
-  b.finish(scene); mark('merge');
-  bill.finish(); mark('billboards');
-  ctx.trees3d.finish(scene); mark('trees');
-  await props.finish(); mark('props');
-  if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
-  console.info(`3D scatter models: ${ctx.scatter.count}`);
-  flameList = [...props.lights, ...ctx.flames];
+  ctx.dungeon = buildCrypt(ctx, ctx.stairBottom); mark('dungeon');
+  ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); mark('merge');
+  kit.finish(); mark('instances');
+  await ctx.land.ready;
+  ctx.stained.applyTo(scene);
+  ctx.glass = kit.glass;
+  if (kit.missing?.size) console.warn('kit models not found:', [...kit.missing].join(' '));
+  console.info(`kit: ${kit.used.size}/${kit.ids(() => true).length} models placed, ${kit.instances} instances in ${kit.cells.length} cells; flora`, ctx.floraCounts,
+    'late', ctx.coverage, 'land ms', ctx.land.timeHeights, ctx.land.timeMap, ctx.land.timeMesh);
+  flameList = [...kit.flames, ...ctx.flames];
   flames = new Flames(scene, flameList);
   skyDome = new Sky(scene);
-  shafts = new Shafts(scene, ctx.windows);
-  mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4]);
+  shafts = new Shafts(scene, ctx.stained.shafts());
+  const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
+  mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
+    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]) });
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
-  vm = new ViewModel(manifest, lib);
+  vm = new ViewModel(manifest, kit);
   vm.equip = { R: 'onehand', L: 'shield_round' };
   await vm.load('wayfarer');
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
+  // what the monsters drop: the packs' reworked weapons, taken up by walking over them
+  ctx.loot = new Loot(ctx, { vm, onTake: (it) => { sfx.equip(); hud.toast(`You take up the ${it.title}`); hud.refresh(vm.equip, book, vm.gauntlet); } });
   mark('arms');
   const icons = await renderIcons(); mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
-  zombies = new Zombies(scene, physics, lib, sfx);
+  zombies = new Zombies(scene, physics, kit, sfx);
   await zombies.load(); mark('zombies');
   const G = GRAVEYARD;
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
@@ -215,8 +210,6 @@ async function build() {
   hud.refresh(vm.equip, book, vm.gauntlet);
   vm.on(onEvent);
   resize();
-  const used = lib.used.size, all = lib.surf.size;
-  console.info(`textures: ${used}/${all} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use`);
   ready = true;
 }
 
@@ -388,7 +381,7 @@ function melee(reach, heavy) {
     if (zh && (!flesh || zh.t < flesh.t)) flesh = { ...zh, d };
   }
   if (flesh && (!best || flesh.t < best.t)) { // the blade bites into a zombie
-    flesh.z.hit(flesh, { dmg: heavy ? 60 : 34, dir: flesh.d, heavy });
+    flesh.z.hit(flesh, { dmg: (heavy ? 60 : 34) * (ITEMS[vm.equip.R]?.power || 1), dir: flesh.d, heavy });
     zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
@@ -410,17 +403,18 @@ function melee(reach, heavy) {
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
-  if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
-  if (p.x > REGION.x0) {
-    for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
-    for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
-    return { name: 'The Green Downs', kind: 'out', open: 1 };
+  if (p.y < worldHeight(p.x, p.z) - 1.5) {
+    const d = ctx.dungeon?.bounds;
+    return { name: d && p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1 ? 'The Undercroft' : 'The Caves', kind: 'under' };
   }
-  if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
-  for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
+  const far = Math.hypot(p.x, p.z) > 300 || p.x > REGION.x0 ? 1 : 0; // out of the forest: see a long way
+  for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: far };
+  for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
+  if (p.x > 110 && p.x < REGION.x0 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
-  if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
-  return { name: 'Bellmourn', kind: 'out' };
+  const bio = biomeAt(p.x, p.z);
+  if (bio === 'core') return { name: Math.hypot(p.x, p.z) > VILLAGE_R + 10 ? 'The Darkwood' : 'Bellmourn', kind: 'out' };
+  return { name: BIOMES[bio].name, kind: 'out', open: 1 };
 }
 
 const L = { out: 1, under: 0, inCathedral: 0, open: 0 }; // smoothed zone weights
@@ -462,10 +456,8 @@ function light(dt, t) {
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface + 46 * L.under;
   skyDome.update(day, t, camera.position, surface);
-  bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
-  bill.time.value = t;
-  bill.sunDir.value.copy(ld);
   shafts.update(day, t, L.inCathedral > 0.05 || L.out > 0.5);
+  ctx.stained.update(ld, day.day * surface, day.ambient * surface);
   // lit windows and lanterns come up as the light goes
   const dusk = 1 - THREE.MathUtils.smoothstep(day.day, 0.1, 0.9);
   if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;
@@ -509,7 +501,6 @@ function light(dt, t) {
     const d = camera.position.distanceTo(l.position);
     warm += Math.max(0, 1 - d / l.distance) ** 2 * (big ? 0.9 : 0.45) * flick;
   });
-  bill.setLights([...torchPool, ...magic.lights.map((x) => x.light)]);
   const amb = (day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor)) * surface;
   vm.setLight(amb, sun.intensity / 2.5 * (L.out + 0.25 * indoor), warm,
     magic.vmFlash.amount * 4 + (magic.wisp ? 1.6 : 0), magic.vmFlash.amount > 0.05 ? magic.vmFlash.color : magic.wisp ? new THREE.Color(0xffe8b0) : null);
@@ -631,7 +622,10 @@ function tick(dt) {
     if (door && inp.was('KeyE')) ctx.doors.toggle(door);
   } else hud.prompt('');
   ctx.doors.update(dt);
-  ctx.trees3d.update(t);
+  if (active) ctx.loot.update(dt, player);
+  kit.update(camera.position, scene.fog.far, camera.position.y < -6);
+  ctx.land.update(camera.position, scene.fog.far);
+  for (const m of ctx.builtUnder) m.visible = camera.position.y < 0.5; // the undercroft, only from below
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
@@ -673,7 +667,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   hud.showOverlay('start', touch);
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, zombies, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, kit, zombies, melee, equip, assign, castSlot, hud, begin, L,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
