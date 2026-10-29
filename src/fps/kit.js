@@ -17,9 +17,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
 const CELL = 96;
-// the growing things and stones are batched: every species in a cell drawn with one atlas is
-// one BatchedMesh (and its low-detail twin); one-off pieces (a house's walls, a room's
-// furniture) are merged per cell and atlas; anything placed many times in a cell is instanced
+// the growing things and stones are batched: every species drawn with one atlas shares one
+// BatchedMesh for the whole world (and a low-detail twin), each species' geometry stored once,
+// and every cell shows and hides its own instances in it; one-off pieces (a house's walls, a
+// room's furniture) are merged per cell and atlas; anything placed many times in a cell is
+// instanced
 const BATCHED = /^(tree|plant|rock|log|cactus|path)$/;
 
 // how each atlas weathers: grime, damp at the foot, moss on top, snow sticks
@@ -61,7 +63,7 @@ export class Kit {
     this.tex = new Map();
     this.nrm = new Map();
     this.placed = new Map();  // id|variant -> [{ m, cull }]
-    this.cells = [];          // { x, z, near: [meshes], far: [meshes], lodAt, cull }
+    this.cells = [];          // { x, z, groups: [{ near: [meshes or Slices], far, lodAt, cull }] }
     this.used = new Set();    // model ids placed
     this.flames = [];         // [x, y, z, size]
     this.loader = new THREE.TextureLoader();
@@ -361,8 +363,12 @@ export class Kit {
         c.groups.push({ near: make(mdl), far: lod ? make(lod) : null, lodAt: lod ? Math.min(85, cull * 0.25) : Infinity, cull });
       }
     }
-    // the vegetation: per cell and material, one batch of every species near, one of their
-    // low-detail copies further out
+    // the vegetation: per material, one world-wide batch of every species near (those that cast
+    // shadows apart from those that don't) and one of their low-detail copies further out. A
+    // cell's share of each is a Slice, shown and hidden like a mesh. (A batch per cell would
+    // copy every species into each of six hundred cells: well over a gigabyte, which phones
+    // can't hold.)
+    const worldBatch = new Map(); // material -> { cast: [], flat: [], far: [] } of [geo, matrix, slice]
     for (const c of cells.values()) {
       if (!c.batch) continue;
       const byMat = new Map();
@@ -378,25 +384,44 @@ export class Kit {
           if (lod) e.lodAt = Math.min(e.lodAt, Math.min(55, p.cull * 0.2));
         }
       }
-      const batch = (m, items, cast) => {
-        items = items.filter((i) => i[0]);
-        if (!items.length) return null;
-        const geos = [...new Set(items.map((i) => i[0]))];
-        let nv = 0, ni = 0;
-        for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
-        const bm = new THREE.BatchedMesh(items.length, nv, ni, m);
-        const gid = new Map(geos.map((g) => [g, bm.addGeometry(g)]));
-        for (const [g, mx] of items) bm.setMatrixAt(bm.addInstance(gid.get(g)), mx);
-        bm.sortObjects = false;
-        return add(bm, cast);
-      };
       for (const [m, e] of byMat) {
-        const lodAt = e.lodAt === Infinity ? Infinity : e.lodAt;
-        const near = batch(m, e.near, e.cast), far = lodAt < Infinity ? batch(m, e.far, false) : null;
-        c.groups.push({ near: near ? [near] : [], far: far ? [far] : null, lodAt, cull: e.cull, batch: e.near.length });
+        if (!worldBatch.has(m)) worldBatch.set(m, { cast: [], flat: [], far: [] });
+        const w = worldBatch.get(m), near = new Slice(), far = e.lodAt < Infinity ? new Slice() : null;
+        for (const [g, mx] of e.near) w[e.cast ? 'cast' : 'flat'].push([g, mx, near]);
+        if (far) for (const [g, mx] of e.far) if (g) w.far.push([g, mx, far]);
+        c.groups.push({ near: [near], far: far ? [far] : null, lodAt: e.lodAt, cull: e.cull, batch: e.near.length });
       }
       c.batch = null;
     }
+    const batchable = new Map(); // every geometry in a batch needs the same attributes and an index
+    const fit = (g) => {
+      if (batchable.has(g)) return batchable.get(g);
+      let f = g;
+      if (!g.attributes.uv || !g.index) {
+        f = g.clone();
+        if (!f.attributes.uv) f.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(f.attributes.position.count * 2), 2));
+        if (!f.index) f.setIndex([...Array(f.attributes.position.count).keys()]);
+      }
+      batchable.set(g, f);
+      return f;
+    };
+    const batch = (m, items, cast) => {
+      if (!items.length) return;
+      const geos = [...new Set(items.map((i) => fit(i[0])))];
+      let nv = 0, ni = 0;
+      for (const g of geos) { nv += g.attributes.position.count; ni += g.index.count; }
+      const bm = new THREE.BatchedMesh(items.length, nv, ni, m);
+      const gid = new Map(geos.map((g) => [g, bm.addGeometry(g)]));
+      for (const [g, mx, slice] of items) {
+        const id = bm.addInstance(gid.get(fit(g)));
+        bm.setMatrixAt(id, mx);
+        bm.setVisibleAt(id, false);
+        slice.ids.push(bm, id);
+      }
+      bm.sortObjects = false;
+      add(bm, cast).visible = true; // its instances come and go, not the batch
+    };
+    for (const [m, w] of worldBatch) { batch(m, w.cast, true); batch(m, w.flat, false); batch(m, w.far, false); }
     // the one-off pieces: merged per cell and material, near (full) and far (low detail, and
     // nothing smaller than a person)
     this.merged = 0;
@@ -451,6 +476,17 @@ export class Kit {
 
   /** The land's biome map: R = snow cover, over the world rectangle [x0, z0, w, d]. */
   setBiome(tex, rect) { this.U.kBiome.value = tex; this.U.kBiomeRect.value.set(...rect); }
+}
+
+/** One cell's instances in a world-wide BatchedMesh, shown and hidden together like a mesh. */
+class Slice {
+  constructor() { this.ids = []; this.on = false; } // ids: [batch, instance id, batch, instance id, ...]
+  get visible() { return this.on; }
+  set visible(v) {
+    if (v === this.on) return;
+    this.on = v;
+    for (let i = 0; i < this.ids.length; i += 2) this.ids[i].setVisibleAt(this.ids[i + 1], v);
+  }
 }
 
 /** The palette as a lookup table: every 5-bit colour (32^3, laid out as 32 slices of 32x32 in a

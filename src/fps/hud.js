@@ -242,15 +242,18 @@ export class Hud {
   get invOpen() { return !this.inv.classList.contains('hidden'); }
   showInventory(on) { this.inv.classList.toggle('hidden', !on); }
 
-  /** 'start' | 'pause' | 'loading' | null */
+  /** 'start' | 'pause' | 'loading' | 'lost' | null */
   showOverlay(mode, touch) {
     this.overlay.classList.toggle('hidden', !mode);
     this.overlay.classList.toggle('is-touch', !!touch);
     const go = this.overlay.querySelector('.go');
     go.textContent = mode === 'loading' ? 'Raising the village…'
-      : (touch ? 'Tap to ' : 'Click to ') + (mode === 'pause' ? 'resume' : 'enter');
+      : (touch ? 'Tap to ' : 'Click to ') + ({ pause: 'resume', lost: 'raise it again — the graphics were lost' }[mode] || 'enter');
     this.overlay.classList.toggle('loading', mode === 'loading');
   }
+
+  /** The loading line, `pct` per cent of the way. */
+  loading(pct) { this.overlay.querySelector('.go').textContent = `Raising the village… ${pct}%`; }
 
   showTouch(on) { this.touch.classList.toggle('hidden', !on); }
 }

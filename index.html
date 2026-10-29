@@ -60,7 +60,8 @@
 
   /* ---------------- panels */
   .panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(880px, 94vw); max-height: 88vh; overflow: auto;
-           background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000; padding: 14px 18px 18px; box-sizing: border-box; }
+           background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000; padding: 14px 18px 18px; box-sizing: border-box;
+           touch-action: pan-y; overscroll-behavior: contain; }
   .panel h2 { margin: 0 0 6px; font: 700 22px 'Cinzel Decorative', Cinzel, serif; color: var(--gold); letter-spacing: .06em; }
   .panel h3 { margin: 14px 0 8px; font-size: 13px; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1px solid #3a3028; padding-bottom: 4px; }
   .panel h3 em { text-transform: none; letter-spacing: 0; color: #8a7a60; font-style: normal; font-size: 12px; }
@@ -98,7 +99,7 @@
   .touchkeys { display: none; font-size: 13px; color: #c8b898; max-width: 80vw; }
   .overlay.is-touch .keys { display: none; }
   .overlay.is-touch .touchkeys { display: block; }
-  .opts { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #a89878; cursor: default; }
+  .opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin-top: 14px; font-size: 12px; color: #a89878; cursor: default; }
   .opts select, .opts input { margin-left: 6px; vertical-align: middle; font: 12px Cinzel, serif; background: #241c18; color: #e8dcc0; border: 1px solid var(--edge); }
 
   .rotate { position: absolute; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 10; text-align: center; }
@@ -132,6 +133,14 @@
     .hands { bottom: auto; top: 54px; left: max(18px, env(safe-area-inset-left)); transform: none; }
     .zone { font-size: 22px; top: 22%; }
     .toast { bottom: auto; top: 30%; }
+    .panel { max-height: 94vh; }
+    .panel .close { width: 44px; height: 44px; }
+    .hb button { min-width: 48px; padding: 9px 12px; }
+  }
+  @media (max-height: 420px) { /* a phone on its side */
+    .overlay { gap: 4px; }
+    .overlay .go { margin: 8px 0 4px; }
+    .opts { margin-top: 8px; }
   }
 </style>
 </head>
