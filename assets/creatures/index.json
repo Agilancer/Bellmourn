@@ -3,5 +3,10 @@
   "name": "Grotesque Zombie",
   "tier": "enemy",
   "path": "assets/creatures/grotesque_zombie/creature.json"
+ },
+ "grotesque_zombie_clay": {
+  "name": "Grotesque Zombie (clay)",
+  "tier": "enemy",
+  "path": "assets/creatures/grotesque_zombie_clay/creature.json"
  }
 }
