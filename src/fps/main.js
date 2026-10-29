@@ -212,6 +212,13 @@ async function build() {
 
   hud.setIcons(icons);
   hud.o.gauntlets = manifest.arms.map((a) => ({ id: a.id, name: a.name.replace(/^bare arm$/, 'Bare hands') }));
+  hud.o.models = (kind) => vm.models(kind);  // every one- and two-handed model, to choose from
+  hud.o.onModel = async (kind, id) => {
+    await vm.setModel(kind, id);
+    sfx.equip();
+    hud.setIcons(await renderIcons());
+    hud.refresh(vm.equip, book, vm.gauntlet);
+  };
   hud.refresh(vm.equip, book, vm.gauntlet);
   vm.on(onEvent);
   resize();

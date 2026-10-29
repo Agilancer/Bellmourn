@@ -194,6 +194,34 @@
     }
    },
    {
+    "id": "butchers_axe",
+    "name": "Butcher's Axe",
+    "set": "set13",
+    "path": "items/onehand/butchers_axe/butchers_axe.glb",
+    "variants": {
+     "worn": "items/onehand/butchers_axe/variants/butchers_axe_worn.png",
+     "bright": "items/onehand/butchers_axe/variants/butchers_axe_bright.png",
+     "gilded": "items/onehand/butchers_axe/variants/butchers_axe_gilded.png",
+     "ancient": "items/onehand/butchers_axe/variants/butchers_axe_ancient.png",
+     "bloodforged": "items/onehand/butchers_axe/variants/butchers_axe_bloodforged.png",
+     "frostbound": "items/onehand/butchers_axe/variants/butchers_axe_frostbound.png"
+    }
+   },
+   {
+    "id": "coffin_hammer",
+    "name": "Coffin Hammer",
+    "set": "set15",
+    "path": "items/onehand/coffin_hammer/coffin_hammer.glb",
+    "variants": {
+     "worn": "items/onehand/coffin_hammer/variants/coffin_hammer_worn.png",
+     "bright": "items/onehand/coffin_hammer/variants/coffin_hammer_bright.png",
+     "gilded": "items/onehand/coffin_hammer/variants/coffin_hammer_gilded.png",
+     "ancient": "items/onehand/coffin_hammer/variants/coffin_hammer_ancient.png",
+     "bloodforged": "items/onehand/coffin_hammer/variants/coffin_hammer_bloodforged.png",
+     "frostbound": "items/onehand/coffin_hammer/variants/coffin_hammer_frostbound.png"
+    }
+   },
+   {
     "id": "falchion",
     "name": "Falchion",
     "set": "set02",
@@ -236,6 +264,34 @@
     }
    },
    {
+    "id": "gaolers_hook",
+    "name": "Gaoler's Hook",
+    "set": "set16",
+    "path": "items/onehand/gaolers_hook/gaolers_hook.glb",
+    "variants": {
+     "worn": "items/onehand/gaolers_hook/variants/gaolers_hook_worn.png",
+     "bright": "items/onehand/gaolers_hook/variants/gaolers_hook_bright.png",
+     "gilded": "items/onehand/gaolers_hook/variants/gaolers_hook_gilded.png",
+     "ancient": "items/onehand/gaolers_hook/variants/gaolers_hook_ancient.png",
+     "bloodforged": "items/onehand/gaolers_hook/variants/gaolers_hook_bloodforged.png",
+     "frostbound": "items/onehand/gaolers_hook/variants/gaolers_hook_frostbound.png"
+    }
+   },
+   {
+    "id": "grave_messer",
+    "name": "Grave Messer",
+    "set": "set12",
+    "path": "items/onehand/grave_messer/grave_messer.glb",
+    "variants": {
+     "worn": "items/onehand/grave_messer/variants/grave_messer_worn.png",
+     "bright": "items/onehand/grave_messer/variants/grave_messer_bright.png",
+     "gilded": "items/onehand/grave_messer/variants/grave_messer_gilded.png",
+     "ancient": "items/onehand/grave_messer/variants/grave_messer_ancient.png",
+     "bloodforged": "items/onehand/grave_messer/variants/grave_messer_bloodforged.png",
+     "frostbound": "items/onehand/grave_messer/variants/grave_messer_frostbound.png"
+    }
+   },
+   {
     "id": "morning_star",
     "name": "Morning Star",
     "set": "set05",
@@ -250,6 +306,20 @@
     }
    },
    {
+    "id": "mourners_rapier",
+    "name": "Mourner's Rapier",
+    "set": "set11",
+    "path": "items/onehand/mourners_rapier/mourners_rapier.glb",
+    "variants": {
+     "worn": "items/onehand/mourners_rapier/variants/mourners_rapier_worn.png",
+     "bright": "items/onehand/mourners_rapier/variants/mourners_rapier_bright.png",
+     "gilded": "items/onehand/mourners_rapier/variants/mourners_rapier_gilded.png",
+     "ancient": "items/onehand/mourners_rapier/variants/mourners_rapier_ancient.png",
+     "bloodforged": "items/onehand/mourners_rapier/variants/mourners_rapier_bloodforged.png",
+     "frostbound": "items/onehand/mourners_rapier/variants/mourners_rapier_frostbound.png"
+    }
+   },
+   {
     "id": "nail_club",
     "name": "Nail Club",
     "set": "set10",
@@ -261,6 +331,20 @@
      "ancient": "items/onehand/nail_club/variants/nail_club_ancient.png",
      "bloodforged": "items/onehand/nail_club/variants/nail_club_bloodforged.png",
      "frostbound": "items/onehand/nail_club/variants/nail_club_frostbound.png"
+    }
+   },
+   {
+    "id": "reliquary_blade",
+    "name": "Reliquary Blade",
+    "set": "set14",
+    "path": "items/onehand/reliquary_blade/reliquary_blade.glb",
+    "variants": {
+     "worn": "items/onehand/reliquary_blade/variants/reliquary_blade_worn.png",
+     "bright": "items/onehand/reliquary_blade/variants/reliquary_blade_bright.png",
+     "gilded": "items/onehand/reliquary_blade/variants/reliquary_blade_gilded.png",
+     "ancient": "items/onehand/reliquary_blade/variants/reliquary_blade_ancient.png",
+     "bloodforged": "items/onehand/reliquary_blade/variants/reliquary_blade_bloodforged.png",
+     "frostbound": "items/onehand/reliquary_blade/variants/reliquary_blade_frostbound.png"
     }
    },
    {
@@ -289,6 +373,20 @@
      "ancient": "items/onehand/war_hammer/variants/war_hammer_ancient.png",
      "bloodforged": "items/onehand/war_hammer/variants/war_hammer_bloodforged.png",
      "frostbound": "items/onehand/war_hammer/variants/war_hammer_frostbound.png"
+    }
+   },
+   {
+    "id": "wolfjaw_sickle",
+    "name": "Wolf-Jaw Sickle",
+    "set": "set17",
+    "path": "items/onehand/wolfjaw_sickle/wolfjaw_sickle.glb",
+    "variants": {
+     "worn": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_worn.png",
+     "bright": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_bright.png",
+     "gilded": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_gilded.png",
+     "ancient": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_ancient.png",
+     "bloodforged": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_bloodforged.png",
+     "frostbound": "items/onehand/wolfjaw_sickle/variants/wolfjaw_sickle_frostbound.png"
     }
    }
   ],
@@ -440,11 +538,39 @@
   ],
   "twohand": [
    {
+    "id": "bloodletter",
+    "name": "Bloodletter",
+    "set": "set12",
+    "path": "items/twohand/bloodletter/bloodletter.glb",
+    "variants": {
+     "worn": "items/twohand/bloodletter/variants/bloodletter_worn.png",
+     "bright": "items/twohand/bloodletter/variants/bloodletter_bright.png",
+     "gilded": "items/twohand/bloodletter/variants/bloodletter_gilded.png",
+     "ancient": "items/twohand/bloodletter/variants/bloodletter_ancient.png",
+     "bloodforged": "items/twohand/bloodletter/variants/bloodletter_bloodforged.png",
+     "frostbound": "items/twohand/bloodletter/variants/bloodletter_frostbound.png"
+    }
+   },
+   {
     "id": "claymore",
     "name": "Claymore",
     "set": "set02",
     "path": "items/twohand/claymore/claymore.glb",
     "variants": {}
+   },
+   {
+    "id": "dane_axe",
+    "name": "Dane Axe",
+    "set": "set13",
+    "path": "items/twohand/dane_axe/dane_axe.glb",
+    "variants": {
+     "worn": "items/twohand/dane_axe/variants/dane_axe_worn.png",
+     "bright": "items/twohand/dane_axe/variants/dane_axe_bright.png",
+     "gilded": "items/twohand/dane_axe/variants/dane_axe_gilded.png",
+     "ancient": "items/twohand/dane_axe/variants/dane_axe_ancient.png",
+     "bloodforged": "items/twohand/dane_axe/variants/dane_axe_bloodforged.png",
+     "frostbound": "items/twohand/dane_axe/variants/dane_axe_frostbound.png"
+    }
    },
    {
     "id": "flamberge",
@@ -459,6 +585,20 @@
     "set": "set10",
     "path": "items/twohand/glaive/glaive.glb",
     "variants": {}
+   },
+   {
+    "id": "gravewarden_halberd",
+    "name": "Gravewarden's Halberd",
+    "set": "set11",
+    "path": "items/twohand/gravewarden_halberd/gravewarden_halberd.glb",
+    "variants": {
+     "worn": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_worn.png",
+     "bright": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_bright.png",
+     "gilded": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_gilded.png",
+     "ancient": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_ancient.png",
+     "bloodforged": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_bloodforged.png",
+     "frostbound": "items/twohand/gravewarden_halberd/variants/gravewarden_halberd_frostbound.png"
+    }
    },
    {
     "id": "great_axe",
@@ -489,6 +629,20 @@
     "variants": {}
    },
    {
+    "id": "penitents_greatsword",
+    "name": "Penitent's Greatsword",
+    "set": "set14",
+    "path": "items/twohand/penitents_greatsword/penitents_greatsword.glb",
+    "variants": {
+     "worn": "items/twohand/penitents_greatsword/variants/penitents_greatsword_worn.png",
+     "bright": "items/twohand/penitents_greatsword/variants/penitents_greatsword_bright.png",
+     "gilded": "items/twohand/penitents_greatsword/variants/penitents_greatsword_gilded.png",
+     "ancient": "items/twohand/penitents_greatsword/variants/penitents_greatsword_ancient.png",
+     "bloodforged": "items/twohand/penitents_greatsword/variants/penitents_greatsword_bloodforged.png",
+     "frostbound": "items/twohand/penitents_greatsword/variants/penitents_greatsword_frostbound.png"
+    }
+   },
+   {
     "id": "poleaxe",
     "name": "Poleaxe",
     "set": "set05",
@@ -501,6 +655,20 @@
     "set": "set08",
     "path": "items/twohand/scythe/scythe.glb",
     "variants": {}
+   },
+   {
+    "id": "tombstone",
+    "name": "Tombstone",
+    "set": "set15",
+    "path": "items/twohand/tombstone/tombstone.glb",
+    "variants": {
+     "worn": "items/twohand/tombstone/variants/tombstone_worn.png",
+     "bright": "items/twohand/tombstone/variants/tombstone_bright.png",
+     "gilded": "items/twohand/tombstone/variants/tombstone_gilded.png",
+     "ancient": "items/twohand/tombstone/variants/tombstone_ancient.png",
+     "bloodforged": "items/twohand/tombstone/variants/tombstone_bloodforged.png",
+     "frostbound": "items/twohand/tombstone/variants/tombstone_frostbound.png"
+    }
    },
    {
     "id": "warmaul",
@@ -623,6 +791,14 @@
    "name": "model 8"
   },
   {
+   "id": "set13",
+   "name": "model 13"
+  },
+  {
+   "id": "set15",
+   "name": "model 15"
+  },
+  {
    "id": "set02",
    "name": "model 2"
   },
@@ -635,12 +811,28 @@
    "name": "model 3"
   },
   {
+   "id": "set16",
+   "name": "model 16"
+  },
+  {
+   "id": "set12",
+   "name": "model 12"
+  },
+  {
    "id": "set05",
    "name": "model 5"
   },
   {
+   "id": "set11",
+   "name": "model 11"
+  },
+  {
    "id": "set10",
    "name": "model 10"
+  },
+  {
+   "id": "set14",
+   "name": "model 14"
   },
   {
    "id": "set07",
@@ -649,6 +841,10 @@
   {
    "id": "set06",
    "name": "model 6"
+  },
+  {
+   "id": "set17",
+   "name": "model 17"
   }
  ],
  "anims": {

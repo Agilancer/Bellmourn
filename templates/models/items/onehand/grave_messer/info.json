@@ -1,0 +1,68 @@
+{
+ "id": "grave_messer",
+ "name": "Grave Messer",
+ "kind": "one-handed weapon",
+ "description": "A heavy single-edged knife-sword with a clipped point: iron cross with a nagel spike, hide grip, iron pommel cap.",
+ "texture_size": 128,
+ "skin_size": 512,
+ "triangles": 419,
+ "files": [
+  "grave_messer.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/grave_messer_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/grave_messer_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/grave_messer_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/grave_messer_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/grave_messer_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/grave_messer_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "crossguard"
+  },
+  {
+   "number": 3,
+   "name": "nagel"
+  },
+  {
+   "number": 4,
+   "name": "grip"
+  },
+  {
+   "number": 5,
+   "name": "pommel cap"
+  }
+ ],
+ "set": "set12",
+ "set_name": "model 12"
+}

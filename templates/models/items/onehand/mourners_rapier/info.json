@@ -1,0 +1,100 @@
+{
+ "id": "mourners_rapier",
+ "name": "Mourner's Rapier",
+ "kind": "one-handed weapon",
+ "description": "A long slender rapier: a wide dark-iron cup hilt rimmed in brass, a knuckle bow and swept quillons, black leather grip bound in brass wire, brass pommel.",
+ "texture_size": 128,
+ "skin_size": 512,
+ "triangles": 1192,
+ "files": [
+  "mourners_rapier.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/mourners_rapier_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/mourners_rapier_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/mourners_rapier_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/mourners_rapier_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/mourners_rapier_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/mourners_rapier_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "cup"
+  },
+  {
+   "number": 3,
+   "name": "cup rim"
+  },
+  {
+   "number": 4,
+   "name": "quillons"
+  },
+  {
+   "number": 5,
+   "name": "knuckle bow"
+  },
+  {
+   "number": 6,
+   "name": "pommel"
+  },
+  {
+   "number": 7,
+   "name": "grip"
+  },
+  {
+   "number": 8,
+   "name": "grip wire 1"
+  },
+  {
+   "number": 9,
+   "name": "grip wire 2"
+  },
+  {
+   "number": 10,
+   "name": "grip wire 3"
+  },
+  {
+   "number": 11,
+   "name": "grip wire 4"
+  },
+  {
+   "number": 12,
+   "name": "grip wire 5"
+  },
+  {
+   "number": 13,
+   "name": "grip wire 6"
+  }
+ ],
+ "set": "set11",
+ "set_name": "model 11"
+}

@@ -1,0 +1,96 @@
+{
+ "id": "bloodletter",
+ "name": "Bloodletter",
+ "kind": "two-handed weapon",
+ "description": "A long notched two-hander of blackened steel with bright edges and tearing barbs at its base, dark-iron spiked guard, blood-red grip between iron rings.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 1088,
+ "files": [
+  "bloodletter.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/bloodletter_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/bloodletter_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/bloodletter_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/bloodletter_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/bloodletter_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/bloodletter_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "honed edge"
+  },
+  {
+   "number": 3,
+   "name": "guard"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  },
+  {
+   "number": 5,
+   "name": "grip"
+  },
+  {
+   "number": 6,
+   "name": "grip rings"
+  },
+  {
+   "number": 7,
+   "name": "barb 1"
+  },
+  {
+   "number": 8,
+   "name": "barb 2"
+  },
+  {
+   "number": 9,
+   "name": "barb 3"
+  },
+  {
+   "number": 10,
+   "name": "barb 4"
+  },
+  {
+   "number": 11,
+   "name": "barb 5"
+  },
+  {
+   "number": 12,
+   "name": "barb 6"
+  }
+ ],
+ "set": "set12",
+ "set_name": "model 12"
+}
