@@ -31,6 +31,7 @@ import { Trees3D } from './trees3d.js';
 import { terrainHeight, REGION } from './terrain.js';
 import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
+import { Zombies } from './zombies.js';
 
 const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
@@ -81,7 +82,12 @@ for (let i = 0; i < TORCHES; i++) {
 
 const sfx = new Sfx();
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib;
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, zombies;
+// the graveyard's dead: one of each zombie, among the graves
+const ZOMBIE_SPAWNS = [['a', -14, -140, 0.3], ['b', 24, -150, -0.4], ['c', -28, -161, 0.6]];
+// what each kind of spell does to flesh: a direct hit, and its blast (radius, damage)
+const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, arcane: 18, staff: 30, wisp: 25 };
+const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
 let pix = Number(localStorage.getItem('bm.pix') || (HI ? 2 : 2));
@@ -189,6 +195,13 @@ async function build() {
   const icons = await renderIcons(); mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
+  zombies = new Zombies(scene, physics, lib, sfx);
+  await zombies.load(); mark('zombies');
+  for (const [v, x, z, yaw] of ZOMBIE_SPAWNS) zombies.spawn(v, x, z, yaw);
+  zombies.onPlayerHit = hurtPlayer;
+  magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
+  magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: SPELL_DMG[def.kind] ?? 30, dir: d, heavy: def.size > 0.4, kind: def.kind });
+  magic.onBlast = (def, at) => { const b = SPELL_BLAST[def.kind]; if (b) zombies.blast(at, b[0], b[1], def.kind); };
 
   hud.setIcons(icons);
   hud.o.gauntlets = manifest.arms.map((a) => ({ id: a.id, name: a.name.replace(/^bare arm$/, 'Bare hands') }));
@@ -303,6 +316,18 @@ function castSlot(slot) {
   if (def.charge) sfx.chargeUp?.(def.charge);
 }
 
+/** A zombie's blow lands on you; if it kills you, you wake in the village. */
+function hurtPlayer(dmg) {
+  player.health -= dmg;
+  shake = Math.max(shake, 0.9);
+  sfx.clang(true);
+  if (player.health <= 0) {
+    player.health = player.maxHealth;
+    player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
+    hud.toast('Torn apart in the graveyard... you wake in the village');
+  }
+}
+
 function noMana() { hud.flashMana(); hud.toast('Not enough mana'); sfx.fizzle(); }
 
 /** Where a point in the view model's camera space appears in the world, 0.8 m out. */
@@ -345,12 +370,19 @@ function onEvent(kind, side, clip) {
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
 function melee(reach, heavy) {
   const o = camera.position;
-  let best = null;
+  let best = null, flesh = null;
   for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
     const d = new THREE.Vector3(0, -0.05, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), a)
       .applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ')).normalize();
     const hit = physics.ray([o.x, o.y, o.z], [d.x, d.y, d.z], reach);
     if (hit && (!best || hit.t < best.t)) best = { ...hit, d };
+    const zh = zombies.ray(o, d, reach);
+    if (zh && (!flesh || zh.t < flesh.t)) flesh = { ...zh, d };
+  }
+  if (flesh && (!best || flesh.t < best.t)) { // the blade bites into a zombie
+    flesh.z.hit(flesh, { dmg: heavy ? 60 : 34, dir: flesh.d, heavy });
+    shake = heavy ? 1.0 : 0.6;
+    return;
   }
   if (!best) return;
   const p = o.clone().addScaledVector(best.d, best.t);
@@ -591,6 +623,7 @@ function tick(dt) {
   ctx.doors.update(dt);
   ctx.trees3d.update(t);
   for (const f of ctx.animated) f(dt, t);
+  zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
@@ -630,7 +663,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   hud.showOverlay('start', touch);
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, zombies, melee, equip, assign, castSlot, hud, begin, L,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
