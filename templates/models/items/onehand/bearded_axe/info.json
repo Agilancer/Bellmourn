@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A Norse-style axe: steel head with a long beard on an ash haft, iron socket and band.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 204,
  "files": [
   "bearded_axe.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/bearded_axe_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/bearded_axe_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/bearded_axe_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/bearded_axe_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/bearded_axe_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/bearded_axe_frostbound.png"
+  }
  ],
  "parts": [
   {

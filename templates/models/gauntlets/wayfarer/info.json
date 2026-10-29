@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "The player's default arm: blackened-iron finger lames and knuckle bar over a dark leather glove, a domed iron hand plate with brass rivets, a brown leather bracer laced with pale rawhide between two iron bands, and a wine-red wool sleeve.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2940,
  "files": [
   "wayfarer_R.glb",
   "wayfarer_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/wayfarer_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/wayfarer_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/wayfarer_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/wayfarer_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/wayfarer_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/wayfarer_frostbound.png"
+  }
  ],
  "parts": [
   {

@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A heavy single-edged blade that widens toward the tip; brass guard and pommel, dark leather grip.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 262,
  "files": [
   "falchion.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/falchion_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/falchion_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/falchion_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/falchion_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/falchion_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/falchion_frostbound.png"
+  }
  ],
  "parts": [
   {

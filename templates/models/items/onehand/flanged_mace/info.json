@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "An all-iron mace with six steel flanges and a leather-wrapped grip.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 284,
  "files": [
   "flanged_mace.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/flanged_mace_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/flanged_mace_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/flanged_mace_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/flanged_mace_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/flanged_mace_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/flanged_mace_frostbound.png"
+  }
  ],
  "parts": [
   {

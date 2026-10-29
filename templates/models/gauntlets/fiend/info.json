@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Blackened, ridged demon-iron with a saw-toothed spine fin, hooked claws on every finger, a spiked elbow, and a glowing ember stone set in the back of the hand.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2812,
  "files": [
   "fiend_R.glb",
   "fiend_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/fiend_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/fiend_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/fiend_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/fiend_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/fiend_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/fiend_frostbound.png"
+  }
  ],
  "parts": [
   {
