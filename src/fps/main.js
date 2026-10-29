@@ -85,8 +85,9 @@ for (let i = 0; i < TORCHES; i++) {
 const sfx = new Sfx();
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, zombies;
-// the graveyard's dead: one of each zombie, among the graves
-const ZOMBIE_SPAWNS = [['a', -14, -140, 0.3], ['b', 24, -150, -0.4], ['c', -28, -161, 0.6]];
+// the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
+// lying buried), and more spread through the dungeon below
+const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
 // what each kind of spell does to flesh: a direct hit, and its blast (radius, damage)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, arcane: 18, staff: 30, wisp: 25 };
 const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
@@ -204,11 +205,17 @@ async function build() {
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
   zombies = new Zombies(scene, physics, lib, sfx);
   await zombies.load(); mark('zombies');
-  for (const [v, x, z, yaw] of ZOMBIE_SPAWNS) zombies.spawn(v, x, z, yaw);
+  const G = GRAVEYARD;
+  zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
+  zombies.populateDungeon(ctx.dungeon, DUNGEON_DEAD);
   zombies.onPlayerHit = hurtPlayer;
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: SPELL_DMG[def.kind] ?? 30, dir: d, heavy: def.size > 0.4, kind: def.kind });
-  magic.onBlast = (def, at) => { const b = SPELL_BLAST[def.kind]; if (b) zombies.blast(at, b[0], b[1], def.kind); };
+  magic.onBlast = (def, at) => {
+    const b = SPELL_BLAST[def.kind];
+    if (b) zombies.blast(at, b[0], b[1], def.kind);
+    zombies.noise(at, def.size > 0.4 ? 26 : 16);   // the dead hear it go off
+  };
 
   hud.setIcons(icons);
   hud.o.gauntlets = manifest.arms.map((a) => ({ id: a.id, name: a.name.replace(/^bare arm$/, 'Bare hands') }));
@@ -331,7 +338,8 @@ function hurtPlayer(dmg) {
   if (player.health <= 0) {
     player.health = player.maxHealth;
     player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
-    hud.toast('Torn apart in the graveyard... you wake in the village');
+    zombies.forget();
+    hud.toast('Torn apart by the dead... you wake in the village');
   }
 }
 
@@ -388,10 +396,12 @@ function melee(reach, heavy) {
   }
   if (flesh && (!best || flesh.t < best.t)) { // the blade bites into a zombie
     flesh.z.hit(flesh, { dmg: heavy ? 60 : 34, dir: flesh.d, heavy });
+    zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
   }
   if (!best) return;
+  zombies.noise(o, 14);   // steel on stone carries
   const p = o.clone().addScaledVector(best.d, best.t);
   const n = new THREE.Vector3(...best.normal);
   const tag = best.box ? best.box.tag : 'ground';
