@@ -141,6 +141,14 @@ export class Hud {
       const inR = equip.R === kind, inL = equip.L === kind || (equip.R === kind && it.both);
       if (inR || inL) card.classList.add('on');
       card.innerHTML = `<img src="${this.itemIcons?.[kind] || ''}" alt=""><div class="nm">${it.name}</div><div class="ty">${it.type}</div>`;
+      const models = this.o.models?.(kind) || [];
+      if (models.length > 1) { // which model this weapon is
+        const pick = el('select', 'mdl');
+        const list = models.some((m) => m.id === it.id) ? models : [{ id: it.id, name: it.name }, ...models];
+        for (const m of list) pick.append(new Option(m.name, m.id, false, m.id === it.id));
+        pick.onchange = () => this.o.onModel?.(kind, pick.value);
+        card.append(pick);
+      }
       const row = el('div', 'hb');
       for (const side of ['R', 'L']) {
         const ok = it.hands.includes(side);

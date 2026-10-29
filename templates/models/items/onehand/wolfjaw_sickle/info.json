@@ -1,0 +1,108 @@
+{
+ "id": "wolfjaw_sickle",
+ "name": "Wolf-Jaw Sickle",
+ "kind": "one-handed weapon",
+ "description": "A hooked jawbone blade set with fangs along its inner edge, lashed with red sinew to a bent wooden haft.",
+ "texture_size": 128,
+ "skin_size": 512,
+ "triangles": 912,
+ "files": [
+  "wolfjaw_sickle.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/wolfjaw_sickle_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/wolfjaw_sickle_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/wolfjaw_sickle_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/wolfjaw_sickle_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/wolfjaw_sickle_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/wolfjaw_sickle_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "haft"
+  },
+  {
+   "number": 2,
+   "name": "jawbone"
+  },
+  {
+   "number": 3,
+   "name": "fang 1"
+  },
+  {
+   "number": 4,
+   "name": "fang 2"
+  },
+  {
+   "number": 5,
+   "name": "fang 3"
+  },
+  {
+   "number": 6,
+   "name": "fang 4"
+  },
+  {
+   "number": 7,
+   "name": "fang 5"
+  },
+  {
+   "number": 8,
+   "name": "fang 6"
+  },
+  {
+   "number": 9,
+   "name": "butt knob"
+  },
+  {
+   "number": 10,
+   "name": "sinew cord"
+  },
+  {
+   "number": 11,
+   "name": "cord wrap 1"
+  },
+  {
+   "number": 12,
+   "name": "cord wrap 2"
+  },
+  {
+   "number": 13,
+   "name": "cord wrap 3"
+  },
+  {
+   "number": 14,
+   "name": "cord wrap 4"
+  },
+  {
+   "number": 15,
+   "name": "cord wrap 5"
+  }
+ ],
+ "set": "set17",
+ "set_name": "model 17"
+}

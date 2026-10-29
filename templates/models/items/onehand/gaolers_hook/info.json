@@ -1,0 +1,72 @@
+{
+ "id": "gaolers_hook",
+ "name": "Gaoler's Hook",
+ "kind": "one-handed weapon",
+ "description": "An iron blade whose edge drops into a hooking belly, an off-centre iron guard, dark wooden handle, iron knob with a key ring.",
+ "texture_size": 128,
+ "skin_size": 512,
+ "triangles": 528,
+ "files": [
+  "gaolers_hook.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/gaolers_hook_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/gaolers_hook_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/gaolers_hook_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/gaolers_hook_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/gaolers_hook_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/gaolers_hook_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "guard"
+  },
+  {
+   "number": 3,
+   "name": "handle"
+  },
+  {
+   "number": 4,
+   "name": "collar"
+  },
+  {
+   "number": 5,
+   "name": "knob"
+  },
+  {
+   "number": 6,
+   "name": "key ring"
+  }
+ ],
+ "set": "set16",
+ "set_name": "model 16"
+}
