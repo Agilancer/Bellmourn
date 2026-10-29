@@ -26,7 +26,7 @@ PROXY = mh.DATA + '/proxies/'
 FACES = {
     '01_Fair_Skin': ((0.40, 0.29, 0.19), 0.65), '02_Tan_Skin': ((0.15, 0.105, 0.075), 0.8),
     '03_Weathered_Veteran': ((0.44, 0.42, 0.40), 0.6, 0.3), '04_Dark_Stubble': ((0.15, 0.13, 0.12), 0.8),
-    '05_Scarred_Warrior': ((0.22, 0.16, 0.12), 0.25), '06_Freckled_Redhead': ((0.46, 0.20, 0.08), 0.75),
+    '05_Scarred_Warrior': ((0.22, 0.16, 0.12), 0.25), '06_Freckled_Redhead': ((0.40, 0.18, 0.08), 0.75),
     '07_Olive_Skin': ((0.075, 0.06, 0.05), 0.85), '08_Nordic_Pale': ((0.62, 0.50, 0.33), 0.65),
     '09_Tattooed_Berserker': ((0.13, 0.11, 0.10), 0.5), '10_Deep_Brown_Skin': ((0.065, 0.055, 0.05), 0.8)}
 C = dict(outfit='Adventurer', face='03_Weathered_Veteran', scale=1.04, eye_z=1.70, neck=2.8, fwd=0.0,

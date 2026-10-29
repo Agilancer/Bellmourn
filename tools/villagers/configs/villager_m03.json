@@ -1,0 +1,64 @@
+{
+ "seed": 2202,
+ "face": "06_Freckled_Redhead",
+ "morph": {
+  "caucasian-male-young": 1.0,
+  "nose-point-width-more": 0.066,
+  "nose-volume-potato": 0.434,
+  "forehead-scale-vert-less": 0.135,
+  "l-ear-flap-out": 0.247,
+  "r-ear-flap-out": 0.247,
+  "nose-hump-morehump": 0.256,
+  "l-cheek-bones-out": 0.397,
+  "r-cheek-bones-out": 0.397,
+  "head-square": 0.111,
+  "l-ear-size-big": 0.502,
+  "r-ear-size-big": 0.502
+ },
+ "eye": "green",
+ "iris_tint": [
+  0.5,
+  0.7,
+  0.8
+ ],
+ "dress": {
+  "Green": [
+   "quilted_blue",
+   1.0,
+   0.42
+  ],
+  "LightGreen": [
+   "linen_brown",
+   1.15,
+   0.3
+  ],
+  "Brown": [
+   "burlap_coarse",
+   0.85,
+   0.3
+  ],
+  "Brown2": [
+   "leather_strapwork",
+   1.0,
+   0.3
+  ],
+  "Grey": [
+   "leather_strapwork",
+   0.7,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ]
+ },
+ "line": -0.04,
+ "scale": 1.0,
+ "name": "villager_m03",
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 64
+}
