@@ -288,6 +288,15 @@ R1H_SHIELD_BACK_3D = [
 ]
 R1H_SHIELD_BACK_3D[4]["S"] = R1H_SHIELD_BACK[4]["S"]
 
+# While the sword swings, the shield arm swings out of its way: down and out toward the screen
+# corner, its face turned outward, then back as the sword recovers. Same frames and timing as
+# r1h_swing_3d so the two play together.
+SHIELD_ASIDE = dict(S=(*at(1.0, 1.16), 0.32), ang=150, dz=0.16, face=(0.9, 0.22, 0.38))
+KITE_ASIDE = dict(S=(*at(1.02, 1.32), 0.40), ang=110, dz=0.12, face=(0.9, 0.12, 0.42))
+ASIDE = (0.0, 0.3, 0.65, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.95, 0.8, 0.55, 0.28, 0.06)
+SHIELD_SWING_ASIDE = [lerp_key(SHIELD_CARRY, SHIELD_ASIDE, w, name=k["name"], tics=k["tics"]) for w, k in zip(ASIDE, R1H_SWING_3D)]
+KITE_SWING_ASIDE = [lerp_key(KITE_CARRY, KITE_ASIDE, w, name=k["name"], tics=k["tics"]) for w, k in zip(ASIDE, R1H_SWING_3D)]
+
 
 
 # ---------------------------------------------------------------- empty-hand spellcasting
@@ -531,6 +540,14 @@ ANIMS = {
         id="l1h_swing_3d", title="ONE-HANDED OVERHAND SWING FROM THE 3D CARRY — LEFT HAND", model_only=True,
         frames=_frames(R1H_SWING_3D, "L", "sword1h"),
         notes=["3D models only: the mirror image of r1h_swing_3d."]),
+    "lsh_aside_3d": dict(
+        id="lsh_aside_3d", title="ROUND SHIELD SWUNG ASIDE FOR THE SWORD (3D ONLY)", model_only=True,
+        frames=_frames(SHIELD_SWING_ASIDE, "L", "round"),
+        notes=["3D models only: plays with r1h_swing_3d, frame for frame."]),
+    "lks_aside_3d": dict(
+        id="lks_aside_3d", title="KITE SHIELD SWUNG ASIDE FOR THE SWORD (3D ONLY)", model_only=True,
+        frames=_frames(KITE_SWING_ASIDE, "L", "kite"),
+        notes=["3D models only: plays with r1h_swing_3d, frame for frame."]),
     "r1h_shield_back_3d": dict(
         id="r1h_shield_back_3d", title="WEAPON DRAWN BACK WHILE BLOCKING, FROM THE 3D CARRY", model_only=True,
         frames=_frames(R1H_SHIELD_BACK_3D, "R", "sword1h"),

@@ -4,7 +4,7 @@
 // by the sky and by the nearby torches and spells (the same lights the world uses).
 import * as THREE from 'three';
 
-export const MAX_LIGHTS = 16;
+export const MAX_LIGHTS = 24;
 
 const common = /* glsl */`
   attribute vec3 offset;      // ground point of this instance

@@ -58,16 +58,16 @@ if (HI) {
   c.left = c.bottom = -72; c.right = c.top = 72; c.near = 1; c.far = 600;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
 }
-const TORCHES = HI ? 10 : 6, TORCH_SHADOWS = HI ? 4 : 0;
+const TORCHES = HI ? 16 : 8, TORCH_SHADOWS = HI ? 4 : 0;
 const torchPool = [];
 for (let i = 0; i < TORCHES; i++) {
-  const l = new THREE.PointLight(0xff9a48, 0, 13, 1.3);
+  const l = new THREE.PointLight(0xff9a48, 0, 16, 1.25);
   if (i < TORCH_SHADOWS) {
     l.castShadow = true;
     l.shadow.mapSize.set(512, 512);
     l.shadow.autoUpdate = false; // torches don't move: re-render only when it moves to another
     l.shadow.bias = -0.003; l.shadow.normalBias = 0.04;
-    l.shadow.camera.near = 0.15; l.shadow.camera.far = 14;
+    l.shadow.camera.near = 0.15; l.shadow.camera.far = 17;
   }
   l.userData.flame = null;
   scene.add(l);
@@ -369,7 +369,7 @@ function light(dt, t) {
   // sun by day, moon by night; with shadows the roofs keep it out of interiors by themselves
   const isDay = day.day > 0.02;
   sun.color.copy(isDay ? day.sunColor : MOON);
-  sun.intensity = (isDay ? day.sunPower * day.day : 0.35) * surface * (HI ? 1 : L.out + 0.25 * indoor);
+  sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
     _lx.crossVectors(new THREE.Vector3(0, 1, 0), ld).normalize();
@@ -383,7 +383,7 @@ function light(dt, t) {
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
   hemi.color.copy(day.zenith).lerp(new THREE.Color(1, 1, 1), 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
-  hemi.intensity = day.ambient * (L.out + (0.42 + 0.5 * L.inCathedral) * indoor) * surface * 1.15;
+  hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = (isDay ? 300 : 170) * surface + 46 * L.under;
@@ -405,7 +405,7 @@ function light(dt, t) {
     lightTimer = 0.25;
     const p = camera.position;
     const ranked = flameList.map((f) => [f, (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2])
-      .filter((a) => a[1] < 45 * 45).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
+      .filter((a) => a[1] < 55 * 55).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
     const groups = [[torchPool.slice(0, TORCH_SHADOWS), ranked.slice(0, TORCH_SHADOWS)],
       [torchPool.slice(TORCH_SHADOWS), ranked.slice(TORCH_SHADOWS, TORCHES)]];
     for (const [ls, want] of groups) {
@@ -430,13 +430,13 @@ function light(dt, t) {
     const flick = 0.84 + 0.1 * Math.sin(t * 11 + i * 3.1) * Math.sin(t * 4.3 + i) + 0.06 * Math.sin(t * 23 + i * 7);
     // torches read best at night and underground; by day outdoors they're a glow
     const vis = L.under + indoor + L.out * (0.35 + 0.65 * night);
-    l.intensity = (big ? 11 : 4.5) * flick * Math.min(1.2, vis + 0.2);
-    l.distance = big ? 14 : 8;
+    l.intensity = (big ? 13 : 5) * flick * Math.min(1.2, vis + 0.2);
+    l.distance = big ? 16 : 9;
     const d = camera.position.distanceTo(l.position);
-    warm += Math.max(0, 1 - d / l.distance) ** 2 * (big ? 1.6 : 0.8) * flick;
+    warm += Math.max(0, 1 - d / l.distance) ** 2 * (big ? 0.9 : 0.45) * flick;
   });
   bill.setLights([...torchPool, ...magic.lights.map((x) => x.light)]);
-  const amb = (day.ambient * (L.out + (0.42 + 0.5 * L.inCathedral) * indoor)) * surface;
+  const amb = (day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor)) * surface;
   vm.setLight(amb, sun.intensity / 2.5 * (L.out + 0.25 * indoor), warm,
     magic.vmFlash.amount * 4 + (magic.wisp ? 1.6 : 0), magic.vmFlash.amount > 0.05 ? magic.vmFlash.color : magic.wisp ? new THREE.Color(0xffe8b0) : null);
   vm.sun.color.copy(sun.color);
@@ -485,7 +485,11 @@ const QUICK = { Digit1: ['onehand', 'R'], Digit2: ['twohand', 'R'], Digit3: ['wa
 
 function frame() {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, clock.getDelta());
+  tick(Math.min(0.05, clock.getDelta()));
+}
+
+/** One frame of the game: input, the player, hands, magic, light, then the picture. */
+function tick(dt) {
   t += dt;
   if (!ready) return;
   const inp = gameInput;
@@ -577,7 +581,7 @@ resize();
 build().then(() => {
   hud.showOverlay('start', touch);
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, equip, assign, castSlot, hud, begin, L,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
   console.error(e);

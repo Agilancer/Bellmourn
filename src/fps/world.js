@@ -396,6 +396,11 @@ function cathedral(ctx, M) {
   const run = b.stairs(STAIRS.x, STAIRS.z, F, -(F + 14), 2.4, '-z', steps, { step: 0.25, run: 0.34 });
   const zEnd = STAIRS.z - run;
   for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd - 1], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z + 0.5], stone);
+  // torches down both walls of the flight, every few steps, alternating sides
+  for (let z = STAIRS.z - 1.6, k = 0; z > zEnd + 0.5; z -= 3.2, k++) {
+    const y = F - (Math.floor((STAIRS.z - z) / 0.34) + 1) * 0.25, sx = k % 2 ? 1 : -1;
+    props.add('wall_torch', STAIRS.x + sx * 1.18, y, z, sx < 0 ? Math.PI / 2 : -Math.PI / 2);
+  }
   // ceiling: follows the flight down, a little above head height, from where it leaves the
   // office under the ground
   for (let z = C.z0 + 0.3; z > zEnd - 1; z -= 1) {
