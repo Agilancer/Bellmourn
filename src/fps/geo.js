@@ -181,6 +181,89 @@ export class Builder {
     }
   }
 
+  /** Triangles straight from positions (flat [x,y,z,...] in threes) with UVs in metres. */
+  raw(mat, P, U, shade = 1) {
+    const g = new THREE.BufferGeometry();
+    const tu = mat.userData.tileU || 1, tv = mat.userData.tileV || 1;
+    const uv = new Float32Array(U.length);
+    for (let i = 0; i < U.length; i += 2) { uv[i] = U[i] / tu; uv[i + 1] = U[i + 1] / tv; }
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(P.length).fill(shade), 3));
+    this.push(mat, g);
+  }
+
+  /** A shape turned on a lathe about the vertical through (x, z): profile [[radius, y], ...]
+   * from the bottom up (urns, bells, basins, bowls). */
+  lathe(x, z, profile, n, mat, { shade = 1, y = 0 } = {}) {
+    const P = [], U = [];
+    let along = 0;
+    for (let i = 0; i + 1 < profile.length; i++) {
+      const [r0, y0] = profile[i], [r1, y1] = profile[i + 1];
+      const seg = Math.hypot(r1 - r0, y1 - y0);
+      for (let k = 0; k < n; k++) {
+        const t0 = (k / n) * Math.PI * 2, t1 = ((k + 1) / n) * Math.PI * 2;
+        const p = (r, yy, t) => [x - r * Math.sin(t), y + yy, z - r * Math.cos(t)];
+        const a = p(r0, y0, t0), b = p(r0, y0, t1), c = p(r1, y1, t1), d = p(r1, y1, t0);
+        const u0 = k * 2 * Math.PI * Math.max(r0, r1) / n, u1 = u0 + 2 * Math.PI * Math.max(r0, r1) / n;
+        P.push(...a, ...b, ...c, ...a, ...c, ...d);
+        U.push(u0, along, u1, along, u1, along + seg, u0, along, u1, along + seg, u0, along + seg);
+      }
+      along += seg;
+    }
+    this.raw(mat, P, U, shade);
+  }
+
+  /** A lumpy closed blob (rocks, heads, sacks, bones): a jittered icosphere of radii (rx, ry,
+   * rz) centred at c, flattened below `floor` if given. UVs are projected per face. */
+  blob(c, [rx, ry, rz], mat, { detail = 1, jitter = 0.18, seed = 1, shade = 1, floor = null } = {}) {
+    const g = new THREE.IcosahedronGeometry(1, detail);
+    const pos = g.attributes.position.array;
+    const hash = (x, y, z) => { const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + seed * 4.13) * 43758.5453; return s - Math.floor(s); };
+    const P = new Array(pos.length), U = [];
+    for (let i = 0; i < pos.length; i += 3) {
+      const vx = pos[i], vy = pos[i + 1], vz = pos[i + 2];
+      const k = 1 + (hash(Math.round(vx * 100), Math.round(vy * 100), Math.round(vz * 100)) - 0.5) * 2 * jitter;
+      P[i] = c[0] + vx * rx * k; P[i + 1] = c[1] + vy * ry * k; P[i + 2] = c[2] + vz * rz * k;
+      if (floor != null && P[i + 1] < floor) P[i + 1] = floor;
+    }
+    for (let i = 0; i < P.length; i += 9) { // project each face onto its dominant plane
+      const ax = P[i + 3] - P[i], ay = P[i + 4] - P[i + 1], az = P[i + 5] - P[i + 2];
+      const bx = P[i + 6] - P[i], by = P[i + 7] - P[i + 1], bz = P[i + 8] - P[i + 2];
+      const nx = Math.abs(ay * bz - az * by), ny = Math.abs(az * bx - ax * bz), nz = Math.abs(ax * by - ay * bx);
+      for (let j = 0; j < 9; j += 3) {
+        const x = P[i + j], y = P[i + j + 1], z = P[i + j + 2];
+        if (ny >= nx && ny >= nz) U.push(x, z); else if (nx >= nz) U.push(z, y); else U.push(x, y);
+      }
+    }
+    g.dispose();
+    this.raw(mat, P, U, shade);
+  }
+
+  /** Build a model in its own space and set it down at (x, y, z), turned `rot` about the
+   * vertical and scaled. fn(sub) builds with a builder whose geometry lands there; the whole
+   * model gets one collider, its turned bounding box shrunk a little (unless solid: false). */
+  place(x, y, z, rot, scale, fn, { solid = true, tag = 'prop', minHeight = 0.45 } = {}) {
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot), new THREE.Vector3(scale, scale, scale));
+    const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+    const sub = Object.create(Builder.prototype);
+    sub.physics = { add() {} };
+    sub.push = (mat, geo) => {
+      geo.applyMatrix4(m);
+      geo.computeBoundingBox();
+      lo.min(geo.boundingBox.min); hi.max(geo.boundingBox.max);
+      this.push(mat, geo);
+    };
+    fn(sub);
+    if (solid && isFinite(lo.x) && hi.y - lo.y > minHeight) {
+      const sx = (hi.x - lo.x) * 0.12, sz = (hi.z - lo.z) * 0.12;
+      this.physics.add([lo.x + sx, lo.y, lo.z + sz], [hi.x - sx, hi.y, hi.z - sz], tag);
+    }
+    return { min: lo, max: hi };
+  }
+
   /** An n-sided cone (spires, tower roofs) centred at (x, z), base radius r at y, apex at
    * y + h. */
   cone(x, z, r, y, h, n, mat, shade = 1) {

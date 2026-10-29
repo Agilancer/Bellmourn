@@ -5,12 +5,15 @@
 import * as THREE from 'three';
 import { wallPanel } from './sprites.js';
 import { detailedHouse, houseMaterials, lampPost, marketStall, fence, cart, gothicDetail, belfry } from './buildings.js';
+import { buildRegion } from './region.js';
+import { REGION } from './terrain.js';
 
 export const VILLAGE_R = 100;   // the village clearing
 export const WORLD_R = 300;     // the forest goes on to here; the player stays inside
 export const CATHEDRAL = { x0: -12, x1: 12, z0: -98, z1: -52, floor: 0.6 };
 export const GRAVEYARD = { x0: -48, x1: 48, z0: -182, z1: -122 };
-export const STAIRS = { x: -6.5, z: -91.0 }; // top of the stairs in the cathedral office
+export const STAIRS = { x: 5.0, z: -93.6 }; // top of the stairs, in the stair-house in the cathedral office
+const OFFICE_DOOR_X = -6.5;                   // the office door in the chancel wall, behind the pulpit
 // graveyard-pack sprites that belong inside the church
 const CHURCH = /pipe_organ|confessional|baptismal_font|oak_pew|prayer_lectern|cathedral_altar|iron_candelabrum|votive_candles|resting_censer|church_bell|saint_statue|reliquary_chest/;
 
@@ -43,7 +46,7 @@ export function buildWorld(ctx) {
   for (let x = -WORLD_R - 36; x < WORLD_R + 36; x += CELL) {
     for (let z = -WORLD_R - 36; z < WORLD_R + 36; z += CELL) {
       const cx = x + CELL / 2, cz = z + CELL / 2;
-      if (Math.hypot(cx, cz) > WORLD_R + 48) continue;
+      if (Math.hypot(cx, cz) > WORLD_R + 48 || x >= REGION.x0 - 2) continue; // the downs have their own ground
       // the cathedral stands on its own floor (and its stairwell must stay open): cut its
       // footprint out of the cells it overlaps
       const C = CATHEDRAL, x1 = x + CELL, z1 = z + CELL;
@@ -99,7 +102,7 @@ export function buildWorld(ctx) {
   ctx.lantern = hm.lantern;
   b.flowers = [];
   for (const h of houses) {
-    detailedHouse(ctx, h, M, { ...hm, ...hm.perHouse() });
+    detailedHouse(ctx, h, M, { ...hm, ...hm.perHouse(houses.indexOf(h)) });
     if (h.forge) forge(ctx, M, h.x + h.forge[0], h.z + h.forge[1]);
   }
   for (const [x, y, z] of b.flowers) bill.add('town_scatter_26_wildflowers', x, y, z, 0.32);
@@ -109,8 +112,14 @@ export function buildWorld(ctx) {
   graveyard(ctx, M, R);
   groundPatches(ctx, M, R, houses);
 
-  // fences of trees inside the village and the forest beyond
+  // fences of trees inside the village and the forest beyond, the trail east through it, and
+  // the open downs at its end
   forestRing(ctx, R, houses);
+  trail(ctx, M, R);
+  ctx.region = buildRegion(ctx, M, hm);
+  // where the player may go: the village and forest, the trail, the downs
+  ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
+    || (x >= REGION.x0 + 4 && x <= REGION.x1 - 4 && Math.abs(z) <= REGION.z1 - 6);
   return { houses };
 }
 
@@ -284,6 +293,7 @@ function mageTower(ctx, x, z, M) {
   const a0 = (6 / n) * Math.PI * 2, a1 = (7 / n) * Math.PI * 2;
   const p0 = [x + r * Math.cos(a0), z + r * Math.sin(a0)], p1 = [x + r * Math.cos(a1), z + r * Math.sin(a1)];
   b.box([Math.min(p0[0], p1[0]), 2.8, Math.min(p0[1], p1[1]) - 0.3], [Math.max(p0[0], p1[0]), hgt, Math.max(p0[1], p1[1]) + 0.3], stone);
+  ctx.doors?.add({ hinge: [p0[0], 0.2, p0[1]], along: -Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), width: Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), height: 2.6, double: true, opens: -1, name: "tower door" });
   b.box([x - r, hgt - 0.2, z - r], [x + r, hgt, z + r], M('ship_10_black_walnut_rift_seam', 2), { shade: 0.6, solid: false });
   b.cone(x, z, r + 1, hgt, 9, n, M('castle_roof_violet', 2));
   for (const [id, a, d] of [['bookshelf', 0.4, 4.6], ['bookshelf', 1.2, 4.6], ['bookshelf', 2.0, 4.6], ['table', 0, 0], ['candelabrum', 3.0, 3.8], ['treasure_chest', 3.9, 4.2]]) {
@@ -310,8 +320,8 @@ function cathedral(ctx, M) {
   const wallOut = M('castle_ashlar', 3), wallIn = M('castle_chapel', 3.5), roof = M('castle_roof_black', 2.5);
   const nave = M('cathedral_graveyard_marble_checker', 2), plinth = M('castle_slatestone', 2);
   const chancelFloor = M('castle_keep_royal_inlay_slab', 2.5), office = M('town_oak_parquet', 2);
-  // the plinth (floor), leaving the stairwell open in the office
-  const sw = { x0: STAIRS.x - 1.3, x1: STAIRS.x + 1.3, z0: C.z0 + 0.3, z1: STAIRS.z + 0.4 };
+  // the plinth (floor), leaving the stairwell open where the flight goes down
+  const sw = { x0: STAIRS.x - 1.2, x1: STAIRS.x + 1.2, z0: C.z0, z1: STAIRS.z };
   b.box([C.x0, 0, C.z0 + 8], [C.x1, F, C.z1], { top: nave, side: plinth, bottom: plinth });
   b.box([C.x0, 0, C.z0], [sw.x0, F, C.z0 + 8], { top: office, side: plinth, bottom: plinth });
   b.box([sw.x1, 0, C.z0], [C.x1, F, C.z0 + 8], { top: office, side: plinth, bottom: plinth });
@@ -322,6 +332,7 @@ function cathedral(ctx, M) {
   const win = (len) => Array.from({ length: Math.floor(len / 7) }, (_, i) => ({ at: (i + 0.5) * len / Math.floor(len / 7), w: 1.6, y0: F + 3.5, y1: F + 9.5 }));
   const t = 0.8;
   b.wall(C.x0, C.z1, C.x1, C.z1, F, H, t, wallOut, [{ at: 12, w: 3.2, y0: F, y1: F + 5.2 }]);
+  ctx.doors?.add({ hinge: [-1.6, F, C.z1], along: 0, width: 3.2, height: 5.2, thick: 0.14, double: true, opens: 1, name: 'cathedral doors' });
   b.wall(C.x0, C.z0, C.x1, C.z0, F, H, t, wallOut);
   b.wall(C.x0, C.z0, C.x0, C.z1, F, H, t, wallOut, win(C.z1 - C.z0).filter((o) => o.at > 9));
   b.wall(C.x1, C.z0, C.x1, C.z1, F, H, t, wallOut, win(C.z1 - C.z0).filter((o) => o.at > 9));
@@ -343,15 +354,27 @@ function cathedral(ctx, M) {
   props.add('pulpit', -6.5, F + 0.6, chZ1 - 1.6, 0);
   props.add('candelabrum', -3, F + 0.6, chZ0 + 1.5); props.add('candelabrum', 3, F + 0.6, chZ0 + 1.5);
   props.add('candelabrum', -10, F, chZ1 + 2); props.add('candelabrum', 10, F, chZ1 + 2);
-  b.wall(C.x0, chZ0, C.x1, chZ0, F, H - 2, 0.5, wallIn, [{ at: 12 + STAIRS.x, w: 1.8, y0: F + 0.6, y1: F + 3.2 }]);
-  b.box([STAIRS.x - 1.2, F, chZ0 + 0.25], [STAIRS.x + 1.2, F + 0.6, chZ0 + 1.2], plinth); // step up to the door
-  // the office: desk, books, a chest and the stairwell rail
-  props.add('table', 4, F, C.z0 + 3, 0); props.add('stool', 4, F, C.z0 + 4.2);
-  props.add('bookshelf', 8, F, C.z0 + 0.8, 0); props.add('bookshelf', 10.5, F, C.z0 + 0.8, 0);
-  props.add('treasure_chest', 9.8, F, C.z0 + 6.5, -Math.PI / 2); props.add('candelabrum', 1, F, C.z0 + 1.2);
-  const rail = M('ship_01_tarblack_oak', 1.5);
-  b.box([sw.x0 - 0.15, F, sw.z0], [sw.x0, F + 1.0, sw.z1], rail);
-  b.box([sw.x1, F, sw.z0], [sw.x1 + 0.15, F + 1.0, sw.z1], rail);
+  // the chancel wall, with the office door behind the pulpit (a step down on the office side)
+  b.wall(C.x0, chZ0, C.x1, chZ0, F, H - 2, 0.5, wallIn, [{ at: 12 + OFFICE_DOOR_X, w: 1.8, y0: F + 0.6, y1: F + 3.2 }]);
+  ctx.doors?.add({ hinge: [OFFICE_DOOR_X - 0.8, F + 0.6, chZ0], along: 0, width: 1.6, height: 2.55, opens: 1, name: 'office door' });
+  b.box([OFFICE_DOOR_X - 1.1, F, chZ0 - 0.25 - 0.8], [OFFICE_DOOR_X + 1.1, F + 0.3, chZ0 - 0.25], plinth);
+  // the office: a desk, books, a chest, a candle, and the stair-house at its east end
+  props.add('table', -4, F, C.z0 + 3.2, 0); props.add('stool', -4, F, C.z0 + 4.4);
+  props.add('bookshelf', -8.5, F, C.z0 + 0.8, 0); props.add('bookshelf', -11, F + 0, C.z0 + 2.2, Math.PI / 2);
+  props.add('treasure_chest', -10.6, F, C.z0 + 6.2, Math.PI / 2); props.add('candelabrum', -1.2, F, C.z0 + 1.2);
+  props.add('bookshelf', 9.5, F, C.z0 + 0.8, 0); props.add('candelabrum', 10.6, F, C.z0 + 6.6);
+  // the stair-house: stone walls round the head of the stairs, a roof, and its door on the west
+  // side opening onto a landing; the flight goes down north from the landing
+  const sh = { x0: STAIRS.x - 2.4, x1: STAIRS.x + 2.4, z0: C.z0 + t / 2, z1: STAIRS.z + 2.0 };
+  const shWall = M('castle_basalt', 2.5), shTrim = M('castle_keep_pale_keep_limestone', 1.5);
+  const doorZ = STAIRS.z + 0.8; // the door's middle, beside the landing
+  b.wall(sh.x0 + 0.2, sh.z0, sh.x0 + 0.2, sh.z1, F, F + 3.6, 0.4, shWall, [{ at: doorZ - sh.z0, w: 1.4, y0: F, y1: F + 2.4 }]);
+  b.wall(sh.x1 - 0.2, sh.z0, sh.x1 - 0.2, sh.z1, F, F + 3.6, 0.4, shWall);
+  b.wall(sh.x0, sh.z1 - 0.2, sh.x1, sh.z1 - 0.2, F, F + 3.6, 0.4, shWall);
+  b.box([sh.x0 - 0.1, F + 3.6, sh.z0], [sh.x1 + 0.1, F + 3.95, sh.z1 + 0.1], shTrim, { solid: false });
+  b.box([sh.x0 - 0.05, F + 2.4, doorZ - 0.85], [sh.x0 + 0.45, F + 2.7, doorZ + 0.85], shTrim, { solid: false }); // the lintel
+  ctx.doors?.add({ hinge: [sh.x0 + 0.2, F, doorZ + 0.7], along: Math.PI / 2, width: 1.4, height: 2.4, opens: -1, name: 'stair door' });
+  ctx.zones.unshift({ x0: sh.x0, z0: sh.z0, x1: sh.x1, z1: sh.z1, y0: -1, y1: F + 4, name: 'The Stair to the Undercroft' });
   b.box([C.x0, H - 2, C.z0 + 0.4], [C.x1, H - 1.8, chZ0], M('ship_10_black_walnut_rift_seam', 2), { shade: 0.5, solid: false });
   // the church furnishings from the graveyard pack, along the aisles and in the chancel
   const church = lib.sprites('scatter', (s) => s.id.startsWith('cathedral_graveyard_') && CHURCH.test(s.id));
@@ -391,24 +414,22 @@ function cathedral(ctx, M) {
   const pillarsZ = [];
   for (let z = C.z1 - 6; z > C.z0 + 12; z -= 5) pillarsZ.push(z);
   gothicDetail(ctx, C, { F, H, t, M, rise: 9, pillarsZ, windowsAt: win(C.z1 - C.z0).filter((o) => o.at > 9).map((o) => o.at) });
-  // the stair flight down to the dungeon: walls either side, a ceiling once underground
+  // the flight down to the dungeon: side walls the whole way, and over it one sloping stone
+  // vault from the head of the stairs (inside the stair-house) down under the cathedral's north
+  // wall, where it meets the wall's foot, and on underground to the bottom
   const stone = M('castle_basalt', 3), steps = M('catacombs_charcoal_flagstone', 1.5);
   const run = b.stairs(STAIRS.x, STAIRS.z, F, -(F + 14), 2.4, '-z', steps, { step: 0.25, run: 0.34 });
-  const zEnd = STAIRS.z - run;
-  for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd - 1], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z + 0.5], stone);
+  const zEnd = STAIRS.z - run, yEnd = F - Math.round((F + 14) / 0.25) * 0.25;
+  for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z], stone);
+  const CLEAR = 2.8, slab = (z) => F - ((STAIRS.z - z) / 0.34) * 0.25 + CLEAR + 0.2;
+  b.beam([STAIRS.x, slab(STAIRS.z), STAIRS.z], [STAIRS.x, slab(zEnd), zEnd], 3.95, 0.4, stone, { up: [0, 1, 0] });
+  b.box([sh.x0 + 0.4, F + 2.8, STAIRS.z - 0.05], [sh.x1 - 0.4, F + 3.6, STAIRS.z + 0.1], shWall, { solid: false }); // over the vault's head
   // torches down both walls of the flight, every few steps, alternating sides
   for (let z = STAIRS.z - 1.6, k = 0; z > zEnd + 0.5; z -= 3.2, k++) {
     const y = F - (Math.floor((STAIRS.z - z) / 0.34) + 1) * 0.25, sx = k % 2 ? 1 : -1;
     props.add('wall_torch', STAIRS.x + sx * 1.18, y, z, sx < 0 ? Math.PI / 2 : -Math.PI / 2);
   }
-  // ceiling: follows the flight down, a little above head height, from where it leaves the
-  // office under the ground
-  for (let z = C.z0 + 0.3; z > zEnd - 1; z -= 1) {
-    const yTop = F - ((STAIRS.z - z) / 0.34) * 0.25;
-    const ceil = Math.min(-0.25, yTop + 3.1);
-    b.box([STAIRS.x - 1.7, ceil, z - 1], [STAIRS.x + 1.7, ceil + 0.5, z], stone, { shade: 0.6 });
-  }
-  ctx.stairBottom = { x: STAIRS.x, y: -14, z: zEnd };
+  ctx.stairBottom = { x: STAIRS.x, y: Math.min(-14, yEnd), z: zEnd };
 }
 
 function graveyard(ctx, M, R) {
@@ -435,6 +456,7 @@ function graveyard(ctx, M, R) {
   const mx = 0, mz = G.z0 + 10, mos = M('castle_mossy', 3);
   ctx.zones.push({ x0: mx - 6, z0: mz - 6, x1: mx + 6, z1: mz + 6, y0: -1, y1: 5, name: 'The Mausoleum' });
   b.wall(mx - 6, mz + 6, mx + 6, mz + 6, 0, 5, 0.6, mos, [{ at: 6, w: 2, y0: 0, y1: 3 }]);
+  ctx.doors?.add({ hinge: [mx - 1, 0.1, mz + 6], along: 0, width: 2, height: 2.85, double: true, opens: 1, name: 'mausoleum door' });
   b.wall(mx - 6, mz - 6, mx + 6, mz - 6, 0, 5, 0.6, mos);
   b.wall(mx - 6, mz - 6, mx - 6, mz + 6, 0, 5, 0.6, mos);
   b.wall(mx + 6, mz - 6, mx + 6, mz + 6, 0, 5, 0.6, mos);
@@ -459,11 +481,35 @@ function graveyard(ctx, M, R) {
   }
 }
 
+/** The Bellwood trail: on from the end of the east road, winding through the forest to the
+ * downs, with a sign at the start, lanterns along it, and a camp or two beside it. */
+function trail(ctx, M, R) {
+  const { b } = ctx;
+  const dirt = M('dark_forest_gravel_path', 2.4, { overlay: true }), verge = M('dark_forest_packed_mud', 2.6, { overlay: true });
+  const zAt = (x) => Math.sin(x * 0.045) * 2.2 + Math.sin(x * 0.11) * 0.8;
+  for (let x = 116; x < REGION.x0 + 2; x += 2) {
+    const z0 = zAt(x), z1 = zAt(x + 2);
+    for (const [w, m, y] of [[2.6, verge, 0.018], [1.6, dirt, 0.024]])
+      b.quad(m, [x, y, z0 + w], [x + 2, y, z1 + w], [x + 2, y, z1 - w], [x, y, z0 - w], [[x, -(z0 + w)], [x + 2, -(z1 + w)], [x + 2, -(z1 - w)], [x, -(z0 - w)]]);
+  }
+  const S = (id, x, z, s = 1, rot) => ctx.scatter.place(id, x, 0, z, s, rot);
+  S('dark_forest_trail_sign', 118, 4.2, 1, Math.PI / 2);
+  S('town_scatter_40_arrow_milestone', REGION.x0 - 4, 4.5, 1, Math.PI / 2);
+  for (let x = 140, k = 0; x < REGION.x0; x += 26, k++) S('dark_forest_lantern_stake', x, zAt(x) + (k % 2 ? 3.4 : -3.4), 1, k % 2 ? Math.PI : 0);
+  // a woodsman's camp off the trail, and a hunter's
+  for (const [cx, cz, kit] of [[190, 5.2, ['dark_forest_campfire', 'dark_forest_bedroll', 'dark_forest_wooden_crate', 'dark_forest_firewood', 'town_scatter_15_axe_stump']],
+    [256, -5.2, ['dark_forest_campfire', 'dark_forest_hunter_trap', 'dark_forest_raven_perch', 'dark_forest_rope_post', 'dark_forest_wooden_chest']]]) {
+    kit.forEach((id, i) => S(id, cx + (i ? Math.cos(i * 1.4) * 2.2 : 0), cz + Math.sign(cz) * (i ? 1.5 + Math.sin(i * 1.4) : 0)));
+  }
+}
+
 function forestRing(ctx, R, houses) {
   const { lib, bill, physics } = ctx;
   const trees = lib.sprites('tree', (s) => !s.id.startsWith('sand_'));
   const live = trees.filter((s) => !/dead|thorn|storm/.test(s.id));
-  const scatter = lib.sprites('scatter', (s) => /^(dark_forest|town)_/.test(s.id) && s.height_m < 2.5);
+  // the forest floor's own things only: plants, rocks, stumps, logs, old bones
+  const scatter = lib.sprites('scatter', (s) => /^(dark_forest|town)_/.test(s.id) && /fern|bush|mushroom|bramble|reeds|sapling|shrub|flower|boulder|stump|log|roots|cairn|fieldstone|wolf_bones|deer_skull/.test(s.id));
+  const species = ['oak', 'pine', 'beech', 'forest', 'mossy', 'cedar', 'elm', 'maple', 'pine', 'redwood', 'laurel'];
   const clear = (x, z) => {
     if (x > GRAVEYARD.x0 - 6 && x < GRAVEYARD.x1 + 6 && z > GRAVEYARD.z0 - 6 && z < GRAVEYARD.z1 + 8) return false;
     if (x > 10 && x < 24 && z > -126 && z < -40) return false; // the graveyard lane
@@ -482,6 +528,11 @@ function forestRing(ctx, R, houses) {
     if (!inVillage && r < VILLAGE_R + 14 && R() > 0.35) continue; // a ragged forest edge
     const t = (inVillage ? live : trees)[Math.floor(R() * (inVillage ? live : trees).length)];
     const sc = 0.8 + R() * 0.6;
+    if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
+      ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, 0.9 + R() * 0.5);
+      count++;
+      continue;
+    }
     bill.add(t.id, x, 0, z, sc, 0.75 + R() * 0.35);
     if (r < WORLD_R) physics.add([x - 0.4, 0, z - 0.4], [x + 0.4, 5, z + 0.4], 'tree');
     count++;

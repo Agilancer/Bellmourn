@@ -7,8 +7,8 @@ import { Decals, Waves, Arcs } from './effects.js';
 
 // hands: 1 = cast from one free hand, 2 = both hands (whatever they hold is lowered)
 export const SPELLS = {
-  firebolt: { name: 'Firebolt', kind: 'fire', hands: 1, mana: 8, speed: 34, size: 0.42,
-    colors: ['#fff6c0', '#ffb040', '#e0501c', '#701c10'], light: 0xff7a30, power: 26, burst: 70, desc: 'A roaring dart of flame that bursts and burns where it lands.' },
+  firebolt: { name: 'Firebolt', kind: 'fire', hands: 1, mana: 8, speed: 34, size: 0.55, charge: 2.0,
+    colors: ['#fff6c0', '#ffb040', '#e0501c', '#701c10'], light: 0xff7a30, power: 30, burst: 90, desc: 'Gathers in the hand for two seconds, then roars away and bursts where it lands.' },
   frost: { name: 'Frost Shards', kind: 'frost', hands: 1, mana: 12, speed: 40, size: 0.26, shards: 3, spread: 0.05,
     colors: ['#ffffff', '#bfe8ff', '#5aa8e8', '#23407a'], light: 0x8fc8ff, power: 14, burst: 34, desc: 'Three splinters of ice that shatter into frost.' },
   lightning: { name: 'Ball Lightning', kind: 'lightning', hands: 2, mana: 22, speed: 12, size: 0.9,
@@ -194,6 +194,18 @@ export class Flames {
   }
 }
 
+let glowTex = null;
+/** A soft round glow (for halos close to the eye, where pixel art would turn to blocks). */
+function softGlow() {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,220,160,0.7)'); gr.addColorStop(0.6, 'rgba(255,140,60,0.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  glowTex = new THREE.CanvasTexture(c);
+  return glowTex;
+}
+
 const rnd = () => new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
 const hdr = (c, k) => new THREE.Color(c).multiplyScalar(k);
 
@@ -279,6 +291,41 @@ export class Magic {
       const o = rnd().normalize().multiplyScalar(0.25 + Math.random() * 0.2);
       this.particles.emit([p.x + o.x, p.y + o.y, p.z + o.z], [-o.x * 3, -o.y * 3, -o.z * 3], cols[i], { life: 0.12, size: 0.018, drag: 0 });
     }
+  }
+
+  /** A charging spell's orb, growing in the hand (k: 0..1), and the light it throws. */
+  chargeBall(p, def, k, dt) {
+    if (!this.chargeOrb) {
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), blending: THREE.AdditiveBlending, depthWrite: false,
+        transparent: true, fog: false, color: new THREE.Color(def.light).multiplyScalar(1.6) }));
+      halo.renderOrder = 6; this.scene.add(halo);
+      this.chargeOrb = { core: this.sprite(def, 0.05, 3.4), halo, light: this.grabLight('charge', true), t: 0 };
+      this.chargeOrb.light.light.color.set(def.light);
+    }
+    const o = this.chargeOrb, pulse = 1 + 0.12 * Math.sin((o.t += dt) * 30);
+    o.core.position.copy(p); o.halo.position.copy(p);
+    // it sits a hand's length from the eye, so it stays small: a fist-sized ball at full charge
+    o.core.scale.setScalar(def.size * (0.08 + 0.22 * k) * pulse);
+    o.halo.scale.setScalar(def.size * (0.25 + 0.6 * k) * pulse);
+    o.halo.material.opacity = 0.5 + 0.5 * k;
+    o.core.material.rotation += dt * 8; o.halo.material.rotation -= dt * 3;
+    o.light.light.position.copy(p);
+    o.light.light.intensity = def.power * (0.2 + 0.8 * k) * (0.85 + 0.15 * Math.random());
+    o.light.light.distance = 6 + 8 * k;
+    this.vmFlash.color.set(def.light); this.vmFlash.amount = Math.max(this.vmFlash.amount, 0.6 + 1.6 * k);
+    const cols = def.colors.slice(0, 3).map((c) => new THREE.Color(c));
+    for (let i = 0; i < 4; i++) if (Math.random() < dt * (40 + 120 * k)) { // flames and sparks swirling in
+      const r = 0.06 + Math.random() * (0.08 + 0.12 * k), a = Math.random() * 6.28, q = p.clone().add(new THREE.Vector3(Math.cos(a) * r, (Math.random() - 0.3) * r, Math.sin(a) * r));
+      this.particles.emit([q.x, q.y, q.z], [(p.x - q.x) * 5 - Math.sin(a) * 0.8, (p.y - q.y) * 5 + 0.3, (p.z - q.z) * 5 + Math.cos(a) * 0.8], cols[i % 3], { life: 0.16, size: 0.012 + 0.016 * k, drag: 0 });
+    }
+    if (Math.random() < dt * 10 * k) this.smoke?.emit(p.clone(), new THREE.Vector3(0, 0.7, 0), { life: 1.0, size: 0.12, grow: 0.4, alpha: 0.18, shade: 0.12 });
+  }
+
+  endCharge() {
+    if (!this.chargeOrb) return;
+    for (const s of [this.chargeOrb.core, this.chargeOrb.halo]) { this.scene.remove(s); s.material.dispose(); }
+    this.release(this.chargeOrb.light);
+    this.chargeOrb = null;
   }
 
   /** Launch a projectile spell (or wand/staff bolt) from origin along dir. */

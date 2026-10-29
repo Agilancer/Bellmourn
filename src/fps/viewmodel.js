@@ -265,20 +265,24 @@ export class ViewModel {
 
   /** Cast a spell with free hands: one-hand spells use the left hand if it's free, else the
    * right, else the left lowers what it holds; two-hand spells lower both. */
-  cast(spell) {
+  cast(spell, { charge = false } = {}) {
     if (this.busy('R') || this.busy('L') || this.blocking) return null;
-    if (spell.hands === 2) {
-      this.play('R', 'b2c_cast', { hideItem: true });
-      this.play('L', 'b2c_cast', { hideItem: true });
+    // a charged spell holds on the frame before it leaves the hand
+    const hold = (clip) => {
+      if (!charge) return null;
+      const fire = this.manifest.events[clip]?.fire?.[0] ?? 0;
+      return Math.max(0, ...this.manifest.frame_starts[clip].filter((t) => t < fire - 1e-3));
+    };
+    const both = () => {
+      this.play('R', 'b2c_cast', { hideItem: true, hold: hold('b2c_cast') });
+      this.play('L', 'b2c_cast', { hideItem: true, hold: hold('b2c_cast') });
       return 'both';
-    }
+    };
+    if (spell.hands === 2) return both();
     const side = !this.equip.L || (this.equip.R && ITEMS[this.equip.R].both) ? 'L' : (!this.equip.R ? 'R' : 'L');
-    if (side === 'L' && this.equip.R && ITEMS[this.equip.R].both) { // the two-hander: both hands come off it
-      this.play('R', 'b2c_cast', { hideItem: true });
-      this.play('L', 'b2c_cast', { hideItem: true });
-      return 'both';
-    }
-    this.play(side, side === 'R' ? 'r1c_cast' : 'l1c_cast', { hideItem: true });
+    if (side === 'L' && this.equip.R && ITEMS[this.equip.R].both) return both(); // the two-hander: both hands come off it
+    const clip = side === 'R' ? 'r1c_cast' : 'l1c_cast';
+    this.play(side, clip, { hideItem: true, hold: hold(clip) });
     return side;
   }
 

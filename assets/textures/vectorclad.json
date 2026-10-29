@@ -1,0 +1,2687 @@
+{
+ "source": "Agilancer/vectorclad@07da73a",
+ "surfaces": [
+  {
+   "id": "vc_oak_bark_01",
+   "file": "vectorclad/bark/oak_bark_01.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5b4530"
+  },
+  {
+   "id": "vc_oak_bark_02",
+   "file": "vectorclad/bark/oak_bark_02.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#654f38"
+  },
+  {
+   "id": "vc_oak_bark_03",
+   "file": "vectorclad/bark/oak_bark_03.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#644b35"
+  },
+  {
+   "id": "vc_oak_bark_04",
+   "file": "vectorclad/bark/oak_bark_04.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#624832"
+  },
+  {
+   "id": "vc_oak_bark_05",
+   "file": "vectorclad/bark/oak_bark_05.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#62553c"
+  },
+  {
+   "id": "vc_oak_bark_06",
+   "file": "vectorclad/bark/oak_bark_06.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#594632"
+  },
+  {
+   "id": "vc_oak_bark_07",
+   "file": "vectorclad/bark/oak_bark_07.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6b4f36"
+  },
+  {
+   "id": "vc_oak_bark_08",
+   "file": "vectorclad/bark/oak_bark_08.jpg",
+   "kind": "bark",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#58492d"
+  },
+  {
+   "id": "vc_oak_leaves_01",
+   "file": "vectorclad/leaves/oak_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#35581c"
+  },
+  {
+   "id": "vc_oak_leaves_02",
+   "file": "vectorclad/leaves/oak_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#507611"
+  },
+  {
+   "id": "vc_oak_leaves_03",
+   "file": "vectorclad/leaves/oak_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#2f5120"
+  },
+  {
+   "id": "vc_oak_leaves_04",
+   "file": "vectorclad/leaves/oak_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3f6a15"
+  },
+  {
+   "id": "vc_oak_leaves_05",
+   "file": "vectorclad/leaves/oak_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#375421"
+  },
+  {
+   "id": "vc_oak_leaves_06",
+   "file": "vectorclad/leaves/oak_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#537315"
+  },
+  {
+   "id": "vc_oak_leaves_07",
+   "file": "vectorclad/leaves/oak_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#314f1f"
+  },
+  {
+   "id": "vc_oak_leaves_08",
+   "file": "vectorclad/leaves/oak_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#476716"
+  },
+  {
+   "id": "vc_pine_bark_01",
+   "file": "vectorclad/bark/pine_bark_01.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4f3b30"
+  },
+  {
+   "id": "vc_pine_bark_02",
+   "file": "vectorclad/bark/pine_bark_02.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5c4636"
+  },
+  {
+   "id": "vc_pine_bark_03",
+   "file": "vectorclad/bark/pine_bark_03.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4a382e"
+  },
+  {
+   "id": "vc_pine_bark_04",
+   "file": "vectorclad/bark/pine_bark_04.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#554739"
+  },
+  {
+   "id": "vc_pine_bark_05",
+   "file": "vectorclad/bark/pine_bark_05.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#514633"
+  },
+  {
+   "id": "vc_pine_bark_06",
+   "file": "vectorclad/bark/pine_bark_06.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#604634"
+  },
+  {
+   "id": "vc_pine_bark_07",
+   "file": "vectorclad/bark/pine_bark_07.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#473429"
+  },
+  {
+   "id": "vc_pine_bark_08",
+   "file": "vectorclad/bark/pine_bark_08.jpg",
+   "kind": "bark",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#624534"
+  },
+  {
+   "id": "vc_pine_leaves_01",
+   "file": "vectorclad/leaves/pine_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3a451a"
+  },
+  {
+   "id": "vc_pine_leaves_02",
+   "file": "vectorclad/leaves/pine_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#374c1f"
+  },
+  {
+   "id": "vc_pine_leaves_03",
+   "file": "vectorclad/leaves/pine_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#34481f"
+  },
+  {
+   "id": "vc_pine_leaves_04",
+   "file": "vectorclad/leaves/pine_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3b4f21"
+  },
+  {
+   "id": "vc_pine_leaves_05",
+   "file": "vectorclad/leaves/pine_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#384c20"
+  },
+  {
+   "id": "vc_pine_leaves_06",
+   "file": "vectorclad/leaves/pine_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#33451e"
+  },
+  {
+   "id": "vc_pine_leaves_07",
+   "file": "vectorclad/leaves/pine_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c4b23"
+  },
+  {
+   "id": "vc_pine_leaves_08",
+   "file": "vectorclad/leaves/pine_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#33441d"
+  },
+  {
+   "id": "vc_redwood_bark_01",
+   "file": "vectorclad/bark/redwood_bark_01.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6f3f2c"
+  },
+  {
+   "id": "vc_redwood_leaves_01",
+   "file": "vectorclad/leaves/redwood_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#29461b"
+  },
+  {
+   "id": "vc_redwood_bark_02",
+   "file": "vectorclad/bark/redwood_bark_02.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6f412e"
+  },
+  {
+   "id": "vc_redwood_leaves_02",
+   "file": "vectorclad/leaves/redwood_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#334e1b"
+  },
+  {
+   "id": "vc_redwood_bark_03",
+   "file": "vectorclad/bark/redwood_bark_03.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5d3927"
+  },
+  {
+   "id": "vc_redwood_leaves_03",
+   "file": "vectorclad/leaves/redwood_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#2d451c"
+  },
+  {
+   "id": "vc_redwood_bark_04",
+   "file": "vectorclad/bark/redwood_bark_04.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6f3d29"
+  },
+  {
+   "id": "vc_redwood_leaves_04",
+   "file": "vectorclad/leaves/redwood_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#31471b"
+  },
+  {
+   "id": "vc_redwood_bark_05",
+   "file": "vectorclad/bark/redwood_bark_05.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#694029"
+  },
+  {
+   "id": "vc_redwood_leaves_05",
+   "file": "vectorclad/leaves/redwood_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#334e16"
+  },
+  {
+   "id": "vc_redwood_bark_06",
+   "file": "vectorclad/bark/redwood_bark_06.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#653b28"
+  },
+  {
+   "id": "vc_redwood_leaves_06",
+   "file": "vectorclad/leaves/redwood_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#354f1e"
+  },
+  {
+   "id": "vc_redwood_bark_07",
+   "file": "vectorclad/bark/redwood_bark_07.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#613827"
+  },
+  {
+   "id": "vc_redwood_leaves_07",
+   "file": "vectorclad/leaves/redwood_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#2c4c1c"
+  },
+  {
+   "id": "vc_redwood_bark_08",
+   "file": "vectorclad/bark/redwood_bark_08.jpg",
+   "kind": "bark",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#62432a"
+  },
+  {
+   "id": "vc_redwood_leaves_08",
+   "file": "vectorclad/leaves/redwood_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#324917"
+  },
+  {
+   "id": "vc_maple_bark_01",
+   "file": "vectorclad/bark/maple_bark_01.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#563f2d"
+  },
+  {
+   "id": "vc_maple_bark_02",
+   "file": "vectorclad/bark/maple_bark_02.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6e5241"
+  },
+  {
+   "id": "vc_maple_bark_03",
+   "file": "vectorclad/bark/maple_bark_03.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5a4433"
+  },
+  {
+   "id": "vc_maple_bark_04",
+   "file": "vectorclad/bark/maple_bark_04.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#735640"
+  },
+  {
+   "id": "vc_maple_bark_05",
+   "file": "vectorclad/bark/maple_bark_05.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#534832"
+  },
+  {
+   "id": "vc_maple_bark_06",
+   "file": "vectorclad/bark/maple_bark_06.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#614835"
+  },
+  {
+   "id": "vc_maple_bark_07",
+   "file": "vectorclad/bark/maple_bark_07.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5f4635"
+  },
+  {
+   "id": "vc_maple_bark_08",
+   "file": "vectorclad/bark/maple_bark_08.jpg",
+   "kind": "bark",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#765741"
+  },
+  {
+   "id": "vc_maple_leaves_01",
+   "file": "vectorclad/leaves/maple_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#437913"
+  },
+  {
+   "id": "vc_maple_leaves_02",
+   "file": "vectorclad/leaves/maple_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3d6816"
+  },
+  {
+   "id": "vc_maple_leaves_03",
+   "file": "vectorclad/leaves/maple_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5e8c11"
+  },
+  {
+   "id": "vc_maple_leaves_04",
+   "file": "vectorclad/leaves/maple_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#467318"
+  },
+  {
+   "id": "vc_maple_leaves_05",
+   "file": "vectorclad/leaves/maple_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#40651a"
+  },
+  {
+   "id": "vc_maple_leaves_06",
+   "file": "vectorclad/leaves/maple_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#628912"
+  },
+  {
+   "id": "vc_maple_leaves_07",
+   "file": "vectorclad/leaves/maple_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#426c18"
+  },
+  {
+   "id": "vc_maple_leaves_08",
+   "file": "vectorclad/leaves/maple_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#477318"
+  },
+  {
+   "id": "vc_beech_bark_01",
+   "file": "vectorclad/bark/beech_bark_01.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#8c6b50"
+  },
+  {
+   "id": "vc_beech_bark_02",
+   "file": "vectorclad/bark/beech_bark_02.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#866344"
+  },
+  {
+   "id": "vc_beech_bark_03",
+   "file": "vectorclad/bark/beech_bark_03.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7d5d40"
+  },
+  {
+   "id": "vc_beech_bark_04",
+   "file": "vectorclad/bark/beech_bark_04.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#725b36"
+  },
+  {
+   "id": "vc_beech_leaves_01",
+   "file": "vectorclad/leaves/beech_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#587c15"
+  },
+  {
+   "id": "vc_beech_leaves_02",
+   "file": "vectorclad/leaves/beech_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4b6715"
+  },
+  {
+   "id": "vc_beech_leaves_03",
+   "file": "vectorclad/leaves/beech_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#355219"
+  },
+  {
+   "id": "vc_beech_leaves_04",
+   "file": "vectorclad/leaves/beech_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6e8a11"
+  },
+  {
+   "id": "vc_beech_bark_05",
+   "file": "vectorclad/bark/beech_bark_05.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#826247"
+  },
+  {
+   "id": "vc_beech_bark_06",
+   "file": "vectorclad/bark/beech_bark_06.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7b6244"
+  },
+  {
+   "id": "vc_beech_bark_07",
+   "file": "vectorclad/bark/beech_bark_07.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#8a684b"
+  },
+  {
+   "id": "vc_beech_bark_08",
+   "file": "vectorclad/bark/beech_bark_08.jpg",
+   "kind": "bark",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#806147"
+  },
+  {
+   "id": "vc_beech_leaves_05",
+   "file": "vectorclad/leaves/beech_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c511e"
+  },
+  {
+   "id": "vc_beech_leaves_06",
+   "file": "vectorclad/leaves/beech_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#607f12"
+  },
+  {
+   "id": "vc_beech_leaves_07",
+   "file": "vectorclad/leaves/beech_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#455e13"
+  },
+  {
+   "id": "vc_beech_leaves_08",
+   "file": "vectorclad/leaves/beech_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3e5a24"
+  },
+  {
+   "id": "vc_cedar_bark_01",
+   "file": "vectorclad/bark/cedar_bark_01.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#894d36"
+  },
+  {
+   "id": "vc_cedar_bark_02",
+   "file": "vectorclad/bark/cedar_bark_02.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#744b38"
+  },
+  {
+   "id": "vc_cedar_bark_03",
+   "file": "vectorclad/bark/cedar_bark_03.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#794733"
+  },
+  {
+   "id": "vc_cedar_bark_04",
+   "file": "vectorclad/bark/cedar_bark_04.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7f4c38"
+  },
+  {
+   "id": "vc_cedar_bark_05",
+   "file": "vectorclad/bark/cedar_bark_05.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7f4f3c"
+  },
+  {
+   "id": "vc_cedar_bark_06",
+   "file": "vectorclad/bark/cedar_bark_06.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#64462c"
+  },
+  {
+   "id": "vc_cedar_bark_07",
+   "file": "vectorclad/bark/cedar_bark_07.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#8e4e34"
+  },
+  {
+   "id": "vc_cedar_bark_08",
+   "file": "vectorclad/bark/cedar_bark_08.jpg",
+   "kind": "bark",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6e4a36"
+  },
+  {
+   "id": "vc_cedar_leaves_01",
+   "file": "vectorclad/leaves/cedar_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4a601a"
+  },
+  {
+   "id": "vc_cedar_leaves_02",
+   "file": "vectorclad/leaves/cedar_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#37511c"
+  },
+  {
+   "id": "vc_cedar_leaves_03",
+   "file": "vectorclad/leaves/cedar_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#506924"
+  },
+  {
+   "id": "vc_cedar_leaves_04",
+   "file": "vectorclad/leaves/cedar_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4c5f22"
+  },
+  {
+   "id": "vc_cedar_leaves_05",
+   "file": "vectorclad/leaves/cedar_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#506325"
+  },
+  {
+   "id": "vc_cedar_leaves_06",
+   "file": "vectorclad/leaves/cedar_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#395525"
+  },
+  {
+   "id": "vc_cedar_leaves_07",
+   "file": "vectorclad/leaves/cedar_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#465b1c"
+  },
+  {
+   "id": "vc_cedar_leaves_08",
+   "file": "vectorclad/leaves/cedar_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#475723"
+  },
+  {
+   "id": "vc_elm_bark_01",
+   "file": "vectorclad/bark/elm_bark_01.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#614a39"
+  },
+  {
+   "id": "vc_elm_bark_02",
+   "file": "vectorclad/bark/elm_bark_02.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#68533d"
+  },
+  {
+   "id": "vc_elm_bark_03",
+   "file": "vectorclad/bark/elm_bark_03.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6a533f"
+  },
+  {
+   "id": "vc_elm_bark_04",
+   "file": "vectorclad/bark/elm_bark_04.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5a493b"
+  },
+  {
+   "id": "vc_elm_bark_05",
+   "file": "vectorclad/bark/elm_bark_05.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6e533e"
+  },
+  {
+   "id": "vc_elm_bark_06",
+   "file": "vectorclad/bark/elm_bark_06.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#604b39"
+  },
+  {
+   "id": "vc_elm_bark_07",
+   "file": "vectorclad/bark/elm_bark_07.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#624e39"
+  },
+  {
+   "id": "vc_elm_bark_08",
+   "file": "vectorclad/bark/elm_bark_08.jpg",
+   "kind": "bark",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6b523d"
+  },
+  {
+   "id": "vc_elm_leaves_01",
+   "file": "vectorclad/leaves/elm_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c611c"
+  },
+  {
+   "id": "vc_elm_leaves_02",
+   "file": "vectorclad/leaves/elm_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#56791d"
+  },
+  {
+   "id": "vc_elm_leaves_03",
+   "file": "vectorclad/leaves/elm_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#345625"
+  },
+  {
+   "id": "vc_elm_leaves_04",
+   "file": "vectorclad/leaves/elm_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4e711c"
+  },
+  {
+   "id": "vc_elm_leaves_05",
+   "file": "vectorclad/leaves/elm_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4b6d18"
+  },
+  {
+   "id": "vc_elm_leaves_06",
+   "file": "vectorclad/leaves/elm_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#305125"
+  },
+  {
+   "id": "vc_elm_leaves_07",
+   "file": "vectorclad/leaves/elm_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5d8121"
+  },
+  {
+   "id": "vc_elm_leaves_08",
+   "file": "vectorclad/leaves/elm_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#416519"
+  },
+  {
+   "id": "vc_forest_bark_01",
+   "file": "vectorclad/bark/forest_bark_01.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#604735"
+  },
+  {
+   "id": "vc_forest_bark_02",
+   "file": "vectorclad/bark/forest_bark_02.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7f664e"
+  },
+  {
+   "id": "vc_forest_bark_03",
+   "file": "vectorclad/bark/forest_bark_03.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#615333"
+  },
+  {
+   "id": "vc_forest_bark_04",
+   "file": "vectorclad/bark/forest_bark_04.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#9c8771"
+  },
+  {
+   "id": "vc_forest_bark_05",
+   "file": "vectorclad/bark/forest_bark_05.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#71462f"
+  },
+  {
+   "id": "vc_forest_bark_06",
+   "file": "vectorclad/bark/forest_bark_06.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#694f39"
+  },
+  {
+   "id": "vc_forest_bark_07",
+   "file": "vectorclad/bark/forest_bark_07.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#645231"
+  },
+  {
+   "id": "vc_forest_bark_08",
+   "file": "vectorclad/bark/forest_bark_08.jpg",
+   "kind": "bark",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6a5843"
+  },
+  {
+   "id": "vc_forest_leaves_01",
+   "file": "vectorclad/leaves/forest_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#58741b"
+  },
+  {
+   "id": "vc_forest_leaves_02",
+   "file": "vectorclad/leaves/forest_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#486920"
+  },
+  {
+   "id": "vc_forest_leaves_03",
+   "file": "vectorclad/leaves/forest_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#47601e"
+  },
+  {
+   "id": "vc_forest_leaves_04",
+   "file": "vectorclad/leaves/forest_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#486622"
+  },
+  {
+   "id": "vc_forest_leaves_05",
+   "file": "vectorclad/leaves/forest_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#425323"
+  },
+  {
+   "id": "vc_forest_leaves_06",
+   "file": "vectorclad/leaves/forest_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#49661a"
+  },
+  {
+   "id": "vc_forest_leaves_07",
+   "file": "vectorclad/leaves/forest_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#40572d"
+  },
+  {
+   "id": "vc_forest_leaves_08",
+   "file": "vectorclad/leaves/forest_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#517021"
+  },
+  {
+   "id": "vc_mossy_bark_01",
+   "file": "vectorclad/bark/mossy_bark_01.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5d4c30"
+  },
+  {
+   "id": "vc_mossy_bark_02",
+   "file": "vectorclad/bark/mossy_bark_02.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#4e471c"
+  },
+  {
+   "id": "vc_mossy_bark_03",
+   "file": "vectorclad/bark/mossy_bark_03.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5c4b2c"
+  },
+  {
+   "id": "vc_mossy_bark_04",
+   "file": "vectorclad/bark/mossy_bark_04.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#595228"
+  },
+  {
+   "id": "vc_mossy_bark_05",
+   "file": "vectorclad/bark/mossy_bark_05.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#68512f"
+  },
+  {
+   "id": "vc_mossy_bark_06",
+   "file": "vectorclad/bark/mossy_bark_06.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#554c23"
+  },
+  {
+   "id": "vc_mossy_bark_07",
+   "file": "vectorclad/bark/mossy_bark_07.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#5b4a2a"
+  },
+  {
+   "id": "vc_mossy_bark_08",
+   "file": "vectorclad/bark/mossy_bark_08.jpg",
+   "kind": "bark",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#60512f"
+  },
+  {
+   "id": "vc_mossy_leaves_01",
+   "file": "vectorclad/leaves/mossy_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3b5829"
+  },
+  {
+   "id": "vc_mossy_leaves_02",
+   "file": "vectorclad/leaves/mossy_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#42601f"
+  },
+  {
+   "id": "vc_mossy_leaves_03",
+   "file": "vectorclad/leaves/mossy_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#47641c"
+  },
+  {
+   "id": "vc_mossy_leaves_04",
+   "file": "vectorclad/leaves/mossy_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#476d1d"
+  },
+  {
+   "id": "vc_mossy_leaves_05",
+   "file": "vectorclad/leaves/mossy_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#44671d"
+  },
+  {
+   "id": "vc_mossy_leaves_06",
+   "file": "vectorclad/leaves/mossy_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#415619"
+  },
+  {
+   "id": "vc_mossy_leaves_07",
+   "file": "vectorclad/leaves/mossy_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#475c1c"
+  },
+  {
+   "id": "vc_mossy_leaves_08",
+   "file": "vectorclad/leaves/mossy_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#445f1f"
+  },
+  {
+   "id": "vc_laurel_bark_01",
+   "file": "vectorclad/bark/laurel_bark_01.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#735436"
+  },
+  {
+   "id": "vc_laurel_leaves_01",
+   "file": "vectorclad/leaves/laurel_leaves_01.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#39661a"
+  },
+  {
+   "id": "vc_laurel_bark_02",
+   "file": "vectorclad/bark/laurel_bark_02.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7a5334"
+  },
+  {
+   "id": "vc_laurel_leaves_02",
+   "file": "vectorclad/leaves/laurel_leaves_02.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#406b1e"
+  },
+  {
+   "id": "vc_laurel_bark_03",
+   "file": "vectorclad/bark/laurel_bark_03.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#705538"
+  },
+  {
+   "id": "vc_laurel_leaves_03",
+   "file": "vectorclad/leaves/laurel_leaves_03.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c6e11"
+  },
+  {
+   "id": "vc_laurel_bark_04",
+   "file": "vectorclad/bark/laurel_bark_04.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#755838"
+  },
+  {
+   "id": "vc_laurel_leaves_04",
+   "file": "vectorclad/leaves/laurel_leaves_04.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c6b1f"
+  },
+  {
+   "id": "vc_laurel_bark_05",
+   "file": "vectorclad/bark/laurel_bark_05.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#725336"
+  },
+  {
+   "id": "vc_laurel_leaves_05",
+   "file": "vectorclad/leaves/laurel_leaves_05.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#39691a"
+  },
+  {
+   "id": "vc_laurel_bark_06",
+   "file": "vectorclad/bark/laurel_bark_06.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7d5738"
+  },
+  {
+   "id": "vc_laurel_leaves_06",
+   "file": "vectorclad/leaves/laurel_leaves_06.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3b681a"
+  },
+  {
+   "id": "vc_laurel_bark_07",
+   "file": "vectorclad/bark/laurel_bark_07.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#725633"
+  },
+  {
+   "id": "vc_laurel_leaves_07",
+   "file": "vectorclad/leaves/laurel_leaves_07.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3c6c1d"
+  },
+  {
+   "id": "vc_laurel_bark_08",
+   "file": "vectorclad/bark/laurel_bark_08.jpg",
+   "kind": "bark",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#8e6642"
+  },
+  {
+   "id": "vc_laurel_leaves_08",
+   "file": "vectorclad/leaves/laurel_leaves_08.jpg",
+   "kind": "leaves",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#3e6714"
+  },
+  {
+   "id": "vc_planks_01",
+   "file": "vectorclad/planks/planks_01.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#776c62"
+  },
+  {
+   "id": "vc_planks_02",
+   "file": "vectorclad/planks/planks_02.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#766a5f"
+  },
+  {
+   "id": "vc_planks_03",
+   "file": "vectorclad/planks/planks_03.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#72675e"
+  },
+  {
+   "id": "vc_planks_04",
+   "file": "vectorclad/planks/planks_04.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#77695d"
+  },
+  {
+   "id": "vc_planks_05",
+   "file": "vectorclad/planks/planks_05.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#7a6d62"
+  },
+  {
+   "id": "vc_planks_06",
+   "file": "vectorclad/planks/planks_06.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#75685c"
+  },
+  {
+   "id": "vc_planks_07",
+   "file": "vectorclad/planks/planks_07.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#70675a"
+  },
+  {
+   "id": "vc_planks_08",
+   "file": "vectorclad/planks/planks_08.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#72665b"
+  },
+  {
+   "id": "vc_planks_09",
+   "file": "vectorclad/planks/planks_09.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#716963"
+  },
+  {
+   "id": "vc_planks_10",
+   "file": "vectorclad/planks/planks_10.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#75706c"
+  },
+  {
+   "id": "vc_planks_11",
+   "file": "vectorclad/planks/planks_11.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6c6057"
+  },
+  {
+   "id": "vc_planks_12",
+   "file": "vectorclad/planks/planks_12.jpg",
+   "kind": "plank",
+   "size": [
+    256,
+    256
+   ],
+   "color": "#6a625b"
+  }
+ ],
+ "cards": [
+  {
+   "id": "vc_oak_card_01",
+   "file": "vectorclad/cards/oak_card_01.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_02",
+   "file": "vectorclad/cards/oak_card_02.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_03",
+   "file": "vectorclad/cards/oak_card_03.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_04",
+   "file": "vectorclad/cards/oak_card_04.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_05",
+   "file": "vectorclad/cards/oak_card_05.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_06",
+   "file": "vectorclad/cards/oak_card_06.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_07",
+   "file": "vectorclad/cards/oak_card_07.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_oak_card_08",
+   "file": "vectorclad/cards/oak_card_08.png",
+   "kind": "leafcard",
+   "species": "oak",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_01",
+   "file": "vectorclad/cards/pine_card_01.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_02",
+   "file": "vectorclad/cards/pine_card_02.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_03",
+   "file": "vectorclad/cards/pine_card_03.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_04",
+   "file": "vectorclad/cards/pine_card_04.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_05",
+   "file": "vectorclad/cards/pine_card_05.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_06",
+   "file": "vectorclad/cards/pine_card_06.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_07",
+   "file": "vectorclad/cards/pine_card_07.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_pine_card_08",
+   "file": "vectorclad/cards/pine_card_08.png",
+   "kind": "leafcard",
+   "species": "pine",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_01",
+   "file": "vectorclad/cards/redwood_card_01.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_02",
+   "file": "vectorclad/cards/redwood_card_02.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_03",
+   "file": "vectorclad/cards/redwood_card_03.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_04",
+   "file": "vectorclad/cards/redwood_card_04.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_05",
+   "file": "vectorclad/cards/redwood_card_05.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_06",
+   "file": "vectorclad/cards/redwood_card_06.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_07",
+   "file": "vectorclad/cards/redwood_card_07.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_redwood_card_08",
+   "file": "vectorclad/cards/redwood_card_08.png",
+   "kind": "leafcard",
+   "species": "redwood",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_01",
+   "file": "vectorclad/cards/maple_card_01.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_02",
+   "file": "vectorclad/cards/maple_card_02.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_03",
+   "file": "vectorclad/cards/maple_card_03.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_04",
+   "file": "vectorclad/cards/maple_card_04.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_05",
+   "file": "vectorclad/cards/maple_card_05.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_06",
+   "file": "vectorclad/cards/maple_card_06.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_07",
+   "file": "vectorclad/cards/maple_card_07.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_maple_card_08",
+   "file": "vectorclad/cards/maple_card_08.png",
+   "kind": "leafcard",
+   "species": "maple",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_01",
+   "file": "vectorclad/cards/beech_card_01.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_02",
+   "file": "vectorclad/cards/beech_card_02.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_03",
+   "file": "vectorclad/cards/beech_card_03.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_04",
+   "file": "vectorclad/cards/beech_card_04.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_05",
+   "file": "vectorclad/cards/beech_card_05.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_06",
+   "file": "vectorclad/cards/beech_card_06.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_07",
+   "file": "vectorclad/cards/beech_card_07.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_beech_card_08",
+   "file": "vectorclad/cards/beech_card_08.png",
+   "kind": "leafcard",
+   "species": "beech",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_01",
+   "file": "vectorclad/cards/cedar_card_01.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_02",
+   "file": "vectorclad/cards/cedar_card_02.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_03",
+   "file": "vectorclad/cards/cedar_card_03.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_04",
+   "file": "vectorclad/cards/cedar_card_04.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_05",
+   "file": "vectorclad/cards/cedar_card_05.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_06",
+   "file": "vectorclad/cards/cedar_card_06.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_07",
+   "file": "vectorclad/cards/cedar_card_07.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_cedar_card_08",
+   "file": "vectorclad/cards/cedar_card_08.png",
+   "kind": "leafcard",
+   "species": "cedar",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_01",
+   "file": "vectorclad/cards/elm_card_01.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_02",
+   "file": "vectorclad/cards/elm_card_02.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_03",
+   "file": "vectorclad/cards/elm_card_03.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_04",
+   "file": "vectorclad/cards/elm_card_04.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_05",
+   "file": "vectorclad/cards/elm_card_05.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_06",
+   "file": "vectorclad/cards/elm_card_06.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_07",
+   "file": "vectorclad/cards/elm_card_07.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_elm_card_08",
+   "file": "vectorclad/cards/elm_card_08.png",
+   "kind": "leafcard",
+   "species": "elm",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_01",
+   "file": "vectorclad/cards/forest_card_01.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_02",
+   "file": "vectorclad/cards/forest_card_02.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_03",
+   "file": "vectorclad/cards/forest_card_03.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_04",
+   "file": "vectorclad/cards/forest_card_04.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_05",
+   "file": "vectorclad/cards/forest_card_05.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_06",
+   "file": "vectorclad/cards/forest_card_06.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_07",
+   "file": "vectorclad/cards/forest_card_07.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_forest_card_08",
+   "file": "vectorclad/cards/forest_card_08.png",
+   "kind": "leafcard",
+   "species": "forest",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_01",
+   "file": "vectorclad/cards/mossy_card_01.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_02",
+   "file": "vectorclad/cards/mossy_card_02.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_03",
+   "file": "vectorclad/cards/mossy_card_03.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_04",
+   "file": "vectorclad/cards/mossy_card_04.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_05",
+   "file": "vectorclad/cards/mossy_card_05.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_06",
+   "file": "vectorclad/cards/mossy_card_06.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_07",
+   "file": "vectorclad/cards/mossy_card_07.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_mossy_card_08",
+   "file": "vectorclad/cards/mossy_card_08.png",
+   "kind": "leafcard",
+   "species": "mossy",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_01",
+   "file": "vectorclad/cards/laurel_card_01.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_02",
+   "file": "vectorclad/cards/laurel_card_02.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_03",
+   "file": "vectorclad/cards/laurel_card_03.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_04",
+   "file": "vectorclad/cards/laurel_card_04.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_05",
+   "file": "vectorclad/cards/laurel_card_05.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_06",
+   "file": "vectorclad/cards/laurel_card_06.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_07",
+   "file": "vectorclad/cards/laurel_card_07.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "vc_laurel_card_08",
+   "file": "vectorclad/cards/laurel_card_08.png",
+   "kind": "leafcard",
+   "species": "laurel",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ]
+}

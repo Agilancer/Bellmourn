@@ -78,9 +78,13 @@ export function buildDungeon(ctx, entry) {
       for (let i = Math.min(ax, cx); i <= Math.max(ax, cx); i++) carve(i, cz);
     }
   });
-  // the foot of the stairs opens into the entry hall's south wall
-  const sx = gi(entry.x);
-  for (let k = gk(entry.z - 1); k <= gk(entry.z + 0.5); k++) for (let u = -1; u <= 1; u++) cell[k * NX + sx + u] = 0;
+  // the foot of the stairs: a short passage (hallway height, so the entry hall gets a lintel
+  // over it) through the entry hall's south wall
+  // and beyond it the stair tunnel itself, which has its own walls and vault: open (no walls
+  // between it and the passage) but built by the cathedral, not here
+  const sx = gi(entry.x), FOOT = 1999, TUNNEL = 2999;
+  for (let k = gk(entry.z); k <= gk(entry.z + 0.6); k++) for (let u = -1; u <= 1; u++) cell[k * NX + sx + u] = FOOT;
+  for (let k = gk(entry.z + 0.6) + 1; k <= gk(entry.z + 5); k++) for (let u = -1; u <= 1; u++) if (k < NZ) cell[k * NX + sx + u] = TUNNEL;
 
   // every room and hallway gets surfaces of its own, drawn from the textures the world above
   // hasn't used yet, so the whole Velscour library ends up somewhere down here
@@ -96,7 +100,7 @@ export function buildDungeon(ctx, entry) {
 
   // geometry
   const mat = (id, tile, o = {}) => lib.material(id, { tile, ...o });
-  const themeOf = (v) => (v >= 1000 ? halls[v - 1000] : rooms[v].theme);
+  const themeOf = (v) => (v === FOOT ? rooms[0].theme : v >= 1000 ? halls[v - 1000] : rooms[v].theme);
   const ceilOf = (v) => (v >= 1000 ? HALL_H : ROOM_H);
   const X = (i) => X0 + i, Z = (k) => Z0 + k;
   // floors and ceilings: merged runs along x of cells with the same theme and height
@@ -104,10 +108,10 @@ export function buildDungeon(ctx, entry) {
     let i = 0;
     while (i < NX) {
       const v = at(i, k);
-      if (v < 0) { i++; continue; }
+      if (v < 0 || v === TUNNEL) { i++; continue; }
       const th = themeOf(v), h = ceilOf(v);
       let j = i;
-      while (j + 1 < NX && at(j + 1, k) >= 0 && themeOf(at(j + 1, k)) === th && ceilOf(at(j + 1, k)) === h) j++;
+      while (j + 1 < NX && at(j + 1, k) >= 0 && at(j + 1, k) !== TUNNEL && themeOf(at(j + 1, k)) === th && ceilOf(at(j + 1, k)) === h) j++;
       b.box([X(i), Y - 0.5, Z(k)], [X(j + 1), Y, Z(k + 1)], mat(th.floor, 2.5), { shade: 0.9, faces: { bottom: false } });
       b.box([X(i), Y + h, Z(k)], [X(j + 1), Y + h + 0.5, Z(k + 1)], mat(th.ceil, 3), { shade: 0.55, faces: { top: false } });
       i = j + 1;
@@ -124,13 +128,13 @@ export function buildDungeon(ctx, entry) {
           const here = horizontal ? at(s, a) : at(a, s);
           const there = horizontal ? at(s, a + side) : at(a + side, s);
           const lintel = here >= 0 && there >= 0 && ceilOf(there) < ceilOf(here);
-          if (here < 0 || (there >= 0 && !lintel)) { s++; continue; }
+          if (here < 0 || here === TUNNEL || (there >= 0 && !lintel)) { s++; continue; }
           const th = themeOf(here), y0 = lintel ? Y + ceilOf(there) : Y, y1 = Y + ceilOf(here);
           let e = s;
           for (;;) {
             const h2 = horizontal ? at(e + 1, a) : at(a, e + 1), t2 = horizontal ? at(e + 1, a + side) : at(a + side, e + 1);
             const l2 = h2 >= 0 && t2 >= 0 && ceilOf(t2) < ceilOf(h2);
-            if (e + 1 >= B || h2 < 0 || themeOf(h2) !== th || (t2 >= 0 && !l2) || l2 !== lintel || ceilOf(h2) !== ceilOf(here)) break;
+            if (e + 1 >= B || h2 < 0 || h2 === TUNNEL || themeOf(h2) !== th || (t2 >= 0 && !l2) || l2 !== lintel || ceilOf(h2) !== ceilOf(here)) break;
             e++;
           }
           const m = mat(th.wall, 3), band = mat(th.band, 1.5);
@@ -208,7 +212,7 @@ export function buildDungeon(ctx, entry) {
   // between the two walls, on the north-south runs and the east-west runs
   for (let k = 0; k < NZ; k++) for (let i = 0; i < NX; i++) {
     const v = at(i, k);
-    if (v < 1000) continue;
+    if (v < 1000 || v === TUNNEL) continue;
     if (k % 6 === 0 && at(i - 1, k) < 0) props.add('wall_torch', X(i) + 0.02, Y, Z(k) + 0.5, Math.PI / 2);
     if (k % 6 === 3 && at(i + 1, k) < 0) props.add('wall_torch', X(i + 1) - 0.02, Y, Z(k) + 0.5, -Math.PI / 2);
     const run = at(i - 1, k) >= 1000 && at(i + 1, k) >= 1000;

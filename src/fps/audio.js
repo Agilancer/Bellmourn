@@ -87,6 +87,21 @@ export class Sfx {
     this._noise(t, 0.09, { type: 'lowpass', f0: stone ? 900 : 500, f1: 150, gain: stone ? 0.16 : 0.11, attack: 0.004 });
   }
 
+  door(open) {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.5, { type: 'bandpass', f0: open ? 300 : 500, f1: open ? 700 : 220, q: 4, gain: 0.18, attack: 0.05 }); // the hinge
+    this._noise(t + (open ? 0.42 : 0.4), 0.18, { type: 'lowpass', f0: 600, f1: 120, gain: open ? 0.12 : 0.4 });   // and the thump
+  }
+
+  /** A rising roar while a spell gathers for `secs` seconds. */
+  chargeUp(secs = 2) {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._tone(t, secs, { type: 'sawtooth', f0: 70, f1: 220, gain: 0.05, attack: secs * 0.8 });
+    this._noise(t, secs, { type: 'bandpass', f0: 200, f1: 1600, q: 1.2, gain: 0.22, attack: secs * 0.9 });
+  }
+
   equip() {
     if (!this.ok) return;
     const t = this.ctx.currentTime;
