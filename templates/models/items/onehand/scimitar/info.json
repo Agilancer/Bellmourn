@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A curved desert sabre with a gilded guard and cap, red cloth grip.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 242,
  "files": [
   "scimitar.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/scimitar_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/scimitar_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/scimitar_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/scimitar_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/scimitar_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/scimitar_frostbound.png"
+  }
  ],
  "parts": [
   {

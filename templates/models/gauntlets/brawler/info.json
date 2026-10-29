@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Studded brown leather with iron spikes on every knuckle and down the bracer, a thick leather knuckle pad, a dark leather sleeve. A pit fighter's gear.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2274,
  "files": [
   "brawler_R.glb",
   "brawler_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/brawler_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/brawler_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/brawler_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/brawler_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/brawler_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/brawler_frostbound.png"
+  }
  ],
  "parts": [
   {

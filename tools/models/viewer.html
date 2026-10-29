@@ -39,6 +39,7 @@
     <label>animation <select id="anim"></select></label>
     <label>gauntlet <select id="arm"></select></label>
     <label>weapon <select id="item"></select></label>
+    <label>finish <select id="finish"></select></label>
     <button id="play">pause</button>
     <button id="step">step frame</button>
     <label>speed <select id="speed"><option>1</option><option>0.33</option><option>0.1</option></select></label>
@@ -104,11 +105,36 @@ function retro(obj) {
   });
 }
 
+// finishes: the same model in another skin (models/<...>/variants/*.png, same UV layout)
+const texLoader = new THREE.TextureLoader();
+const skins = new Map();
+async function skin(path) {
+  if (!skins.has(path)) {
+    const t = await texLoader.loadAsync(ROOT + path);
+    t.flipY = false; t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+    skins.set(path, t);
+  }
+  return skins.get(path);
+}
+async function refinish(obj, entry) {
+  const path = entry?.variants?.[document.getElementById('finish').value];
+  const tex = path ? await skin(path) : null;
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!('base' in o.userData)) o.userData.base = o.material.map;
+    o.material.map = tex || o.userData.base; o.material.needsUpdate = true;
+  });
+}
+let armEntry = null;
+
 async function loadArms(entry) {
+  armEntry = entry;
   for (const side of ['R', 'L']) {
     if (arms[side]) scene.remove(arms[side].gltf.scene);
     const gltf = await load(entry[side]);
     retro(gltf.scene);
+    await refinish(gltf.scene, entry);
     scene.add(gltf.scene);
     const mixer = new THREE.AnimationMixer(gltf.scene);
     const actions = {};
@@ -133,6 +159,8 @@ async function attachItems() {
     if (!entry) continue;
     const g = await load(entry.path);
     retro(g.scene);
+    await refinish(g.scene, entry);
+    g.scene.userData.entry = entry;
     arms[side].socket.add(g.scene);
     items[side] = g.scene;
   }
@@ -162,11 +190,21 @@ for (const s of manifest.item_sets) itemSel.add(new Option(s.name, s.id));
 animSel.onchange = () => play(animSel.value);
 armSel.onchange = async () => { await loadArms(manifest.arms.find((a) => a.id === armSel.value)); play(current); };
 itemSel.onchange = () => attachItems();
+const finishSel = document.getElementById('finish');
+finishSel.add(new Option('as dressed', ''));
+for (const f of manifest.finishes || []) finishSel.add(new Option(f.name, f.id));
+finishSel.onchange = async () => {
+  for (const side of ['R', 'L']) {
+    if (arms[side]) await refinish(arms[side].gltf.scene, armEntry);
+    if (items[side]) await refinish(items[side], items[side].userData.entry);
+  }
+};
 document.getElementById('play').onclick = (e) => { playing = !playing; e.target.textContent = playing ? 'pause' : 'play'; };
 document.getElementById('step').onclick = () => { playing = false; document.getElementById('play').textContent = 'play'; stepAll(1 / 35); };
 document.getElementById('speed').onchange = (e) => { speed = +e.target.value; };
 
 const params = new URLSearchParams(location.search);
+if (params.get('finish')) finishSel.value = params.get('finish');
 await loadArms(manifest.arms.find((a) => a.id === (params.get('arm') || manifest.arms[0].id)));
 armSel.value = params.get('arm') || manifest.arms[0].id;
 if (params.get('item')) itemSel.value = params.get('item');

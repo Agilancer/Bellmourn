@@ -98,3 +98,58 @@ def zbuffer(tris, colors, project, size, near=0.01, light=LIGHT, bg=(30, 28, 34)
             sub[win] = iz[win]
             img[y0:y1, x0:x1][win] = rgb
     return Image.fromarray(img).resize((size, size), Image.LANCZOS)
+
+
+def zbuffer_textured(tris, uvs, nrms, tex, project, w, h, light=LIGHT, bg=(30, 28, 34), ss=2,
+                     ambient=0.45, spec=0.35, shininess=48):
+    """Depth-buffered render of camera-space triangles with a texture (nearest texels, like
+    the game) and smooth Blinn-Phong shading, for previews of textured models.
+    `uvs` are per-corner (0..1, v down), `nrms` per-corner camera-space normals. RGB image."""
+    from PIL import Image
+    W, H = w * ss, h * ss
+    t = np.asarray(tex.convert("RGB"), float)
+    th, tw = t.shape[:2]
+    depth = np.zeros((H, W))
+    img = np.empty((H, W, 3))
+    img[:] = bg
+    L = np.asarray(light, float)
+    for tri, uv, nr in zip(tris, uvs, nrms):
+        if min(p[2] for p in tri) < 0.01:
+            continue
+        pts = np.array([[project(p)[0] * ss, project(p)[1] * ss, p[2]] for p in tri])
+        a, b, c = pts
+        x0, x1 = int(max(min(a[0], b[0], c[0]), 0)), int(min(max(a[0], b[0], c[0]) + 1, W))
+        y0, y1 = int(max(min(a[1], b[1], c[1]), 0)), int(min(max(a[1], b[1], c[1]) + 1, H))
+        if x0 >= x1 or y0 >= y1:
+            continue
+        det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if abs(det) < 1e-9:
+            continue
+        xs, ys = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5)
+        l1 = ((b[1] - c[1]) * (xs - c[0]) + (c[0] - b[0]) * (ys - c[1])) / det
+        l2 = ((c[1] - a[1]) * (xs - c[0]) + (a[0] - c[0]) * (ys - c[1])) / det
+        l3 = 1 - l1 - l2
+        inside = (l1 >= -1e-6) & (l2 >= -1e-6) & (l3 >= -1e-6)
+        iz = l1 / a[2] + l2 / b[2] + l3 / c[2]
+        sub = depth[y0:y1, x0:x1]
+        win = inside & (iz > sub)
+        if not win.any():
+            continue
+        sub[win] = iz[win]
+        # perspective-correct corner weights
+        wts = np.stack([l1 / a[2], l2 / b[2], l3 / c[2]], -1)[win] / iz[win][:, None]
+        u = wts @ np.array([q[0] for q in uv])
+        v = wts @ np.array([q[1] for q in uv])
+        col = t[np.clip((v * th).astype(int), 0, th - 1), np.clip((u * tw).astype(int), 0, tw - 1)]
+        n = wts @ np.asarray(nr, float)
+        n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-9
+        p = wts @ np.asarray(tri, float)  # camera-space point (the eye is the origin)
+        view = -p / (np.linalg.norm(p, axis=1, keepdims=True) + 1e-9)
+        n *= np.where((n * view).sum(1) < 0, -1.0, 1.0)[:, None]  # two-sided
+        diff = np.clip(n @ L, 0, 1)
+        half = view + L
+        half /= np.linalg.norm(half, axis=1, keepdims=True)
+        hl = np.clip((n * half).sum(1), 0, 1) ** shininess
+        rgb = col * (ambient + (1 - ambient) * diff)[:, None] + 255 * spec * hl[:, None]
+        img[y0:y1, x0:x1][win] = np.clip(rgb, 0, 255)
+    return Image.fromarray(img.astype(np.uint8)).resize((w, h), Image.BOX)

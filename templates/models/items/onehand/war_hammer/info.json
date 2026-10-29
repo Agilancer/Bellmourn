@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A steel hammer face with a back spike and top spike on an iron haft.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 176,
  "files": [
   "war_hammer.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/war_hammer_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/war_hammer_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/war_hammer_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/war_hammer_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/war_hammer_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/war_hammer_frostbound.png"
+  }
  ],
  "parts": [
   {

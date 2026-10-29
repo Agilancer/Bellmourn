@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A plain knightly sword: steel blade with a fuller, iron crossguard, brown leather grip, wheel pommel.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 296,
  "files": [
   "arming_sword.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/arming_sword_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/arming_sword_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/arming_sword_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/arming_sword_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/arming_sword_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/arming_sword_frostbound.png"
+  }
  ],
  "parts": [
   {

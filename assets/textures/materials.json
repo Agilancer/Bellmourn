@@ -1,0 +1,1204 @@
+{
+ "materials": [
+  {
+   "id": "hammered_steel_dark",
+   "file": "materials/hammered_steel_dark.png",
+   "material": "hammered_steel",
+   "tone": "dark",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    103,
+    155
+   ],
+   "seam": [
+    0.94,
+    1.22
+   ],
+   "color": "#2a2d2e"
+  },
+  {
+   "id": "hammered_steel_mid",
+   "file": "materials/hammered_steel_mid.png",
+   "material": "hammered_steel",
+   "tone": "mid",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    103,
+    155
+   ],
+   "seam": [
+    1.12,
+    1.09
+   ],
+   "color": "#4f5153"
+  },
+  {
+   "id": "hammered_steel_light",
+   "file": "materials/hammered_steel_light.png",
+   "material": "hammered_steel",
+   "tone": "light",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    103,
+    155
+   ],
+   "seam": [
+    0.77,
+    1.29
+   ],
+   "color": "#888e94"
+  },
+  {
+   "id": "brushed_steel_dark",
+   "file": "materials/brushed_steel_dark.png",
+   "material": "brushed_steel",
+   "tone": "dark",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    103,
+    139
+   ],
+   "seam": [
+    0.94,
+    0.36
+   ],
+   "color": "#303234"
+  },
+  {
+   "id": "brushed_steel_mid",
+   "file": "materials/brushed_steel_mid.png",
+   "material": "brushed_steel",
+   "tone": "mid",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    103,
+    139
+   ],
+   "seam": [
+    0.86,
+    0.46
+   ],
+   "color": "#64686a"
+  },
+  {
+   "id": "brushed_steel_light",
+   "file": "materials/brushed_steel_light.png",
+   "material": "brushed_steel",
+   "tone": "light",
+   "sheet": "art/materials/01_steel.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    103,
+    139
+   ],
+   "seam": [
+    0.79,
+    0.42
+   ],
+   "color": "#9da2a8"
+  },
+  {
+   "id": "tarnished_gold_dark",
+   "file": "materials/tarnished_gold_dark.png",
+   "material": "tarnished_gold",
+   "tone": "dark",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    104,
+    155
+   ],
+   "seam": [
+    0.76,
+    0.84
+   ],
+   "color": "#4d3511"
+  },
+  {
+   "id": "tarnished_gold_mid",
+   "file": "materials/tarnished_gold_mid.png",
+   "material": "tarnished_gold",
+   "tone": "mid",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    104,
+    155
+   ],
+   "seam": [
+    0.8,
+    0.9
+   ],
+   "color": "#8b621e"
+  },
+  {
+   "id": "tarnished_gold_light",
+   "file": "materials/tarnished_gold_light.png",
+   "material": "tarnished_gold",
+   "tone": "light",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    155
+   ],
+   "seam": [
+    0.8,
+    0.91
+   ],
+   "color": "#c8a04d"
+  },
+  {
+   "id": "polished_gold_dark",
+   "file": "materials/polished_gold_dark.png",
+   "material": "polished_gold",
+   "tone": "dark",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.57,
+    1.03
+   ],
+   "color": "#6c4309"
+  },
+  {
+   "id": "polished_gold_mid",
+   "file": "materials/polished_gold_mid.png",
+   "material": "polished_gold",
+   "tone": "mid",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.66,
+    0.99
+   ],
+   "color": "#b27d1f"
+  },
+  {
+   "id": "polished_gold_light",
+   "file": "materials/polished_gold_light.png",
+   "material": "polished_gold",
+   "tone": "light",
+   "sheet": "art/materials/02_gold.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.67,
+    0.99
+   ],
+   "color": "#eac85e"
+  },
+  {
+   "id": "scratched_steel_dark",
+   "file": "materials/scratched_steel_dark.png",
+   "material": "scratched_steel",
+   "tone": "dark",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.15,
+    0.42
+   ],
+   "color": "#2e353b"
+  },
+  {
+   "id": "scratched_steel_mid",
+   "file": "materials/scratched_steel_mid.png",
+   "material": "scratched_steel",
+   "tone": "mid",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.22,
+    0.46
+   ],
+   "color": "#5e666f"
+  },
+  {
+   "id": "scratched_steel_light",
+   "file": "materials/scratched_steel_light.png",
+   "material": "scratched_steel",
+   "tone": "light",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.95,
+    0.45
+   ],
+   "color": "#adb5bc"
+  },
+  {
+   "id": "burnished_steel_dark",
+   "file": "materials/burnished_steel_dark.png",
+   "material": "burnished_steel",
+   "tone": "dark",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    104,
+    145
+   ],
+   "seam": [
+    1.8,
+    0.43
+   ],
+   "color": "#434951"
+  },
+  {
+   "id": "burnished_steel_mid",
+   "file": "materials/burnished_steel_mid.png",
+   "material": "burnished_steel",
+   "tone": "mid",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    104,
+    145
+   ],
+   "seam": [
+    1.21,
+    0.37
+   ],
+   "color": "#80878f"
+  },
+  {
+   "id": "burnished_steel_light",
+   "file": "materials/burnished_steel_light.png",
+   "material": "burnished_steel",
+   "tone": "light",
+   "sheet": "art/materials/03_bright_steel.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    104,
+    145
+   ],
+   "seam": [
+    0.35,
+    0.5
+   ],
+   "color": "#c0c6cb"
+  },
+  {
+   "id": "pebbled_leather_dark",
+   "file": "materials/pebbled_leather_dark.png",
+   "material": "pebbled_leather",
+   "tone": "dark",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.05,
+    0.86
+   ],
+   "color": "#3b1a16"
+  },
+  {
+   "id": "pebbled_leather_mid",
+   "file": "materials/pebbled_leather_mid.png",
+   "material": "pebbled_leather",
+   "tone": "mid",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.02,
+    0.93
+   ],
+   "color": "#70331e"
+  },
+  {
+   "id": "pebbled_leather_light",
+   "file": "materials/pebbled_leather_light.png",
+   "material": "pebbled_leather",
+   "tone": "light",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.01,
+    0.8
+   ],
+   "color": "#ad7446"
+  },
+  {
+   "id": "creased_leather_dark",
+   "file": "materials/creased_leather_dark.png",
+   "material": "creased_leather",
+   "tone": "dark",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.21,
+    0.72
+   ],
+   "color": "#3c1c15"
+  },
+  {
+   "id": "creased_leather_mid",
+   "file": "materials/creased_leather_mid.png",
+   "material": "creased_leather",
+   "tone": "mid",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.13,
+    0.73
+   ],
+   "color": "#6d3821"
+  },
+  {
+   "id": "creased_leather_light",
+   "file": "materials/creased_leather_light.png",
+   "material": "creased_leather",
+   "tone": "light",
+   "sheet": "art/materials/04_leather.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    1.1,
+    0.76
+   ],
+   "color": "#ab764a"
+  },
+  {
+   "id": "studded_leather_dark",
+   "file": "materials/studded_leather_dark.png",
+   "material": "studded_leather",
+   "tone": "dark",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    97,
+    152
+   ],
+   "seam": [
+    0.89,
+    0.9
+   ],
+   "color": "#372622"
+  },
+  {
+   "id": "studded_leather_mid",
+   "file": "materials/studded_leather_mid.png",
+   "material": "studded_leather",
+   "tone": "mid",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    101,
+    152
+   ],
+   "seam": [
+    0.99,
+    0.69
+   ],
+   "color": "#683c27"
+  },
+  {
+   "id": "studded_leather_light",
+   "file": "materials/studded_leather_light.png",
+   "material": "studded_leather",
+   "tone": "light",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    81,
+    152
+   ],
+   "seam": [
+    0.85,
+    0.75
+   ],
+   "color": "#9a6845"
+  },
+  {
+   "id": "pyramid_studded_leather_dark",
+   "file": "materials/pyramid_studded_leather_dark.png",
+   "material": "pyramid_studded_leather",
+   "tone": "dark",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    96,
+    144
+   ],
+   "seam": [
+    0.93,
+    0.89
+   ],
+   "color": "#39251c"
+  },
+  {
+   "id": "pyramid_studded_leather_mid",
+   "file": "materials/pyramid_studded_leather_mid.png",
+   "material": "pyramid_studded_leather",
+   "tone": "mid",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    98,
+    141
+   ],
+   "seam": [
+    0.97,
+    0.79
+   ],
+   "color": "#6d3c22"
+  },
+  {
+   "id": "pyramid_studded_leather_light",
+   "file": "materials/pyramid_studded_leather_light.png",
+   "material": "pyramid_studded_leather",
+   "tone": "light",
+   "sheet": "art/materials/05_studded_leather.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    81,
+    155
+   ],
+   "seam": [
+    1.0,
+    0.56
+   ],
+   "color": "#a77146"
+  },
+  {
+   "id": "fine_mail_dark",
+   "file": "materials/fine_mail_dark.png",
+   "material": "fine_mail",
+   "tone": "dark",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.7,
+    0.99
+   ],
+   "color": "#292d30"
+  },
+  {
+   "id": "fine_mail_mid",
+   "file": "materials/fine_mail_mid.png",
+   "material": "fine_mail",
+   "tone": "mid",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.77,
+    0.74
+   ],
+   "color": "#4b4f52"
+  },
+  {
+   "id": "fine_mail_light",
+   "file": "materials/fine_mail_light.png",
+   "material": "fine_mail",
+   "tone": "light",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    156
+   ],
+   "seam": [
+    0.83,
+    0.81
+   ],
+   "color": "#747371"
+  },
+  {
+   "id": "bright_fine_mail_dark",
+   "file": "materials/bright_fine_mail_dark.png",
+   "material": "bright_fine_mail",
+   "tone": "dark",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    104,
+    140
+   ],
+   "seam": [
+    0.54,
+    0.87
+   ],
+   "color": "#363b3e"
+  },
+  {
+   "id": "bright_fine_mail_mid",
+   "file": "materials/bright_fine_mail_mid.png",
+   "material": "bright_fine_mail",
+   "tone": "mid",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    104,
+    140
+   ],
+   "seam": [
+    0.75,
+    0.77
+   ],
+   "color": "#5e6567"
+  },
+  {
+   "id": "bright_fine_mail_light",
+   "file": "materials/bright_fine_mail_light.png",
+   "material": "bright_fine_mail",
+   "tone": "light",
+   "sheet": "art/materials/06_fine_mail.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    104,
+    140
+   ],
+   "seam": [
+    0.72,
+    0.9
+   ],
+   "color": "#868987"
+  },
+  {
+   "id": "iron_heavy_mail_dark",
+   "file": "materials/iron_heavy_mail_dark.png",
+   "material": "iron_heavy_mail",
+   "tone": "dark",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.56,
+    0.51
+   ],
+   "color": "#26272a"
+  },
+  {
+   "id": "iron_heavy_mail_mid",
+   "file": "materials/iron_heavy_mail_mid.png",
+   "material": "iron_heavy_mail",
+   "tone": "mid",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.57,
+    0.54
+   ],
+   "color": "#414346"
+  },
+  {
+   "id": "iron_heavy_mail_light",
+   "file": "materials/iron_heavy_mail_light.png",
+   "material": "iron_heavy_mail",
+   "tone": "light",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.63,
+    0.53
+   ],
+   "color": "#5d5f61"
+  },
+  {
+   "id": "brass_heavy_mail_dark",
+   "file": "materials/brass_heavy_mail_dark.png",
+   "material": "brass_heavy_mail",
+   "tone": "dark",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.5,
+    0.5
+   ],
+   "color": "#382715"
+  },
+  {
+   "id": "brass_heavy_mail_mid",
+   "file": "materials/brass_heavy_mail_mid.png",
+   "material": "brass_heavy_mail",
+   "tone": "mid",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.52,
+    0.47
+   ],
+   "color": "#573f1f"
+  },
+  {
+   "id": "brass_heavy_mail_light",
+   "file": "materials/brass_heavy_mail_light.png",
+   "material": "brass_heavy_mail",
+   "tone": "light",
+   "sheet": "art/materials/07_heavy_mail.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    104,
+    128
+   ],
+   "seam": [
+    0.61,
+    0.45
+   ],
+   "color": "#785d2e"
+  },
+  {
+   "id": "rusted_scale_dark",
+   "file": "materials/rusted_scale_dark.png",
+   "material": "rusted_scale",
+   "tone": "dark",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    103,
+    140
+   ],
+   "seam": [
+    1.14,
+    0.64
+   ],
+   "color": "#2d2f31"
+  },
+  {
+   "id": "rusted_scale_mid",
+   "file": "materials/rusted_scale_mid.png",
+   "material": "rusted_scale",
+   "tone": "mid",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    103,
+    140
+   ],
+   "seam": [
+    1.28,
+    0.58
+   ],
+   "color": "#535354"
+  },
+  {
+   "id": "rusted_scale_light",
+   "file": "materials/rusted_scale_light.png",
+   "material": "rusted_scale",
+   "tone": "light",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    103,
+    140
+   ],
+   "seam": [
+    0.86,
+    0.65
+   ],
+   "color": "#8e8c89"
+  },
+  {
+   "id": "polished_scale_dark",
+   "file": "materials/polished_scale_dark.png",
+   "material": "polished_scale",
+   "tone": "dark",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    103,
+    138
+   ],
+   "seam": [
+    0.85,
+    0.66
+   ],
+   "color": "#3e4144"
+  },
+  {
+   "id": "polished_scale_mid",
+   "file": "materials/polished_scale_mid.png",
+   "material": "polished_scale",
+   "tone": "mid",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    103,
+    138
+   ],
+   "seam": [
+    0.82,
+    0.63
+   ],
+   "color": "#616468"
+  },
+  {
+   "id": "polished_scale_light",
+   "file": "materials/polished_scale_light.png",
+   "material": "polished_scale",
+   "tone": "light",
+   "sheet": "art/materials/08_scale.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    103,
+    138
+   ],
+   "seam": [
+    0.79,
+    0.71
+   ],
+   "color": "#8a8f95"
+  },
+  {
+   "id": "riveted_bands_iron",
+   "file": "materials/riveted_bands_iron.png",
+   "material": "riveted_bands",
+   "tone": "iron",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    89,
+    152
+   ],
+   "seam": [
+    0.82,
+    0.33
+   ],
+   "color": "#303234"
+  },
+  {
+   "id": "riveted_bands_bronze",
+   "file": "materials/riveted_bands_bronze.png",
+   "material": "riveted_bands",
+   "tone": "bronze",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    89,
+    152
+   ],
+   "seam": [
+    0.75,
+    0.35
+   ],
+   "color": "#6a4c2e"
+  },
+  {
+   "id": "riveted_bands_steel",
+   "file": "materials/riveted_bands_steel.png",
+   "material": "riveted_bands",
+   "tone": "steel",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    89,
+    152
+   ],
+   "seam": [
+    0.87,
+    0.45
+   ],
+   "color": "#8f9699"
+  },
+  {
+   "id": "studded_bands_iron",
+   "file": "materials/studded_bands_iron.png",
+   "material": "studded_bands",
+   "tone": "iron",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    88,
+    151
+   ],
+   "seam": [
+    0.69,
+    0.41
+   ],
+   "color": "#303336"
+  },
+  {
+   "id": "studded_bands_bronze",
+   "file": "materials/studded_bands_bronze.png",
+   "material": "studded_bands",
+   "tone": "bronze",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    88,
+    151
+   ],
+   "seam": [
+    0.59,
+    0.39
+   ],
+   "color": "#684d32"
+  },
+  {
+   "id": "studded_bands_steel",
+   "file": "materials/studded_bands_steel.png",
+   "material": "studded_bands",
+   "tone": "steel",
+   "sheet": "art/materials/09_bands.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    88,
+    151
+   ],
+   "seam": [
+    0.81,
+    0.5
+   ],
+   "color": "#91989b"
+  },
+  {
+   "id": "verdigris_bronze_dark",
+   "file": "materials/verdigris_bronze_dark.png",
+   "material": "verdigris_bronze",
+   "tone": "dark",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    103,
+    155
+   ],
+   "seam": [
+    1.21,
+    0.75
+   ],
+   "color": "#413421"
+  },
+  {
+   "id": "verdigris_bronze_mid",
+   "file": "materials/verdigris_bronze_mid.png",
+   "material": "verdigris_bronze",
+   "tone": "mid",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    103,
+    155
+   ],
+   "seam": [
+    0.93,
+    0.85
+   ],
+   "color": "#634b2b"
+  },
+  {
+   "id": "verdigris_bronze_light",
+   "file": "materials/verdigris_bronze_light.png",
+   "material": "verdigris_bronze",
+   "tone": "light",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    104,
+    155
+   ],
+   "seam": [
+    0.95,
+    0.98
+   ],
+   "color": "#9d7b4d"
+  },
+  {
+   "id": "polished_copper_dark",
+   "file": "materials/polished_copper_dark.png",
+   "material": "polished_copper",
+   "tone": "dark",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    103,
+    154
+   ],
+   "seam": [
+    0.9,
+    1.05
+   ],
+   "color": "#622d1a"
+  },
+  {
+   "id": "polished_copper_mid",
+   "file": "materials/polished_copper_mid.png",
+   "material": "polished_copper",
+   "tone": "mid",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    103,
+    156
+   ],
+   "seam": [
+    0.81,
+    0.95
+   ],
+   "color": "#9a4a28"
+  },
+  {
+   "id": "polished_copper_light",
+   "file": "materials/polished_copper_light.png",
+   "material": "polished_copper",
+   "tone": "light",
+   "sheet": "art/materials/10_bronze_copper.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    103,
+    156
+   ],
+   "seam": [
+    1.19,
+    0.93
+   ],
+   "color": "#d88752"
+  }
+ ]
+}

@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A dark wooden haft topped with a spiked iron ball.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 477,
  "files": [
   "morning_star.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/morning_star_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/morning_star_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/morning_star_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/morning_star_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/morning_star_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/morning_star_frostbound.png"
+  }
  ],
  "parts": [
   {

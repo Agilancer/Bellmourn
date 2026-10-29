@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A crude wooden club studded with iron nails, with a leather hand strap.",
  "texture_size": 128,
+ "skin_size": 512,
  "triangles": 252,
  "files": [
   "nail_club.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/nail_club_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/nail_club_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/nail_club_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/nail_club_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/nail_club_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/nail_club_frostbound.png"
+  }
  ],
  "parts": [
   {

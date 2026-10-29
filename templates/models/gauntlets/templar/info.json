@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Holy plate: polished steel with gold trim, a fluted bell cuff, a gilded knuckle bar, a gold sun medallion on the back of the hand, a royal blue tabard sleeve over mail.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2960,
  "files": [
   "templar_R.glb",
   "templar_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/templar_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/templar_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/templar_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/templar_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/templar_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/templar_frostbound.png"
+  }
  ],
  "parts": [
   {
