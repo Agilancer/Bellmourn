@@ -4,8 +4,21 @@
     {
       "name": "bellmourn",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["tools/serve.py", "8124"],
+      "runtimeArgs": [
+        "tools/serve.py",
+        "8124"
+      ],
       "port": 8124
+    },
+    {
+      "name": "bellmourn-alt",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/serve.py",
+        "8127"
+      ],
+      "port": 8127,
+      "autoPort": false
     }
   ]
 }

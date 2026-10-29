@@ -379,7 +379,7 @@ export class Magic {
     }
   }
 
-  impact(s, at, n) {
+  impact(s, at, n, flesh = false) {
     const def = s.def, cols = def.colors.slice(0, 3).map((c) => new THREE.Color(c));
     const nrm = n || new THREE.Vector3(0, 1, 0);
     const floorY = nrm.y > 0.7 ? at.y : null;
@@ -391,7 +391,8 @@ export class Magic {
     this.flashes.push({ s: fb, age: 0, life: 0.25 + def.size * 0.35, to: 1 + def.size * 5 });
     if (s.light) { this.release(s.light, 1.6, at); s.light = null; }
     else this.flashAt(at, def.light, 1.2);
-    if (def.kind === 'fire') {
+    if (flesh) { // no scorch marks or fires left hanging in the air
+    } else if (def.kind === 'fire') {
       this.decals.add('scorch', at, nrm, 1.6 + Math.random() * 0.6, { life: 40 });
       for (let i = 0; i < 10; i++) this.smoke?.emit(at.clone().addScaledVector(rnd(), 0.3), new THREE.Vector3(0, 0.8 + Math.random(), 0).addScaledVector(nrm, 0.6),
         { life: 2.5 + Math.random() * 2, size: 0.4, grow: 0.7, alpha: 0.35, shade: 0.1 });
@@ -416,6 +417,7 @@ export class Magic {
       this.decals.add('frost', at, nrm, 0.5, { life: 6 });
     }
     this.sfx?.boom(def.size, at);
+    this.onBlast?.(def, at);
   }
 
   update(dt, camera, height, player) {
@@ -427,6 +429,15 @@ export class Magic {
       const d = s.vel.clone().divideScalar(speed);
       const hit = this.physics.ray([p.x, p.y, p.z], [d.x, d.y, d.z], step);
       const cols = s.def.colors.slice(0, 3).map((c) => new THREE.Color(c));
+      const flesh = this.hitTest?.(p, d, step);   // something alive (or undead) in the way
+      if (flesh && (!hit || flesh.t < hit.t)) {
+        p.addScaledVector(d, flesh.t);
+        this.onHit?.(s.def, p.clone(), d.clone(), flesh);
+        this.impact(s, p.clone(), null, true);
+        for (const o of [s.core, s.halo]) { this.scene.remove(o); o.material.dispose(); }
+        if (s.mesh) { this.scene.remove(s.mesh); s.mesh.geometry.dispose(); }
+        continue;
+      }
       if (hit || s.age > 5) {
         if (hit) p.addScaledVector(d, hit.t);
         const n = hit ? new THREE.Vector3(...hit.normal) : null;
