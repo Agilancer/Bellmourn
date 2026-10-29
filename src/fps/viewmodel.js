@@ -9,14 +9,24 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const ROOT = 'templates/models/';
 // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
 // (the upright carry shows the flat); it turns back as it rises to upright again
-const ROLL_2H = { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 };
-// the two-handed blades that turn like it; axes, hammers and polearms keep their head leading
-const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloodletter',
-  'penitents_greatsword', 'tombstone']);
+const ROLL_2H = { clips: ['r2h_swing_3d'], angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 };
+// the one-handed sword likewise: it chops and lands in the guard edge-first, not flat, and
+// turns back as it recovers to the carry
+const ROLL_1H = { clips: ['r1h_swing_3d', 'l1h_swing_3d'], angle: Math.PI / 2, in: [0.04, 0.2], out: 0.2 };
+// the messer's edge is on the other side of its blade, so it turns the other way to lead with it
+const ROLL_1H_BACK = { ...ROLL_1H, angle: -ROLL_1H.angle };
+// the blades of each kind that turn; axes, hammers, maces and polearms keep their head leading
+export const ROLLED = {
+  twohand: { roll: ROLL_2H, ids: new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloodletter',
+    'penitents_greatsword', 'tombstone']) },
+  onehand: { roll: ROLL_1H, ids: new Set(['arming_sword', 'falchion', 'fang_blade', 'mourners_rapier',
+    'reliquary_blade', 'scimitar']), back: new Set(['grave_messer']) },
+};
 // the kinds whose model can be chosen in the inventory (every model of that kind in the manifest)
 const MODEL_TYPE = { onehand: 'one-handed weapon', twohand: 'two-handed weapon' };
 export const ITEMS = {
-  onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
+  onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'],
+    roll: ROLL_1H },
   twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
     roll: ROLL_2H },
   wand: { id: 'crystal_wand', name: 'Crystal Wand', type: 'wand', hands: ['R', 'L'], tip: 0.34 },
@@ -168,7 +178,8 @@ export class ViewModel {
     const e = this.models(kind).find((m) => m.id === id);
     if (!e) return;
     Object.assign(ITEMS[kind], { id, name: e.name, type: MODEL_TYPE[kind], power: undefined });
-    if (ITEMS[kind].both) ITEMS[kind].roll = ROLLED.has(id) ? ROLL_2H : undefined;
+    const r = ROLLED[kind];
+    if (r) ITEMS[kind].roll = r.ids.has(id) ? r.roll : r.back?.has(id) ? ROLL_1H_BACK : undefined;
     this.itemCache.delete(kind);
     await this.applyEquip();
   }
@@ -331,9 +342,11 @@ export class ViewModel {
       const roll = arm.item && ITEMS[this.equip[side]]?.roll;
       if (roll) {
         const ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
-        const on = st && st.name === roll.clip;
+        const on = st && roll.clips.includes(st.name);
         const t = on ? st.action.time : 0, d = on ? st.duration : 1;
-        arm.item.rotation.y = on ? roll.angle * ss(roll.in[0], roll.in[1], t) * (1 - ss(d - roll.out, d - 0.03, t)) : 0;
+        // the left arm is the right's mirror image, so it turns the other way to lead with the same edge
+        const angle = side === 'L' ? -roll.angle : roll.angle;
+        arm.item.rotation.y = on ? angle * ss(roll.in[0], roll.in[1], t) * (1 - ss(d - roll.out, d - 0.03, t)) : 0;
       }
       if (st) {
         const a = st.action;

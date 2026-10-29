@@ -8,7 +8,7 @@
 // foes.js calls ctx.loot.drop([x, y, z], { tier }) when something dies (tier 1-4; the caves'
 // monsters drop one better).
 import * as THREE from 'three';
-import { ITEMS } from './viewmodel.js';
+import { ITEMS, ROLLED } from './viewmodel.js';
 
 export const WEAPONS = [
   { id: 'notched_blade', kind: 'onehand', model: 'props/Sword_Bronze', name: 'Notched Blade', type: 'one-handed sword', grip: 0.13, len: 0.82, weight: 3 },
@@ -81,7 +81,8 @@ export class Loot {
     if (!vm) { this.hooks.onTake?.(it); return; }
     const held = this.heldModel(it);
     vm.itemCache.set(it.kind, held);
-    Object.assign(ITEMS[it.kind], { id: 'loot_' + it.id, name: it.title, type: it.type, power: it.power });
+    Object.assign(ITEMS[it.kind], { id: 'loot_' + it.id, name: it.title, type: it.type, power: it.power,
+      roll: it.type.endsWith('sword') ? ROLLED[it.kind]?.roll : undefined }); // swords swing edge-first
     if (it.kind === 'shield_round') vm.equip.L = 'shield_round';
     else { vm.equip.R = 'onehand'; if (vm.equip.L && ITEMS[vm.equip.L]?.both) vm.equip.L = null; }
     vm.applyEquip();
