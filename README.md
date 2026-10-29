@@ -30,6 +30,10 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
+You set out with a plain sword and round shield in hand and a staff in the bag (with a
+greatsword, a wand, a kite shield and some draughts); a character saved before this is given the
+sword, shield and staff once, if it doesn't have them.
+
 Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
 it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
 nothing until it has come back; it refills quickly, but only while the shield is down. Better

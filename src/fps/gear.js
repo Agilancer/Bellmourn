@@ -219,17 +219,39 @@ export function itemValue(it) {
 }
 
 // ------------------------------------------------------------------ the character
+// the plain arm of each kind you set out with
+const STARTER = { onehand: 'arming_sword', twohand: 'greatsword', wand: 'crystal_wand', staff: 'gnarled_staff', shield_round: 'ironbound', shield_kite: 'knights_kite' };
+
 export function newCharacter() {
-  const c = { equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0 };
+  const c = { equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true };
   const g = (o) => makeGear({ ilvl: 1, rarity: 0, ...o });
-  c.equip.weapon = g({ kind: 'onehand', model: 'arming_sword' });
-  c.equip.offhand = g({ kind: 'shield_round', model: 'ironbound' });
+  c.equip.weapon = g({ kind: 'onehand', model: STARTER.onehand });
+  c.equip.offhand = g({ kind: 'shield_round', model: STARTER.shield_round });
   c.equip.hands = g({ slot: 'hands', model: 'wayfarer' });
   c.equip.body = g({ slot: 'body', base: 'Tunic' });
   c.equip.feet = g({ slot: 'feet', base: 'Shoes' });
   // the rest of the arms you set out with, in the bag
-  [g({ kind: 'twohand', model: 'greatsword' }), g({ kind: 'wand', model: 'crystal_wand' }), g({ kind: 'staff', model: 'gnarled_staff' }),
-    g({ kind: 'shield_kite', model: 'knights_kite' }), makePotion('life', 3), makePotion('mana', 2)].forEach((it, i) => { c.bag[i] = it; });
+  [g({ kind: 'staff', model: STARTER.staff }), g({ kind: 'twohand', model: STARTER.twohand }), g({ kind: 'wand', model: STARTER.wand }),
+    g({ kind: 'shield_kite', model: STARTER.shield_kite }), makePotion('life', 3), makePotion('mana', 2)].forEach((it, i) => { c.bag[i] = it; });
+  return c;
+}
+
+/** Once the manifest is in (a first visit's character is made before it, so its arms have no
+ * models yet): every arm without a model of its kind gets its kind's plain one, and every
+ * character, an old one too, is given the basic sword, shield and staff once, in the bag. */
+export function fitCharacter(c) {
+  for (const it of [...Object.values(c.equip), ...c.bag]) {
+    if (!it || it.type !== 'gear' || !ARM[it.kind] || modelsOf(it.kind).some((m) => m.id === it.model)) continue;
+    const e = modelsOf(it.kind).find((m) => m.id === STARTER[it.kind]) || modelsOf(it.kind)[0];
+    if (!e) continue;
+    it.name = it.name.replace(it.base, e.name);
+    it.model = e.id; it.base = e.name;
+  }
+  if (!c.starter) {
+    c.starter = true;
+    const has = (kind) => [...Object.values(c.equip), ...c.bag].some((it) => it?.kind === kind && it.model === STARTER[kind]);
+    for (const kind of ['onehand', 'shield_round', 'staff']) if (!has(kind)) addToBag(c, makeGear({ ilvl: 1, rarity: 0, kind, model: STARTER[kind] }));
+  }
   return c;
 }
 

@@ -31,7 +31,7 @@ import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION } from './terrain.js';
 import { SPOTS } from './region.js';
@@ -228,6 +228,7 @@ async function build() {
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
   useManifest(manifest);
+  fitCharacter(char); saveCharacter(char);   // its arms' models, and the basic sword, shield and staff
   vm = new ViewModel(manifest, kit);
   await vm.load(char.equip.hands?.model || 'bare');
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
