@@ -1,0 +1,58 @@
+{
+ "seed": 11840,
+ "face": "02_Tan_Skin",
+ "morph": {
+  "caucasian-male-young": 0.7,
+  "asian-male-young": 0.15,
+  "african-male-young": 0.15,
+  "chin-prominent-less": 0.348,
+  "chin-width-max": 0.131,
+  "nose-hump-lesshump": 0.462,
+  "nose-scale-horiz-decr": 0.383,
+  "mouth-scale-horiz-decr": 0.519,
+  "l-ear-size-small": 0.307,
+  "r-ear-size-small": 0.307,
+  "nose-volume-point": 0.316,
+  "head-scale-horiz-less": 0.279
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.77,
+  0.69
+ ],
+ "dress": {
+  "Green": [
+   "leather_tooled",
+   0.9,
+   0.42
+  ],
+  "LightGreen": [
+   "linen_teal",
+   0.9,
+   0.3
+  ],
+  "Brown": [
+   "linen_brown",
+   0.7,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   1.0,
+   0.3
+  ],
+  "Grey": [
+   "leather_strapwork",
+   0.8,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ]
+ },
+ "line": 0.049,
+ "name": "villager_m01"
+}
