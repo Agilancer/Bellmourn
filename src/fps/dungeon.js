@@ -254,5 +254,8 @@ export function buildDungeon(ctx, entry) {
     const x0 = X(r.i) + 1.5 + ((n * 2.7) % Math.max(1, r.w - 5)), z0 = Z(r.k) + 1.5 + ((n * 3.9 + j) % Math.max(1, r.d - 5));
     quad(mat(s.id, 1.5, { overlay: true }), x0, z0, x0 + 2.2, z0 + 2.2, Y + 0.02 + n * 0.002);
   });
-  return { rooms: rooms.length, halls: edges.length, bounds: { x0: X0, z0: Z0, x1: X0 + NX, z1: Z0 + NZ }, y: Y };
+  // the carved grid (for whatever walks down here to find its way) and where each room lies
+  const nav = { x0: X0, z0: Z0, nx: NX, nz: NZ, cell };
+  const roomList = rooms.map((r) => ({ x0: X(r.i), z0: Z(r.k), x1: X(r.i + r.w), z1: Z(r.k + r.d), kind: r.kind }));
+  return { rooms: rooms.length, halls: edges.length, bounds: { x0: X0, z0: Z0, x1: X0 + NX, z1: Z0 + NZ }, y: Y, nav, roomList };
 }

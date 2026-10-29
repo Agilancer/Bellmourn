@@ -13,13 +13,20 @@ Variants (the same body):
   b  shrouded: grey-green rotting flesh wound in torn burial linen, stringy hair, moss;
   c  fallen soldier: livid flesh in the warrior's rotted wine tunic torn open over the ribs,
      rusted gorget and shoulder plates, leather belt and pteruges, sandal straps.
+The fighters (their heights read through T["marks"] onto the warrior's, so the same anatomy
+rules land in the same places):
+  d  grave-fresh woman: pale bone flesh, a torn crop top and shorts, long lank hair;
+  e  shrouded woman: grey-green rot wound in burial linen, a curtain of hair;
+  f  bloated peasant: livid blue-grey flesh, a rotted shirt split over the belly, shorts, rope;
+  g  burnt corpse: charred black flesh split by ember-red cracks, scraps of burnt cloth.
 """
 import json
 
 import numpy as np
 
 (SKIN, RIB, GRIME, CLOTH, TROUSER, ROPE, BLOOD, GORE, ROT, TEETH, EYE, MOUTH, NAIL, HAIR,
- LINEN, TUNIC, LEATHER, RUST, BRASS, SOCKET) = range(20)
+ LINEN, TUNIC, LEATHER, RUST, BRASS, SOCKET, EMBER, ASH) = range(22)
+NMAT = 22
 
 BASE = {
     RIB: [("earth", 3), ("earth", 7), ("bone", 7), ("bone", 9), ("bone", 11), ("bone", 13)],
@@ -41,6 +48,8 @@ BASE = {
     LEATHER: [("leather", 1), ("leather", 3), ("leather", 5), ("leather", 7), ("leather", 9)],
     RUST: [("iron", 1), ("earth", 3), ("fire", 3), ("earth", 6), ("iron", 6), ("iron", 9)],
     BRASS: [("gold", 2), ("gold", 4), ("earth", 7), ("gold", 7), ("gold", 9)],
+    EMBER: [("blood", 1), ("blood", 3), ("fire", 4), ("fire", 7), ("fire", 10)],
+    ASH: [("stone", 0), ("stone", 1), ("earth", 1), ("stone", 3), ("stone", 5)],
 }
 SKINS = {
     "a": [("earth", 2), ("bone", 3), ("bone", 5), ("bone", 7), ("bone", 8), ("bone", 9),
@@ -49,9 +58,17 @@ SKINS = {
           ("bone", 9), ("bone", 11)],
     "c": [("slate", 1), ("slate", 3), ("slate", 5), ("stone", 7), ("stone", 9), ("bone", 9),
           ("bone", 11), ("bone", 12)],
+    "f": [("slate", 1), ("slate", 3), ("slate", 6), ("sky", 6), ("stone", 9), ("bone", 8),
+          ("bone", 10), ("bone", 12)],
+    "g": [("stone", 0), ("earth", 0), ("stone", 1), ("earth", 2), ("stone", 3), ("earth", 4),
+          ("stone", 6), ("bone", 5)],
 }
+SKINS["d"], SKINS["e"] = SKINS["a"], SKINS["b"]
 EYES = {"a": [("blood", 2), ("blood", 5), ("fire", 7), ("gold", 10)], "b": [("bone", 5), ("bone", 9), ("venom", 9), ("bone", 13)],
-        "c": [("slate", 4), ("slate", 8), ("sky", 9), ("sky", 12)]}
+        "c": [("slate", 4), ("slate", 8), ("sky", 9), ("sky", 12)],
+        "f": [("bone", 6), ("bone", 10), ("bone", 12), ("bone", 14)],
+        "g": [("fire", 6), ("fire", 9), ("fire", 11), ("gold", 13)]}
+EYES["d"], EYES["e"] = EYES["a"], EYES["b"]
 CENTRE = {SKIN: 0.08, TROUSER: -0.05, CLOTH: 0.0, RIB: 0.08, GRIME: -0.05, LINEN: -0.06,
           TUNIC: -0.02, MOUTH: -0.2, SOCKET: -0.15}
 
@@ -108,6 +125,10 @@ def paint(T, variant, seed, palette_path):
 
     M = T["mask"]
     p, n, hu, ao = T["pos"][M], T["nrm"][M], T["hu"][M], T["ao"][M]
+    p_real = p                                # the body's own positions, for its bones
+    if T.get("marks"):                        # heights as on the warrior, for the region rules
+        p = p.copy()
+        p[:, 2] = np.interp(p[:, 2], *T["marks"])
     n = n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-6)
     part, bone = T["part"][M], T["bone"][M]
     names = np.array(T["bones"])[bone]
@@ -136,7 +157,7 @@ def paint(T, variant, seed, palette_path):
     best = np.full(N, 9.0)
     for sd in ("L", "R"):
         for b in ("upper_arm", "forearm", "hand"):
-            t, d = seg_t(p, J[f"{b}.{sd}"][0], J[f"{b}.{sd}"][1])
+            t, d = seg_t(p_real, J[f"{b}.{sd}"][0], J[f"{b}.{sd}"][1])
             m = arm & (d < best)
             best[m], t_arm[m], seg_of[m] = d[m], t[m], b
     upper = arm & (seg_of == "upper_arm")
@@ -195,7 +216,9 @@ def paint(T, variant, seed, palette_path):
     k = ang * 11 / np.pi + 3 * noise(np.stack([ang, np.zeros(N), np.zeros(N)], 1), 4, seed + 2)
     tooth = np.abs((k - np.floor(k)) - 0.5) * 2
     hem = 0.6 + 0.13 * tooth * (0.4 + 0.8 * noise(np.stack([np.floor(k), np.zeros(N), np.zeros(N)], 1), 1, seed))
-    if variant == "a":
+    if variant in "defg":
+        wounds, rot_amt = fighter(variant, locals())
+    elif variant == "a":
         mat[collar] = CLOTH
         mat[cap & (jag > 0.25)] = CLOTH
         ragline = 1.30 + 0.05 * jag + 0.03 * np.sin(x * 40)
@@ -263,7 +286,8 @@ def paint(T, variant, seed, palette_path):
         wounds = [((0.0, -0.13, 1.17), 0.02), ((0.35, -0.04, 1.14), 0.03), ((-0.2, -0.04, 0.43), 0.03),
                   ((-0.12, 0.1, 1.2), 0.035)]
         rot_amt = 0.72
-    alpha[skirt & (z < hem)] = False
+    if variant in "abc":
+        alpha[skirt & (z < hem)] = False      # the kilt's ragged hem (fighters' shorts have legs inside)
 
     # ------------------------------------------------ wounds, drips, rot (on skin and through cloth)
     for c, r in wounds:
@@ -301,7 +325,7 @@ def paint(T, variant, seed, palette_path):
     mat[hd & (hz > 0.2) & (fbm(p, 30, seed + 40) > 0.72)] = ROT
     vein = hd & (np.abs(noise(p, 70, seed + 41) - 0.5) < 0.02) & (hz > 0.1) & ~sock
     off[vein] -= 0.18
-    if variant != "c":
+    if variant not in "cg":
         hair_lines = hd & (np.abs(hx) > 0.5) & (hz > -0.05) & (hz < 0.6) & (hf < 0.4) & \
             (np.sin(np.arctan2(hx, hf) * 30) > 0.75)
         mat[hair_lines] = HAIR
@@ -309,6 +333,9 @@ def paint(T, variant, seed, palette_path):
     mat[scar] = BLOOD if variant != "b" else GORE
     if variant == "c":   # helmet-strap scar under the chin, and a cut brow
         mat[hd & (np.abs(hz + 0.75) < 0.05) & (np.abs(hf) < 0.6)] = BLOOD
+    if variant == "g":   # the face burnt down to the skull in places
+        mat[hd & (np.abs(fbm(p, 16, seed + 60) - 0.5) < 0.02) & ~sock] = EMBER
+        mat[hd & (hz > 0.25) & (fbm(p, 12, seed + 61) > 0.62)] = RIB
     mat[part == 2] = TEETH
     off[part == 2] += (noise(p[part == 2], 300, seed) - 0.5) * 0.5
     mat[part == 3] = EYE
@@ -319,15 +346,15 @@ def paint(T, variant, seed, palette_path):
     L = L / np.linalg.norm(L)
     light = 0.62 + 0.16 * n[:, 2] + 0.14 * np.clip(n @ L, -1, 1)
     light *= 0.62 + 0.38 * np.clip(ao, 0, 1) ** 1.5
-    centre = np.array([CENTRE.get(m, 0.0) for m in range(20)])
-    centre[SKIN] += {"a": 0.0, "b": 0.08, "c": 0.07}[variant]
+    centre = np.array([CENTRE.get(m, 0.0) for m in range(NMAT)])
+    centre[SKIN] += {"a": 0.0, "b": 0.08, "c": 0.07, "d": 0.02, "e": 0.08, "f": -0.04, "g": 0.0}[variant]
     v = np.clip(light + off + centre[mat], 0, 1)
     eye = part == 3
     v[eye] = 0.25 + 0.5 * np.clip(-n[eye, 1], 0, 1) + 0.25 * (n[eye, 2] > 0.6)   # a glint
     iy, ix = np.nonzero(M)
     thr = 0.38 + 0.24 * BAYER[iy % 4, ix % 4]
     rgb = np.zeros((N, 3))
-    for m in range(20):
+    for m in range(NMAT):
         sel = mat == m
         if not sel.any():
             continue
@@ -350,3 +377,69 @@ def paint(T, variant, seed, palette_path):
             out[take] = src[take]
             filled |= take
     return out
+
+
+def fighter(variant, L):
+    """Dress a fighter body (its shirt or crop top and shorts) for variants d-g, in place on the
+    painter's arrays (L: the painter's locals). Returns (wounds, rot threshold)."""
+    mat, off, alpha = L["mat"], L["off"], L["alpha"]
+    p, x, y, z, ax, front, N = L["p"], L["x"], L["y"], L["z"], L["ax"], L["front"], L["N"]
+    torso, chest, neck, skirt, belt, upper, fore, hand, leg, shin, foot, body = (
+        L[k] for k in ("torso", "chest", "neck", "skirt", "belt", "upper", "fore", "hand", "leg", "shin", "foot", "body"))
+    t_arm, jag, fine, hem, seed = L["t_arm"], L["jag"], L["fine"], L["hem"], L["seed"]
+    ribzone, ribv = L["ribzone"], L["ribv"]
+    holes = fbm(p, 9, seed + 31)
+    shorts = skirt & (z >= hem)                    # torn ragged above the old hemline
+    female = variant in "de"
+    if female:   # a crop top over the breasts, on straps over the shoulders
+        top = chest & (z > 1.13 + 0.02 * jag) | (torso & (z > 1.33) & (np.abs(np.abs(x) - 0.09) < 0.025))
+    else:        # a shirt down to the belt with short sleeves
+        top = (chest | (torso & (z > 0.95) & (z <= 1.0))) | (upper & (t_arm < 0.42 + 0.12 * jag))
+    if variant == "d":
+        mat[top & (holes < 0.62)] = CLOTH
+        mat[shorts] = TROUSER
+        off[shorts & (fbm(p, 8, seed + 9) > 0.62)] -= 0.12
+        mat[foot & (fine > 0.45)] = GRIME
+        wounds = [((0.06, -0.13, 1.2), 0.03), ((-0.36, -0.06, 1.13), 0.03), ((0.04, -0.12, 1.03), 0.035),
+                  ((0.15, -0.06, 0.45), 0.03), ((-0.28, -0.05, 1.22), 0.025)]
+        return wounds, 0.72
+    if variant == "e":
+        band = np.sin((z + 0.5 * x + 0.3 * y) / 0.075 * 2 * np.pi)
+        gap = fbm(p, 10, seed + 4)
+        mat[torso & (z > 0.95) & ((band > -0.25) & (gap < 0.6) | top)] = LINEN
+        wraps = (fore | upper) & (np.sin(t_arm * 40 + np.arctan2(y, z)) > 0.0) & (gap < 0.6)
+        mat[wraps] = LINEN
+        mat[skirt] = LINEN
+        off[skirt] -= np.clip((0.8 - z[skirt]) * 1.0, 0, 0.25)
+        mat[shin & (np.sin(z / 0.05 * 2 * np.pi + x * 20) > 0.3) & (z > 0.25)] = LINEN
+        mat[foot] = GRIME
+        lin = mat == LINEN
+        off[lin] += 0.1 * np.sin(z[lin] / 0.012 * 2 * np.pi) * (fine[lin] > 0.4)
+        off[lin & (fbm(p, 6, seed + 8) > 0.6)] -= 0.3
+        wounds = [((-0.06, -0.12, 1.15), 0.03), ((0.33, -0.05, 1.12), 0.025), ((-0.16, -0.05, 0.4), 0.03)]
+        return wounds, 0.6
+    if variant == "f":   # the shirt rotted through and split open over a swollen belly
+        mat[top & (holes < 0.66)] = LINEN
+        split = chest & (front > 0) & (ax < 0.05 + 0.05 * jag) & (z < 1.2)
+        mat[split] = SKIN
+        off[split | (torso & (front > 0) & (z < 1.12) & (z > 0.98))] -= 0.06
+        mat[shorts] = TROUSER
+        mat[belt] = ROPE
+        mat[foot & (fine > 0.5)] = GRIME
+        lin = mat == LINEN
+        off[lin] -= 0.18
+        off[lin & (fbm(p, 6, seed + 8) > 0.58)] -= 0.25
+        # purple-black lividity pooled low, as a corpse lies
+        off[body & (front < -0.03) & (fbm(p, 5, seed + 12) > 0.5)] -= 0.12
+        wounds = [((0.02, -0.12, 1.08), 0.04), ((-0.34, -0.05, 1.12), 0.03), ((0.18, -0.05, 0.52), 0.03),
+                  ((-0.1, 0.1, 1.22), 0.03)]
+        return wounds, 0.68
+    # g: burnt, the flesh cracked open to raw red beneath, scraps of cloth burnt to the skin
+    crack = (np.abs(fbm(p, 14, seed + 50) - 0.5) < 0.016) & (fbm(p, 5, seed + 51) > 0.45)
+    mat[body & crack] = EMBER
+    off[body & crack] -= 0.15 - 0.3 * (fine[body & crack] > 0.75)   # mostly raw red, a few live embers
+    mat[(top | shorts) & (holes > 0.66) & ~crack] = ASH
+    blister = body & (fbm(p, 22, seed + 52) > 0.7) & ~crack
+    off[blister] += 0.2
+    wounds = [((0.05, -0.12, 1.15), 0.03), ((-0.3, -0.05, 1.18), 0.03), ((0.16, -0.06, 0.4), 0.03)]
+    return wounds, 0.95
