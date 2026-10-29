@@ -53,6 +53,8 @@ const KINDS = {
 
 const GORE_GLSL = /* glsl */`
 uniform vec4 uWound[${WOUNDS}];
+uniform vec4 uWoundD[${WOUNDS}];
+uniform vec3 uWoundB[${WOUNDS}];
 uniform float uWoundN;
 varying vec3 vBind;
 float gHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -61,21 +63,42 @@ float gNoise(vec3 x) {
   return mix(mix(mix(gHash(i), gHash(i + vec3(1, 0, 0)), f.x), mix(gHash(i + vec3(0, 1, 0)), gHash(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(gHash(i + vec3(0, 0, 1)), gHash(i + vec3(1, 0, 1)), f.x), mix(gHash(i + vec3(0, 1, 1)), gHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
-// wounds (w > 0: a hole torn in the skin) and cuts (w < 0: a severed joint)
+// wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint) and slashes (uWoundD
+// .w = 1: a gash along the segment w.xyz +- uWoundD.xyz, w.w wide, the blood running from it)
 float gore(inout vec4 col) {
-  float hole = 99.0, cut = 99.0;
+  float hole = 99.0, cut = 99.0, gash = 99.0, run = 0.0;
   for (int i = 0; i < ${WOUNDS}; i++) {
     if (float(i) >= uWoundN) break;
-    vec4 w = uWound[i];
+    vec4 w = uWound[i], D = uWoundD[i];
+    if (D.w > 0.5) {
+      vec3 q = vBind - w.xyz, B = uWoundB[i];
+      float dep = dot(q, B);
+      if (dep > 0.07 || dep < -0.16) continue;   // only the side the blow struck
+      q -= B * dep;                       // in the plane across the blow: it wraps round the body
+      float t = clamp(dot(q, D.xyz) / max(dot(D.xyz, D.xyz), 1e-6), -1.0, 1.0);
+      vec3 e = q - D.xyz * t;
+      gash = min(gash, length(e) / w.w);
+      // the blood that ran down from it: under the gash, narrowing as it goes
+      float below = -e.y, side = length(e.xz) / w.w;
+      if (below > 0.0 && below < w.w * 9.0) run = max(run, (1.0 - below / (w.w * 9.0)) * step(side, 1.1 - below / (w.w * 10.0)));
+      continue;
+    }
     float d = length(vBind - w.xyz) / abs(w.w);
     if (w.w > 0.0) hole = min(hole, d); else cut = min(cut, d);
   }
   float n = gNoise(vBind * 60.0) * 0.65 + gNoise(vBind * 170.0) * 0.35;
   float h = hole + (n - 0.5) * 0.6;
   float c = cut + (n - 0.5) * 0.5;
+  float s = gash + (n - 0.5) * 0.45;
   vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
   if (gl_FrontFacing) {
     if (h < 0.6) discard;                               // torn open
+    if (s < 0.45) { col.rgb = mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s)); return 1.0; }   // the gash
+    if (s < 2.4 || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.75) {
+      float k = s < 2.4 ? smoothstep(0.45, 2.4, s) : 0.3;
+      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it
+      if (s < 2.4) return (1.0 - k) * 0.9;
+    }
     if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
     float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
     col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
@@ -100,7 +123,9 @@ export function goreMaterial(src, lib) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
     mat.normalMap = normals.get(map);
   }
-  const u = { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) }, uWoundN: { value: 0 } };
+  const u = { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
+    uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
+    uWoundB: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector3()) }, uWoundN: { value: 0 } };
   mat.userData.u = u;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
@@ -276,6 +301,8 @@ class Gore {
 // ------------------------------------------------------------------ a zombie
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3(), _f = new THREE.Vector3(), _m = new THREE.Matrix4();
 const normals = new Map();   // texture -> its normal map, made once per body
+const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
+const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
@@ -369,6 +396,20 @@ export class Zombie {
   material(src, lib) { return goreMaterial(src, lib); }
 
   get dead() { return this.state === 'dead'; }
+  get slow() { return this.chillT > 0 ? 0.4 : 1; }
+
+  /** Frost and fire from a shield's enchantments: chilled it moves slow, burning it smoulders. */
+  afflict(dt) {
+    if (this.chillT > 0) this.chillT -= dt;
+    this.mixer.timeScale = this.chillT > 0 ? 0.45 : 1;
+    if (this.burnT > 0 && !this.dead) {
+      this.burnT -= dt;
+      this.hp -= (this.burnDps || 3) * dt;
+      if (Math.random() < dt * 24) this.owner.gore.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.6 + Math.random(), (Math.random() - 0.5) * 0.5)),
+        _w.set((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4), 0.014, EMBER[Math.floor(Math.random() * 3)]);
+      if (this.hp <= 0) this.die();
+    }
+  }
   get standing() { return !this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'playdead'; }
   has(b) { return !this.lost.has(b); }
   arm(s) { return this.has('upper_arm' + s) && this.has('forearm' + s); }
@@ -471,13 +512,26 @@ export class Zombie {
 
   writeWounds() {
     const all = [...this.cuts, ...this.wounds].slice(0, WOUNDS);
-    all.forEach((w, i) => this.u.uWound.value[i].copy(w));
+    all.forEach((w, i) => { this.u.uWound.value[i].copy(w); this.u.uWoundD.value[i].copy(w.d || ZERO4); this.u.uWoundB.value[i].copy(w.b || ZERO3); });
     this.u.uWoundN.value = all.length;
   }
 
   wound(point, bone, r) {
     const c = this.toBind(point, bone);
     this.wounds.push(new THREE.Vector4(c.x, c.y, c.z, r));
+    while (this.wounds.length + this.cuts.length > WOUNDS) this.wounds.shift();
+    this.writeWounds();
+  }
+
+  /** A blade's gash across the body where it bit: from a to b (world), `width` wide, the blow
+   * coming along `dir` (world: the gash is measured across it, so it follows the body round). */
+  slash(a, b, bone, width, dir) {
+    const ca = this.toBind(a, bone), cb = this.toBind(b, bone);
+    const w = new THREE.Vector4((ca.x + cb.x) / 2, (ca.y + cb.y) / 2, (ca.z + cb.z) / 2, width);
+    w.d = new THREE.Vector4((cb.x - ca.x) / 2, (cb.y - ca.y) / 2, (cb.z - ca.z) / 2, 1);
+    const mid = a.clone().lerp(b, 0.5);
+    w.b = this.toBind(mid.clone().add(dir), bone).sub(this.toBind(mid, bone)).normalize();
+    this.wounds.push(w);
     while (this.wounds.length + this.cuts.length > WOUNDS) this.wounds.shift();
     this.writeWounds();
   }
@@ -491,13 +545,18 @@ export class Zombie {
     return null;
   }
 
-  hit(h, { dmg, dir, heavy = false, kind = 'blade' }) {
+  /** A blow landing at h (bone, point) along dir. kind: 'blade' (a gash along `edge`, the
+   * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves. */
+  hit(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0 }) {
     const owner = this.owner, g = owner.gore;
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
-    // the wound and its blood
+    // the wound and its blood: an edge leaves a gash where it cut, anything else a hole
     const r = (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
-    this.wound(p, b, r);
+    if (kind === 'blade' && edge) {
+      const half = (heavy ? 0.17 : 0.12) * (0.85 + Math.random() * 0.3);
+      this.slash(_t.copy(p).addScaledVector(edge, -half), _f.copy(p).addScaledVector(edge, half), b, heavy ? 0.03 : 0.022, dir);
+    } else this.wound(p, b, r);
     g.spray(p, dir, heavy ? 70 : 45, { speed: heavy ? 4.5 : 3.4, spread: 0.9 });
     g.spray(p, back.clone().add(_u.set(0, 0.6, 0)), heavy ? 40 : 26, { speed: 2.6, spread: 0.8 });
     for (let i = 0; i < (heavy ? 7 : 4); i++) g.gib(p, _w.copy(dir).multiplyScalar(2 + Math.random() * 2).add(_u.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3)));
@@ -506,7 +565,7 @@ export class Zombie {
     // damage: limbs come off, the trunk dies
     const limb = this.limbOf(b);
     if (limb && !this.lost.has(limb)) {
-      this.limbHp[limb] -= dmg * (kind === 'blade' ? 1 : 0.7);
+      this.limbHp[limb] -= dmg * (kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
       if (this.limbHp[limb] <= 0) this.sever(limb, dir);
     } else {
@@ -515,10 +574,13 @@ export class Zombie {
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
+    // shoved back along the blow (it carries on for a moment: see ground())
+    const shove = (push || (heavy ? 0.8 : 0.45)) * (this.mode === 'crawl' ? 0.4 : 1) / (this.heft || 1);
+    const fl = Math.hypot(dir.x, dir.z) || 1;
+    this.knock = (this.knock || new THREE.Vector3()).set(dir.x / fl, 0, dir.z / fl).multiplyScalar(shove * 9);
     if (!this.dead) {
       if (this.state === 'move' || this.state === 'attack') {
-        owner.physics.slide(this.pos, dir.x * (heavy ? 0.25 : 0.12), dir.z * (heavy ? 0.25 : 0.12), 0.3, 1.6, 0.45);
-        if (this.state === 'move') this.stagger = heavy ? 0.5 : 0.28;
+        if (this.state === 'move') this.stagger = heavy ? 0.55 : 0.32;
       }
       if (this.hp <= 0) this.die();
     }
@@ -574,6 +636,9 @@ export class Zombie {
   die() {
     this.state = 'dead';
     this.deadT = 0;
+    // the dead carried things into the ground with them, now and then
+    const loot = this.owner.foes?.ctx?.loot;
+    if (loot && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
     this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
     const g = this.owner.gore;
     g.splat(this.pos.x, this.owner.floorY(this.pos.x, this.pos.z, this.pos.y), this.pos.z, 2.0, 0.18);
@@ -630,6 +695,7 @@ export class Zombie {
       if (this.dead) this.corpse(dt);
       return;
     }
+    this.afflict(dt);
     // animation (every third frame when far off, every sixth when unseen but still hunting you)
     this.mixAcc += dt;
     if (!mid || ++this.frame % (far ? 6 : 3) === 0) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
@@ -755,7 +821,7 @@ export class Zombie {
       if (this.wander && this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? 0.22 : kind.walk * 0.85; }
     }
     if (!crawl && this.has('head') === false) speed = Math.min(speed, kind.walk * 1.1);
-    speed *= this.pace;
+    speed *= this.pace * this.slow;
     if (this.stagger > 0) speed = 0;
     if (target) {
       if (this.avoidT > 0) this.avoidT -= dt;
@@ -820,9 +886,13 @@ export class Zombie {
     }
   }
 
-  /** Stand on whatever is below; fall when there's nothing. */
+  /** Stand on whatever is below; fall when there's nothing. (And slide on with a shove.) */
   ground(dt) {
     const phys = this.owner.physics;
+    if (this.knock && this.knock.lengthSq() > 1e-4) {
+      phys.slide(this.pos, this.knock.x * dt, this.knock.z * dt, 0.3, 1.6, 0.45);
+      this.knock.multiplyScalar(Math.exp(-9 * dt));
+    }
     const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, 0.45);
     if (fl === -Infinity) return;
     if (this.pos.y > fl + 0.02) {
@@ -996,17 +1066,26 @@ export class Zombies {
       this.walk[c] = open ? 1 : 0;
     }
     const rooms = dg.roomList;
+    // a spot on the room's own floor: walkable, not in a pit, not up on a dais or in furniture
+    const spot = (r, pad) => {
+      for (let t = 0; t < 24; t++) {
+        const x = r.x0 + pad + Math.random() * (r.x1 - r.x0 - 2 * pad), z = r.z0 + pad + Math.random() * (r.z1 - r.z0 - 2 * pad);
+        const c = Math.floor(z - nav.z0) * nav.nx + Math.floor(x - nav.x0);
+        if (this.walk[c] && Math.abs(this.physics.floorAt(x, z, dg.y + 0.3, 0.3, 0.45) - dg.y) < 0.1) return [x, z];
+      }
+      return null;
+    };
     for (let i = 0; i < n; i++) {
-      const r = rooms[1 + (i % (rooms.length - 1))];
-      const x = r.x0 + 1.2 + Math.random() * (r.x1 - r.x0 - 2.4), z = r.z0 + 1.2 + Math.random() * (r.z1 - r.z0 - 2.4);
+      const r = rooms[1 + (i % (rooms.length - 1))], p = spot(r, 1.2);
+      if (!p) continue;
       const kind = pickKind(0.3);
-      this.spawn(this.randomVariant(), x, z, { y: dg.y, zone: 'dungeon', room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
+      this.spawn(this.randomVariant(), p[0], p[1], { y: dg.y, zone: 'dungeon', room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
     }
     // two sprawled at the foot of the stairs, waiting
     const e = rooms[0];
     for (let i = 0; i < 2; i++) {
-      this.spawn(this.randomVariant(), e.x0 + 2 + Math.random() * (e.x1 - e.x0 - 4), e.z0 + 2 + Math.random() * (e.z1 - e.z0 - 6),
-        { y: dg.y, zone: 'dungeon', room: e, kind: 'lurker', start: 'playdead' });
+      const p = spot(e, 2);
+      if (p) this.spawn(this.randomVariant(), p[0], p[1], { y: dg.y, zone: 'dungeon', room: e, kind: 'lurker', start: 'playdead' });
     }
   }
 

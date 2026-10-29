@@ -42,13 +42,13 @@ export const VARIANTS = Object.keys(FOES);
 
 // how each kind stands up to you: hp, damage taken (armour), limb toughness, speeds, senses
 const KIND = {
-  knight: { hp: 260, armor: 0.72, limb: 1.45, walk: 1.3, run: 3.5, sight: 28, hear: 1.0, turn: 3.6, reach: 2.05, flinch: 0.25, tier: 3,
+  knight: { hp: 260, armor: 0.72, limb: 1.45, walk: 1.3, run: 3.5, sight: 28, hear: 1.0, turn: 3.6, reach: 2.05, flinch: 0.25, tier: 3, heft: 1.6,
     dmg: { attack1: 12, attack2: 16, attack3: 11, bash: 6 }, cool: [0.6, 1.4] },
   sorcerer: { hp: 140, armor: 1, limb: 0.9, walk: 1.15, run: 2.8, sight: 32, hear: 1.1, turn: 3.2, reach: 1.8, flinch: 0.6, tier: 2,
     dmg: { attack1: 10 }, cool: [0.8, 1.4] },
   ghast: { hp: 130, armor: 1, limb: 0.8, walk: 1.5, run: 5.2, sight: 20, hear: 1.6, turn: 5.5, reach: 1.9, flinch: 0.45, tier: 1,
     dmg: { attack1: 7, attack2: 7, attack3: 12 }, cool: [0.5, 1.2] },
-  grubber: { hp: 170, armor: 0.9, limb: 1.1, walk: 0.95, run: 2.6, sight: 13, hear: 1.5, turn: 2.8, reach: 1.65, flinch: 0.3, tier: 1,
+  grubber: { hp: 170, armor: 0.9, limb: 1.1, walk: 0.95, run: 2.6, sight: 13, hear: 1.5, turn: 2.8, reach: 1.65, flinch: 0.3, tier: 1, heft: 1.4,
     dmg: { attack1: 14, attack2: 9, attack3: 11 }, cool: [0.8, 1.5] },
 };
 const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
@@ -62,6 +62,7 @@ const SPELL = { // bolt colour, its glow, damage
 };
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
+const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 
 /** The gore shader, plus: armour, capes and robes stay armour and cloth inside (the `shell`
  * vertex attribute), and the glow map (eyes, slits, runes, cracks, caps) shines in the dark. */
@@ -110,6 +111,7 @@ class Foe extends Zombie {
     const meta = gltf.userData.foe;
     this.radius = meta.radius; this.tips = meta.tip; this.hits = meta.hits || {};
     this.hp = this.kind.hp;
+    this.heft = this.kind.heft || 1;     // how hard it is to shove
     this.limbHp = Object.fromEntries(Object.entries(LIMB_HP).map(([k, v]) => [k, v * this.kind.limb]));
     const geo = this.mesh.geometry;
     geo.setAttribute('shell', geo.attributes._shell
@@ -144,6 +146,28 @@ class Foe extends Zombie {
   }
 
   get shield() { return this.items.find((i) => i.socket === 'shieldL'); }
+
+  /** The clips swing the shield arm across the body (the shield goes through the chest as it
+   * walks, and across it as the sword comes round). Unless it's blocking or bashing, the arm is
+   * drawn into a carry instead: the upper arm hanging a little out from the side, the forearm
+   * forward and turned so the shield stands upright beside the leg, its face out. Blended in and
+   * out over the clip (dt 0: at once). */
+  carryShield(dt = 0) {
+    if (!this.shield || !this.arm('L')) return;
+    const c = this.cur;
+    const want = this.dead || this.mode !== 'stand' || this.state === 'block' || ['block', 'bash', 'collapse', 'getup', 'fall', 'jump', 'death', 'dead'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1;
+    this.carryW = dt ? (this.carryW ?? want) + (want - (this.carryW ?? want)) * Math.min(1, dt * 7) : want;
+    if (this.carryW < 0.01) return;
+    const C = this.foes.carry(this);
+    this.root.updateMatrixWorld(true);
+    const model = this.root.children[0], qm = model.getWorldQuaternion(_q0);
+    for (const [bone, target] of [[this.bones.upper_armL, C.up], [this.bones.forearmL, C.fore]]) {
+      const pq = bone.parent.getWorldQuaternion(_q1).invert();
+      _q2.copy(qm).multiply(target).premultiply(pq);
+      bone.quaternion.slerp(_q2, this.carryW);
+      bone.updateMatrixWorld(true);
+    }
+  }
 
   /** Let go of what a lost arm (or a dead hand) held: it falls and lies where it lands. */
   drop(which = null) {
@@ -204,7 +228,7 @@ class Foe extends Zombie {
     if (loot?.drop) {
       const tier = this.kind.tier + (this.zone === 'cave' ? 1 : 0);
       const chance = { knight: 0.8, sorcerer: 0.75, ghast: 0.35, grubber: 0.4 }[this.kindName];
-      if (Math.random() < chance) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier });
+      if (Math.random() < chance) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier, under: this.zone === 'cave' || this.zone === 'dungeon' });
     }
   }
 
@@ -228,7 +252,9 @@ class Foe extends Zombie {
     const owner = this.owner;
     if (far && !this.aggro && this.goal === 'wander') return;   // out of the way: it waits
     this.mixAcc += dt;
-    if (!mid || ++this.frame % (far ? 6 : 3) === 0) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
+    if (!mid || ++this.frame % (far ? 6 : 3) === 0) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
+    this.afflict(dt);
+    if (this.dead) return;
     this.bleed(dt);
     for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT']) this[k] = Math.max(0, this[k] - dt);
     this.lungeCool -= dt;
@@ -331,7 +357,7 @@ class Foe extends Zombie {
    * `face`. Feels ahead for walls, jumps what it can, and plays the matching gait. */
   go(dt, target, speed, { face = null, back = false, side = 0 } = {}) {
     const phys = this.owner.physics, K = this.kind;
-    speed *= this.pace;
+    speed *= this.pace * this.slow;
     const look = face || target;
     if (look) {
       if (this.avoidT > 0) this.avoidT -= dt;
@@ -602,7 +628,7 @@ class Bolts {
       const a = _t.set(player.pos.x, player.pos.y + 0.3, player.pos.z);
       const q = closest(p, d, step, a, 1.3);
       if (q < 0.42) {
-        this.foes.zombies.onPlayerHit?.(b.S.dmg, b.by);
+        this.foes.zombies.onPlayerHit?.(b.S.dmg, b.by, 'spell');
         this.burst(p.clone().addScaledVector(d, step * 0.5), b);
         b.life = 0;
         continue;
@@ -675,6 +701,28 @@ export class Foes {
       });
       this.items[key] = g.scene;
     }));
+  }
+
+  /** The shield carry for a body (model space): the bind pose's arm (straight out along +x, the
+   * shield flat on the forearm, face up) turned so the upper arm hangs and the forearm points
+   * forward with the shield's face to the outside. Worked out once per variant. */
+  carry(f) {
+    const key = f.variant;
+    if (this._carry?.[key]) return this._carry[key];
+    const bindQ = (b) => {
+      const m = f.skel.boneInverses[f.skel.bones.indexOf(b)].clone().invert();
+      return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(m));
+    };
+    const X = new THREE.Vector3(1, 0, 0);
+    const up = new THREE.Vector3(0.3, -0.95, 0.08).normalize();
+    const d = new THREE.Vector3(0.12, -0.42, 0.9).normalize();                 // the forearm: forward, a little down
+    const o = new THREE.Vector3(1, -0.16, 0);                                   // its outer side (the shield's face): out,
+    o.addScaledVector(d, -o.dot(d)).normalize();                                // tipped so its top leans clear of the shoulder
+    const Ru = new THREE.Quaternion().setFromUnitVectors(X, up);
+    const Rf = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o)));
+    const c = { up: Ru.multiply(bindQ(f.bones.upper_armL)), fore: Rf.multiply(bindQ(f.bones.forearmL)) };
+    (this._carry ||= {})[key] = c;
+    return c;
   }
 
   /** A socket of variant v as {bone, m (relative to the bone)}, worked out once per body. */
@@ -848,7 +896,7 @@ export class Foes {
         this.flash(p.clone().add(_u.set(0, 1, 0)), 0xff2010, 0.4);
         this.sound('erupt', p);
         if (Math.hypot(player.pos.x - p.x, player.pos.z - p.z) < 1.7 && Math.abs(player.pos.y - p.y) < 1.5) {
-          this.zombies.onPlayerHit?.(18, h.by);
+          this.zombies.onPlayerHit?.(18, h.by, 'spell');
           player.vel.y = Math.max(player.vel.y, 5);
         }
       }

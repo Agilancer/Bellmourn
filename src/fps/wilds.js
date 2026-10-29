@@ -157,8 +157,17 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
         interior(house(ctx, { name: 'stilt', title: ['The Eelwife\'s House', 'The Reed-Cutter\'s', 'The Drowned Man\'s House', 'Sallowmere Hall'][i], x: hx, z: hz, y: deck, w: 2, d: 3, rot, storeys: 1, door: 'x', furnish: i === 3 ? 'hall' : 'home', roofVariant: 'moss', plaster: 'ash', vines: 3, ruin: i === 2 }), 'fen');
       });
       for (let k = -10; k <= 10; k++) { P('village/Floor_WoodDark', x + k * 2, z + 4, 0, 1, { y: deck - 0.02, solid: false }); ctx.physics.add([x + k * 2 - 1, deck - 0.3, z + 3], [x + k * 2 + 1, deck, z + 5], 'floor'); }
-      for (let k = 0; k < 6; k++) P('village/Stairs_Exterior_Straight', x - 22 - k * 2, z + 4, Math.PI / 2, 1, { y: deck - 1.0 - k * 0.0 });
-      P('village/Stairs_Exterior_Platform', x + 22, z + 4, -Math.PI / 2, 1, { y: deck - 1.0 });
+      // a flight down off each end of the boardwalk to the ground (real steps under the kit's)
+      for (const end of [-1, 1]) {
+        const ex = x + end * 21, g = Hh(ex + end * 2, z + 4), rise = deck - g;
+        if (rise < 0.3) continue;
+        P('village/Stairs_Exterior_Straight', ex + end * 1, z + 4, end < 0 ? Math.PI / 2 : -Math.PI / 2, [1, rise / 1.2, 1], { y: g - 0.05, solid: false });
+        const n = Math.max(1, Math.round(rise / 0.25));
+        for (let k = 0; k < n; k++) {
+          const top = deck - k * rise / n, a = ex + end * k * 2 / n, b2 = ex + end * (k + 1) * 2 / n;
+          ctx.physics.add([Math.min(a, b2), g - 0.5, z + 3], [Math.max(a, b2), top, z + 5], 'floor');
+        }
+      }
       for (let k = 0; k < 8; k++) P(SET.willow[k % SET.willow.length], x + Math.cos(k) * 40, z + Math.sin(k) * 40, k, 1.1, { solid: 'trunk' });
       lair('fen', x, z + 30, 30, 'hamlet'); lair('fen', x - 120, z + 80, 60, 'marsh'); lair('fen', x + 180, z - 40, 60, 'marsh');
     }
@@ -174,7 +183,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       for (const [dx, dz, rot] of [[16, -4, 1], [16, 10, 1]]) interior(house(ctx, { name: 'cell', title: "The Monks' Cells", x: x + dx, z: z + dz, y, w: 2, d: 3, rot, storeys: 1, style: 'brick', door: 'x', ruin: R() < 0.5, furnish: 'home' }), 'rustwood');
       for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; P(k % 3 ? 'village/Wall_UnevenBrick_Straight~ruin' : 'village/Wall_UnevenBrick_Window_Thin_Round~ruin', x + 20 + Math.cos(a) * 14, z + 22 + Math.sin(a) * 10, -a + Math.PI / 2, 1, { solid: true }); }
       for (let k = 0; k < 8; k++) P(k % 2 ? 'dungeon/Column' : 'dungeon/Column2~broken', x + 20 + Math.cos(k * 0.8) * 7, z + 22 + Math.sin(k * 0.8) * 5, 0, 1);
-      P('dungeon/Statue_Horse', x + 20, z + 22, 1.2, 0.9);
+      P('bellmourn/well', x + 20, z + 22, 0.4, 1);   // the cloister's well in the middle of its garth
       lair('rustwood', x, z, 30, 'ruin'); lair('rustwood', x + 20, z + 22, 16, 'cloister');
     }
     { const { x, z } = S.fungus; // a ring of giant fungus
@@ -193,7 +202,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
         if (rot === 0 && Math.abs(k) < 2) continue; // the gate
         P(R() < 0.4 ? 'village/Wall_UnevenBrick_Straight~ruin' : 'village/Wall_UnevenBrick_Straight', x + ax, z + az, rot, 1, { y, variant: 'bone', solid: true });
       }
-      P('dungeon/Arch', x, z + 20.2, 0, [1, 1, 1], { y, solid: false });
+      P('dungeon/Arch', x, z + 20.2, 0, [1.45, 1.1, 1], { y, solid: false });   // spanning the gateway
       [[-12, -12, 0], [12, -12, 0], [-12, 10, 2]].forEach(([dx, dz, rot], i) => interior(house(ctx, { name: 'serai', title: ['The Spice Hall', 'The Camel House', 'The Well-House'][i], x: x + dx, z: z + dz, y, w: 3, d: 3, rot, storeys: 1, style: 'brick', door: 'z', holed: true, plaster: 'ochre', furnish: i === 0 ? 'store' : 'ruin', roofVariant: 'rust' }), 'ashen'));
       P('bellmourn/well', x + 6, z + 6, 0, 1, { y });
       for (let k = 0; k < 6; k++) P(SET.palm[k % 4], x + Math.cos(k) * 9, z + Math.sin(k) * 9, k, 1, { y, solid: 'trunk' });
@@ -230,7 +239,9 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       }
       ctx.physics.add([x - 18.4, y, z - 18.4], [x + 18.4, y + 2 * H, z - 17.6], 'wall'); ctx.physics.add([x - 18.4, y, z - 18.4], [x - 17.6, y + 2 * H, z + 18.4], 'wall');
       ctx.physics.add([x + 17.6, y, z - 18.4], [x + 18.4, y + 2 * H, z + 18.4], 'wall');
-      P('dungeon/Arch_bars', x, z + 18, 0, [1.2, 1.4, 1], { y, solid: false });
+      // the gatehouse arch, its portcullis drawn up into it
+      P('dungeon/Arch', x, z + 18, 0, [1.45, 1.5, 1], { y, solid: false });
+      P('dungeon/Arch_bars', x, z + 18, 0, [2.3, 0.75, 1], { y: y + 3.4, solid: false });
       for (const [dx, dz] of [[-18, -18], [18, -18], [-18, 18], [18, 18]]) {
         interior(house(ctx, { name: 'tower', title: 'A Frostwatch Tower', x: x + dx, z: z + dz, y, w: 2, d: 2, rot: 0, storeys: 3, style: 'brick', door: 'z', chimney: false, furnish: 'barracks' }), 'rimeholt');
         P('village/Roof_Tower_RoundTiles', x + dx, z + dz, 0, 1, { y: y + 3 * H, variant: 'lead' });

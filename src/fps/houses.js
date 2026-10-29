@@ -213,6 +213,10 @@ export function house(ctx, h) {
   // ---------------------------------------------------------------- the interior
   const [mn, mx] = F.box(-W / 2 + 0.3, h.y - 0.5, -D / 2 + 0.3, W / 2 - 0.3, h.y + S * H + 2, D / 2 - 0.3);
   const zone = { x0: mn[0], z0: mn[2], x1: mx[0], z1: mx[2], y0: h.y - 1, y1: h.y + S * H + 3, floor: h.y, storeys: S, name: h.title || h.name || 'A house', kind: h.name };
+  // the step outside the front door (where those who live here come and go)
+  const [dx, dz] = doorSide === 'x+' ? [W / 2 + 1.6, D / 2 - 1 - doorAt * 2] : [-W / 2 + 1 + doorAt * 2, D / 2 + 1.6];
+  const dp = F.p(dx, 0, dz);
+  zone.door = { x: dp[0], z: dp[2] };
   if (h.furnish) furnish(ctx, h, F, W, D, S, stair, doorSide, R);
   return zone;
 }
