@@ -32,6 +32,8 @@ import { terrainHeight, REGION } from './terrain.js';
 import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
+import { StainedGlass } from './glass.js';
+import { Cutouts } from './cutout.js';
 
 const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
@@ -157,7 +159,9 @@ async function build() {
   bill = new Billboards(lib, scene);
   bill.shadows = HI;
   const props = new Props(scene, physics, lib);
-  ctx = { lib, b, props, bill, scene, physics, flames: [], windows: [], chimneys: [], sfx, animated: [] };
+  ctx = { lib, b, props, bill, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
+  ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
+  ctx.cutouts = await new Cutouts(ctx).load();      // the biome packs' arches and gateways
   physics.terrain = terrainHeight; // the downs; flat ground everywhere else
   ctx.doors = new Doors(ctx);
   ctx.scatter = new Scatter3D(ctx);
@@ -176,13 +180,16 @@ async function build() {
   bill.finish(); mark('billboards');
   ctx.trees3d.finish(scene); mark('trees');
   await props.finish(); mark('props');
+  ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
   console.info(`3D scatter models: ${ctx.scatter.count}`);
   flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
   skyDome = new Sky(scene);
-  shafts = new Shafts(scene, ctx.windows);
-  mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4]);
+  shafts = new Shafts(scene, ctx.stained.shafts());
+  const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
+  mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
+    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]) });
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
 
@@ -456,6 +463,7 @@ function light(dt, t) {
   bill.time.value = t;
   bill.sunDir.value.copy(ld);
   shafts.update(day, t, L.inCathedral > 0.05 || L.out > 0.5);
+  ctx.stained.update(ld, day.day * surface, day.ambient * surface);
   // lit windows and lanterns come up as the light goes
   const dusk = 1 - THREE.MathUtils.smoothstep(day.day, 0.1, 0.9);
   if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;

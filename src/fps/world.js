@@ -70,31 +70,39 @@ export function buildWorld(ctx) {
   strip(road, -VILLAGE_R - 20, -4, VILLAGE_R + 20, 4); // east-west road
   strip(cobble, -20, -20, 20, 20, 0.03);               // the plaza
   strip(paving, -16, -52, 16, -40, 0.03);              // the cathedral forecourt
-  strip(dirt, 14, -120, 20, -40, 0.02);                // lane to the graveyard
-  strip(dirt, 14, -126, 20, -118, 0.02);
+  // the lane to the graveyard: off the forecourt's east side, round the bell tower (it stands
+  // at the cathedral's south-east corner), up past the chancel and across to the gate
+  strip(dirt, 16, -50, 26, -44, 0.02);
+  strip(dirt, 20, -116, 26, -50, 0.021);
+  strip(dirt, 14, -126, 26, -116, 0.02);
   for (const [x0, z0, x1, z1] of [[-60, 30, -48, 33], [44, 30, 58, 33], [-36, -32, -24, -4], [24, -32, 36, -4]])
     strip(dirt, x0, z0, x1, z1, 0.02);
   props.add('well', 0, 0.03, 0, 0, 1.2);
+  // gateways on the three roads out of the village (the town pack's): fieldstone east, where
+  // the trail to the downs begins, a timber market gate west, the guildhall gate south
+  ctx.cutouts?.place('town_fieldstone_round', VILLAGE_R - 8, 0, 0, Math.PI / 2, 6.4, 0.9);
+  ctx.cutouts?.place('town_timber_market', -(VILLAGE_R - 8), 0, 0, -Math.PI / 2, 6.4, 0.7);
+  ctx.cutouts?.place('town_limestone_guildhall', 0, 0, VILLAGE_R - 8, 0, 5.6, 0.9);
 
   // ------------------------------------------------------------ buildings
   const houses = [
-    { name: 'inn', title: "The Tolling Bell Inn", x: 30, z: 18, w: 16, d: 11, h: 4.2, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'town_tavern_planks', door: 'w', chimney: [5, 0], sign: 0,
+    { name: 'inn', shop: 'inn', doorArt: 'town_tavern_tankard', title: "The Tolling Bell Inn", x: 30, z: 18, w: 16, d: 11, h: 4.2, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'town_tavern_planks', door: 'w', chimney: [5, 0], sign: 0,
       furnish: [['table', -3, 1, 0], ['table', 2, -2, 0], ['table', 3, 2.5, 0], ['stool', -3, 2.2], ['stool', -3, -0.3], ['stool', 2, -0.8], ['stool', 3, 3.6], ['barrel', 6.5, -4], ['barrel', 6.5, -3], ['barrel', 6.5, 4], ['candelabrum', -6.5, -4], ['bed', 6, 1, Math.PI / 2]] },
-    { name: 'blacksmith', title: "Hammerfall Smithy", x: -30, z: 18, w: 12, d: 10, h: 4.4, storeys: 1, wall: 'town_wall_fieldstone', roof: 'town_roof_blue_slate', floor: 'town_stable_yard', door: 'e', chimney: [-3, -2], sign: 1, forge: [-3, -2],
+    { name: 'blacksmith', shop: 'blacksmith', doorArt: 'town_smith_iron', title: "Hammerfall Smithy", x: -30, z: 18, w: 12, d: 10, h: 4.4, storeys: 1, wall: 'town_wall_fieldstone', roof: 'town_roof_blue_slate', floor: 'town_stable_yard', door: 'e', chimney: [-3, -2], sign: 1, forge: [-3, -2],
       furnish: [['anvil', 0, 0], ['barrel', -4.5, 3.5], ['crate', -4.2, 3.5 - 7], ['table', 3, -3, 0], ['candelabrum', 4.5, 3.5]] },
-    { name: 'general store', title: "Grimwald's Provisions", x: 30, z: -18, w: 14, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_pine_siding', upper: 'town_wall_oak_plaster', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
+    { name: 'general store', shop: 'general_goods', title: "Grimwald's Provisions", x: 30, z: -18, w: 14, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_pine_siding', upper: 'town_wall_oak_plaster', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
       furnish: [['crate', 4, -3], ['crate', 4, -1.9], ['crate', 5.2, -3], ['barrel', 5.5, 3.2], ['barrel', 4.5, 3.6], ['table', -2, 0, Math.PI / 2], ['bookshelf', 0, -4.6, 0], ['treasure_chest', 1, 3.8, Math.PI]] },
-    { name: 'alchemist', title: "The Alchemist's Shop", x: -30, z: -18, w: 11, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_wattle_daub', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', sign: 0, chimney: [-3, 2],
+    { name: 'alchemist', shop: 'spells', doorArt: 'town_mage_star', title: "The Alchemist's Shop", x: -30, z: -18, w: 11, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_wattle_daub', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', sign: 0, chimney: [-3, 2],
       furnish: [['bookshelf', -2, -4.1, 0], ['bookshelf', 1, -4.1, 0], ['table', 0, 1, 0], ['candelabrum', -4, 3], ['barrel', 4, -3]] },
     { name: 'town hall', title: "Bellmourn Town Hall", x: 0, z: 42, w: 20, d: 13, h: 5.0, storeys: 2, wall: 'town_wall_dressed_limestone', upper: 'town_wall_oak_plaster', roof: 'town_roof_blue_slate', floor: 'castle_keep_royal_inlay_slab', door: 'n', dormers: 3,
       furnish: [['table', 0, 1, 0], ['table', 0, 3, 0], ['pew', -4, -2, Math.PI], ['pew', 4, -2, Math.PI], ['candelabrum', -8.5, -5], ['candelabrum', 8.5, -5], ['bookshelf', -6, 5.6, Math.PI], ['bookshelf', 6, 5.6, Math.PI], ['treasure_chest', 0, 5.5, Math.PI]] },
-    { name: 'barracks', title: "The Watch Barracks", x: 52, z: 44, w: 16, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_wattle_daub', roof: 'castle_roof_black', floor: 'town_dark_pine', door: 'n', chimney: [6, 2],
+    { name: 'barracks', shop: 'armorer', doorArt: 'town_smith_iron', title: "The Watch Barracks", x: 52, z: 44, w: 16, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_wattle_daub', roof: 'castle_roof_black', floor: 'town_dark_pine', door: 'n', chimney: [6, 2],
       furnish: [['bed', -5, 2], ['bed', -2.5, 2], ['bed', 0, 2], ['bed', 2.5, 2], ['table', 4.5, -2, 0], ['stool', 4.5, -0.8], ['crate', -6.5, -3.8], ['treasure_chest', 6.5, 3.8, -Math.PI / 2]] },
-    { name: 'stable', title: "The Stables", x: 58, z: -6, w: 12, d: 14, h: 4.4, storeys: 1, timber: true, wall: 'town_wall_pine_siding', roof: 'town_roof_straw_thatch', floor: 'town_stable_yard', door: 'w', openFront: true,
+    { name: 'stable', shop: 'stables', title: "The Stables", x: 58, z: -6, w: 12, d: 14, h: 4.4, storeys: 1, timber: true, wall: 'town_wall_pine_siding', roof: 'town_roof_straw_thatch', floor: 'town_stable_yard', door: 'w', openFront: true,
       furnish: [['barrel', 4, -5.5], ['crate', 4, 5.5], ['crate', 3, 5.5], ['table', -2, 5, 0]] },
-    { name: 'bakery', title: "The Bakehouse", x: -58, z: -8, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', chimney: [-3, 2], sign: 1,
+    { name: 'bakery', shop: 'bakery', title: "The Bakehouse", x: -58, z: -8, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', chimney: [-3, 2], sign: 1,
       furnish: [['table', 1, 0, Math.PI / 2], ['barrel', -4, -3.5], ['barrel', -4, 3.5], ['crate', -3, 3.6], ['stool', 2, 1.5]] },
-    { name: 'healer', title: "House of Mending", x: 44, z: -48, w: 12, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
+    { name: 'healer', shop: 'apothecary', title: "House of Mending", x: 44, z: -48, w: 12, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
       furnish: [['bed', 3, -2, Math.PI / 2], ['bed', 3, 2, Math.PI / 2], ['bookshelf', -1, -3.6, 0], ['table', -2.5, 1.5, 0], ['candelabrum', 5, 0]] },
   ];
   const hm = houseMaterials(lib, M);
@@ -208,7 +216,8 @@ function villageDetail(ctx, M, hm, houses) {
   for (let x = 25; x <= 96; x += 17) for (const sx of [-1, 1]) for (const s of [-1, 1]) {
     if (!inHouse(sx * x, s * 5.4)) lampPost(ctx, sx * x, s * 5.4, [0, -s], hm);
   }
-  for (const [x, z] of [[-15, -38], [15, -38], [-15, -54], [15, -54]]) lampPost(ctx, x, z, [x < 0 ? 1 : -1, 0], hm);
+  for (const [x, z] of [[-15, -38], [15, -38], [-15, -54]]) lampPost(ctx, x, z, [x < 0 ? 1 : -1, 0], hm);
+  for (const z of [-62, -86, -108]) lampPost(ctx, 19.3, z, [1, 0], hm); // up the graveyard lane
   // market stalls round the well, facing it
   const cloths = ['cloth_01_coarse_sail_canvas', 'cloth_05_deep_plum_woven_sail', 'cloth_04_aged_cream_linen', 'cloth_03_patched_dark_canvas'];
   [[11, 11, 3], [-11, 11, 1], [11, -11, 3], [-11, -11, 1]].forEach(([x, z, r], i) => {
@@ -282,18 +291,56 @@ function mageGarden(ctx, M, x, z) {
   });
 }
 
+/** A tower's ring of walls (n flat sides, outer and inner faces) with a doorway on side
+ * `door` and an arched stained glass window in each of the `windows` sides. */
+function towerRing(ctx, x, z, r, y0, y1, n, mat, { door, windows = [], win }) {
+  const { b, physics } = ctx;
+  const side = 2 * r * Math.sin(Math.PI / n), IN = 0.94;
+  for (let k = 0; k < n; k++) {
+    if (k === door) continue;
+    const a0 = (k / n) * Math.PI * 2, a1 = ((k + 1) / n) * Math.PI * 2;
+    const P0 = [x + r * Math.cos(a0), z + r * Math.sin(a0)], P1 = [x + r * Math.cos(a1), z + r * Math.sin(a1)];
+    const at = (s, y, f = 1) => { const u = s / side, px = P0[0] + (P1[0] - P0[0]) * u, pz = P0[1] + (P1[1] - P0[1]) * u; return [x + (px - x) * f, y, z + (pz - z) * f]; };
+    const u0 = k * side;
+    const piece = (sA, sB, ya, yb) => { // outer face, inner face
+      b.quad(mat, at(sB, ya), at(sA, ya), at(sA, yb), at(sB, yb), [[-(u0 + sB), ya], [-(u0 + sA), ya], [-(u0 + sA), yb], [-(u0 + sB), yb]]);
+      b.quad(mat, at(sA, ya, IN), at(sB, ya, IN), at(sB, yb, IN), at(sA, yb, IN), [[u0 + sA, ya], [u0 + sB, ya], [u0 + sB, yb], [u0 + sA, yb]], 0.6);
+    };
+    if (windows.includes(k)) {
+      const hA = side / 2 - win.w / 2, hB = side / 2 + win.w / 2;
+      piece(0, hA, y0, y1); piece(hB, side, y0, y1); piece(hA, hB, y0, win.y0); piece(hA, hB, win.y1, y1);
+      for (const [p, q, ya, yb] of [[hA, hA, win.y0, win.y1], [hB, hB, win.y0, win.y1]]) { // the reveals, both ways round
+        b.quad(mat, at(p, ya), at(p, ya, IN), at(q, yb, IN), at(q, yb), [[0, ya], [0.4, ya], [0.4, yb], [0, yb]], 0.75);
+        b.quad(mat, at(q, yb), at(q, yb, IN), at(p, ya, IN), at(p, ya), [[0, yb], [0.4, yb], [0.4, ya], [0, ya]], 0.75);
+      }
+      for (const y of [win.y0, win.y1]) {
+        b.quad(mat, at(hA, y), at(hB, y), at(hB, y, IN), at(hA, y, IN), [[0, 0], [win.w, 0], [win.w, 0.4], [0, 0.4]], 0.75);
+        b.quad(mat, at(hA, y, IN), at(hB, y, IN), at(hB, y), at(hA, y), [[0, 0], [win.w, 0], [win.w, 0.4], [0, 0.4]], 0.75);
+      }
+      if (ctx.stained) {
+        const m0 = at(side / 2, 0), m1 = at(side / 2, 0, IN), c = [(m0[0] + m1[0]) / 2, (win.y0 + win.y1) / 2, (m0[2] + m1[2]) / 2];
+        const nx = x - c[0], nz = z - c[2], l = Math.hypot(nx, nz);
+        ctx.stained.add('arched', c, [nx / l, 0, nz / l], win.w, win.y1 - win.y0, mat);
+      }
+    } else piece(0, side, y0, y1);
+    physics.add([Math.min(P0[0], P1[0]) - 0.15, y0, Math.min(P0[1], P1[1]) - 0.15], [Math.max(P0[0], P1[0]) + 0.15, y1, Math.max(P0[1], P1[1]) + 0.15]);
+  }
+}
+
 function mageTower(ctx, x, z, M) {
   const { b, props } = ctx;
   const r = 5.5, hgt = 15, n = 8;
   ctx.zones.push({ x0: x - r, z0: z - r, x1: x + r, z1: z + r, y0: -1, y1: hgt, name: "The Mage's Tower" });
   const stone = M('castle_mossy', 3), floor = M('castle_keep_ivory_chapel_marble', 2.5);
   b.box([x - r, 0, z - r], [x + r, 0.2, z + r], { top: floor, bottom: stone, side: stone });
-  b.ring(x, z, r, 0.2, hgt, n, stone, { door: 6 });
+  const TW = { y0: 3.0, y1: 5.05, w: 1.4 }, windowSides = [0, 1, 2, 3, 4];
+  towerRing(ctx, x, z, r, 0.2, hgt, n, stone, { door: 6, windows: windowSides, win: TW });
+  if (ctx.stained) ctx.stained.room([x - r - 0.5, 0, z - r - 0.5, x + r + 0.5, hgt, z + r + 0.5]);
   // the doorway's lintel over the open side
   const a0 = (6 / n) * Math.PI * 2, a1 = (7 / n) * Math.PI * 2;
   const p0 = [x + r * Math.cos(a0), z + r * Math.sin(a0)], p1 = [x + r * Math.cos(a1), z + r * Math.sin(a1)];
   b.box([Math.min(p0[0], p1[0]), 2.8, Math.min(p0[1], p1[1]) - 0.3], [Math.max(p0[0], p1[0]), hgt, Math.max(p0[1], p1[1]) + 0.3], stone);
-  ctx.doors?.add({ hinge: [p0[0], 0.2, p0[1]], along: -Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), width: Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), height: 2.6, double: true, opens: -1, name: "tower door" });
+  ctx.doors?.add({ hinge: [p0[0], 0.2, p0[1]], along: -Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), width: Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), height: 2.6, double: true, opens: -1, name: "tower door", design: 'town_mage_star' });
   b.box([x - r, hgt - 0.2, z - r], [x + r, hgt, z + r], M('ship_10_black_walnut_rift_seam', 2), { shade: 0.6, solid: false });
   b.cone(x, z, r + 1, hgt, 9, n, M('castle_roof_violet', 2));
   for (const [id, a, d] of [['bookshelf', 0.4, 4.6], ['bookshelf', 1.2, 4.6], ['bookshelf', 2.0, 4.6], ['table', 0, 0], ['candelabrum', 3.0, 3.8], ['treasure_chest', 3.9, 4.2]]) {
@@ -305,7 +352,7 @@ function mageTower(ctx, x, z, M) {
   for (let k = 0; k < n; k++) {
     if (k === 6) continue;
     const a = (k + 0.5) / n * Math.PI * 2, rr = r * Math.cos(Math.PI / n) + 0.03;
-    for (const [y, i] of [[6, k], [11, k + 1]]) wallPanel(ctx.lib, ctx.scene, slits[i % 4], x + Math.cos(a) * rr, y, z + Math.sin(a) * rr, [Math.cos(a), 0, Math.sin(a)], 1.6);
+    for (const [y, i] of (windowSides.includes(k) ? [[11, k + 1]] : [[6, k], [11, k + 1]])) wallPanel(ctx.lib, ctx.scene, slits[i % 4], x + Math.cos(a) * rr, y, z + Math.sin(a) * rr, [Math.cos(a), 0, Math.sin(a)], 1.6);
   }
   mageGarden(ctx, M, x, z);
 }
@@ -328,22 +375,50 @@ function cathedral(ctx, M) {
   b.box([sw.x0, 0, sw.z1], [sw.x1, F, C.z0 + 8], { top: office, side: plinth, bottom: plinth });
   // front steps up to the door
   for (let i = 0; i < 3; i++) b.box([-8, 0, C.z1 + i * 0.5], [8, F - i * 0.2, C.z1 + (i + 1) * 0.5], plinth);
-  // outer walls: door in the south front, tall windows down both sides
-  const win = (len) => Array.from({ length: Math.floor(len / 7) }, (_, i) => ({ at: (i + 0.5) * len / Math.floor(len / 7), w: 1.6, y0: F + 3.5, y1: F + 9.5 }));
+  // the windows: tall lancets down both sides of the nave and chancel (fewer on the east,
+  // where the bell tower stands), round oculi over every other lancet, arched windows in the
+  // office, and in the west front two lancets either side of the door and the rose above it
   const t = 0.8;
-  b.wall(C.x0, C.z1, C.x1, C.z1, F, H, t, wallOut, [{ at: 12, w: 3.2, y0: F, y1: F + 5.2 }]);
-  ctx.doors?.add({ hinge: [-1.6, F, C.z1], along: 0, width: 3.2, height: 5.2, thick: 0.14, double: true, opens: 1, name: 'cathedral doors' });
+  const LANCET = { w: 1.9, y0: F + 3.4, y1: F + 9.4 }, OCULUS = { w: 1.8, y0: F + 10.4, y1: F + 12.2 }, OFFICE = { w: 2.0, y0: F + 3.0, y1: F + 5.9 };
+  const lancetsW = Array.from({ length: 9 }, (_, k) => 10.6 + k * 4), lancetsE = lancetsW.filter((a) => a < 38);
+  const oculiW = lancetsW.filter((_, k) => k % 2 === 0 && k > 0), oculiE = lancetsE.filter((_, k) => k % 2 === 0 && k > 0);
+  const officeAt = [2.6, 5.6];
+  const side = (lancets, oculi) => [
+    ...officeAt.map((a) => ({ a0: a - OFFICE.w / 2, a1: a + OFFICE.w / 2, y0: OFFICE.y0, y1: OFFICE.y1, kind: 'arched', at: a })),
+    ...lancets.map((a) => ({ a0: a - LANCET.w / 2, a1: a + LANCET.w / 2, y0: LANCET.y0, y1: LANCET.y1, kind: 'lancet', at: a })),
+    ...oculi.map((a) => ({ a0: a - OCULUS.w / 2, a1: a + OCULUS.w / 2, y0: OCULUS.y0, y1: OCULUS.y1, kind: 'rose', at: a })),
+  ];
+  const holesW = side(lancetsW, oculiW), holesE = side(lancetsE, oculiE);
+  const ROSE = { w: 4.4, y0: F + 8.0, y1: F + 12.4 };
+  const holesF = [ // along the front from its west end
+    { a0: 12 - 1.6, a1: 12 + 1.6, y0: F, y1: F + 5.2 }, // the door
+    { a0: 12 - ROSE.w / 2, a1: 12 + ROSE.w / 2, y0: ROSE.y0, y1: ROSE.y1, kind: 'rose', at: 12 },
+    ...[5, 19].map((a) => ({ a0: a - LANCET.w / 2, a1: a + LANCET.w / 2, y0: LANCET.y0, y1: LANCET.y1, kind: 'lancet', at: a })),
+  ];
+  b.holeyWall(C.x0, C.z1, C.x1, C.z1, F, H, t, wallOut, holesF, { thinShadow: true });
+  ctx.doors?.add({ hinge: [-1.6, F, C.z1], along: 0, width: 3.2, height: 5.2, thick: 0.14, double: true, opens: 1, name: 'cathedral doors', design: 'cathedral_graveyard_cathedral_oak' });
   b.wall(C.x0, C.z0, C.x1, C.z0, F, H, t, wallOut);
-  b.wall(C.x0, C.z0, C.x0, C.z1, F, H, t, wallOut, win(C.z1 - C.z0).filter((o) => o.at > 9));
-  b.wall(C.x1, C.z0, C.x1, C.z1, F, H, t, wallOut, win(C.z1 - C.z0).filter((o) => o.at > 9));
-  // inner lining (the carved chapel stone) on the long walls
-  b.box([C.x0 + t / 2, F, C.z0 + 8.4], [C.x0 + t / 2 + 0.05, F + 3.4, C.z1 - 0.5], wallIn, { solid: false, shade: 0.85 });
-  b.box([C.x1 - t / 2 - 0.05, F, C.z0 + 8.4], [C.x1 - t / 2, F + 3.4, C.z1 - 0.5], wallIn, { solid: false, shade: 0.85 });
+  b.holeyWall(C.x0, C.z0, C.x0, C.z1, F, H, t, wallOut, holesW, { thinShadow: true });
+  b.holeyWall(C.x1, C.z0, C.x1, C.z1, F, H, t, wallOut, holesE, { thinShadow: true });
+  if (ctx.stained) { // the glass in every one of those openings
+    const g = ctx.stained;
+    for (const h of holesW) g.add(h.kind, [C.x0, (h.y0 + h.y1) / 2, C.z0 + h.at], [1, 0, 0], h.a1 - h.a0, h.y1 - h.y0, wallOut);
+    for (const h of holesE) g.add(h.kind, [C.x1, (h.y0 + h.y1) / 2, C.z0 + h.at], [-1, 0, 0], h.a1 - h.a0, h.y1 - h.y0, wallOut);
+    for (const h of holesF.filter((x) => x.kind)) g.add(h.kind, [C.x0 + h.at, (h.y0 + h.y1) / 2, C.z1], [0, 0, -1], h.a1 - h.a0, h.y1 - h.y0, wallOut);
+    g.room([C.x0 - 0.5, 0, C.z0 - 0.5, C.x1 + 0.5, H + 10, C.z1 + 0.5]);
+  }
+  // inner lining on the long walls, under the windows: a dado of blind arcading (the graveyard
+  // pack's nave ashlar), its plinth on the floor and its coping under the sills
+  const dado = M(lib.surf.has('cathedral_wall_nave_ashlar') ? 'cathedral_wall_nave_ashlar' : 'castle_chapel', 3.4);
+  b.box([C.x0 + t / 2, F, C.z0 + 8.4], [C.x0 + t / 2 + 0.05, F + 3.4, C.z1 - 0.5], dado, { solid: false, shade: 0.85, vbase: F });
+  b.box([C.x1 - t / 2 - 0.05, F, C.z0 + 8.4], [C.x1 - t / 2, F + 3.4, C.z1 - 0.5], dado, { solid: false, shade: 0.85, vbase: F });
   b.gable(C.x0, C.z0, C.x1, C.z1, H, 9, roof, wallOut, 'z', 0.8, 1);
   // pillars and the arcade beams they carry (the props are 4 m tall: scaled to 9 m)
   const arcade = M('castle_ashlar', 3);
+  const chancelArch = !!ctx.cutouts && lib.biome.arches.has('cathedral_graveyard_nave_triumphal');
   for (const x of [-6, 6]) {
-    for (let z = C.z1 - 6; z > C.z0 + 12; z -= 5) props.add('pillar_gothic', x, F, z, 0, 2.25);
+    // (the last pair, at the chancel step, gives way to the chancel arch)
+    for (let z = C.z1 - 6; z > C.z0 + 12; z -= 5) if (!chancelArch || z > C.z0 + 15 + 1) props.add('pillar_gothic', x, F, z, 0, 2.25);
     b.box([x - 0.5, F + 9, C.z0 + 9], [x + 0.5, F + 10.2, C.z1 - 1], arcade, { solid: false, shade: 0.8 });
   }
   // chancel: raised platform, altar, pulpit, candles; the wall behind it with the office door
@@ -354,9 +429,30 @@ function cathedral(ctx, M) {
   props.add('pulpit', -6.5, F + 0.6, chZ1 - 1.6, 0);
   props.add('candelabrum', -3, F + 0.6, chZ0 + 1.5); props.add('candelabrum', 3, F + 0.6, chZ0 + 1.5);
   props.add('candelabrum', -10, F, chZ1 + 2); props.add('candelabrum', 10, F, chZ1 + 2);
+  // the chancel arch over the step: the graveyard pack's triumphal arch
+  if (chancelArch) ctx.cutouts.place('cathedral_graveyard_nave_triumphal', 0, F + 0.6, chZ1 - 0.42, 0, 5.5, 0.8);
+  // the floor: a carpet runner up the aisle, a mosaic before the chancel step, the altar stone,
+  // memorial brasses and slabs let into the side aisles, wax under the candles (the graveyard
+  // pack's one-off floor tiles)
+  const D = (id, size) => (lib.surf.has('cathedral_graveyard_decal_' + id) ? M('cathedral_graveyard_decal_' + id, size, { overlay: true }) : null);
+  const field = D('burgundy_carpet', 1.0), border = D('carpet_border', 0.8);
+  if (field && border) {
+    const fy = F + 0.004, rz0 = chZ1 + 3.1, rz1 = C.z1 - 4.4, L = rz1 - rz0;
+    b.quad(field, [-0.5, fy, rz1], [0.5, fy, rz1], [0.5, fy, rz0], [-0.5, fy, rz0], [[0, 0], [0, 1], [L, 1], [L, 0]]);
+    b.quad(border, [0.5, fy, rz1], [1.3, fy, rz1], [1.3, fy, rz0], [0.5, fy, rz0], [[0, 0], [0.8, 0], [0.8, L], [0, L]]);
+    b.quad(border, [-1.3, fy, rz1], [-0.5, fy, rz1], [-0.5, fy, rz0], [-1.3, fy, rz0], [[0.8, 0], [0, 0], [0, L], [0.8, L]]);
+  }
+  const lay = (id, x, y, z, size, rot = 0) => { const m = D(id, size); if (m) b.decal(m, x, y, z, size, rot); };
+  lay('sunburst_mosaic', 0, F + 0.004, chZ1 + 1.8, 2.4);
+  lay('rose_mosaic', 0, F + 0.004, C.z1 - 2.4, 2.8);
+  lay('altar_stone', 0, F + 0.604, chZ0 + 3, 2.6);
+  lay('incense_ash', 1.9, F + 0.606, chZ0 + 4.4, 1.0);
+  ['memorial_brass', 'memorial_slab', 'engraved_cross', 'engraved_lily', 'quatrefoil_inlay', 'anchor_ring', 'broken_rosette', 'chisel_limestone']
+    .forEach((id, i) => lay(id, (i % 2 ? 1 : -1) * 8.6, F + 0.004, C.z1 - 8.5 - Math.floor(i / 2) * 7, 1.6, i % 2 ? Math.PI / 2 : -Math.PI / 2));
+  for (const [x, y, z] of [[-10, F, chZ1 + 2], [10, F, chZ1 + 2], [-3, F + 0.6, chZ0 + 1.5], [3, F + 0.6, chZ0 + 1.5]]) lay('vigil_wax', x, y + 0.006, z, 1.0);
   // the chancel wall, with the office door behind the pulpit (a step down on the office side)
   b.wall(C.x0, chZ0, C.x1, chZ0, F, H - 2, 0.5, wallIn, [{ at: 12 + OFFICE_DOOR_X, w: 1.8, y0: F + 0.6, y1: F + 3.2 }]);
-  ctx.doors?.add({ hinge: [OFFICE_DOOR_X - 0.8, F + 0.6, chZ0], along: 0, width: 1.6, height: 2.55, opens: 1, name: 'office door' });
+  ctx.doors?.add({ hinge: [OFFICE_DOOR_X - 0.8, F + 0.6, chZ0], along: 0, width: 1.6, height: 2.55, opens: 1, name: 'office door', design: 'cathedral_graveyard_sacristy_bronze' });
   b.box([OFFICE_DOOR_X - 1.1, F, chZ0 - 0.25 - 0.8], [OFFICE_DOOR_X + 1.1, F + 0.3, chZ0 - 0.25], plinth);
   // the office: a desk, books, a chest, a candle, and the stair-house at its east end
   props.add('table', -4, F, C.z0 + 3.2, 0); props.add('stool', -4, F, C.z0 + 4.4);
@@ -373,7 +469,7 @@ function cathedral(ctx, M) {
   b.wall(sh.x0, sh.z1 - 0.2, sh.x1, sh.z1 - 0.2, F, F + 3.6, 0.4, shWall);
   b.box([sh.x0 - 0.1, F + 3.6, sh.z0], [sh.x1 + 0.1, F + 3.95, sh.z1 + 0.1], shTrim, { solid: false });
   b.box([sh.x0 - 0.05, F + 2.4, doorZ - 0.85], [sh.x0 + 0.45, F + 2.7, doorZ + 0.85], shTrim, { solid: false }); // the lintel
-  ctx.doors?.add({ hinge: [sh.x0 + 0.2, F, doorZ + 0.7], along: Math.PI / 2, width: 1.4, height: 2.4, opens: -1, name: 'stair door' });
+  ctx.doors?.add({ hinge: [sh.x0 + 0.2, F, doorZ + 0.7], along: Math.PI / 2, width: 1.4, height: 2.4, opens: -1, name: 'stair door', design: 'catacombs_ironbound_oak' });
   ctx.zones.unshift({ x0: sh.x0, z0: sh.z0, x1: sh.x1, z1: sh.z1, y0: -1, y1: F + 4, name: 'The Stair to the Undercroft' });
   b.box([C.x0, H - 2, C.z0 + 0.4], [C.x1, H - 1.8, chZ0], M('ship_10_black_walnut_rift_seam', 2), { shade: 0.5, solid: false });
   // the church furnishings from the graveyard pack, along the aisles and in the chancel
@@ -388,22 +484,7 @@ function cathedral(ctx, M) {
     props.add('wall_torch', C.x0 + t / 2 + 0.06, F, z, Math.PI / 2);
     props.add('wall_torch', C.x1 - t / 2 - 0.06, F, z, -Math.PI / 2);
   }
-  // stained glass in the window openings, banners on the inner walls, a rose over the door
-  const glass = ['window_blue_lancet_glass', 'window_crimson_crown_glass', 'window_green_lion_glass'];
-  const glassLight = { window_blue_lancet_glass: 0x6a8cff, window_crimson_crown_glass: 0xff5a4a, window_green_lion_glass: 0x6aff7a };
-  let k = 0;
-  for (const o of win(C.z1 - C.z0).filter((o) => o.at > 9)) {
-    const z = C.z0 + o.at, y = (o.y0 + o.y1) / 2;
-    for (const [x, nx] of [[C.x0, 1], [C.x1, -1]]) {
-      const id = glass[k++ % glass.length];
-      wallPanel(lib, scene, id, x + nx * 0.05, y, z, [nx, 0, 0], 6.2, { glow: true });
-      wallPanel(lib, scene, id, x - nx * 0.05, y, z, [-nx, 0, 0], 6.2, { glow: true });
-      ctx.windows?.push({ x, y, z, w: o.w, h: o.y1 - o.y0, normal: [nx, 0, 0], color: glassLight[id] });
-    }
-  }
-  ctx.windows?.push({ x: 0, y: F + 9.5, z: C.z1, w: 3.6, h: 3.6, normal: [0, 0, -1], color: 0xffc890 });
-  wallPanel(lib, scene, 'window_rose_stained_glass', 0, F + 9.5, C.z1 - t / 2 - 0.05, [0, 0, -1], 4.5, { glow: true });
-  wallPanel(lib, scene, 'window_rose_stained_glass', 0, F + 9.5, C.z1 + t / 2 + 0.05, [0, 0, 1], 4.5, { glow: true });
+  // banners on the pillars, the icon over the altar, the map in the office
   const banners = ['hanging_crimson_tower_banner', 'hanging_navy_crossed_lances_banner', 'hanging_ivory_lion_banner', 'hanging_black_keep_banner'];
   banners.forEach((id, i) => wallPanel(lib, scene, id, -6 + (i % 2) * 12, F + 6.5, C.z1 - 9 - Math.floor(i / 2) * 10, [i % 2 ? -1 : 1, 0, 0], 3.4));
   wallPanel(lib, scene, 'hanging_chapel_icon_frame', 0, F + 6, chZ0 + 0.3, [0, 0, 1], 3);
@@ -413,7 +494,7 @@ function cathedral(ctx, M) {
   belfry(ctx, tw, M, roof);
   const pillarsZ = [];
   for (let z = C.z1 - 6; z > C.z0 + 12; z -= 5) pillarsZ.push(z);
-  gothicDetail(ctx, C, { F, H, t, M, rise: 9, pillarsZ, windowsAt: win(C.z1 - C.z0).filter((o) => o.at > 9).map((o) => o.at) });
+  gothicDetail(ctx, C, { F, H, t, M, rise: 9, pillarsZ, windowsAt: lancetsW, hoods: { [-1]: lancetsW, [1]: lancetsE }, lancet: LANCET, roseY: (ROSE.y0 + ROSE.y1) / 2 });
   // the flight down to the dungeon: side walls the whole way, and over it one sloping stone
   // vault from the head of the stairs (inside the stair-house) down under the cathedral's north
   // wall, where it meets the wall's foot, and on underground to the bottom
@@ -435,20 +516,52 @@ function cathedral(ctx, M) {
 function graveyard(ctx, M, R) {
   const { b, props, bill, lib } = ctx;
   const G = GRAVEYARD;
-  const wallMat = M('castle_rubble', 2.5), cap = M('castle_slatestone', 2);
+  const art = !!ctx.cutouts && lib.surf.has('cathedral_wall_cemetery_limestone');
   const gate = 20 - G.x0; // the gate on the south side faces the lane at x = 17
-  b.wall(G.x0, G.z1, G.x1, G.z1, 0, 1.4, 0.6, wallMat, [{ at: gate - 3, w: 4, y0: 0, y1: 1.4 }]);
-  b.wall(G.x0, G.z0, G.x1, G.z0, 0, 1.4, 0.6, wallMat);
-  b.wall(G.x0, G.z0, G.x0, G.z1, 0, 1.4, 0.6, wallMat);
-  b.wall(G.x1, G.z0, G.x1, G.z1, 0, 1.4, 0.6, wallMat);
-  for (const x of [G.x0 + gate - 5.2, G.x0 + gate - 0.8]) b.box([x - 0.4, 0, G.z1 - 0.4], [x + 0.4, 2.4, G.z1 + 0.4], cap);
+  const gx = G.x0 + gate - 3;
+  if (art) {
+    // the graveyard pack's walls: a mossy limestone boundary wall with its coping round three
+    // sides, and along the front, toward the lane, an iron spear railing on a low plinth either
+    // side of the processional gate (an arch, with iron gates that open with E)
+    const wallMat = M('cathedral_wall_cemetery_limestone', 2.4), back = M('cathedral_wall_cemetery_limestone_back', 2.4);
+    const rail = M('cathedral_wall_cemetery_iron', 2.5);
+    rail.alphaTest = 0.5;
+    for (const [x0, z0, x1, z1] of [[G.x0, G.z0, G.x1, G.z0], [G.x0, G.z0, G.x0, G.z1], [G.x1, G.z0, G.x1, G.z1]]) {
+      b.wall(x0, z0, x1, z1, 0, 2.4, 0.6, wallMat);
+      // the inner face in the reverse (rooted, lichened) stone
+      const inX = x0 === x1 ? (x0 < 0 ? 0.31 : -0.31) : 0, inZ = z0 === z1 ? 0.31 : 0;
+      b.box([Math.min(x0, x1) + inX - (x0 === x1 ? 0.005 : 0), 0, Math.min(z0, z1) + inZ - (z0 === z1 ? 0.005 : 0)],
+        [Math.max(x0, x1) + inX + (x0 === x1 ? 0.005 : 0), 2.4, Math.max(z0, z1) + inZ + (z0 === z1 ? 0.005 : 0)], back, { solid: false, faces: { top: false, bottom: false } });
+    }
+    const arch = ctx.cutouts.place('cathedral_graveyard_processional_cemetery', gx, 0, G.z1, 0, 4.0, 0.9);
+    const half = arch ? arch.width / 2 - 0.3 : 2;
+    for (const [x0, x1] of [[G.x0, gx - half], [gx + half, G.x1]]) b.box([x0, 0, G.z1 - 0.05], [x1, 2.5, G.z1 + 0.05], rail, { faces: { top: false, bottom: false } });
+    ctx.doors?.add({ hinge: [gx - 2, 0, G.z1], along: 0, width: 4, height: 3.4, thick: 0.08, double: true, opens: -1, name: 'graveyard gate', design: 'cathedral_graveyard_cemetery_gate' });
+    // a back gate through the north wall to the forest, and a ruined cloister arch in the grass
+    ctx.cutouts.place('cathedral_graveyard_churchyard_cross', -24, 0, G.z0, Math.PI, 2.6, 0.9);
+    ctx.cutouts.place('cathedral_graveyard_ruined_cloister', 34, 0, G.z0 + 24, -Math.PI / 2, 3.4, 0.7);
+  } else {
+    const wallMat = M('castle_rubble', 2.5), cap = M('castle_slatestone', 2);
+    b.wall(G.x0, G.z1, G.x1, G.z1, 0, 1.4, 0.6, wallMat, [{ at: gate - 3, w: 4, y0: 0, y1: 1.4 }]);
+    b.wall(G.x0, G.z0, G.x1, G.z0, 0, 1.4, 0.6, wallMat);
+    b.wall(G.x0, G.z0, G.x0, G.z1, 0, 1.4, 0.6, wallMat);
+    b.wall(G.x1, G.z0, G.x1, G.z1, 0, 1.4, 0.6, wallMat);
+    for (const x of [G.x0 + gate - 5.2, G.x0 + gate - 0.8]) b.box([x - 0.4, 0, G.z1 - 0.4], [x + 0.4, 2.4, G.z1 + 0.4], cap);
+  }
+  // grave earth in front of the headstones (the graveyard pack's grave tiles)
+  const earth = ['settled_grave', 'fresh_burial_earth', 'old_grave_mound', 'weedy_grave_soil', 'rooted_grave_soil', 'buried_slab', 'dead_ivy', 'funeral_petals', 'broken_cross', 'burial_fragments']
+    .filter((id) => lib.surf.has('cathedral_graveyard_decal_' + id)).map((id) => M('cathedral_graveyard_decal_' + id, 1.5, { overlay: true }));
   const kinds = ['gravestone_round', 'gravestone_round', 'gravestone_cross', 'gravestone_cross', 'gravestone_obelisk'];
   for (let z = G.z1 - 6; z > G.z0 + 4; z -= 3.6) {
     for (let x = G.x0 + 4; x < G.x1 - 4; x += 3.2) {
       if (Math.abs(x - (G.x0 + gate - 3)) < 2.5) continue;            // the path from the gate
       if (x > -12 && x < 12 && z < G.z0 + 22) continue;              // the mausoleum
+      if (Math.abs(x - 34) < 3 && Math.abs(z - G.z0 - 24) < 6) continue; // the cloister ruin
+      if (Math.abs(x + 24) < 4 && z < G.z0 + 6) continue;             // the back gate
       if (R() < 0.18) continue;
-      props.add(kinds[Math.floor(R() * kinds.length)], x + (R() - 0.5) * 0.8, 0, z + (R() - 0.5) * 0.5, (R() - 0.5) * 0.25);
+      const px = x + (R() - 0.5) * 0.8, pz = z + (R() - 0.5) * 0.5, rot = (R() - 0.5) * 0.25;
+      props.add(kinds[Math.floor(R() * kinds.length)], px, 0, pz, rot);
+      if (earth.length && R() < 0.75) b.decal(earth[Math.floor(R() * earth.length)], px - Math.sin(rot) * 1.05, 0.021 + R() * 0.002, pz + Math.cos(rot) * 1.05, 1.5, rot);
     }
   }
   for (let i = 0; i < 6; i++) props.add('sarcophagus', -30 + i * 12 + (R() - 0.5) * 3, 0, G.z0 + 8 + R() * 4, R() * 0.4);
@@ -456,10 +569,18 @@ function graveyard(ctx, M, R) {
   const mx = 0, mz = G.z0 + 10, mos = M('castle_mossy', 3);
   ctx.zones.push({ x0: mx - 6, z0: mz - 6, x1: mx + 6, z1: mz + 6, y0: -1, y1: 5, name: 'The Mausoleum' });
   b.wall(mx - 6, mz + 6, mx + 6, mz + 6, 0, 5, 0.6, mos, [{ at: 6, w: 2, y0: 0, y1: 3 }]);
-  ctx.doors?.add({ hinge: [mx - 1, 0.1, mz + 6], along: 0, width: 2, height: 2.85, double: true, opens: 1, name: 'mausoleum door' });
-  b.wall(mx - 6, mz - 6, mx + 6, mz - 6, 0, 5, 0.6, mos);
-  b.wall(mx - 6, mz - 6, mx - 6, mz + 6, 0, 5, 0.6, mos);
-  b.wall(mx + 6, mz - 6, mx + 6, mz + 6, 0, 5, 0.6, mos);
+  ctx.doors?.add({ hinge: [mx - 1, 0.1, mz + 6], along: 0, width: 2, height: 2.85, double: true, opens: 1, name: 'mausoleum door', design: 'catacombs_bone_reliquary' });
+  const MW = { a0: 5.3, a1: 6.7, y0: 1.3, y1: 3.35 };
+  b.holeyWall(mx - 6, mz - 6, mx + 6, mz - 6, 0, 5, 0.6, mos, [MW], { thinShadow: true });
+  b.holeyWall(mx - 6, mz - 6, mx - 6, mz + 6, 0, 5, 0.6, mos, [MW], { thinShadow: true });
+  b.holeyWall(mx + 6, mz - 6, mx + 6, mz + 6, 0, 5, 0.6, mos, [MW], { thinShadow: true });
+  if (ctx.stained) {
+    const y = (MW.y0 + MW.y1) / 2, w = MW.a1 - MW.a0, h = MW.y1 - MW.y0;
+    ctx.stained.add('arched', [mx, y, mz - 6], [0, 0, 1], w, h, mos);
+    ctx.stained.add('arched', [mx - 6, y, mz], [1, 0, 0], w, h, mos);
+    ctx.stained.add('arched', [mx + 6, y, mz], [-1, 0, 0], w, h, mos);
+    ctx.stained.room([mx - 6.4, -0.5, mz - 6.4, mx + 6.4, 6, mz + 6.4]);
+  }
   b.box([mx - 6, 0, mz - 6], [mx + 6, 0.1, mz + 6], M('catacombs_crypt_limestone', 2));
   b.gable(mx - 6, mz - 6, mx + 6, mz + 6, 5, 3, M('castle_roof_moss', 2.5), mos, 'z', 0.4);
   props.add('sarcophagus', mx, 0.1, mz - 1); props.add('candelabrum', mx - 3, 0.1, mz - 3); props.add('candelabrum', mx + 3, 0.1, mz - 3);
@@ -512,12 +633,12 @@ function forestRing(ctx, R, houses) {
   const species = ['oak', 'pine', 'beech', 'forest', 'mossy', 'cedar', 'elm', 'maple', 'pine', 'redwood', 'laurel'];
   const clear = (x, z) => {
     if (x > GRAVEYARD.x0 - 6 && x < GRAVEYARD.x1 + 6 && z > GRAVEYARD.z0 - 6 && z < GRAVEYARD.z1 + 8) return false;
-    if (x > 10 && x < 24 && z > -126 && z < -40) return false; // the graveyard lane
+    if (x > 12 && x < 30 && z > -126 && z < -40) return false; // the graveyard lane
     if (Math.abs(x) < 7 || Math.abs(z) < 7) return false;      // the roads out of the village
     return true;
   };
   const nearHouse = (x, z) => houses.some((h) => Math.abs(x - h.x) < h.w / 2 + 6 && Math.abs(z - h.z) < h.d / 2 + 6)
-    || (Math.abs(x + 56) < 19 && Math.abs(z - 44) < 19) || (x > -20 && x < 26 && z > -110 && z < -40);
+    || (Math.abs(x + 56) < 19 && Math.abs(z - 44) < 19) || (x > -20 && x < 30 && z > -110 && z < -40);
   let count = 0;
   for (let i = 0; i < 26000 && count < 7000; i++) {
     const a = R() * Math.PI * 2, r = Math.sqrt(R()) * (WORLD_R + 30);

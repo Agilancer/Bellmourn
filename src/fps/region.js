@@ -219,7 +219,7 @@ function windmill(ctx, M, x, z, y, hm) {
       b.quad(stone, q(am + dw, r0 - 0.1, l0), q(am - dw, r0 - 0.1, l0), q(am - dw, r1, hgt), q(am + dw, r1, hgt), [[0, 0], [1.6, 0], [1.6, hgt - l0], [0, hgt - l0]]);
       b.quad(inner, q(am - dw, r0 - 0.6, l0), q(am + dw, r0 - 0.6, l0), q(am + dw, r1 - 0.5, hgt), q(am - dw, r1 - 0.5, hgt), [[0, 0], [1.6, 0], [1.6, hgt - l0], [0, hgt - l0]], 0.7);
       const d0 = q(am - dw, r0 - 0.25, 0.25);
-      ctx.doors?.add({ hinge: d0, along: -Math.atan2(Math.sin(am + dw) - Math.sin(am - dw), Math.cos(am + dw) - Math.cos(am - dw)), width: 2 * Math.sin(dw) * (r0 - 0.25), height: 2.45, opens: -1, name: 'windmill door' });
+      ctx.doors?.add({ hinge: d0, along: -Math.atan2(Math.sin(am + dw) - Math.sin(am - dw), Math.cos(am + dw) - Math.cos(am - dw)), width: 2 * Math.sin(dw) * (r0 - 0.25), height: 2.45, opens: -1, name: 'windmill door', design: 'town_stable_pine' });
       for (const s of [am - dw - 0.12, am + dw + 0.12]) { const p = q(s, r0 - 0.25, 0); physics.add([p[0] - 0.25, y, p[2] - 0.25], [p[0] + 0.25, y + hgt, p[2] + 0.25], 'wall'); }
       continue;
     }

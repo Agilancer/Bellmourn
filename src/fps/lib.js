@@ -52,6 +52,15 @@ export class Library {
       for (const s of vc.surfaces) this.surf.set(s.id, s);
       for (const c of vc.cards) this.cards.set(c.id, c);
     } catch (e) { console.warn('no VectorClad textures', e); }
+    // the biome packs' flat source art (tools/world/import_biome_art.py): floors, wall panels,
+    // roofs and floor decals as surfaces (over the earlier un-projected copies of the same
+    // names); door leaves, arches and shop signs for the builders
+    this.biome = { doors: new Map(), arches: new Map(), signs: new Map() };
+    try {
+      const bio = await (await fetch(ROOT + 'biome.json')).json();
+      for (const s of bio.surfaces) this.surf.set(s.id, s);
+      for (const k of ['doors', 'arches', 'signs']) for (const x of bio[k]) this.biome[k].set(x.id, x);
+    } catch (e) { console.warn('no biome pack art', e); }
     return this;
   }
 
@@ -165,7 +174,8 @@ export class Library {
   /** The next surface not used yet that passes `pred` (or, once they're all used, any that
    * does): how the dungeon and the houses get through the whole library. */
   take(pred, salt = 0) {
-    const all = [...this.surf.values()].filter(pred);
+    // one-off floor decals and full-height wall panels are only ever asked for by name
+    const all = [...this.surf.values()].filter((s) => s.kind !== 'decal' && !s.wall_set && pred(s));
     const fresh = all.find((s) => !this.used.has(s.id) && !this.reserved?.has(s.id));
     if (fresh) { (this.reserved ??= new Set()).add(fresh.id); return fresh.id; }
     return all.length ? all[Math.abs(salt) % all.length].id : 'castle_slatestone';
@@ -177,6 +187,7 @@ export class Library {
     const tex = layers.map(([id]) => { this.used.add(id); return this.texture(this.surf.get(id).file); });
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x0a0a0a, shininess: 6 });
     m.userData.tileU = m.userData.tileV = 1;
+    m.userData.noGlass = true; // out of doors, and its samplers are spoken for
     const tiles = layers.map(([, t]) => t);
     m.onBeforeCompile = (sh) => {
       tex.forEach((t, i) => { sh.uniforms['gT' + i] = { value: t }; });

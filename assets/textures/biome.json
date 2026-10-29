@@ -1,0 +1,3410 @@
+{
+ "surfaces": [
+  {
+   "id": "catacombs_charcoal_flagstone",
+   "file": "biome/floors/catacombs_charcoal_flagstone.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_01.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2f2c28"
+  },
+  {
+   "id": "catacombs_weathered_cobbles",
+   "file": "biome/floors/catacombs_weathered_cobbles.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_02.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#38322c"
+  },
+  {
+   "id": "catacombs_slate_bricks",
+   "file": "biome/floors/catacombs_slate_bricks.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_03.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2d2b29"
+  },
+  {
+   "id": "catacombs_ossuary_aggregate",
+   "file": "biome/floors/catacombs_ossuary_aggregate.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_04.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#403428"
+  },
+  {
+   "id": "catacombs_moss_cobbles",
+   "file": "biome/floors/catacombs_moss_cobbles.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_05.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#342f26"
+  },
+  {
+   "id": "catacombs_crypt_limestone",
+   "file": "biome/floors/catacombs_crypt_limestone.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_06.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#413930"
+  },
+  {
+   "id": "catacombs_burial_terracotta",
+   "file": "biome/floors/catacombs_burial_terracotta.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_07.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#41271d"
+  },
+  {
+   "id": "catacombs_grave_gravel",
+   "file": "biome/floors/catacombs_grave_gravel.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_08.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3125"
+  },
+  {
+   "id": "catacombs_black_basalt",
+   "file": "biome/floors/catacombs_black_basalt.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_09.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#252523"
+  },
+  {
+   "id": "catacombs_mortuary_tesserae",
+   "file": "biome/floors/catacombs_mortuary_tesserae.png",
+   "kind": "floor",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_10.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d5246"
+  },
+  {
+   "id": "catacombs_decal_branching_fracture",
+   "file": "biome/decals/catacombs_decal_branching_fracture.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_11.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#2e2b28"
+  },
+  {
+   "id": "catacombs_decal_collapsed_drain",
+   "file": "biome/decals/catacombs_decal_collapsed_drain.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_12.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#2c2926"
+  },
+  {
+   "id": "catacombs_decal_scraped_sigil",
+   "file": "biome/decals/catacombs_decal_scraped_sigil.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_13.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#352f29"
+  },
+  {
+   "id": "catacombs_decal_grave_bootprints",
+   "file": "biome/decals/catacombs_decal_grave_bootprints.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_14.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#45362a"
+  },
+  {
+   "id": "catacombs_decal_bone_fragments",
+   "file": "biome/decals/catacombs_decal_bone_fragments.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_15.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#312c27"
+  },
+  {
+   "id": "catacombs_decal_rust_stain",
+   "file": "biome/decals/catacombs_decal_rust_stain.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_16.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#312821"
+  },
+  {
+   "id": "catacombs_decal_funerary_star",
+   "file": "biome/decals/catacombs_decal_funerary_star.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_17.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3e362e"
+  },
+  {
+   "id": "catacombs_decal_mortar_repair",
+   "file": "biome/decals/catacombs_decal_mortar_repair.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_18.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3c352e"
+  },
+  {
+   "id": "catacombs_decal_chain_anchor",
+   "file": "biome/decals/catacombs_decal_chain_anchor.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_19.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3c352d"
+  },
+  {
+   "id": "catacombs_decal_vine_relief",
+   "file": "biome/decals/catacombs_decal_vine_relief.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_20.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#41382f"
+  },
+  {
+   "id": "catacombs_decal_sepulchral_cross",
+   "file": "biome/decals/catacombs_decal_sepulchral_cross.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_21.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#373029"
+  },
+  {
+   "id": "catacombs_decal_four_way_grate",
+   "file": "biome/decals/catacombs_decal_four_way_grate.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_22.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#29231e"
+  },
+  {
+   "id": "catacombs_decal_crescent_scratch",
+   "file": "biome/decals/catacombs_decal_crescent_scratch.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_23.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#34302b"
+  },
+  {
+   "id": "catacombs_decal_inset_coffin_lid",
+   "file": "biome/decals/catacombs_decal_inset_coffin_lid.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_24.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#302923"
+  },
+  {
+   "id": "catacombs_decal_old_blood_trail",
+   "file": "biome/decals/catacombs_decal_old_blood_trail.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_25.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#322924"
+  },
+  {
+   "id": "catacombs_decal_skull_seal",
+   "file": "biome/decals/catacombs_decal_skull_seal.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_26.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#373029"
+  },
+  {
+   "id": "catacombs_decal_interlocking_circles",
+   "file": "biome/decals/catacombs_decal_interlocking_circles.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_27.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#39322b"
+  },
+  {
+   "id": "catacombs_decal_candle_wax",
+   "file": "biome/decals/catacombs_decal_candle_wax.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_28.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#322b25"
+  },
+  {
+   "id": "catacombs_decal_broken_hex_mosaic",
+   "file": "biome/decals/catacombs_decal_broken_hex_mosaic.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_29.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#40352a"
+  },
+  {
+   "id": "catacombs_decal_missing_cobble",
+   "file": "biome/decals/catacombs_decal_missing_cobble.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_30.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#362e27"
+  },
+  {
+   "id": "catacombs_decal_diagonal_fissure",
+   "file": "biome/decals/catacombs_decal_diagonal_fissure.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_31.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#39332c"
+  },
+  {
+   "id": "catacombs_decal_parchment_scraps",
+   "file": "biome/decals/catacombs_decal_parchment_scraps.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_32.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#41362b"
+  },
+  {
+   "id": "catacombs_decal_cold_ash_circle",
+   "file": "biome/decals/catacombs_decal_cold_ash_circle.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_33.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#2d2824"
+  },
+  {
+   "id": "catacombs_decal_riveted_plates",
+   "file": "biome/decals/catacombs_decal_riveted_plates.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_34.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#372f28"
+  },
+  {
+   "id": "catacombs_decal_brass_memorial",
+   "file": "biome/decals/catacombs_decal_brass_memorial.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_35.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3b3024"
+  },
+  {
+   "id": "catacombs_decal_mortuary_checker",
+   "file": "biome/decals/catacombs_decal_mortuary_checker.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_36.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#504539"
+  },
+  {
+   "id": "catacombs_decal_diamond_mosaic",
+   "file": "biome/decals/catacombs_decal_diamond_mosaic.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_37.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#453a30"
+  },
+  {
+   "id": "catacombs_decal_bone_laurel",
+   "file": "biome/decals/catacombs_decal_bone_laurel.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_38.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#363029"
+  },
+  {
+   "id": "catacombs_decal_drainage_streak",
+   "file": "biome/decals/catacombs_decal_drainage_streak.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_39.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5d523f"
+  },
+  {
+   "id": "catacombs_decal_concentric_channels",
+   "file": "biome/decals/catacombs_decal_concentric_channels.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_40.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#322e29"
+  },
+  {
+   "id": "catacombs_decal_bone_cross",
+   "file": "biome/decals/catacombs_decal_bone_cross.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_41.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#362f27"
+  },
+  {
+   "id": "catacombs_decal_rosette_seal",
+   "file": "biome/decals/catacombs_decal_rosette_seal.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_42.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#3c3226"
+  },
+  {
+   "id": "catacombs_decal_iron_hatch",
+   "file": "biome/decals/catacombs_decal_iron_hatch.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_43.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#2d2219"
+  },
+  {
+   "id": "catacombs_decal_exposed_roots",
+   "file": "biome/decals/catacombs_decal_exposed_roots.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_44.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#30261b"
+  },
+  {
+   "id": "catacombs_decal_grave_dust_trail",
+   "file": "biome/decals/catacombs_decal_grave_dust_trail.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_45.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#312a23"
+  },
+  {
+   "id": "catacombs_decal_sword_memorial",
+   "file": "biome/decals/catacombs_decal_sword_memorial.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_46.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3d362c"
+  },
+  {
+   "id": "catacombs_decal_fragmented_mosaic",
+   "file": "biome/decals/catacombs_decal_fragmented_mosaic.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_47.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#3d3226"
+  },
+  {
+   "id": "catacombs_decal_broken_chain",
+   "file": "biome/decals/catacombs_decal_broken_chain.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_48.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#2b251f"
+  },
+  {
+   "id": "catacombs_decal_teeth_and_pebbles",
+   "file": "biome/decals/catacombs_decal_teeth_and_pebbles.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_49.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#362a1e"
+  },
+  {
+   "id": "catacombs_decal_collapsed_mortar",
+   "file": "biome/decals/catacombs_decal_collapsed_mortar.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_50.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#393127"
+  },
+  {
+   "id": "catacombs_decal_ritual_triangle",
+   "file": "biome/decals/catacombs_decal_ritual_triangle.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_51.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#322c24"
+  },
+  {
+   "id": "catacombs_decal_fan_drain",
+   "file": "biome/decals/catacombs_decal_fan_drain.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_52.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#372e23"
+  },
+  {
+   "id": "catacombs_decal_vigil_wax",
+   "file": "biome/decals/catacombs_decal_vigil_wax.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_53.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3f3529"
+  },
+  {
+   "id": "catacombs_decal_iron_trench",
+   "file": "biome/decals/catacombs_decal_iron_trench.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_54.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#2e241b"
+  },
+  {
+   "id": "catacombs_decal_hourglass_relief",
+   "file": "biome/decals/catacombs_decal_hourglass_relief.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_55.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3a3228"
+  },
+  {
+   "id": "catacombs_decal_scrape_marks",
+   "file": "biome/decals/catacombs_decal_scrape_marks.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_56.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b3228"
+  },
+  {
+   "id": "catacombs_decal_bone_lattice",
+   "file": "biome/decals/catacombs_decal_bone_lattice.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_57.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#372e22"
+  },
+  {
+   "id": "catacombs_decal_coffin_nails",
+   "file": "biome/decals/catacombs_decal_coffin_nails.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_58.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#34281c"
+  },
+  {
+   "id": "catacombs_decal_stagnant_patch",
+   "file": "biome/decals/catacombs_decal_stagnant_patch.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_59.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#312315"
+  },
+  {
+   "id": "catacombs_decal_sunburst_mosaic",
+   "file": "biome/decals/catacombs_decal_sunburst_mosaic.png",
+   "kind": "decal",
+   "source": "Catacombs_Biome_Pack/source_art/floor_uv_60.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#42362a"
+  },
+  {
+   "id": "catacombs_wall_crypt_ashlar",
+   "file": "biome/walls/catacombs_wall_crypt_ashlar.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#302e2b",
+   "wall_set": "crypt_ashlar",
+   "side": "front",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_ossuary_niches",
+   "file": "biome/walls/catacombs_wall_ossuary_niches.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#413527",
+   "wall_set": "ossuary_niches",
+   "side": "front",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_funerary_chapel",
+   "file": "biome/walls/catacombs_wall_funerary_chapel.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#524636",
+   "wall_set": "funerary_chapel",
+   "side": "front",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_sealed_cells",
+   "file": "biome/walls/catacombs_wall_sealed_cells.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    134,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#271d15",
+   "wall_set": "sealed_cells",
+   "side": "front",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_drowned_crypt",
+   "file": "biome/walls/catacombs_wall_drowned_crypt.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#292720",
+   "wall_set": "drowned_crypt",
+   "side": "front",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_crypt_ashlar_back",
+   "file": "biome/walls/catacombs_wall_crypt_ashlar_back.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#302f2c",
+   "wall_set": "crypt_ashlar",
+   "side": "back",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_ossuary_niches_back",
+   "file": "biome/walls/catacombs_wall_ossuary_niches_back.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    134,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5b4e3b",
+   "wall_set": "ossuary_niches",
+   "side": "back",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_funerary_chapel_back",
+   "file": "biome/walls/catacombs_wall_funerary_chapel_back.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    134,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#534736",
+   "wall_set": "funerary_chapel",
+   "side": "back",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_sealed_cells_back",
+   "file": "biome/walls/catacombs_wall_sealed_cells_back.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    134,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3a2c1f",
+   "wall_set": "sealed_cells",
+   "side": "back",
+   "pack": "catacombs"
+  },
+  {
+   "id": "catacombs_wall_drowned_crypt_back",
+   "file": "biome/walls/catacombs_wall_drowned_crypt_back.png",
+   "kind": "wall",
+   "source": "Catacombs_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    135,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#28261f",
+   "wall_set": "drowned_crypt",
+   "side": "back",
+   "pack": "catacombs"
+  },
+  {
+   "id": "cathedral_graveyard_nave_flagstone",
+   "file": "biome/floors/cathedral_graveyard_nave_flagstone.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_01.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#38342f"
+  },
+  {
+   "id": "cathedral_graveyard_limestone_squares",
+   "file": "biome/floors/cathedral_graveyard_limestone_squares.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_02.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6d6252"
+  },
+  {
+   "id": "cathedral_graveyard_choir_slate",
+   "file": "biome/floors/cathedral_graveyard_choir_slate.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_03.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c3a38"
+  },
+  {
+   "id": "cathedral_graveyard_marble_checker",
+   "file": "biome/floors/cathedral_graveyard_marble_checker.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_04.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#60584c"
+  },
+  {
+   "id": "cathedral_graveyard_terracotta_nave",
+   "file": "biome/floors/cathedral_graveyard_terracotta_nave.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_05.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#523427"
+  },
+  {
+   "id": "cathedral_graveyard_grave_soil",
+   "file": "biome/floors/cathedral_graveyard_grave_soil.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_06.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#32281f"
+  },
+  {
+   "id": "cathedral_graveyard_moss_cobbles",
+   "file": "biome/floors/cathedral_graveyard_moss_cobbles.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_07.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#433c2e"
+  },
+  {
+   "id": "cathedral_graveyard_grave_gravel",
+   "file": "biome/floors/cathedral_graveyard_grave_gravel.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_08.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c4339"
+  },
+  {
+   "id": "cathedral_graveyard_dead_grass",
+   "file": "biome/floors/cathedral_graveyard_dead_grass.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_09.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443726"
+  },
+  {
+   "id": "cathedral_graveyard_muddy_path",
+   "file": "biome/floors/cathedral_graveyard_muddy_path.png",
+   "kind": "floor",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_10.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3329"
+  },
+  {
+   "id": "cathedral_graveyard_decal_sunburst_mosaic",
+   "file": "biome/decals/cathedral_graveyard_decal_sunburst_mosaic.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_11.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#514a3f"
+  },
+  {
+   "id": "cathedral_graveyard_decal_engraved_cross",
+   "file": "biome/decals/cathedral_graveyard_decal_engraved_cross.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_12.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#524a40"
+  },
+  {
+   "id": "cathedral_graveyard_decal_broken_rosette",
+   "file": "biome/decals/cathedral_graveyard_decal_broken_rosette.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_13.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#524b41"
+  },
+  {
+   "id": "cathedral_graveyard_decal_bronze_drain",
+   "file": "biome/decals/cathedral_graveyard_decal_bronze_drain.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_14.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#443c33"
+  },
+  {
+   "id": "cathedral_graveyard_decal_vigil_wax",
+   "file": "biome/decals/cathedral_graveyard_decal_vigil_wax.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_15.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#514a40"
+  },
+  {
+   "id": "cathedral_graveyard_decal_memorial_slab",
+   "file": "biome/decals/cathedral_graveyard_decal_memorial_slab.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_16.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#524c44"
+  },
+  {
+   "id": "cathedral_graveyard_decal_burgundy_carpet",
+   "file": "biome/decals/cathedral_graveyard_decal_burgundy_carpet.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_17.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3c1b15"
+  },
+  {
+   "id": "cathedral_graveyard_decal_carpet_border",
+   "file": "biome/decals/cathedral_graveyard_decal_carpet_border.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_18.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#462c22"
+  },
+  {
+   "id": "cathedral_graveyard_decal_chipped_marble",
+   "file": "biome/decals/cathedral_graveyard_decal_chipped_marble.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_19.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#5d564d"
+  },
+  {
+   "id": "cathedral_graveyard_decal_glass_fragments",
+   "file": "biome/decals/cathedral_graveyard_decal_glass_fragments.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_20.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443b32"
+  },
+  {
+   "id": "cathedral_graveyard_decal_quatrefoil_inlay",
+   "file": "biome/decals/cathedral_graveyard_decal_quatrefoil_inlay.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_21.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#51473c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_choir_chevron",
+   "file": "biome/decals/cathedral_graveyard_decal_choir_chevron.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_22.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#5e5346"
+  },
+  {
+   "id": "cathedral_graveyard_decal_chisel_limestone",
+   "file": "biome/decals/cathedral_graveyard_decal_chisel_limestone.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_23.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#7b6f5e"
+  },
+  {
+   "id": "cathedral_graveyard_decal_memorial_brass",
+   "file": "biome/decals/cathedral_graveyard_decal_memorial_brass.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_24.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#52422d"
+  },
+  {
+   "id": "cathedral_graveyard_decal_rose_mosaic",
+   "file": "biome/decals/cathedral_graveyard_decal_rose_mosaic.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_25.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#54463c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_altar_stone",
+   "file": "biome/decals/cathedral_graveyard_decal_altar_stone.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_26.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#5b544b"
+  },
+  {
+   "id": "cathedral_graveyard_decal_dry_petals",
+   "file": "biome/decals/cathedral_graveyard_decal_dry_petals.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_27.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#4a3f38"
+  },
+  {
+   "id": "cathedral_graveyard_decal_incense_ash",
+   "file": "biome/decals/cathedral_graveyard_decal_incense_ash.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_28.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#44403c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_engraved_lily",
+   "file": "biome/decals/cathedral_graveyard_decal_engraved_lily.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_29.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#716453"
+  },
+  {
+   "id": "cathedral_graveyard_decal_anchor_ring",
+   "file": "biome/decals/cathedral_graveyard_decal_anchor_ring.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_30.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#463d34"
+  },
+  {
+   "id": "cathedral_graveyard_decal_rooted_grave_soil",
+   "file": "biome/decals/cathedral_graveyard_decal_rooted_grave_soil.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_31.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#32251c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_weedy_grave_soil",
+   "file": "biome/decals/cathedral_graveyard_decal_weedy_grave_soil.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_32.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#403023"
+  },
+  {
+   "id": "cathedral_graveyard_decal_fresh_burial_earth",
+   "file": "biome/decals/cathedral_graveyard_decal_fresh_burial_earth.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_33.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#362619"
+  },
+  {
+   "id": "cathedral_graveyard_decal_settled_grave",
+   "file": "biome/decals/cathedral_graveyard_decal_settled_grave.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_34.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3b3023"
+  },
+  {
+   "id": "cathedral_graveyard_decal_wheel_groove",
+   "file": "biome/decals/cathedral_graveyard_decal_wheel_groove.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_35.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#494037"
+  },
+  {
+   "id": "cathedral_graveyard_decal_moss_cracks",
+   "file": "biome/decals/cathedral_graveyard_decal_moss_cracks.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_36.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4a4237"
+  },
+  {
+   "id": "cathedral_graveyard_decal_leaf_gravel",
+   "file": "biome/decals/cathedral_graveyard_decal_leaf_gravel.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_37.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4d3a2e"
+  },
+  {
+   "id": "cathedral_graveyard_decal_footprint_path",
+   "file": "biome/decals/cathedral_graveyard_decal_footprint_path.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_38.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#413226"
+  },
+  {
+   "id": "cathedral_graveyard_decal_cemetery_chips",
+   "file": "biome/decals/cathedral_graveyard_decal_cemetery_chips.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_39.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#5d564c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_funeral_petals",
+   "file": "biome/decals/cathedral_graveyard_decal_funeral_petals.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_40.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c2b1f"
+  },
+  {
+   "id": "cathedral_graveyard_decal_burial_sand",
+   "file": "biome/decals/cathedral_graveyard_decal_burial_sand.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_41.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#7a7063"
+  },
+  {
+   "id": "cathedral_graveyard_decal_boggy_mud",
+   "file": "biome/decals/cathedral_graveyard_decal_boggy_mud.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_42.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#302b25"
+  },
+  {
+   "id": "cathedral_graveyard_decal_coffin_nails",
+   "file": "biome/decals/cathedral_graveyard_decal_coffin_nails.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_43.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#443d35"
+  },
+  {
+   "id": "cathedral_graveyard_decal_twisted_roots",
+   "file": "biome/decals/cathedral_graveyard_decal_twisted_roots.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_44.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#342c23"
+  },
+  {
+   "id": "cathedral_graveyard_decal_dead_ivy",
+   "file": "biome/decals/cathedral_graveyard_decal_dead_ivy.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_45.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#312b22"
+  },
+  {
+   "id": "cathedral_graveyard_decal_diagonal_brick",
+   "file": "biome/decals/cathedral_graveyard_decal_diagonal_brick.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_46.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#564a40"
+  },
+  {
+   "id": "cathedral_graveyard_decal_buried_slab",
+   "file": "biome/decals/cathedral_graveyard_decal_buried_slab.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_47.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#484138"
+  },
+  {
+   "id": "cathedral_graveyard_decal_broken_cross",
+   "file": "biome/decals/cathedral_graveyard_decal_broken_cross.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_48.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3a342c"
+  },
+  {
+   "id": "cathedral_graveyard_decal_wet_leaf_cobbles",
+   "file": "biome/decals/cathedral_graveyard_decal_wet_leaf_cobbles.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_49.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#36322e"
+  },
+  {
+   "id": "cathedral_graveyard_decal_drainage_channel",
+   "file": "biome/decals/cathedral_graveyard_decal_drainage_channel.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_50.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#49443d"
+  },
+  {
+   "id": "cathedral_graveyard_decal_stepping_stones",
+   "file": "biome/decals/cathedral_graveyard_decal_stepping_stones.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_51.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": true,
+   "color": "#453d33"
+  },
+  {
+   "id": "cathedral_graveyard_decal_tomb_paving",
+   "file": "biome/decals/cathedral_graveyard_decal_tomb_paving.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_52.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#544e45"
+  },
+  {
+   "id": "cathedral_graveyard_decal_lichen_slate",
+   "file": "biome/decals/cathedral_graveyard_decal_lichen_slate.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_53.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4e4d48"
+  },
+  {
+   "id": "cathedral_graveyard_decal_dead_reeds",
+   "file": "biome/decals/cathedral_graveyard_decal_dead_reeds.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_54.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#44392d"
+  },
+  {
+   "id": "cathedral_graveyard_decal_old_grave_mound",
+   "file": "biome/decals/cathedral_graveyard_decal_old_grave_mound.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_55.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#413529"
+  },
+  {
+   "id": "cathedral_graveyard_decal_gravel_curb",
+   "file": "biome/decals/cathedral_graveyard_decal_gravel_curb.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_56.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#484037"
+  },
+  {
+   "id": "cathedral_graveyard_decal_herringbone_path",
+   "file": "biome/decals/cathedral_graveyard_decal_herringbone_path.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_57.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4c4339"
+  },
+  {
+   "id": "cathedral_graveyard_decal_rust_grate",
+   "file": "biome/decals/cathedral_graveyard_decal_rust_grate.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_58.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3f362e"
+  },
+  {
+   "id": "cathedral_graveyard_decal_burial_fragments",
+   "file": "biome/decals/cathedral_graveyard_decal_burial_fragments.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_59.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#372d23"
+  },
+  {
+   "id": "cathedral_graveyard_decal_pottery_soil",
+   "file": "biome/decals/cathedral_graveyard_decal_pottery_soil.png",
+   "kind": "decal",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/floor_uv_60.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#40342a"
+  },
+  {
+   "id": "cathedral_wall_nave_ashlar",
+   "file": "biome/walls/cathedral_wall_nave_ashlar.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    129,
+    240
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#423c35",
+   "wall_set": "nave_ashlar",
+   "side": "front",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_buttressed_masonry",
+   "file": "biome/walls/cathedral_wall_buttressed_masonry.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    116,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#37322d",
+   "wall_set": "buttressed_masonry",
+   "side": "front",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_cemetery_limestone",
+   "file": "biome/walls/cathedral_wall_cemetery_limestone.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    133,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443d32",
+   "wall_set": "cemetery_limestone",
+   "side": "front",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_cemetery_iron",
+   "file": "biome/walls/cathedral_wall_cemetery_iron.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    113,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#473c33",
+   "wall_set": "cemetery_iron",
+   "side": "front",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_nave_ashlar_back",
+   "file": "biome/walls/cathedral_wall_nave_ashlar_back.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    128,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#48413a",
+   "wall_set": "nave_ashlar",
+   "side": "back",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_buttressed_masonry_back",
+   "file": "biome/walls/cathedral_wall_buttressed_masonry_back.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    99,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#3e3831",
+   "wall_set": "buttressed_masonry",
+   "side": "back",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_cemetery_limestone_back",
+   "file": "biome/walls/cathedral_wall_cemetery_limestone_back.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    130,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#413a30",
+   "wall_set": "cemetery_limestone",
+   "side": "back",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "cathedral_wall_cemetery_iron_back",
+   "file": "biome/walls/cathedral_wall_cemetery_iron_back.png",
+   "kind": "wall",
+   "source": "Cathedral_Graveyard_Biome_Pack/source_art/wall_materials.png",
+   "size": [
+    112,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#453930",
+   "wall_set": "cemetery_iron",
+   "side": "back",
+   "pack": "cathedral_graveyard"
+  },
+  {
+   "id": "town_olive_meadow",
+   "file": "biome/floors/town_olive_meadow.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_01.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a4921"
+  },
+  {
+   "id": "town_dense_meadow",
+   "file": "biome/floors/town_dense_meadow.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_02.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2c3414"
+  },
+  {
+   "id": "town_dry_grass",
+   "file": "biome/floors/town_dry_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_03.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#685232"
+  },
+  {
+   "id": "town_sparse_grass",
+   "file": "biome/floors/town_sparse_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_04.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4e4226"
+  },
+  {
+   "id": "town_rough_field",
+   "file": "biome/floors/town_rough_field.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_05.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c4126"
+  },
+  {
+   "id": "town_moss_cover",
+   "file": "biome/floors/town_moss_cover.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_06.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#383416"
+  },
+  {
+   "id": "town_trampled_verge",
+   "file": "biome/floors/town_trampled_verge.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_07.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#54482b"
+  },
+  {
+   "id": "town_wildflower_grass",
+   "file": "biome/floors/town_wildflower_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_08.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#464420"
+  },
+  {
+   "id": "town_leaf_litter_grass",
+   "file": "biome/floors/town_leaf_litter_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_09.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#483a1e"
+  },
+  {
+   "id": "town_damp_grass",
+   "file": "biome/floors/town_damp_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_10.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#282c1b"
+  },
+  {
+   "id": "town_straw_grass",
+   "file": "biome/floors/town_straw_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_11.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#625232"
+  },
+  {
+   "id": "town_clover_grass",
+   "file": "biome/floors/town_clover_grass.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_12.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#403d1f"
+  },
+  {
+   "id": "town_fine_gravel",
+   "file": "biome/floors/town_fine_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_13.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4f4841"
+  },
+  {
+   "id": "town_coarse_gravel",
+   "file": "biome/floors/town_coarse_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_14.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b4137"
+  },
+  {
+   "id": "town_limestone_gravel",
+   "file": "biome/floors/town_limestone_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_15.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7f6f5c"
+  },
+  {
+   "id": "town_dark_grit",
+   "file": "biome/floors/town_dark_grit.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_16.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#272523"
+  },
+  {
+   "id": "town_wheel_worn_gravel",
+   "file": "biome/floors/town_wheel_worn_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_17.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b4035"
+  },
+  {
+   "id": "town_pebble_gravel",
+   "file": "biome/floors/town_pebble_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_18.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#56493c"
+  },
+  {
+   "id": "town_muddy_gravel",
+   "file": "biome/floors/town_muddy_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_19.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#372b22"
+  },
+  {
+   "id": "town_dusty_gravel",
+   "file": "biome/floors/town_dusty_gravel.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_20.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6f5a44"
+  },
+  {
+   "id": "town_packed_dirt",
+   "file": "biome/floors/town_packed_dirt.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_21.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#614125"
+  },
+  {
+   "id": "town_damp_mud",
+   "file": "biome/floors/town_damp_mud.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_22.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#37251b"
+  },
+  {
+   "id": "town_cracked_clay",
+   "file": "biome/floors/town_cracked_clay.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_23.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7c5a38"
+  },
+  {
+   "id": "town_cart_rut_earth",
+   "file": "biome/floors/town_cart_rut_earth.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_24.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#523924"
+  },
+  {
+   "id": "town_red_earth",
+   "file": "biome/floors/town_red_earth.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_25.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5b2e1b"
+  },
+  {
+   "id": "town_dusty_earth",
+   "file": "biome/floors/town_dusty_earth.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_26.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d4835"
+  },
+  {
+   "id": "town_mud_puddles",
+   "file": "biome/floors/town_mud_puddles.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_27.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3a2c21"
+  },
+  {
+   "id": "town_churned_clay",
+   "file": "biome/floors/town_churned_clay.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_28.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#432a1d"
+  },
+  {
+   "id": "town_rooty_dirt",
+   "file": "biome/floors/town_rooty_dirt.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_29.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c3421"
+  },
+  {
+   "id": "town_sandy_earth",
+   "file": "biome/floors/town_sandy_earth.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_30.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6b44"
+  },
+  {
+   "id": "town_twig_earth",
+   "file": "biome/floors/town_twig_earth.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_31.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443122"
+  },
+  {
+   "id": "town_stable_yard",
+   "file": "biome/floors/town_stable_yard.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_32.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5c4125"
+  },
+  {
+   "id": "town_grey_cobbles",
+   "file": "biome/floors/town_grey_cobbles.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_33.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4f453b"
+  },
+  {
+   "id": "town_irregular_flagstone",
+   "file": "biome/floors/town_irregular_flagstone.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_34.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#554637"
+  },
+  {
+   "id": "town_limestone_paving",
+   "file": "biome/floors/town_limestone_paving.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_35.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#907b64"
+  },
+  {
+   "id": "town_slate_paving",
+   "file": "biome/floors/town_slate_paving.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_36.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#323233"
+  },
+  {
+   "id": "town_brick_street",
+   "file": "biome/floors/town_brick_street.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_37.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#553625"
+  },
+  {
+   "id": "town_granite_setts",
+   "file": "biome/floors/town_granite_setts.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_38.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#544a40"
+  },
+  {
+   "id": "town_moss_pavers",
+   "file": "biome/floors/town_moss_pavers.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_39.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#443c2f"
+  },
+  {
+   "id": "town_herringbone_brick",
+   "file": "biome/floors/town_herringbone_brick.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_40.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#543728"
+  },
+  {
+   "id": "town_rough_concrete",
+   "file": "biome/floors/town_rough_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_41.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e7264"
+  },
+  {
+   "id": "town_dark_concrete",
+   "file": "biome/floors/town_dark_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_42.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b3630"
+  },
+  {
+   "id": "town_cracked_concrete",
+   "file": "biome/floors/town_cracked_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_43.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#63584a"
+  },
+  {
+   "id": "town_coarse_mortar",
+   "file": "biome/floors/town_coarse_mortar.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_44.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#514537"
+  },
+  {
+   "id": "town_damp_concrete",
+   "file": "biome/floors/town_damp_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_45.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#40392c"
+  },
+  {
+   "id": "town_patched_concrete",
+   "file": "biome/floors/town_patched_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_46.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#554c40"
+  },
+  {
+   "id": "town_lime_screed",
+   "file": "biome/floors/town_lime_screed.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_47.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#695c4b"
+  },
+  {
+   "id": "town_aggregate_concrete",
+   "file": "biome/floors/town_aggregate_concrete.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_48.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#786c5c"
+  },
+  {
+   "id": "town_oak_boards",
+   "file": "biome/floors/town_oak_boards.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_49.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#45372a"
+  },
+  {
+   "id": "town_dark_pine",
+   "file": "biome/floors/town_dark_pine.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_50.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#291b11"
+  },
+  {
+   "id": "town_bleached_boards",
+   "file": "biome/floors/town_bleached_boards.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_51.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#726352"
+  },
+  {
+   "id": "town_cedar_boards",
+   "file": "biome/floors/town_cedar_boards.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_52.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c2d1e"
+  },
+  {
+   "id": "town_tavern_planks",
+   "file": "biome/floors/town_tavern_planks.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_53.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#473220"
+  },
+  {
+   "id": "town_barn_boards",
+   "file": "biome/floors/town_barn_boards.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_54.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#453729"
+  },
+  {
+   "id": "town_diagonal_parquet",
+   "file": "biome/floors/town_diagonal_parquet.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_55.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#473423"
+  },
+  {
+   "id": "town_nailed_decking",
+   "file": "biome/floors/town_nailed_decking.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_56.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c2f22"
+  },
+  {
+   "id": "town_repaired_planks",
+   "file": "biome/floors/town_repaired_planks.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_57.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c3d2e"
+  },
+  {
+   "id": "town_split_boards",
+   "file": "biome/floors/town_split_boards.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_58.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#604a34"
+  },
+  {
+   "id": "town_workshop_planks",
+   "file": "biome/floors/town_workshop_planks.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_59.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3b2d21"
+  },
+  {
+   "id": "town_oak_parquet",
+   "file": "biome/floors/town_oak_parquet.png",
+   "kind": "floor",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/floor_60.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#413325"
+  },
+  {
+   "id": "town_wall_oak_plaster",
+   "file": "biome/walls/town_wall_oak_plaster.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#5e5040",
+   "wall_set": "oak_plaster",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_pine_siding",
+   "file": "biome/walls/town_wall_pine_siding.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    126,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#392d22",
+   "wall_set": "pine_siding",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_fieldstone",
+   "file": "biome/walls/town_wall_fieldstone.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    126,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#463d30",
+   "wall_set": "fieldstone",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_dressed_limestone",
+   "file": "biome/walls/town_wall_dressed_limestone.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#85725b",
+   "wall_set": "dressed_limestone",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_town_brick",
+   "file": "biome/walls/town_wall_town_brick.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#513223",
+   "wall_set": "town_brick",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_wattle_daub",
+   "file": "biome/walls/town_wall_wattle_daub.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    128,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#4c3825",
+   "wall_set": "wattle_daub",
+   "side": "front",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_oak_plaster_inner",
+   "file": "biome/walls/town_wall_oak_plaster_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#76634d",
+   "wall_set": "oak_plaster",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_pine_siding_inner",
+   "file": "biome/walls/town_wall_pine_siding_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    126,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c2a1d",
+   "wall_set": "pine_siding",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_fieldstone_inner",
+   "file": "biome/walls/town_wall_fieldstone_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    126,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#968671",
+   "wall_set": "fieldstone",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_dressed_limestone_inner",
+   "file": "biome/walls/town_wall_dressed_limestone_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": false,
+   "color": "#97846b",
+   "wall_set": "dressed_limestone",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_town_brick_inner",
+   "file": "biome/walls/town_wall_town_brick_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    127,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b3123",
+   "wall_set": "town_brick",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_wall_wattle_daub_inner",
+   "file": "biome/walls/town_wall_wattle_daub_inner.png",
+   "kind": "wall",
+   "source": "Overworld_Town_Biome_Pack/source_art/building_walls.png",
+   "size": [
+    126,
+    240
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4d3723",
+   "wall_set": "wattle_daub",
+   "side": "inner",
+   "pack": "town"
+  },
+  {
+   "id": "town_roof_oak_shingles",
+   "file": "biome/roofs/town_roof_oak_shingles.png",
+   "kind": "roof",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/roof_01.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3a2d1f"
+  },
+  {
+   "id": "town_roof_blue_slate",
+   "file": "biome/roofs/town_roof_blue_slate.png",
+   "kind": "roof",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/roof_02.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#393937"
+  },
+  {
+   "id": "town_roof_terracotta",
+   "file": "biome/roofs/town_roof_terracotta.png",
+   "kind": "roof",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/roof_03.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#562e1c"
+  },
+  {
+   "id": "town_roof_straw_thatch",
+   "file": "biome/roofs/town_roof_straw_thatch.png",
+   "kind": "roof",
+   "source": "Overworld_Town_Biome_Pack/source_art/normalized/roof_04.png",
+   "size": [
+    160,
+    160
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5c462f"
+  }
+ ],
+ "doors": [
+  {
+   "id": "catacombs_ironbound_oak",
+   "design": "ironbound_oak",
+   "pack": "catacombs",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/catacombs_ironbound_oak_front.png",
+   "back": "biome/doors/catacombs_ironbound_oak_back.png"
+  },
+  {
+   "id": "catacombs_iron_grille",
+   "design": "iron_grille",
+   "pack": "catacombs",
+   "size": [
+    64,
+    112
+   ],
+   "holes": true,
+   "front": "biome/doors/catacombs_iron_grille_front.png",
+   "back": "biome/doors/catacombs_iron_grille_back.png"
+  },
+  {
+   "id": "catacombs_bone_reliquary",
+   "design": "bone_reliquary",
+   "pack": "catacombs",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/catacombs_bone_reliquary_front.png",
+   "back": "biome/doors/catacombs_bone_reliquary_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_cathedral_oak",
+   "design": "cathedral_oak",
+   "pack": "cathedral_graveyard",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/cathedral_graveyard_cathedral_oak_front.png",
+   "back": "biome/doors/cathedral_graveyard_cathedral_oak_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_sacristy_bronze",
+   "design": "sacristy_bronze",
+   "pack": "cathedral_graveyard",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/cathedral_graveyard_sacristy_bronze_front.png",
+   "back": "biome/doors/cathedral_graveyard_sacristy_bronze_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_cemetery_gate",
+   "design": "cemetery_gate",
+   "pack": "cathedral_graveyard",
+   "size": [
+    64,
+    112
+   ],
+   "holes": true,
+   "front": "biome/doors/cathedral_graveyard_cemetery_gate_front.png",
+   "back": "biome/doors/cathedral_graveyard_cemetery_gate_back.png"
+  },
+  {
+   "id": "town_cottage_oak",
+   "design": "cottage_oak",
+   "pack": "town",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/town_cottage_oak_front.png",
+   "back": "biome/doors/town_cottage_oak_back.png"
+  },
+  {
+   "id": "town_tavern_tankard",
+   "design": "tavern_tankard",
+   "pack": "town",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/town_tavern_tankard_front.png",
+   "back": "biome/doors/town_tavern_tankard_back.png"
+  },
+  {
+   "id": "town_smith_iron",
+   "design": "smith_iron",
+   "pack": "town",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/town_smith_iron_front.png",
+   "back": "biome/doors/town_smith_iron_back.png"
+  },
+  {
+   "id": "town_mage_star",
+   "design": "mage_star",
+   "pack": "town",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/town_mage_star_front.png",
+   "back": "biome/doors/town_mage_star_back.png"
+  },
+  {
+   "id": "town_stable_pine",
+   "design": "stable_pine",
+   "pack": "town",
+   "size": [
+    64,
+    112
+   ],
+   "holes": false,
+   "front": "biome/doors/town_stable_pine_front.png",
+   "back": "biome/doors/town_stable_pine_back.png"
+  }
+ ],
+ "arches": [
+  {
+   "id": "catacombs_roman_ossuary",
+   "design": "roman_ossuary",
+   "pack": "catacombs",
+   "size": [
+    240,
+    160
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    70,
+    171,
+    113
+   ],
+   "foot_px": 160,
+   "bounds_px": [
+    0,
+    0,
+    240,
+    160
+   ],
+   "front": "biome/arches/catacombs_roman_ossuary_front.png",
+   "back": "biome/arches/catacombs_roman_ossuary_back.png"
+  },
+  {
+   "id": "catacombs_pointed_funerary",
+   "design": "pointed_funerary",
+   "pack": "catacombs",
+   "size": [
+    240,
+    184
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    73,
+    167,
+    128
+   ],
+   "foot_px": 184,
+   "bounds_px": [
+    0,
+    0,
+    240,
+    184
+   ],
+   "front": "biome/arches/catacombs_pointed_funerary_front.png",
+   "back": "biome/arches/catacombs_pointed_funerary_back.png"
+  },
+  {
+   "id": "catacombs_ironbound_segmental",
+   "design": "ironbound_segmental",
+   "pack": "catacombs",
+   "size": [
+    240,
+    144
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    64,
+    177,
+    105
+   ],
+   "foot_px": 144,
+   "bounds_px": [
+    0,
+    0,
+    240,
+    144
+   ],
+   "front": "biome/arches/catacombs_ironbound_segmental_front.png",
+   "back": "biome/arches/catacombs_ironbound_segmental_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_chapel_lancet",
+   "design": "chapel_lancet",
+   "pack": "cathedral_graveyard",
+   "size": [
+    240,
+    256
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    51,
+    189,
+    155
+   ],
+   "foot_px": 256,
+   "bounds_px": [
+    1,
+    0,
+    239,
+    256
+   ],
+   "front": "biome/arches/cathedral_graveyard_chapel_lancet_front.png",
+   "back": "biome/arches/cathedral_graveyard_chapel_lancet_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_churchyard_cross",
+   "design": "churchyard_cross",
+   "pack": "cathedral_graveyard",
+   "size": [
+    240,
+    232
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    61,
+    178,
+    132
+   ],
+   "foot_px": 232,
+   "bounds_px": [
+    1,
+    0,
+    239,
+    232
+   ],
+   "front": "biome/arches/cathedral_graveyard_churchyard_cross_front.png",
+   "back": "biome/arches/cathedral_graveyard_churchyard_cross_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_nave_triumphal",
+   "design": "nave_triumphal",
+   "pack": "cathedral_graveyard",
+   "size": [
+    400,
+    352
+   ],
+   "span_tiles": 5,
+   "opening_px": [
+    123,
+    277,
+    228
+   ],
+   "foot_px": 352,
+   "bounds_px": [
+    0,
+    0,
+    400,
+    352
+   ],
+   "front": "biome/arches/cathedral_graveyard_nave_triumphal_front.png",
+   "back": "biome/arches/cathedral_graveyard_nave_triumphal_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_ruined_cloister",
+   "design": "ruined_cloister",
+   "pack": "cathedral_graveyard",
+   "size": [
+    400,
+    320
+   ],
+   "span_tiles": 5,
+   "opening_px": [
+    119,
+    282,
+    208
+   ],
+   "foot_px": 320,
+   "bounds_px": [
+    0,
+    0,
+    400,
+    320
+   ],
+   "front": "biome/arches/cathedral_graveyard_ruined_cloister_front.png",
+   "back": "biome/arches/cathedral_graveyard_ruined_cloister_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_grand_westwork",
+   "design": "grand_westwork",
+   "pack": "cathedral_graveyard",
+   "size": [
+    560,
+    448
+   ],
+   "span_tiles": 7,
+   "opening_px": [
+    173,
+    387,
+    300
+   ],
+   "foot_px": 448,
+   "bounds_px": [
+    2,
+    0,
+    559,
+    448
+   ],
+   "front": "biome/arches/cathedral_graveyard_grand_westwork_front.png",
+   "back": "biome/arches/cathedral_graveyard_grand_westwork_back.png"
+  },
+  {
+   "id": "cathedral_graveyard_processional_cemetery",
+   "design": "processional_cemetery",
+   "pack": "cathedral_graveyard",
+   "size": [
+    560,
+    400
+   ],
+   "span_tiles": 7,
+   "opening_px": [
+    169,
+    391,
+    235
+   ],
+   "foot_px": 400,
+   "bounds_px": [
+    1,
+    0,
+    559,
+    400
+   ],
+   "front": "biome/arches/cathedral_graveyard_processional_cemetery_front.png",
+   "back": "biome/arches/cathedral_graveyard_processional_cemetery_back.png"
+  },
+  {
+   "id": "town_fieldstone_round",
+   "design": "fieldstone_round",
+   "pack": "town",
+   "size": [
+    240,
+    152
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    61,
+    179,
+    112
+   ],
+   "foot_px": 152,
+   "bounds_px": [
+    1,
+    0,
+    238,
+    152
+   ],
+   "front": "biome/arches/town_fieldstone_round_front.png",
+   "back": "biome/arches/town_fieldstone_round_back.png"
+  },
+  {
+   "id": "town_timber_market",
+   "design": "timber_market",
+   "pack": "town",
+   "size": [
+    240,
+    144
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    46,
+    194,
+    111
+   ],
+   "foot_px": 144,
+   "bounds_px": [
+    2,
+    0,
+    238,
+    144
+   ],
+   "front": "biome/arches/town_timber_market_front.png",
+   "back": "biome/arches/town_timber_market_back.png"
+  },
+  {
+   "id": "town_limestone_guildhall",
+   "design": "limestone_guildhall",
+   "pack": "town",
+   "size": [
+    240,
+    176
+   ],
+   "span_tiles": 3,
+   "opening_px": [
+    63,
+    177,
+    126
+   ],
+   "foot_px": 176,
+   "bounds_px": [
+    0,
+    0,
+    239,
+    176
+   ],
+   "front": "biome/arches/town_limestone_guildhall_front.png",
+   "back": "biome/arches/town_limestone_guildhall_back.png"
+  }
+ ],
+ "signs": [
+  {
+   "id": "sign_blacksmith",
+   "shop": "blacksmith",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_blacksmith.png"
+  },
+  {
+   "id": "sign_spells",
+   "shop": "spells",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_spells.png"
+  },
+  {
+   "id": "sign_apothecary",
+   "shop": "apothecary",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_apothecary.png"
+  },
+  {
+   "id": "sign_inn",
+   "shop": "inn",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_inn.png"
+  },
+  {
+   "id": "sign_tavern",
+   "shop": "tavern",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_tavern.png"
+  },
+  {
+   "id": "sign_armorer",
+   "shop": "armorer",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_armorer.png"
+  },
+  {
+   "id": "sign_fletcher",
+   "shop": "fletcher",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_fletcher.png"
+  },
+  {
+   "id": "sign_general_goods",
+   "shop": "general_goods",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_general_goods.png"
+  },
+  {
+   "id": "sign_stables",
+   "shop": "stables",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_stables.png"
+  },
+  {
+   "id": "sign_bakery",
+   "shop": "bakery",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_bakery.png"
+  },
+  {
+   "id": "sign_tailor",
+   "shop": "tailor",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_tailor.png"
+  },
+  {
+   "id": "sign_jeweler",
+   "shop": "jeweler",
+   "size": [
+    52,
+    48
+   ],
+   "file": "biome/signs/sign_jeweler.png"
+  }
+ ]
+}

@@ -88,15 +88,25 @@ export function buildDungeon(ctx, entry) {
 
   // every room and hallway gets surfaces of its own, drawn from the textures the world above
   // hasn't used yet, so the whole Velscour library ends up somewhere down here
-  const FLOOR = /^(catacombs|cathedral_graveyard|sewers|castle_keep|sand)_|^cave_dec|^dark_forest_|^town_/;
+  const FLOOR = /^(catacombs|cathedral_graveyard|sewers|castle_keep|sand)_|^cave_dec|^dark_forest_|^town_(?!.*(meadow|grass|clover|moss_cover|verge|field|roof|wall_))/;
   const WALL = /^cave_dec|^castle_(?!roof)|^castle_keep_|^sewers_(culvert|eroded|calcified|iron_studded|weathered_sluice)|^catacombs_(slate_bricks|black_basalt|burial_terracotta)|^sand_(quartz|fossil|lapis|rose_stone|turquoise|copper|obsidian|amber|salt_cavern|sulfur|basalt|chipped|engraved)|^met_/;
   const CEIL = /^cave_dec|^castle_roof|^castle_(wood|panel)|^met_|^ship_|^wood_|^sand_(weathered_palm|date_press|reed_weave)/;
   const pick = (re, salt) => lib.take((s) => re.test(s.id), salt);
+  // the walls are the catacomb pack's full-height wall panels (coping under the ceiling,
+  // plinth on the floor): the carved ones in the rooms, by what each room is, and the plainer
+  // masonry in the hallways
+  const panel = (ids, n) => { const ok = ids.filter((id) => lib.surf.has(id)); return ok.length ? ok[n % ok.length] : null; };
+  const cw = (n) => 'catacombs_wall_' + n;
+  const ROOM_WALLS = { crypt: [cw('funerary_chapel'), cw('funerary_chapel_back')], ossuary: [cw('ossuary_niches')], vault: [cw('sealed_cells'), cw('sealed_cells_back')],
+    shrine: [cw('funerary_chapel')], 'entry hall': [cw('funerary_chapel')], library: [cw('crypt_ashlar_back'), cw('ossuary_niches_back')],
+    storeroom: [cw('crypt_ashlar'), cw('sealed_cells_back')], 'pillared hall': [cw('drowned_crypt'), cw('crypt_ashlar')] };
+  const HALL_WALLS = [cw('crypt_ashlar'), cw('crypt_ashlar_back'), cw('drowned_crypt_back'), cw('drowned_crypt'), cw('sealed_cells_back')];
   rooms.forEach((r, i) => {
-    r.theme = i === 0 ? { floor: 'catacombs_crypt_limestone', wall: 'castle_chapel', ceil: pick(CEIL, i), band: pick(WALL, i), inlay: pick(FLOOR, i) }
-      : { floor: pick(FLOOR, i), wall: pick(WALL, i), ceil: pick(CEIL, i), band: pick(WALL, i + 7), inlay: pick(FLOOR, i + 3) };
+    const wall = panel(ROOM_WALLS[r.kind] || [cw('crypt_ashlar')], i);
+    r.theme = i === 0 ? { floor: 'catacombs_crypt_limestone', wall: wall || 'castle_chapel', ceil: pick(CEIL, i), band: pick(WALL, i), inlay: pick(FLOOR, i) }
+      : { floor: pick(FLOOR, i), wall: wall || pick(WALL, i), ceil: pick(CEIL, i), band: pick(WALL, i + 7), inlay: pick(FLOOR, i + 3) };
   });
-  const halls = edges.map((_, n) => ({ floor: pick(FLOOR, n + 11), wall: pick(WALL, n + 5), ceil: pick(CEIL, n + 2), band: pick(WALL, n + 9) }));
+  const halls = edges.map((_, n) => ({ floor: pick(FLOOR, n + 11), wall: panel(HALL_WALLS, n) || pick(WALL, n + 5), ceil: pick(CEIL, n + 2), band: pick(WALL, n + 9) }));
 
   // geometry
   const mat = (id, tile, o = {}) => lib.material(id, { tile, ...o });
@@ -137,19 +147,22 @@ export function buildDungeon(ctx, entry) {
             if (e + 1 >= B || h2 < 0 || h2 === TUNNEL || themeOf(h2) !== th || (t2 >= 0 && !l2) || l2 !== lintel || ceilOf(h2) !== ceilOf(here)) break;
             e++;
           }
-          const m = mat(th.wall, 3), band = mat(th.band, 1.5);
+          // a wall panel spans floor to ceiling (and on up over a hallway's lintel); any other
+          // texture repeats every 3 m with a dado of another stone along its foot
+          const isPanel = !!lib.surf.get(th.wall)?.wall_set;
+          const m = mat(th.wall, isPanel ? ceilOf(here) : 3), band = mat(th.band, 1.5);
           const by = Math.min(y1, Y + 1.25); // a dado of another stone along the foot of the wall
           if (horizontal) {
             const z = side < 0 ? Z(a) : Z(a + 1);
-            b.box([X(s), y0, side < 0 ? z - 0.5 : z], [X(e + 1), y1, side < 0 ? z : z + 0.5], m, { shade: 0.8 });
-            if (!lintel) {
+            b.box([X(s), y0, side < 0 ? z - 0.5 : z], [X(e + 1), y1, side < 0 ? z : z + 0.5], m, { shade: 0.8, vbase: Y });
+            if (!lintel && !isPanel) {
               b.box([X(s), Y, side < 0 ? z : z - 0.06], [X(e + 1), by, side < 0 ? z + 0.06 : z], band, { shade: 0.85, solid: false });
               b.box([X(s), by, side < 0 ? z : z - 0.1], [X(e + 1), by + 0.12, side < 0 ? z + 0.1 : z], band, { shade: 0.9, solid: false });
             }
           } else {
             const x = side < 0 ? X(a) : X(a + 1);
-            b.box([side < 0 ? x - 0.5 : x, y0, Z(s)], [side < 0 ? x : x + 0.5, y1, Z(e + 1)], m, { shade: 0.8 });
-            if (!lintel) {
+            b.box([side < 0 ? x - 0.5 : x, y0, Z(s)], [side < 0 ? x : x + 0.5, y1, Z(e + 1)], m, { shade: 0.8, vbase: Y });
+            if (!lintel && !isPanel) {
               b.box([side < 0 ? x : x - 0.06, Y, Z(s)], [side < 0 ? x + 0.06 : x, by, Z(e + 1)], band, { shade: 0.85, solid: false });
               b.box([side < 0 ? x : x - 0.1, by, Z(s)], [side < 0 ? x + 0.1 : x, by + 0.12, Z(e + 1)], band, { shade: 0.9, solid: false });
             }
@@ -162,19 +175,55 @@ export function buildDungeon(ctx, entry) {
   wallRun(true);
   wallRun(false);
 
+  // arches over the hallway mouths, on the room side (the catacomb pack's roman ossuary,
+  // ironbound segmental and pointed funerary arches), wherever the wall has room for one
+  const ARCHES = [['catacombs_roman_ossuary', 3.0], ['catacombs_ironbound_segmental', 3.0], ['catacombs_pointed_funerary', 2.5]];
+  const covered = rooms.map(() => ({ n: [], s: [], w: [], e: [] })); // wall stretches (metres along) an arch hides
+  if (ctx.cutouts) rooms.forEach((r, id) => {
+    const sides = [ // the cell just outside the wall at a metres along it, where the arch stands, facing
+      ['n', r.w, (a) => at(r.i + a, r.k - 1), (c) => [X(r.i) + c, Z(r.k) + 0.25], 0],
+      ['s', r.w, (a) => at(r.i + a, r.k + r.d), (c) => [X(r.i) + c, Z(r.k + r.d) - 0.25], Math.PI],
+      ['w', r.d, (a) => at(r.i - 1, r.k + a), (c) => [X(r.i) + 0.25, Z(r.k) + c], Math.PI / 2],
+      ['e', r.d, (a) => at(r.i + r.w, r.k + a), (c) => [X(r.i + r.w) - 0.25, Z(r.k) + c], -Math.PI / 2],
+    ];
+    sides.forEach(([key, n, outside, where, facing], si) => {
+      const hall = (a) => { const v = outside(a); return v >= 1000 && v !== TUNNEL; };
+      let a = 0;
+      while (a < n) {
+        if (!hall(a)) { a++; continue; }
+        let e = a;
+        while (e + 1 < n && hall(e + 1)) e++;
+        const len = e + 1 - a, c = (a + e + 1) / 2;
+        a = e + 1;
+        if (len !== 3) continue; // a hallway meeting the wall end on, not running along it
+        const [aid, open] = ARCHES[(id + si) % ARCHES.length], art = lib.biome.arches.get(aid);
+        if (!art) continue;
+        const s = open / (art.opening_px[1] - art.opening_px[0]), half = art.size[0] * s / 2;
+        if (art.foot_px * s > ROOM_H - 0.1 || c - half < 0.4 || c + half > n - 0.4) continue;
+        let clear = true; // no other opening under it
+        for (let k = Math.floor(c - half); k < Math.ceil(c + half); k++) if (k >= 0 && k < n && outside(k) >= 0 && (k < c - 1.5 || k >= c + 1.5)) clear = false;
+        if (!clear) continue;
+        const [x, z] = where(c);
+        ctx.cutouts.place(aid, x, Y, z, facing, open, 0.5);
+        covered[id][key].push([c - half - 0.4, c + half + 0.4]);
+      }
+    });
+  });
+  const hidden = (id, key, a) => covered[id][key].some(([p, q]) => a > p && a < q);
+
   // furnishing, torches and lights
   const cat = (n) => 'catacombs_' + n;
   rooms.forEach((r, id) => {
     const x0 = X(r.i), z0 = Z(r.k), x1 = X(r.i + r.w), z1 = Z(r.k + r.d), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const fy = Y;
-    // torches around the walls
+    // torches around the walls (not where an arch stands)
     for (let x = x0 + 2.5; x < x1 - 1; x += 5) {
-      if (at(gi(x), r.k - 1) < 0) props.add('wall_torch', x, fy, z0 + 0.02, 0);
-      if (at(gi(x), r.k + r.d) < 0) props.add('wall_torch', x, fy, z1 - 0.02, Math.PI);
+      if (at(gi(x), r.k - 1) < 0 && !hidden(id, 'n', x - x0)) props.add('wall_torch', x, fy, z0 + 0.02, 0);
+      if (at(gi(x), r.k + r.d) < 0 && !hidden(id, 's', x - x0)) props.add('wall_torch', x, fy, z1 - 0.02, Math.PI);
     }
     for (let z = z0 + 2.5; z < z1 - 1; z += 5) {
-      if (at(r.i - 1, gk(z)) < 0) props.add('wall_torch', x0 + 0.02, fy, z, Math.PI / 2);
-      if (at(r.i + r.w, gk(z)) < 0) props.add('wall_torch', x1 - 0.02, fy, z, -Math.PI / 2);
+      if (at(r.i - 1, gk(z)) < 0 && !hidden(id, 'w', z - z0)) props.add('wall_torch', x0 + 0.02, fy, z, Math.PI / 2);
+      if (at(r.i + r.w, gk(z)) < 0 && !hidden(id, 'e', z - z0)) props.add('wall_torch', x1 - 0.02, fy, z, -Math.PI / 2);
     }
     const kind = r.kind;
     if (kind === 'pillared hall' || kind === 'entry hall') {
@@ -184,7 +233,7 @@ export function buildDungeon(ctx, entry) {
       for (let x = x0 + 2.5; x < x1 - 2; x += 3) props.add('sarcophagus', x, fy, cz, Math.PI / 2);
       props.add('candelabrum', x0 + 1.2, fy, z0 + 1.2); props.add('candelabrum', x1 - 1.2, fy, z1 - 1.2);
     } else if (kind === 'library') {
-      for (let x = x0 + 1.5; x < x1 - 1; x += 1.4) props.add('bookshelf', x, fy, z0 + 0.3, 0);
+      for (let x = x0 + 1.5; x < x1 - 1; x += 1.4) if (!hidden(id, 'n', x - x0)) props.add('bookshelf', x, fy, z0 + 0.3, 0);
       props.add('table', cx, fy, cz, 0); props.add('stool', cx, fy, cz + 1.2); props.add('candelabrum', cx + 1.6, fy, cz);
     } else if (kind === 'shrine') {
       props.add('altar', cx, fy, z0 + 1.6, 0);
@@ -225,6 +274,24 @@ export function buildDungeon(ctx, entry) {
     if (r.w < 7 || r.d < 7) return;
     quad(mat(r.theme.inlay, 2, { overlay: true }), X(r.i) + 2, Z(r.k) + 2, X(r.i + r.w) - 2, Z(r.k + r.d) - 2, Y + 0.012);
   });
+  // the catacomb pack's one-off floor tiles: a seal, a grate or a mosaic in the middle of each
+  // room, and worn things about its floor (stains, drains, bones, wax, scrapes)
+  const dec = (n) => (lib.surf.has('catacombs_decal_' + n) ? 'catacombs_decal_' + n : null);
+  const CENTRE = ['funerary_star', 'sepulchral_cross', 'skull_seal', 'interlocking_circles', 'rosette_seal', 'sunburst_mosaic', 'ritual_triangle',
+    'concentric_channels', 'diamond_mosaic', 'bone_laurel', 'hourglass_relief', 'sword_memorial', 'brass_memorial', 'four_way_grate', 'mortuary_checker'].map(dec).filter(Boolean);
+  const centres = new Set(CENTRE);
+  const WORN = [...lib.surf.values()].filter((s) => s.kind === 'decal' && s.id.startsWith('catacombs_decal_') && !centres.has(s.id)).map((s) => s.id);
+  rooms.forEach((r, id) => {
+    const x0 = X(r.i), z0 = Z(r.k), x1 = X(r.i + r.w), z1 = Z(r.k + r.d);
+    if (CENTRE.length && r.w >= 7 && r.d >= 7) {
+      const size = Math.min(3.2, r.w - 4, r.d - 4);
+      b.decal(mat(CENTRE[id % CENTRE.length], size, { overlay: true }), (x0 + x1) / 2, Y + 0.016, (z0 + z1) / 2, size, (id % 4) * Math.PI / 2);
+    }
+    for (let n = 0; n < 3 && WORN.length; n++) {
+      const size = 1.2 + R() * 0.6, x = x0 + 1.2 + R() * (r.w - 2.4), z = z0 + 1.2 + R() * (r.d - 2.4);
+      b.decal(mat(WORN[(id * 3 + n) % WORN.length], size, { overlay: true }), x, Y + 0.018 + n * 0.0015, z, size, Math.floor(R() * 4) * Math.PI / 2);
+    }
+  });
   // whatever the world hasn't used yet furnishes the rooms: props from the catacomb, sewer and
   // keep packs along the walls (the burning ones light up), hangings on the walls, and any
   // surface still unused as a worn patch of floor
@@ -242,12 +309,14 @@ export function buildDungeon(ctx, entry) {
     bill.add(s.id, x, Y, z, 1, 0.95);
     if (/brazier|candle|lantern|torch|chandelier|fire/.test(s.id)) ctx.flames?.push([x, Y + s.height_m * 0.9, z, 0.22]);
   });
-  const hang = [...lib.spr.values()].filter((s) => (s.category === 'hanging' || s.category === 'window') && !lib.usedSprites.has(s.id));
+  const hang = [...lib.spr.values()].filter((s) => s.category === 'hanging' && !lib.usedSprites.has(s.id));
   hang.forEach((s, j) => {
     const r = rooms[j % rooms.length];
     wallPanel(lib, ctx.scene, s.id, X(r.i) + r.w / 2 + (j - 1) * 2.5, Y + 2.4, Z(r.k + r.d) - 0.08, [0, 0, -1], 2);
   });
-  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id));
+  // (stone, earth, metal and timber only: no grass, leaves, bark or roofing underground)
+  const UNDERFOOT = /meadow|grass|clover|moss_cover|verge|field|leaves|bark|roof|thatch|wall_/;
+  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id) && s.kind !== 'decal' && !s.wall_set && !UNDERFOOT.test(s.id));
   floors.forEach((s, j) => {
     const r = rooms[1 + (j % (rooms.length - 1))];
     const n = Math.floor(j / (rooms.length - 1));

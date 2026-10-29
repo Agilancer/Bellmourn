@@ -118,6 +118,7 @@ function downsMaterial(lib) {
   const layers = ['town_dense_meadow', 'town_clover_grass', 'town_wildflower_grass', 'castle_rubble', 'town_damp_mud', 'town_pebble_gravel', 'town_packed_dirt', 'town_moss_cover'];
   const tex = layers.map((id) => { lib.used.add(id); return lib.texture(lib.surf.get(id).file); });
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x080808, shininess: 6 });
+  m.userData.noGlass = true;
   m.onBeforeCompile = (sh) => {
     tex.forEach((t, i) => { sh.uniforms['dT' + i] = { value: t }; });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 downs;\nvarying vec3 vDP; varying vec3 vDN; varying vec2 vDA;')
