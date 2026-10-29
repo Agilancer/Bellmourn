@@ -13,16 +13,16 @@ const NOISE = /* glsl */`
 
 /** Times of day: 0..24. The palette the sky, sun, ambient light and fog all follow. */
 const KEYS = [ // hour, zenith, horizon, sun colour, sun power, ambient, fog
-  [0, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.24, 0x0a0e18],
-  [4.8, 0x05081a, 0x18182c, 0x9ab0ff, 0.25, 0.24, 0x141626],
+  [0, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.3, 0x0a0e18],
+  [4.8, 0x05081a, 0x18182c, 0x9ab0ff, 0.25, 0.3, 0x141626],
   [6.0, 0x2a3a6a, 0xe08a5a, 0xff9a5a, 1.0, 0.6, 0x8a7068],
   [7.5, 0x3d6aa8, 0xc8c8c0, 0xffd8a8, 2.0, 0.8, 0xa8b0b8],
   [12, 0x3a6eb0, 0xbcd0e2, 0xfff4e4, 2.5, 1.0, 0xb0bfcc],
   [16.5, 0x3a64a4, 0xc8c4b8, 0xffe0b0, 2.3, 1.0, 0xb0b4b4],
   [18.2, 0x2a3466, 0xf09050, 0xff8a40, 1.6, 0.78, 0x9a6a58],
   [19.4, 0x0c1030, 0x3a2a40, 0xff6a40, 0.4, 0.4, 0x2a2232],
-  [21, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.24, 0x0a0e18],
-  [24, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.24, 0x0a0e18],
+  [21, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.3, 0x0a0e18],
+  [24, 0x03050c, 0x0b1020, 0x9ab0ff, 0.30, 0.3, 0x0a0e18],
 ];
 const _a = new THREE.Color(), _b = new THREE.Color();
 export function dayState(hour) {

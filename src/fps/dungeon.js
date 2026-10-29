@@ -168,6 +168,10 @@ export function buildDungeon(ctx, entry) {
       if (at(gi(x), r.k - 1) < 0) props.add('wall_torch', x, fy, z0 + 0.02, 0);
       if (at(gi(x), r.k + r.d) < 0) props.add('wall_torch', x, fy, z1 - 0.02, Math.PI);
     }
+    for (let z = z0 + 2.5; z < z1 - 1; z += 5) {
+      if (at(r.i - 1, gk(z)) < 0) props.add('wall_torch', x0 + 0.02, fy, z, Math.PI / 2);
+      if (at(r.i + r.w, gk(z)) < 0) props.add('wall_torch', x1 - 0.02, fy, z, -Math.PI / 2);
+    }
     const kind = r.kind;
     if (kind === 'pillared hall' || kind === 'entry hall') {
       const pil = ['pillar_round', 'pillar_fluted', 'pillar_square', 'pillar_twisted'][id % 4];
@@ -200,15 +204,16 @@ export function buildDungeon(ctx, entry) {
       if (s && !/sarcophagus/.test(id)) ctx.flames?.push([x1 - 1.5, fy + s.height_m * 0.95, z1 - 1.5, /brazier/.test(id) ? 0.45 : 0.3]);
     }
   });
-  // torches down the hallways: on the west wall of the north-south runs and the north wall of
-  // the east-west runs, every 7 m or so (they are the only light down here)
-  for (let k = 0; k < NZ; k += 7) for (let i = 0; i < NX; i++) {
+  // torches down the hallways (they are the only light down here): every 6 m, alternating
+  // between the two walls, on the north-south runs and the east-west runs
+  for (let k = 0; k < NZ; k++) for (let i = 0; i < NX; i++) {
     const v = at(i, k);
-    if (v >= 1000 && at(i - 1, k) < 0) { props.add('wall_torch', X(i) + 0.02, Y, Z(k) + 0.5, Math.PI / 2); i += 6; }
-  }
-  for (let i = 3; i < NX; i += 7) for (let k = 0; k < NZ; k++) {
-    const v = at(i, k);
-    if (v >= 1000 && at(i, k - 1) < 0 && at(i - 1, k) >= 1000 && at(i + 1, k) >= 1000) { props.add('wall_torch', X(i) + 0.5, Y, Z(k) + 0.02, 0); k += 6; }
+    if (v < 1000) continue;
+    if (k % 6 === 0 && at(i - 1, k) < 0) props.add('wall_torch', X(i) + 0.02, Y, Z(k) + 0.5, Math.PI / 2);
+    if (k % 6 === 3 && at(i + 1, k) < 0) props.add('wall_torch', X(i + 1) - 0.02, Y, Z(k) + 0.5, -Math.PI / 2);
+    const run = at(i - 1, k) >= 1000 && at(i + 1, k) >= 1000;
+    if (i % 6 === 0 && run && at(i, k - 1) < 0) props.add('wall_torch', X(i) + 0.5, Y, Z(k) + 0.02, 0);
+    if (i % 6 === 3 && run && at(i, k + 1) < 0) props.add('wall_torch', X(i) + 0.5, Y, Z(k + 1) - 0.02, Math.PI);
   }
   // a panel of another floor laid in the middle of every room
   const quad = (m, x0, z0, x1, z1, y) => b.quad(m, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);

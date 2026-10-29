@@ -9,7 +9,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const ROOT = 'templates/models/';
 export const ITEMS = {
   onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
-  twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true },
+  // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
+  // (the upright carry shows the flat); it turns back as it rises to upright again
+  twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
+    roll: { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 } },
   wand: { id: 'crystal_wand', name: 'Crystal Wand', type: 'wand', hands: ['R', 'L'], tip: 0.34 },
   staff: { id: 'gnarled_staff', name: 'Gnarled Crystal Staff', type: 'staff', hands: ['R'], tip: 0.62 },
   shield_round: { id: 'ironbound', name: 'Iron-Bound Roundshield', type: 'round shield', hands: ['L'] },
@@ -23,6 +26,61 @@ const ACT = {
   R: { onehand: 'r1h_swing_3d', twohand: 'r2h_swing_3d', wand: 'r1w_cast', staff: 'r1s_cast' },
   L: { onehand: 'l1h_swing_3d', wand: 'l1w_cast', shield_round: 'lsh_block', shield_kite: 'lks_block' },
 };
+
+/**
+ * The rigs are keyed like sprite frames: one pose per frame, each held until the next (the
+ * exporter writes STEP tracks). Played that way in 3D they judder, so every track is resampled
+ * at 60 Hz along a monotone cubic through the frame poses: time-aware tangents keep the short
+ * smear frames fast and let held frames ease, and it never overshoots a pose. Walk loops wrap
+ * round to their first pose; one-shots (which start and end on the carry) ease in and out.
+ * Quaternions stay in one hemisphere and are renormalised.
+ */
+const RATE = 60;
+export function smoothClip(clip, loop) {
+  const end = clip.duration;
+  const tracks = clip.tracks.map((tr) => {
+    const S = tr.getValueSize(), n = tr.times.length;
+    const m = n > 1 && Math.abs(tr.times[n - 1] - end) < 1e-4 ? n - 1 : n; // drop the end hold
+    if (m < 2) return tr;
+    const T = [], V = [];
+    for (let i = 0; i < m; i++) { T.push(tr.times[i]); V.push(Array.from(tr.values.subarray(i * S, i * S + S))); }
+    T.push(end); V.push((loop ? V[0] : V[m - 1]).slice());
+    const quat = tr.name.endsWith('.quaternion');
+    const dot = (a, b) => a.reduce((s, x, c) => s + x * b[c], 0);
+    if (quat) for (let i = 1; i < V.length; i++) if (dot(V[i], V[i - 1]) < 0) V[i] = V[i].map((x) => -x);
+    const K = V.length;
+    // neighbours either side of key i (across the seam for loops)
+    const prev = (i) => (i > 0 ? [V[i - 1], T[i - 1]] : loop ? [V[K - 2], T[K - 2] - end] : null);
+    const next = (i) => (i < K - 1 ? [V[i + 1], T[i + 1]] : loop ? [V[1], end + T[1]] : null);
+    const tan = V.map((v, i) => {
+      const p = prev(i), q = next(i);
+      if (!p || !q || (!loop && i >= K - 2)) return v.map(() => 0); // ease out of / into rest
+      const a = quat && dot(p[0], v) < 0 ? p[0].map((x) => -x) : p[0];
+      const b = quat && dot(q[0], v) < 0 ? q[0].map((x) => -x) : q[0];
+      return v.map((x, c) => {
+        const d0 = (x - a[c]) / (T[i] - p[1]), d1 = (b[c] - x) / (q[1] - T[i]);
+        if (d0 * d1 <= 0) return 0; // a turning point: hold still there (no overshoot)
+        const t = (b[c] - a[c]) / (q[1] - p[1]);
+        return Math.sign(t) * Math.min(Math.abs(t), 3 * Math.abs(d0), 3 * Math.abs(d1));
+      });
+    });
+    const times = [], values = [];
+    let seg = 0;
+    const steps = Math.max(1, Math.round(end * RATE));
+    for (let s = 0; s <= steps; s++) {
+      const t = (s / steps) * end;
+      while (seg < K - 2 && t > T[seg + 1]) seg++;
+      const h = T[seg + 1] - T[seg], u = h > 0 ? Math.min(1, Math.max(0, (t - T[seg]) / h)) : 0;
+      const u2 = u * u, u3 = u2 * u;
+      const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+      const out = V[seg].map((x, c) => h00 * x + h10 * h * tan[seg][c] + h01 * V[seg + 1][c] + h11 * h * tan[seg + 1][c]);
+      if (quat) { const l = Math.hypot(...out) || 1; for (let c = 0; c < 4; c++) out[c] /= l; }
+      times.push(t); values.push(...out);
+    }
+    return new tr.constructor(tr.name, times, values);
+  });
+  return new THREE.AnimationClip(clip.name, end, tracks);
+}
 
 export class ViewModel {
   constructor(manifest, lib = null) {
@@ -75,9 +133,9 @@ export class ViewModel {
       this.scene.add(g.scene);
       const mixer = new THREE.AnimationMixer(g.scene);
       const actions = {};
-      for (const clip of g.animations) actions[clip.name] = mixer.clipAction(clip);
+      for (const clip of g.animations) actions[clip.name] = mixer.clipAction(smoothClip(clip, /_walk/.test(clip.name)));
       this.arms[side] = { scene: g.scene, mixer, actions, socket: g.scene.getObjectByName('item'),
-        hand: g.scene.getObjectByName('hand'), item: null, walk: null };
+        hand: g.scene.getObjectByName('hand'), item: null, walk: null, current: null };
     }
     await this.applyEquip();
   }
@@ -126,15 +184,25 @@ export class ViewModel {
     return WALK[side][this.equip[side] ?? 'null'];
   }
 
+  /** Switch an arm to action `a`, cross-fading from whatever it was playing so the weights
+   * always sum to one (fading in from nothing would let the bind pose show through). */
+  switchTo(arm, a, fade) {
+    const prev = arm.current;
+    for (const other of Object.values(arm.actions)) if (other !== a && other !== prev) other.stop();
+    a.reset();
+    a.setEffectiveWeight(1);
+    a.play();
+    if (prev && prev !== a && fade > 0) a.crossFadeFrom(prev, fade, false);
+    else if (prev && prev !== a) prev.stop();
+    arm.current = a;
+  }
+
   playWalk(side, snap = false) {
     const arm = this.arms[side];
     const a = arm.actions[this.walkClip(side)];
     if (!a) return;
-    for (const other of Object.values(arm.actions)) if (other !== a) other.stop();
-    a.reset().setLoop(THREE.LoopRepeat, Infinity).play();
-    a.enabled = true;
-    a.setEffectiveWeight(1);
-    if (!snap) a.fadeIn(0.06);
+    a.setLoop(THREE.LoopRepeat, Infinity);
+    this.switchTo(arm, a, snap ? 0 : 0.14);
     arm.walk = a;
     if (arm.item) arm.item.visible = true;
   }
@@ -144,10 +212,9 @@ export class ViewModel {
     const arm = this.arms[side];
     const a = arm.actions[name];
     if (!a) return false;
-    for (const other of Object.values(arm.actions)) if (other !== a) other.stop();
-    a.reset().setLoop(THREE.LoopOnce, 1);
+    a.setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = true;
-    a.play();
+    this.switchTo(arm, a, 0.1);
     if (arm.item) arm.item.visible = !hideItem;
     const ev = this.manifest.events[name] || {};
     this.state[side] = { name, action: a, last: 0, events: ev, duration: ev.duration ?? a.getClip().duration, hold };
@@ -165,6 +232,10 @@ export class ViewModel {
     if (both && this.busy('L')) return null;
     this.play('R', ACT.R[kind]);
     if (both) this.play('L', ACT.R[kind]);
+    // a shield swings out of the sword's way, frame for frame with the swing
+    const sh = this.equip.L;
+    if (kind === 'onehand' && (sh === 'shield_round' || sh === 'shield_kite') && !this.busy('L') && !this.blocking)
+      this.play('L', sh === 'shield_round' ? 'lsh_aside_3d' : 'lks_aside_3d');
     return kind;
   }
 
@@ -232,6 +303,13 @@ export class ViewModel {
       const arm = this.arms[side];
       if (!arm) continue;
       const st = this.state[side];
+      const roll = arm.item && ITEMS[this.equip[side]]?.roll;
+      if (roll) {
+        const ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+        const on = st && st.name === roll.clip;
+        const t = on ? st.action.time : 0, d = on ? st.duration : 1;
+        arm.item.rotation.y = on ? roll.angle * ss(roll.in[0], roll.in[1], t) * (1 - ss(d - roll.out, d - 0.03, t)) : 0;
+      }
       if (st) {
         const a = st.action;
         if (st.hold != null && a.time >= st.hold) { a.time = st.hold; a.paused = true; }
