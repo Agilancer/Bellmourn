@@ -1,0 +1,597 @@
+{
+ "atlases": {
+  "props_furniture": {
+   "pack": "props",
+   "source": "T_Trim_Furniture_BaseColor.png",
+   "file": "props_furniture.png",
+   "size": [
+    512,
+    512
+   ],
+   "cutout": false,
+   "variants": {
+    "ash": "props_furniture@ash.png",
+    "blood": "props_furniture@blood.png"
+   }
+  },
+  "props_metal": {
+   "pack": "props",
+   "source": "T_Trim_Metal_BaseColor.png",
+   "file": "props_metal.png",
+   "size": [
+    512,
+    512
+   ],
+   "cutout": false,
+   "variants": {
+    "rust": "props_metal@rust.png",
+    "gilt": "props_metal@gilt.png"
+   }
+  },
+  "props_props": {
+   "pack": "props",
+   "source": "T_Trim_Props_BaseColor.png",
+   "file": "props_props.png",
+   "size": [
+    512,
+    512
+   ],
+   "cutout": false,
+   "variants": {
+    "venom": "props_props@venom.png"
+   }
+  },
+  "props_cloth": {
+   "pack": "props",
+   "source": "T_Trim_Cloth_BaseColor.png",
+   "file": "props_cloth.png",
+   "size": [
+    512,
+    512
+   ],
+   "cutout": false,
+   "variants": {
+    "shroud": "props_cloth@shroud.png",
+    "crimson": "props_cloth@crimson.png"
+   }
+  },
+  "props_page": {
+   "pack": "props",
+   "source": "T_Page_Noise.png",
+   "file": "props_page.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "village_plaster": {
+   "pack": "village",
+   "source": "T_Plaster_BaseColor.png",
+   "file": "village_plaster.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "ochre": "village_plaster@ochre.png",
+    "ash": "village_plaster@ash.png",
+    "lime": "village_plaster@lime.png"
+   }
+  },
+  "village_brick": {
+   "pack": "village",
+   "source": "T_Brick_BaseColor.png",
+   "file": "village_brick.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "soot": "village_brick@soot.png",
+    "moss": "village_brick@moss.png"
+   }
+  },
+  "village_redbrick": {
+   "pack": "village",
+   "source": "T_RedBrick_BaseColor.png",
+   "file": "village_redbrick.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "burnt": "village_redbrick@burnt.png"
+   }
+  },
+  "village_unevenbrick": {
+   "pack": "village",
+   "source": "T_UnevenBrick_BaseColor.png",
+   "file": "village_unevenbrick.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "moss": "village_unevenbrick@moss.png",
+    "bone": "village_unevenbrick@bone.png"
+   }
+  },
+  "village_rocktrim": {
+   "pack": "village",
+   "source": "T_RockTrim_BaseColor.png",
+   "file": "village_rocktrim.png",
+   "size": [
+    256,
+    256
+   ],
+   "cutout": false,
+   "variants": {
+    "slate": "village_rocktrim@slate.png"
+   }
+  },
+  "village_roundtiles": {
+   "pack": "village",
+   "source": "T_RoundTiles_BaseColor.png",
+   "file": "village_roundtiles.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "rust": "village_roundtiles@rust.png",
+    "moss": "village_roundtiles@moss.png",
+    "lead": "village_roundtiles@lead.png"
+   }
+  },
+  "village_woodtrim": {
+   "pack": "village",
+   "source": "T_WoodTrim_BaseColor.png",
+   "file": "village_woodtrim.png",
+   "size": [
+    256,
+    256
+   ],
+   "cutout": false,
+   "variants": {
+    "grey": "village_woodtrim@grey.png",
+    "char": "village_woodtrim@char.png"
+   }
+  },
+  "village_metal": {
+   "pack": "village",
+   "source": "T_MetalOrnaments_BaseColor.png",
+   "file": "village_metal.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "village_vine": {
+   "pack": "village",
+   "source": "T_VineLeaf.png",
+   "file": "village_vine.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": true,
+   "variants": {
+    "dead": "village_vine@dead.png",
+    "blight": "village_vine@blight.png"
+   }
+  },
+  "village_glass": {
+   "pack": "village",
+   "source": "T_WindowGradient.png",
+   "file": "village_glass.png",
+   "size": [
+    32,
+    32
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "nature_bark": {
+   "pack": "nature",
+   "source": "Bark_NormalTree.png",
+   "file": "nature_bark.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "ash": "nature_bark@ash.png"
+   }
+  },
+  "nature_deadbark": {
+   "pack": "nature",
+   "source": "Bark_DeadTree.png",
+   "file": "nature_deadbark.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "char": "nature_deadbark@char.png"
+   }
+  },
+  "nature_twistbark": {
+   "pack": "nature",
+   "source": "Bark_TwistedTree.png",
+   "file": "nature_twistbark.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "nature_leaves": {
+   "pack": "nature",
+   "source": "Leaves_NormalTree_C.png",
+   "file": "nature_leaves.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {
+    "rust": "nature_leaves@rust.png",
+    "blight": "nature_leaves@blight.png",
+    "ember": "nature_leaves@ember.png"
+   }
+  },
+  "nature_twistleaves": {
+   "pack": "nature",
+   "source": "Leaves_TwistedTree_C.png",
+   "file": "nature_twistleaves.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {
+    "moss": "nature_twistleaves@moss.png",
+    "blood": "nature_twistleaves@blood.png"
+   }
+  },
+  "nature_pine": {
+   "pack": "nature",
+   "source": "Leaf_Pine_C.png",
+   "file": "nature_pine.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {
+    "frost": "nature_pine@frost.png",
+    "rust": "nature_pine@rust.png"
+   }
+  },
+  "nature_foliage": {
+   "pack": "nature",
+   "source": "Leaves.png",
+   "file": "nature_foliage.png",
+   "size": [
+    256,
+    256
+   ],
+   "cutout": true,
+   "variants": {
+    "wither": "nature_foliage@wither.png"
+   }
+  },
+  "nature_flowers": {
+   "pack": "nature",
+   "source": "Flowers.png",
+   "file": "nature_flowers.png",
+   "size": [
+    128,
+    125
+   ],
+   "cutout": true,
+   "variants": {
+    "nightshade": "nature_flowers@nightshade.png"
+   }
+  },
+  "nature_grass": {
+   "pack": "nature",
+   "source": "Grass.png",
+   "file": "nature_grass.png",
+   "size": [
+    32,
+    32
+   ],
+   "cutout": false,
+   "variants": {
+    "dead": "nature_grass@dead.png",
+    "frost": "nature_grass@frost.png"
+   }
+  },
+  "nature_mushrooms": {
+   "pack": "nature",
+   "source": "Mushrooms.png",
+   "file": "nature_mushrooms.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "nature_pathrocks": {
+   "pack": "nature",
+   "source": "PathRocks_Diffuse.png",
+   "file": "nature_pathrocks.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "nature_rocks": {
+   "pack": "nature",
+   "source": "Rocks_Diffuse.png",
+   "file": "nature_rocks.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "snow": "nature_rocks@snow.png"
+   }
+  },
+  "nature_desertrocks": {
+   "pack": "nature",
+   "source": "Rocks_Desert_Diffuse.png",
+   "file": "nature_desertrocks.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": false,
+   "variants": {
+    "ash": "nature_desertrocks@ash.png"
+   }
+  },
+  "trees_bark": {
+   "pack": "trees",
+   "source": "Tree_Bark.jpg",
+   "file": "trees_bark.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "trees_birchbark": {
+   "pack": "trees",
+   "source": "Birch_Bark.png",
+   "file": "trees_birchbark.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": false,
+   "variants": {
+    "dead": "trees_birchbark@dead.png"
+   }
+  },
+  "trees_deadbark": {
+   "pack": "trees",
+   "source": "Color Variations/Bark_Dead.png",
+   "file": "trees_deadbark.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "trees_deadbirch": {
+   "pack": "trees",
+   "source": "Color Variations/Birch_Bark_Dead.png",
+   "file": "trees_deadbirch.png",
+   "size": [
+    64,
+    64
+   ],
+   "cutout": false,
+   "variants": {}
+  },
+  "trees_leaves": {
+   "pack": "trees",
+   "source": "Tree_Leaves.png",
+   "file": "trees_leaves.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {
+    "rust": "trees_leaves@rust.png",
+    "ember": "trees_leaves@ember.png",
+    "blight": "trees_leaves@blight.png"
+   }
+  },
+  "trees_birchleaves": {
+   "pack": "trees",
+   "source": "Birch_Leaves_Green.png",
+   "file": "trees_birchleaves.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_birchgold": {
+   "pack": "trees",
+   "source": "Birch_Leaves_Yellow.png",
+   "file": "trees_birchgold.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_pine": {
+   "pack": "trees",
+   "source": "Pine_Leaves.png",
+   "file": "trees_pine.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {
+    "frost": "trees_pine@frost.png"
+   }
+  },
+  "trees_leaves_blue": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Blue.png",
+   "file": "trees_leaves_blue.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_cyan": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Cyan.png",
+   "file": "trees_leaves_cyan.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_darkred": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_DarkRed.png",
+   "file": "trees_leaves_darkred.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_light": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Light.png",
+   "file": "trees_leaves_light.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_orange": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Orange.png",
+   "file": "trees_leaves_orange.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_pink": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Pink.png",
+   "file": "trees_leaves_pink.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_purple": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Purple.png",
+   "file": "trees_leaves_purple.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_leaves_red": {
+   "pack": "trees",
+   "source": "Color Variations/Leaves_Red.png",
+   "file": "trees_leaves_red.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_pine_light": {
+   "pack": "trees",
+   "source": "Color Variations/Pine_Leaves_Light.png",
+   "file": "trees_pine_light.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  },
+  "trees_pine_red": {
+   "pack": "trees",
+   "source": "Color Variations/Pine_Leaves_Red.png",
+   "file": "trees_pine_red.png",
+   "size": [
+    128,
+    128
+   ],
+   "cutout": true,
+   "variants": {}
+  }
+ },
+ "swatch": "swatch.png",
+ "grime": "grime.png",
+ "wear": "wear.png",
+ "ground": [
+  "meadow",
+  "deadgrass",
+  "forest",
+  "mud",
+  "gravel",
+  "cliff",
+  "desert",
+  "ash",
+  "snow",
+  "marsh",
+  "gravesoil",
+  "cobble",
+  "heather",
+  "rust"
+ ]
+}
