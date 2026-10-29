@@ -30,6 +30,8 @@ import { worldHeight, biomeAt, BIOMES } from './land.js';
 import { SPOTS } from './wilds.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
+import { Foes } from './foes.js';
+import { buildCave } from './cave.js';
 import { StainedGlass } from './glass.js';
 
 const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -81,7 +83,7 @@ for (let i = 0; i < TORCHES; i++) {
 
 const sfx = new Sfx();
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, gameInput, kit, zombies;
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, gameInput, kit, zombies, foes;
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried), and more spread through the dungeon below
 const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
@@ -162,6 +164,7 @@ async function build() {
   mark('kit');
   buildWorld(ctx); mark('world');
   ctx.dungeon = buildCrypt(ctx, ctx.stairBottom); mark('dungeon');
+  ctx.cave = buildCave(ctx); mark('cave');   // the Gloamhollow, in the cliff beside Brightwater Falls
   ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); mark('merge');
   kit.finish(); mark('instances');
   await ctx.land.ready;
@@ -197,6 +200,8 @@ async function build() {
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
   zombies.populateDungeon(ctx.dungeon, DUNGEON_DEAD);
   zombies.onPlayerHit = hurtPlayer;
+  foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
+  await foes.load(); foes.populate(ctx); mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: SPELL_DMG[def.kind] ?? 30, dir: d, heavy: def.size > 0.4, kind: def.kind });
   magic.onBlast = (def, at) => {
@@ -405,7 +410,7 @@ function melee(reach, heavy) {
 function zoneAt(p) {
   if (p.y < worldHeight(p.x, p.z) - 1.5) {
     const d = ctx.dungeon?.bounds;
-    return { name: d && p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1 ? 'The Undercroft' : 'The Caves', kind: 'under' };
+    return { name: d && p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1 ? 'The Undercroft' : ctx.cave?.contains(p) ? ctx.cave.name : 'The Caves', kind: 'under' };
   }
   const far = Math.hypot(p.x, p.z) > 300 || p.x > REGION.x0 ? 1 : 0; // out of the forest: see a long way
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: far };
@@ -628,6 +633,7 @@ function tick(dt) {
   for (const m of ctx.builtUnder) m.visible = camera.position.y < 0.5; // the undercroft, only from below
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
+  foes.update(dt, player);
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
@@ -667,7 +673,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   hud.showOverlay('start', touch);
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, kit, zombies, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, kit, zombies, foes, melee, equip, assign, castSlot, hud, begin, L,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {

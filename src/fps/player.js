@@ -65,7 +65,8 @@ export class Player {
       this.onGround = false;
     }
     if (p.y < -60) { p.set(0, 0, 12); this.vel.set(0, 0, 0); } // fell out of the world
-    if (this.physics.terrain && p.x > 286) { // on the downs nothing is below the ground: never sink into it
+    // on the downs nothing is below the ground but caves (physics.belowGround): never sink into it
+    if (this.physics.terrain && p.x > 286 && !this.physics.belowGround?.some((inside) => inside(p))) {
       const g = this.physics.groundAt(p.x, p.z);
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }
