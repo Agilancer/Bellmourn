@@ -3,8 +3,13 @@
 // whatever walks down here finds its way the same), now built and dressed from the reworked kit:
 // soot-black brick, mossed and slate masonry and cobbles from the village and nature packs for its
 // shell, and the Modular Dungeon pack's own pieces for everything you look at: arches over the
-// hallway mouths, columns, carved wall panels, stairs to nowhere, iron-barred cells, torches,
-// tombs, bones, traps, cobwebs and the treasure in the vault.
+// hallway mouths, columns, carved wall panels, torches, tombs, bones, cobwebs and the treasure in
+// the vault. Every room is dressed for what it was for: the entry hall is a crypt-chapel whose
+// raised dais faces you as you come down the stair; the pillared halls are built round a real
+// pit (the balustrade keeps you out of it, the spikes at its foot say why); storerooms keep their
+// barrels and crates against the walls round a cellar hatch; the ossuary's bones are stacked
+// along its walls; the vault's chests sit behind a spike trap. Where a column has fallen its
+// rubble lies under it.
 
 const KINDS = ['pillared hall', 'crypt', 'library', 'shrine', 'storeroom', 'vault', 'ossuary'];
 const THEMES = [ // floor, wall, ceiling, band: repainted kit atlases [atlas, variant]
@@ -80,6 +85,14 @@ export function buildCrypt(ctx, entry) {
   rooms.forEach((r, i) => { r.theme = THEMES[i === 0 ? 1 : (i * 5) % THEMES.length]; });
   const halls = edges.map((_, n) => THEMES[(n * 3 + 2) % THEMES.length]);
   const S = (spec, tile) => kit.surface(spec[0], tile, spec[1], 'stone');
+  // the pillared halls' pits: the floor is left open over them (even sizes, for the balustrade's
+  // 2 m pieces), clear of the two rows of columns
+  rooms.forEach((r) => {
+    if (r.kind !== 'pillared hall') return;
+    const n = Math.min(6, Math.floor((r.w - 4) / 2) * 2, Math.floor((r.d - 7) / 2) * 2);
+    if (n >= 4) r.pit = { i: r.i + Math.floor((r.w - n) / 2), k: r.k + Math.floor((r.d - n) / 2), n };
+  });
+  const pitAt = (i, k) => { const v = at(i, k); if (v < 0 || v >= 1000) return false; const q = rooms[v].pit; return !!q && i >= q.i && i < q.i + q.n && k >= q.k && k < q.k + q.n; };
   const themeOf = (v) => (v === FOOT ? rooms[0].theme : v >= 1000 ? halls[v - 1000] : rooms[v].theme);
   const ceilOf = (v) => (v >= 1000 ? HALL_H : ROOM_H);
   const X = (i) => X0 + i, Z = (k) => Z0 + k;
@@ -88,10 +101,10 @@ export function buildCrypt(ctx, entry) {
     while (i < NX) {
       const v = at(i, k);
       if (v < 0 || v === TUNNEL) { i++; continue; }
-      const th = themeOf(v), h = ceilOf(v);
+      const th = themeOf(v), h = ceilOf(v), pit = pitAt(i, k);
       let j = i;
-      while (j + 1 < NX && at(j + 1, k) >= 0 && at(j + 1, k) !== TUNNEL && themeOf(at(j + 1, k)) === th && ceilOf(at(j + 1, k)) === h) j++;
-      b.box([X(i), Y - 0.5, Z(k)], [X(j + 1), Y, Z(k + 1)], S(th.floor, 2.5), { shade: 0.9, faces: { bottom: false } });
+      while (j + 1 < NX && at(j + 1, k) >= 0 && at(j + 1, k) !== TUNNEL && themeOf(at(j + 1, k)) === th && ceilOf(at(j + 1, k)) === h && pitAt(j + 1, k) === pit) j++;
+      if (!pit) b.box([X(i), Y - 0.5, Z(k)], [X(j + 1), Y, Z(k + 1)], S(th.floor, 2.5), { shade: 0.9, faces: { bottom: false } });
       b.box([X(i), Y + h, Z(k)], [X(j + 1), Y + h + 0.5, Z(k + 1)], S(th.ceil, 3), { shade: 0.55, faces: { top: false } });
       i = j + 1;
     }
@@ -172,19 +185,52 @@ export function buildCrypt(ctx, entry) {
     // a carved wall panel run on the north wall where it's blank
     if (!mouths[id].some(([s]) => s === 0)) for (let x = x0 + 2; x < x1 - 2; x += 2.2) P(id % 2 ? 'dungeon/Wall_Modular' : 'dungeon/Decorative_Wall', x, fy + (id % 2 ? 1.0 : 0.82), z0 + 0.3, 0, 1, { solid: false });
     P('dungeon/WallCover_Modular', cx, fy + ROOM_H - 0.4, z0 + 0.25, 0, [r.w / 2, 1, 1], { solid: false });
-    // the floor's centre: the kit's flagstones, a trapdoor or grate
-    if (r.w >= 7 && r.d >= 7) {
+    // the floor's centre: the kit's flagstones (not over a pit, a dais or a cellar hatch)
+    if (r.w >= 7 && r.d >= 7 && !r.pit && r.kind !== 'entry hall' && r.kind !== 'storeroom')
       for (let a = -1; a <= 0; a++) for (let c = -1; c <= 0; c++) P('dungeon/Floor_Modular', cx + a * 2 + 1, fy + 0.03, cz + c * 2 + 1, 0, [1, 0.3, 1], { solid: false });
-      if (id % 3 === 1) P(id % 2 ? 'dungeon/Trapdoor' : 'dungeon/Trap_empty', cx + 3, fy + 0.01, cz, 0, 1, { solid: false });
-    }
     for (let n = 0; n < 2; n++) P(n ? 'dungeon/Cobweb2' : 'dungeon/Cobweb', n ? x1 - 0.6 : x0 + 0.6, fy + ROOM_H - 0.2, n ? z1 - 0.6 : z0 + 0.6, n ? Math.PI : 0, 1.4, { solid: false });
-    for (let n = 0; n < 3; n++) P('dungeon/Brick', x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), R() * 6, 1, { solid: false });
     const kind = r.kind;
-    if (kind === 'pillared hall' || kind === 'entry hall') {
-      for (let x = x0 + 3; x < x1 - 2; x += 4) for (const z of [z0 + 2.5, z1 - 2.5]) P(R() < 0.25 ? 'dungeon/Column~broken' : R() < 0.5 ? 'dungeon/Column' : 'dungeon/Column2', x, fy, z, 0, [0.8, 1.22, 0.8]);
+    // a column that has come down leaves its rubble and bricks round its foot
+    const column = (x, z, broken) => {
+      P(broken ? 'dungeon/Column~broken' : R() < 0.5 ? 'dungeon/Column' : 'dungeon/Column2', x, fy, z, 0, [0.8, 1.22, 0.8]);
+      if (broken) {
+        P('bellmourn/rubble', x + 0.7, fy, z + 0.5, R() * 6, 1.2, { solid: false });
+        for (let n = 0; n < 3; n++) P('dungeon/Brick', x + (R() - 0.5) * 2.2, fy, z + (R() - 0.5) * 2.2, R() * 6, 1, { solid: false });
+      }
+    };
+    if (kind === 'entry hall') {
+      // a crypt-chapel: you come down the stair through its south wall and the way on leaves by
+      // the north; on the east (where an altar belongs) a dais up three steps carries the shrine
+      // and its candles under the banner, and a row of columns down the west side makes an aisle
+      const dh = 0.75, dw = 3.4, dx0 = x1 - dw, dz0 = cz - 3.6, dz1 = cz + 3.6;
+      const dais = S(r.theme.band, 1.5), top = S(r.theme.floor, 2);
+      b.box([dx0, fy, dz0], [x1, fy + dh, dz1], { top, side: dais, bottom: dais }, { shade: 0.9 });
+      b.stairs(dx0, cz, fy + dh, -dh, 3.2, '-x', dais, { step: 0.25, run: 0.42 });
+      P('bellmourn/shrine', x1 - 1.1, fy + dh, cz, -Math.PI / 2, 1.1);
+      for (const sz of [-1, 1]) {
+        P('dungeon/Pedestal2', x1 - 1.2, fy + dh, cz + sz * 2.5, 0, 0.5);
+        P('props/CandleStick_Triple', x1 - 1.2, fy + dh + 1.17, cz + sz * 2.5, 0, 1, { solid: false });
+        P('props/CandleStick_Stand', dx0 - 1.6, fy, cz + sz * 1.9, 0);
+      }
+      P('dungeon/Banner', x1 - 0.45, fy + dh, cz, -Math.PI / 2, 1, { variant: 'crimson', solid: false });
+      for (let z = z0 + 2; z < z1 - 1.5; z += 3) column(x0 + 2.2, z, false);
+    } else if (kind === 'pillared hall') {
+      for (let x = x0 + 3; x < x1 - 2; x += 4) for (const z of [z0 + 2.5, z1 - 2.5]) column(x, z, R() < 0.2);
       P('dungeon/Banner', cx, fy, z0 + 0.6, 0, 1, { variant: 'crimson', solid: false });
-      if (kind === 'entry hall') { P('dungeon/Statue_Horse', cx - 3, fy, cz + 1, 0.4, 0.75); P('dungeon/Stairs_Modular', x1 - 2, fy + 1.0, z0 + 2, Math.PI / 2); P('dungeon/Stairs_SideCover', x1 - 2, fy + 1.0, z0 + 2, Math.PI / 2); P('dungeon/Stairs_SideCoverWall', x1 - 2, fy + 1.0, z0 + 2, Math.PI / 2); }
-      else { fence(P, cx - 3, fy, cz - 3, 6, 6); P('dungeon/Spikes', cx, fy, cz, 0, 1.4); }
+      const q = r.pit;
+      if (q) {
+        // the pit: its walls going down, its floor of bones round the spikes, and the balustrade
+        const px0 = X(q.i), pz0 = Z(q.k), px1 = px0 + q.n, pz1 = pz0 + q.n, D = 2.8, wall = S(r.theme.wall, 2.5);
+        b.box([px0 - 0.3, fy - D, pz0 - 0.3], [px1 + 0.3, fy - D + 0.3, pz1 + 0.3], S(r.theme.floor, 2), { shade: 0.6 });
+        b.box([px0 - 0.4, fy - D, pz0 - 0.4], [px0, fy, pz1 + 0.4], wall, { shade: 0.7 });
+        b.box([px1, fy - D, pz0 - 0.4], [px1 + 0.4, fy, pz1 + 0.4], wall, { shade: 0.7 });
+        b.box([px0, fy - D, pz0 - 0.4], [px1, fy, pz0], wall, { shade: 0.7 });
+        b.box([px0, fy - D, pz1], [px1, fy, pz1 + 0.4], wall, { shade: 0.7 });
+        for (let a = 0; a < q.n; a += 2) for (let c = 0; c < q.n; c += 2) P('dungeon/Spikes', px0 + a + 1, fy - D + 0.3, pz0 + c + 1, R() * 0.4, [1, 0.8, 1]);
+        P('bellmourn/bone_heap', px0 + 1, fy - D + 0.3, pz0 + 1.2, 1, 1, { solid: false });
+        P('dungeon/Skull', px1 - 1.1, fy - D + 0.3, pz1 - 0.9, 2, 1, { solid: false });
+        fence(P, px0, fy, pz0, q.n, q.n);
+      } else P('dungeon/Woodfire', cx, fy, cz, 0, 1.2);   // too small a hall for a pit: a fire in its middle
     } else if (kind === 'crypt') {
       for (let x = x0 + 2.5; x < x1 - 2; x += 3) P('bellmourn/tomb', x, fy, cz, Math.PI / 2);
       P('props/CandleStick_Stand', x0 + 1.2, fy, z0 + 1.2); P('props/CandleStick_Stand', x1 - 1.2, fy, z1 - 1.2);
@@ -203,22 +249,35 @@ export function buildCrypt(ctx, entry) {
       for (let z = z0 + 4; z < z1 - 1.5; z += 1.8) P('props/Bench', cx, fy, z, Math.PI, 0.9);
       P('dungeon/Banner_wall', cx, fy + 3.2, z0 + 0.35, 0, 1, { variant: 'crimson', solid: false });
     } else if (kind === 'storeroom') {
-      const stuff = ['dungeon/Barrel', 'dungeon/Barrel2', 'dungeon/Crate', 'props/Crate_Wooden', 'props/Crate_Metal', 'dungeon/Bag_Standing', 'dungeon/Bucket', 'props/Barrel', 'props/Pot_1_Lid', 'props/Bucket_Metal'];
-      for (let n = 0; n < 12; n++) P(stuff[n % stuff.length], x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), R() * 6);
-      P('dungeon/Woodfire', cx, fy, cz);
+      // barrels in a row along the west wall, crates stacked two high in the corners, sacks
+      // by the door, and the cellar hatch in the middle of the floor
+      const walls = [[0, (a) => [x0 + 0.7, z0 + a], 'x'], [1, (a) => [x1 - 0.7, z0 + a], 'x']];
+      for (const [si, at2] of walls) for (let a = 1.3; a < r.d - 1; a += 1.25) {
+        if (nearMouth(id, si === 0 ? 2 : 3, a)) continue;
+        const [x, z] = at2(a);
+        P(si ? ['dungeon/Barrel', 'dungeon/Barrel2', 'props/Barrel'][Math.floor(a) % 3] : ['dungeon/Crate', 'props/Crate_Wooden', 'props/Crate_Metal'][Math.floor(a) % 3], x, fy, z, R() * 0.3);
+        if (!si && Math.floor(a) % 2 === 0) P('props/Crate_Wooden', x, fy + 0.88, z, R() * 0.4);
+      }
+      P('dungeon/Bag_Standing', cx - 1.4, fy, z1 - 0.9, 0.3); P('props/Bag', cx + 1.2, fy, z1 - 0.8, 1.2); P('props/Bucket_Metal', cx + 2, fy, z0 + 0.8, 0);
+      P('dungeon/Trapdoor', cx, fy + 0.01, cz, 0, 1, { solid: false });
     } else if (kind === 'vault') {
       P('dungeon/Chest_Gold', cx, fy, z0 + 1.2, 0); P('dungeon/Chest', cx - 1.8, fy, z0 + 1.2, 0); P('dungeon/Chest', cx + 1.8, fy, z0 + 1.2, 0);
       for (let n = 0; n < 5; n++) P(n % 2 ? 'dungeon/Coin_Pile' : 'props/Coin_Pile', cx + (R() - 0.5) * 4, fy, z0 + 2.4 + R(), R() * 6, n % 2 ? 2 : 1, { solid: false });
       P('dungeon/Bag_Coins', cx - 1, fy, z0 + 2.6, 0.4, 1, { solid: false }); P('props/Coin_Pile_2', cx + 1, fy, z0 + 2.8, 0, 1, { solid: false });
-      P('props/Key_Gold', cx, fy + 0.9, z0 + 1.2, 0, 1, { solid: false }); P('props/Coin', cx + 0.3, fy + 0.9, z0 + 1.4, 0, 1, { solid: false });
       P('dungeon/Sword_WallMount', cx, fy + 2.4, z0 + 0.3, 0, 1, { solid: false });
-      P('dungeon/Trap_spikes', cx, fy, cz + 1, 0);
-      P('dungeon/Arch_bars', cx, fy, cz - 0.5, 0, [1.2, 1.2, 1], { solid: false });
-      P('dungeon/Pedestal', x1 - 1.6, fy, z1 - 1.6, 0, 0.5);
+      // the treasure's guard: a spike trap across the way to it
+      for (const dx of [-2, 0, 2]) P('dungeon/Trap_spikes', cx + dx, fy, z0 + 4.4, 0);
+      P('dungeon/Pedestal', x1 - 1.6, fy, z1 - 1.6, 0, 0.5); P('props/Chalice', x1 - 1.6, fy + 1.1, z1 - 1.6, 0, 1.4, { solid: false });
     } else if (kind === 'ossuary') {
-      for (let n = 0; n < 9; n++) P(n % 3 ? 'bellmourn/bone_heap' : 'dungeon/Skull', x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), R() * 6, 0.9 + R() * 0.5);
-      P('dungeon/Spikes', cx, fy, cz, 0, 1);
-      P('dungeon/Arch_Door_bottompivot', x0 + 0.3, fy, cz, Math.PI / 2, 1, { solid: false });
+      // the bones stacked along the walls (skulls set on the heaps), an ossuary chest at the end
+      let n = 0;
+      for (let a = 1.2; a < r.w - 1; a += 1.5) for (const [zz, rot, si] of [[z0 + 0.7, 0, 0], [z1 - 0.7, Math.PI, 1]]) {
+        if (nearMouth(id, si, a)) continue;
+        P('bellmourn/bone_heap', x0 + a, fy, zz, rot + (R() - 0.5) * 0.3, 1.1);
+        if (n++ % 2 === 0) P('dungeon/Skull', x0 + a + (R() - 0.5) * 0.3, fy + 0.3, zz, rot + (R() - 0.5), 1, { solid: false });
+      }
+      P('bellmourn/ossuary_chest', cx, fy, cz, 0);
+      P('props/CandleStick_Stand', cx - 1.2, fy, cz, 0); P('props/CandleStick_Stand', cx + 1.2, fy, cz, 0);
     }
   });
   // torches down the hallways: every 6 m, alternating walls
@@ -232,6 +291,8 @@ export function buildCrypt(ctx, entry) {
     if (i % 6 === 3 && run && at(i, k + 1) < 0) P('dungeon/Torch', X(i) + 0.5, Y + 1.8, Z(k + 1) - 0.25, 0);
     if ((i * 7 + k * 13) % 97 === 0) P(((i + k) % 2) ? 'dungeon/Cobweb' : 'dungeon/Skull', X(i) + 0.5, Y + ((i + k) % 2 ? HALL_H - 0.2 : 0), Z(k) + 0.5, i, 1, { solid: false });
   }
+  // the pits are no way through for whatever walks down here
+  for (const r of rooms) if (r.pit) for (let a = -1; a <= r.pit.n; a++) for (let c = -1; c <= r.pit.n; c++) cell[(r.pit.k + c) * NX + r.pit.i + a] = -1;
   const nav = { x0: X0, z0: Z0, nx: NX, nz: NZ, cell };
   const roomList = rooms.map((r) => ({ x0: X(r.i), z0: Z(r.k), x1: X(r.i + r.w), z1: Z(r.k + r.d), kind: r.kind }));
   for (const r of roomList) ctx.interiors?.push({ ...r, y0: Y - 1, y1: Y + ROOM_H, floor: Y, name: 'The Undercroft: ' + r.kind, biome: 'undercroft' });

@@ -23,13 +23,30 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Left click | right hand: swing, or shoot with a wand or staff |
 | Right click | left hand: hold a shield up, swing, or shoot a wand |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
-| E | open and close doors (the interact key) |
-| Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
-| 1 to 6 | quick-equip sword, greatsword, wand, staff, round shield, kite shield |
+| E | open and close doors, search chests, crates, barrels, sacks and pots |
+| Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
+| 1 to 6 | quick-equip the first one-hander, two-hander, wand, staff, round shield or kite shield in the bag |
+| Q, Z | drink a healing draught, a mana draught |
+| M | the map (the corner map is always up; below ground it charts what you've walked) |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
+Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
+it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
+nothing until it has come back; it refills quickly, but only while the shield is down. Better
+shields hold more Guard and stop more, and from Rare up they're enchanted (thorns, frost, fire,
+holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
+you find depends on where you are (the undercroft and the far countries hold better).
+
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, use (E), jump, open the bag and pause.
+and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
+the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
+frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
+map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view.
+
+Bellmourn's people walk its streets by day (`villagers.js`: made from the foes' bodies,
+repainted, men, women, children, the old and the watch) and go home at dusk. `gear.js` and
+`bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
+`map.js` the map.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the

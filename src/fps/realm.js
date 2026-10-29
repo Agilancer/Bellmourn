@@ -28,8 +28,8 @@ export function rng(seed) {
 export const ROADS = [
   { pts: [[0, -48], [0, 120]], w: 3.6, layer: 'gravel' },
   { pts: [[-120, 0], [120, 0]], w: 3.6, layer: 'gravel' },
-  { pts: [[17, -40], [17, -122]], w: 2.6, layer: 'mud' },
-  { pts: [[20, -118], [62, -132], [66, -210], [40, -300], [-20, -420], [-40, -560], [-60, -720], [-90, -900]], w: 2.4, layer: 'mud' },
+  { pts: [[19, -40], [19, -118], [17, -122]], w: 2.6, layer: 'mud' },          // the lane to the graveyard gate, clear of the bell tower
+  { pts: [[20, -118], [53, -118], [62, -132], [66, -210], [40, -300], [-20, -420], [-40, -560], [-60, -720], [-90, -900]], w: 2.4, layer: 'mud' },
   { pts: [[-120, 0], [-300, 10], [-470, -30], [-640, -110], [-820, -160]], w: 2.6, layer: 'gravel' },
   { pts: [[0, 120], [10, 300], [70, 480], [130, 640], [150, 820]], w: 2.6, layer: 'gravel' },
   { pts: [[10, 300], [-160, 420], [-380, 560], [-640, 680]], w: 2.2, layer: 'mud' },
@@ -51,6 +51,7 @@ export function buildWorld(ctx) {
 
   // the countries first claim their building pads, then the land is shaped round them
   const wilds = buildWilds(ctx, { planOnly: true });
+  ctx.paths = wilds.paths;   // (for the map)
   ctx.land = new Land().build(ctx, {
     paths: [...ROADS, ...wilds.paths],
     rects: [{ x0: -20, z0: -20, x1: 20, z1: 20, layer: 'cobble', second: 'gravel', mix: 40 },
@@ -78,7 +79,8 @@ const HOUSES = [
   { name: 'blacksmith', furnish: 'smith', title: 'Hammerfall Smithy', x: -30, z: 18, w: 3, d: 5, rot: 1, storeys: 1, style: 'brick', door: 'x', forge: true },
   { name: 'general store', furnish: 'store', title: "Grimwald's Provisions", x: 30, z: -18, w: 3, d: 6, rot: 3, storeys: 2, door: 'x', porch: true, plaster: 'ochre' },
   { name: 'alchemist', furnish: 'alchemist', title: "The Alchemist's Shop", x: -30, z: -18, w: 3, d: 4, rot: 1, storeys: 2, door: 'x', plaster: 'ash', vines: 3, vineVariant: 'blight' },
-  { name: 'town hall', furnish: 'hall', title: 'Bellmourn Town Hall', x: 0, z: 42, w: 4, d: 7, rot: 2, storeys: 2, door: 'x', style: 'brick', dormers: 2, balcony: 'simple' },
+  // (beside the high street, its door onto it: the road runs on south past it)
+  { name: 'town hall', furnish: 'hall', title: 'Bellmourn Town Hall', x: -14, z: 44, w: 4, d: 7, rot: 0, storeys: 2, door: 'x', style: 'brick', dormers: 2, balcony: 'simple' },
   { name: 'barracks', furnish: 'barracks', title: 'The Watch Barracks', x: 52, z: 44, w: 3, d: 7, rot: 0, storeys: 2, door: 'x', style: 'brick', roofVariant: 'lead' },
   { name: 'stable', furnish: 'stable', title: 'The Stables', x: 58, z: -6, w: 4, d: 6, rot: 3, storeys: 1, open: true, door: 'z', roofVariant: 'moss' },
   { name: 'bakery', furnish: 'bakery', title: 'The Bakehouse', x: -58, z: -8, w: 3, d: 4, rot: 1, storeys: 2, door: 'x', roofVariant: 'rust', porch: true },
@@ -123,15 +125,17 @@ function village(ctx, R) {
       kit.place(['ultimate/Corn_1', 'ultimate/Corn_2', 'nature/Plant_1', 'ultimate/Plant_3'][(((gi + Math.round(x + z)) % 4) + 4) % 4], x, 0, z, R() * 6, 0.8, { solid: false });
     kit.place('bellmourn/scarecrow', (x0 + x1) / 2, 0, (z0 + z1) / 2, R() * 6);
   });
-  // the odds and ends behind every house
-  const clutter = ['village/Prop_Crate', 'props/Barrel', 'props/Crate_Wooden', 'bellmourn/woodpile', 'props/Bucket_Wooden_1', 'props/Barrel_Holder', 'village/Prop_Brick1', 'props/Pot_1'];
-  HOUSES.forEach((h, i) => {
-    for (let k = 0; k < 3; k++) {
-      const a = h.rot * Math.PI / 2, back = [-Math.sin(a), -Math.cos(a)];
-      const off = (k - 1) * 2.4;
-      const x = h.x + back[0] * (h.d + 1.2) + back[1] * off, z = h.z + back[1] * (h.d + 1.2) - back[0] * off;
-      kit.place(clutter[(i * 3 + k) % clutter.length], x, 0, z, R() * 6, 1);
-    }
+  // behind every house, against its back wall by one corner, what a household keeps out of
+  // doors: firewood for its hearth, a rain barrel and its bucket; crates behind the shops
+  const shop = new Set(['store', 'smith', 'bakery', 'inn', 'alchemist']);
+  HOUSES.forEach((h) => {
+    if (h.ruin || h.open) return;
+    const a = h.rot * Math.PI / 2, back = [-Math.sin(a), -Math.cos(a)], side = [Math.cos(a), -Math.sin(a)];
+    const at = (u, v) => [h.x + back[0] * (h.d + 0.7 + v) + side[0] * (h.w - 1.2 - u), h.z + back[1] * (h.d + 0.7 + v) + side[1] * (h.w - 1.2 - u)];
+    const put = (id, u, v, rot = 0) => { const [x, z] = at(u, v); kit.place(id, x, 0, z, a + rot, 1); };
+    put('bellmourn/woodpile', 0, 0.2, Math.PI / 2);
+    put('props/Barrel', 1.9, 0, 0.3); put('props/Bucket_Wooden_1', 2.6, 0.5, 1);
+    if (shop.has(h.furnish)) { put('props/Crate_Wooden', -1.6, 0, 0.2); put('props/Crate_Wooden', -2.5, 0.1, -0.3); }
   });
   // the iron railings round the plaza and the cathedral forecourt
   fenceLine(ctx, [[-16, -40], [-6, -40]], 'village/Prop_MetalFence_Ornament');
@@ -204,7 +208,7 @@ function cathedral(ctx, R) {
     for (let x = C.x0 + 1; x < C.x1; x += 2) { // front (south) and back (north)
       const doorGap = Math.abs(x) < 2.5;
       if (!(doorGap && t < 2)) {
-        const roseGap = Math.abs(x) < 2.5 && t >= 2;
+        const roseGap = Math.abs(x) < 2.5 && t === 2;
         W(x, y, C.z1, 0, roseGap ? 'Wall_Arch' : (t === 1 || t === 2) && Math.abs(x) > 6 ? 'Wall_UnevenBrick_Window_Thin_Round' : 'Wall_UnevenBrick_Straight');
         if ((t === 1 || t === 2) && Math.abs(x) > 6) glass.push(['lancet', [x, y + 1.85, C.z1 - 0.1], [0, 0, -1], 0.62, 1.25]);
       }
@@ -237,12 +241,24 @@ function cathedral(ctx, R) {
   // the stained glass in every window (and the rose over the door, in the open arches there)
   if (ctx.stained) {
     for (const g of glass) ctx.stained.add(...g);
-    ctx.stained.add('rose', [0, F + 2.5 * H + 0.2, C.z1 - 0.12], [0, 0, -1], 3.6, 3.6, brick);
+    ctx.stained.add('rose', [0, F + 2.5 * H, C.z1 - 0.12], [0, 0, -1], 3.1, 3.1, brick);
     ctx.stained.room([C.x0 - 0.5, 0, C.z0 - 0.5, C.x1 + 0.5, top + 10, C.z1 + 0.5]);
   }
   // the roof: the kit's lead-sheeted tiles over the whole nave, its gables in the kit's brick
   b.gable(C.x0, C.z0, C.x1, C.z1, top, 9, roof, brick, 'z', 0.8, 1);
   kit.place('dungeon/WallCover_Modular', 0, top, C.z1 + 0.2, 0, [12, 1, 1]);
+  // what lifts it from a long brick barn to a church: pinnacles on its corners (the bell tower
+  // has the fourth), a stone cross on each gable's peak
+  for (const [px, pz] of [[C.x0, C.z1], [C.x0, C.z0], [C.x1, C.z0]]) {
+    b.box([px - 0.55, top - 0.6, pz - 0.55], [px + 0.55, top + 1.8, pz + 0.55], stone, { solid: false });
+    b.cone(px, pz, 0.8, top + 1.8, 3.2, 4, roof);
+    b.box([px - 0.08, top + 4.9, pz - 0.08], [px + 0.08, top + 5.4, pz + 0.08], stone, { solid: false });
+  }
+  for (const gz of [C.z1, C.z0]) {
+    const cz = gz + (gz === C.z1 ? 0.25 : -0.25);
+    b.box([-0.14, top + 8.9, cz - 0.14], [0.14, top + 11.2, cz + 0.14], stone, { solid: false });
+    b.box([-0.75, top + 10.1, cz - 0.13], [0.75, top + 10.4, cz + 0.13], stone, { solid: false });
+  }
   // the arcades: tall dungeon columns, the roof's beams across on them
   const pillarsZ = [];
   for (let z = C.z1 - 6; z > C.z0 + 18; z -= 5) pillarsZ.push(z);
@@ -314,7 +330,8 @@ function cathedral(ctx, R) {
     kit.place('dungeon/Torch', C.x0 + 0.5, F + 2.2, z, Math.PI / 2, 1, { solid: false });
     kit.place('dungeon/Torch', C.x1 - 0.5, F + 2.2, z, -Math.PI / 2, 1, { solid: false });
   }
-  kit.place('dungeon/Statue_Horse', -8.5, F, C.z1 - 3.5, Math.PI * 0.75, 0.7);
+  kit.place('bellmourn/tomb', -8.5, F, C.z1 - 4.5, 0, 0.9);   // the founder's tomb, by the door
+  kit.place('props/CandleStick_Stand', -8.5, F, C.z1 - 2.8, 0);
   kit.place('bellmourn/shrine', 8.5, F, C.z1 - 3.5, -Math.PI / 2);
   // the bell tower at the south-east corner: six tiers of brick, the kit's tower roof
   const tx = C.x1 + 2.2, tz = C.z1 - 2.2;
@@ -336,7 +353,7 @@ function graveyard(ctx, R) {
   fenceLine(ctx, [[G.x0, G.z1], [gate - 2.4, G.z1]], 'dungeon/Fence_Straight_Modular', 1.0);
   fenceLine(ctx, [[gate + 2.4, G.z1], [G.x1, G.z1], [G.x1, G.z0], [G.x0, G.z0], [G.x0, G.z1]], 'dungeon/Fence_Straight_Modular', 1.0);
   for (const x of [gate - 2.6, gate + 2.6]) kit.place('dungeon/Pedestal2', x, 0, G.z1, 0, [0.5, 1.1, 0.5]);
-  kit.place('dungeon/Arch_bars', gate, 0, G.z1 - 0.2, 0, [1.5, 0.8, 1], { solid: false });
+  kit.place('dungeon/Arch', gate, 0, G.z1, 0, [1.26, 0.95, 0.6], { solid: false });   // springing from the two piers
   for (const [x, z] of [[G.x0, G.z0], [G.x1, G.z0], [G.x0, G.z1], [G.x1, G.z1]]) kit.place('dungeon/Pedestal2', x, 0, z, 0, [0.5, 0.9, 0.5]);
   // the graves: headstones, crosses, obelisks and tombs in rows
   const kinds = ['bellmourn/headstone_rough', 'bellmourn/headstone_slab', 'bellmourn/headstone_slab', 'bellmourn/grave_cross', 'bellmourn/grave_cross', 'bellmourn/grave_obelisk'];
@@ -358,8 +375,11 @@ function graveyard(ctx, R) {
   ctx.interiors.push({ ...zone, biome: 'graveyard' });
   for (const x of [-2.2, 2.2]) kit.place('dungeon/Column', x, 0, mz + 3.8, 0, [0.6, 0.8, 0.6]);
   // the dead's own: gibbets, skull pikes, bone heaps, lanterns, dead trees
-  for (const [id, x, z] of [['bellmourn/gibbet', -40, G.z1 - 8], ['bellmourn/gibbet', 40, G.z0 + 30], ['bellmourn/skull_pike', -20, G.z1 - 3], ['bellmourn/skull_pike', 34, G.z1 - 3],
-    ['bellmourn/bone_heap', -38, G.z0 + 18], ['bellmourn/bone_heap', 25, G.z0 + 40], ['props/Lantern_Wall', gate - 2.6, G.z1, 0], ['bellmourn/lamp_post', 10, G.z0 + 24]]) kit.place(id, x, 0, z, R() * 6);
+  // (no gibbets or skull pikes: the hanged were never buried in hallowed ground; they're at the
+  // crossroads in the Gallowswood) bones turned up where the dead clawed out, a lamp by the
+  // mausoleum path, and the gate's lantern on its pier
+  for (const [id, x, z] of [['bellmourn/bone_heap', -38, G.z0 + 18], ['bellmourn/bone_heap', 25, G.z0 + 40], ['bellmourn/lamp_post', 10, G.z0 + 24], ['bellmourn/lamp_post', gate + 2.2, G.z1 - 4]]) kit.place(id, x, 0, z, R() * 6);
+  kit.place('props/Lantern_Wall', gate - 2.6, 2.55, G.z1 + 0.35, 0, 1, { solid: false });
   const dead = kit.ids(/^(nature\/DeadTree_|trees\/DeadTree_|ultimate\/CommonTree_Dead_\d|ultimate\/Willow_Dead_\d)/);
   for (let i = 0; i < 16; i++) {
     const x = G.x0 + 2 + R() * (G.x1 - G.x0 - 4), z = G.z0 + 2 + R() * (G.z1 - G.z0 - 4);
@@ -374,39 +394,19 @@ function trail(ctx, R) {
   const { kit } = ctx;
   for (let x = 140, k = 0; x < REGION.x0; x += 26, k++) kit.place('bellmourn/lamp_post', x, 0, k % 2 ? 4.2 : -4.2, k % 2 ? Math.PI : 0);
   for (const [cx, cz, kitList] of [[190, 7.2, ['dungeon/Woodfire', 'bellmourn/woodpile', 'props/Crate_Wooden', 'props/Stool', 'props/Bag', 'props/Bucket_Wooden_1']],
-    [256, -7.2, ['dungeon/Woodfire', 'props/Barrel', 'props/Chest_Wood', 'props/Rope_3', 'bellmourn/skull_pike', 'props/Pouch_Large']]]) {
+    [256, -7.2, ['dungeon/Woodfire', 'props/Barrel', 'props/Chest_Wood', 'props/Rope_3', 'props/WeaponStand', 'props/Pouch_Large']]]) {
     kitList.forEach((id, i) => kit.place(id, cx + (i ? Math.cos(i * 1.4) * 2.4 : 0), 0, cz + Math.sign(cz) * (i ? 1.6 + Math.sin(i * 1.4) : 0), R() * 6));
   }
 }
 
-// ------------------------------------------------------------------ every model somewhere
-/** Whatever in the kit hasn't been placed yet goes somewhere it belongs: building pieces into
- * the mason's yard behind the town hall, props into the sacristy and storerooms, plants and rocks
- * out in the Deepwood. */
+// ------------------------------------------------------------------ what wasn't placed
+/** Counts what in the kit went unplaced. (It used to be dumped in rows in a "mason's yard", a
+ * store and a corner of the Deepwood, so that every model was somewhere; a model with no place
+ * of its own is better left out than set down for the sake of it.) */
 function coverage(ctx) {
   const { kit } = ctx;
   const left = kit.ids((id) => !kit.used.has(id) && !id.includes('~lod'));
-  const yard = { x: -36, z: 70 }, store = { x: 70, z: 70 };
-  let a = 0, b = 0, c = 0;
-  for (const id of left) {
-    const info = kit.info_(id) || {};
-    const cat = info.category || '';
-    if (/^(village|dungeon)\//.test(id) && /wall|floor|roof|stair|door|window|dwall|vprop|vine/.test(cat)) {
-      const x = yard.x + (a % 8) * 4.2, z = yard.z + Math.floor(a / 8) * 4.5;
-      kit.place(id, x, 0, z, (a % 4) * Math.PI / 2, 1, { solid: true });
-      a++;
-    } else if (/tree|rock|plant|log|cactus|path/.test(cat)) {
-      const x = -380 + (b % 12) * 9, z = -300 + Math.floor(b / 12) * 9;
-      kit.place(id, x, worldHeight(x, z), z, b, 1, { solid: /rock|log/.test(cat) ? true : /tree/.test(cat) ? 'trunk' : false });
-      b++;
-    } else {
-      const x = store.x + (c % 8) * 1.6, z = store.z + Math.floor(c / 8) * 1.6;
-      kit.place(id, x, 0, z, c, 1);
-      c++;
-    }
-  }
-  ctx.coverage = { placedLate: left.length, yard: a, wild: b, store: c };
-  if (a) ctx.zones.push({ x0: yard.x - 3, z0: yard.z - 3, x1: yard.x + 36, z1: yard.z + 40, y0: -1, y1: 10, name: "The Mason's Yard" });
+  ctx.coverage = { unplaced: left.length };
 }
 
 export { BIOMES, biomeAt, worldHeight, flatten, THREE };
