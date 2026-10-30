@@ -1,4 +1,4 @@
-"""Phone copies of the monsters, the foes and the villagers: <set>/phone/<name>.glb, each the same
+"""Phone copies of the monsters, the grotesques, the foes and the villagers: <set>/phone/<name>.glb, each the same
 model with every image over the set's cap shrunk down to it (in its own format: JPEG, PNG or WebP,
 alpha kept).
 
@@ -8,7 +8,7 @@ the GPU. A phone draws the world at about 420 pixels across: a villager stands a
 so tall in it, and a monster in your face little more than the screen's height, so 256 and 512 are
 all their skins need. Re-run this whenever one of their .glbs changes.
 
-    python tools/creatures/phone_copies.py [monsters|foes|villagers ...]
+    python tools/creatures/phone_copies.py [monsters|grotesques|foes|villagers ...]
 """
 import io
 import json
@@ -19,7 +19,7 @@ import sys
 from PIL import Image
 
 ROOT = os.path.join('templates', 'models', 'creatures')
-CAPS = {'monsters': 512, 'foes': 512, 'villagers': 256}   # the biggest image side a phone gets
+CAPS = {'monsters': 512, 'foes': 512, 'villagers': 256, 'grotesques': 512}   # the biggest image side a phone gets
 
 
 def read_glb(path):

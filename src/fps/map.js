@@ -7,6 +7,7 @@
 import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL } from './world.js';
 import { REGION, POOL, STREAM, terrainHeight } from './terrain.js';
 import { SPOTS } from './region.js';
+import { DELVES } from './delves.js';
 
 // the chart's bounds: the forest round the village, the trail and the downs
 const WORLD = { x0: -WORLD_R - 20, x1: REGION.x1 + 20, z0: -WORLD_R - 20, z1: WORLD_R + 20 };
@@ -20,7 +21,8 @@ export class WorldMap {
     this.touch = touch;
     this.W = Math.ceil((WORLD.x1 - WORLD.x0) / PX); this.H = Math.ceil((WORLD.z1 - WORLD.z0) / PX);
     this.chart = this.draw(ctx);
-    // the explored underground: one bit a metre, over the undercroft's grid
+    // the explored underground: one bit a metre, kept apart for each place down there (the two
+    // levels of the Undercroft lie one over the other)
     this.seen = new Map();
     // the full map
     this.panel = document.createElement('div');
@@ -130,36 +132,61 @@ export class WorldMap {
     name(-160, 160, 'The Darkwood', 13);
     if (keep) { name((keep.walls.x0 + keep.walls.x1) / 2, keep.walls.z0 - 6, 'Blackvigil Keep', 10); name(-150, -9, 'The Vigil Road', 9); } name((VILLAGE_R + REGION.x0) / 2 + 20, -10, 'The Bellwood Trail', 9);
     for (const [x, z, , t] of Object.values(SPOTS)) { const [a, b] = this.px(x, z); g.fillStyle = INK; g.beginPath(); g.arc(a, b, 2.2, 0, Math.PI * 2); g.fill(); name(x, z - 14, t, 9); }
+    // the ways under the ground: the delves' stair-houses and the caves' mouths, a dark door each
+    const door = (x, z, t, dz = -10) => {
+      const [a, b] = this.px(x, z);
+      g.fillStyle = '#1a0e08'; g.beginPath(); g.arc(a, b, 3.2, Math.PI, 0); g.lineTo(a + 3.2, b + 2.5); g.lineTo(a - 3.2, b + 2.5); g.closePath(); g.fill();
+      name(x, z + dz, t, 8);
+    };
+    for (const d of DELVES) door(d.x, d.z, d.name);
+    // the caves' names in clear ground by their mouths (the cliff is the map's edge, and the falls,
+    // Millhaven and the windmill are named nearby)
+    const caveLabel = { 'The Drowned Grotto': [-40, -110], 'The Gloamhollow': [-30, 32], 'The Trollhole': [-25, 176] };
+    for (const c of ctx.caves || []) {
+      const [a, b] = this.px(c.mouth.x, c.mouth.z);
+      g.fillStyle = '#1a0e08'; g.beginPath(); g.arc(a, b, 3.2, Math.PI, 0); g.lineTo(a + 3.2, b + 2.5); g.lineTo(a - 3.2, b + 2.5); g.closePath(); g.fill();
+      const [lx, lz] = caveLabel[c.name] || [-30, c.mouth.z - 10];
+      const [la, lb] = this.px(c.mouth.x + lx, lz);
+      g.strokeStyle = "rgba(42, 30, 18, 0.6)"; g.lineWidth = 1; g.beginPath(); g.moveTo(a, b); g.lineTo(la + 20, lb - 3); g.stroke();
+      g.textAlign = 'right';
+      name(c.mouth.x + lx + 18 * PX, lz, c.name, 8);
+      g.textAlign = 'center';
+    }
     // the frame
     g.strokeStyle = '#1a120a'; g.lineWidth = 6; g.strokeRect(0, 0, this.W, this.H);
     return c;
   }
 
-  under(p) { return p.pos.y < terrainHeight(p.pos.x, p.pos.z) - 3; }
+  under(p) { return p.pos.y < terrainHeight(p.pos.x, p.pos.z) - 3 || !!this.place(p); }
+
+  /** Which place below ground you are in (its index among ctx.unders), or -1. */
+  level(p) { return (this.ctx.unders || []).findIndex((u) => u.dg.contains(p.pos)); }
+  place(p) { return this.ctx.unders?.[this.level(p)]?.dg || null; }
 
   // -------------------------------------------------------------- the explored dark
   explore(p) {
     if (!this.under(p)) return;
-    const R = 5;
+    const R = 5, lvl = this.level(p) + 1;
     for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
       if (dx * dx + dz * dz > R * R) continue;
-      const k = (Math.floor(p.pos.x) + dx) * 100003 + Math.floor(p.pos.z) + dz;
+      const k = (lvl * 4000 + Math.floor(p.pos.x) + dx + 2000) * 100003 + Math.floor(p.pos.z) + dz;
       this.seen.set(k, true);
     }
   }
 
-  /** The chart of what's been walked below ground, about (cx, cz), `s` px a metre. */
-  drawUnder(g, w, h, cx, cz, s) {
+  /** The chart of what's been walked below ground, about (cx, cz), `s` px a metre: the place you
+   * are in (`dg`), drawn from its own carved grid. */
+  drawUnder(g, w, h, cx, cz, s, dg = null) {
     g.fillStyle = '#0c0a0a'; g.fillRect(0, 0, w, h);
-    const dg = this.ctx.dungeon, nav = dg?.nav;
+    const nav = dg?.nav, lvl = dg ? this.ctx.unders.findIndex((u) => u.dg === dg) + 1 : 0;
     const x0 = Math.floor(cx - w / 2 / s), x1 = Math.ceil(cx + w / 2 / s), z0 = Math.floor(cz - h / 2 / s), z1 = Math.ceil(cz + h / 2 / s);
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-      if (!this.seen.get(x * 100003 + z)) continue;
+      if (!this.seen.get((lvl * 4000 + x + 2000) * 100003 + z)) continue;
       let open = true;
       if (nav && x >= nav.x0 && x < nav.x0 + nav.nx && z >= nav.z0 && z < nav.z0 + nav.nz) {
         const v = nav.cell[(z - nav.z0) * nav.nx + (x - nav.x0)];
         if (v < 0) continue;
-        g.fillStyle = v >= 1000 ? '#6a5a48' : '#8a7860';
+        g.fillStyle = v >= 1000 || dg.cave ? '#6a5a48' : '#8a7860';
         open = false;
       } else g.fillStyle = '#5a4a3e';
       void open;
@@ -183,9 +210,10 @@ export class WorldMap {
     if (this.under(p)) {
       const s = 3 * this.zoom;
       this.scale = s;
-      this.drawUnder(g, w, h, p.pos.x - this.pan[0], p.pos.z - this.pan[1], s);
+      const dg = this.place(p);
+      this.drawUnder(g, w, h, p.pos.x - this.pan[0], p.pos.z - this.pan[1], s, dg);
       this.arrow(g, w / 2 + this.pan[0] * s, h / 2 + this.pan[1] * s, p.yaw, 9);
-      this.title.textContent = 'The Undercroft';
+      this.title.textContent = dg?.name || 'Below the ground';
       return;
     }
     const fit = Math.min(w / this.W, h / this.H) * this.zoom;
@@ -205,7 +233,7 @@ export class WorldMap {
     g.save();
     g.clearRect(0, 0, S, S);
     g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.clip();
-    if (this.under(p)) this.drawUnder(g, S, S, p.pos.x, p.pos.z, 2.2);
+    if (this.under(p)) this.drawUnder(g, S, S, p.pos.x, p.pos.z, 2.2, this.place(p));
     else {
       const [x, z] = this.px(p.pos.x, p.pos.z), span = 160 / PX;   // 160 m across
       g.imageSmoothingEnabled = false;

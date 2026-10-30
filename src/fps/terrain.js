@@ -8,9 +8,14 @@ import * as THREE from 'three';
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
 export const CLIFF = { x: 736, top: 30 };
+// where along the cliff the caves open (z): the Gloamhollow, the Drowned Grotto, the Trollhole
+export const CAVE_MOUTHS = { gloam: 8, grotto: -74, troll: 150 };
 // the stream, from the pool to where it leaves the downs
 export const STREAM = [[692, -36], [660, -14], [620, 20], [574, 38], [530, 36], [492, 14], [458, -22], [428, -62], [404, -108], [384, -158], [366, -210], [352, -262]];
 const pads = []; // flattened ground for buildings: {x, z, r, y}
+const tiles = []; // the ground's meshes (holes are cut in them for caves' mouths)
+const TQ = 3;     // the ground mesh's step (metres)
+let groundMat = null, attrAt = null;   // its material, and its blend weights at (x, z)
 
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
 function vnoise(x, z) {
@@ -76,8 +81,8 @@ export function addPad(x, z, r) {
 /** The ground: smooth-normalled tiles built from the height function, with the downs' own
  * blended material. Paths are [[x, z], ...] polylines worn into dirt. */
 export function buildTerrain(ctx, lib, paths) {
-  const mat = downsMaterial(lib);
-  const TILE = 60, Q = 3;
+  const mat = groundMat = downsMaterial(lib);
+  const TILE = 60, Q = TQ;
   const pathD = (x, z) => {
     let best = Infinity;
     for (const pl of paths) for (let i = 0; i + 1 < pl.length; i++) {
@@ -87,6 +92,11 @@ export function buildTerrain(ctx, lib, paths) {
     }
     return best;
   };
+  attrAt = (x, z) => {        // wetness by the water, and wear along the paths
+    const st = streamAt(x, z), dp = Math.hypot(x - POOL.x, z - POOL.z);
+    const wet = Math.max(1 - smooth(4, 12, st.d), 1 - smooth(POOL.r - 4, POOL.r + 10, dp));
+    return [wet, 1 - smooth(1.2, 3.2, pathD(x, z))];
+  };
   for (let tx = REGION.x0 - 2; tx < REGION.x1 + 40; tx += TILE) for (let tz = REGION.z0 - 40; tz < REGION.z1 + 40; tz += TILE) {
     const n = TILE / Q + 1, pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), att = new Float32Array(n * n * 2);
     for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) {
@@ -94,9 +104,7 @@ export function buildTerrain(ctx, lib, paths) {
       pos.set([x, y, z], j * 3);
       const e = 1.0, nx = terrainHeight(x - e, z) - terrainHeight(x + e, z), nz = terrainHeight(x, z - e) - terrainHeight(x, z + e), l = Math.hypot(nx, 2 * e, nz);
       nor.set([nx / l, 2 * e / l, nz / l], j * 3);
-      const st = streamAt(x, z), dp = Math.hypot(x - POOL.x, z - POOL.z);
-      const wet = Math.max(1 - smooth(4, 12, st.d), 1 - smooth(POOL.r - 4, POOL.r + 10, dp));
-      att.set([wet, 1 - smooth(1.2, 3.2, pathD(x, z))], j * 2);
+      att.set(attrAt(x, z), j * 2);
     }
     const idx = [];
     for (let i = 0; i + 1 < n; i++) for (let k = 0; k + 1 < n; k++) { const a = k * n + i, b = a + 1, c = a + n, d = c + 1; idx.push(a, c, b, b, c, d); }
@@ -110,8 +118,68 @@ export function buildTerrain(ctx, lib, paths) {
     mesh.receiveShadow = true; mesh.castShadow = true;
     mesh.matrixAutoUpdate = false;
     ctx.scene.add(mesh);
+    mesh.userData.tile = [tx, tz];
+    tiles.push(mesh);
   }
   return mat;
+}
+
+/** A hole in the ground for a cave's mouth: the ground about it is drawn again finer (its 3 m
+ * triangles are coarser than the mouth, and lie off the true slope enough for the cave's rock to
+ * show through), its edge on the coarse ground's own edges so no crack opens; the triangles over
+ * [x0, x1] x [z0, z1] lower than yTop are left out; and the physics has no ground there (the
+ * cave's own floor carries you in). */
+export function holeTerrain(x0, z0, x1, z1, yTop, physics, scene) {
+  physics.groundHoles.push([x0, z0, x1, z1]);
+  // the patch: the coarse cells within 9 m of the hole, on the coarse grid
+  const gx = REGION.x0 - 2, gz = REGION.z0 - 40;
+  const cx0 = gx + Math.floor((x0 - 9 - gx) / TQ) * TQ, cx1 = gx + Math.ceil((x1 + 9 - gx) / TQ) * TQ;
+  const cz0 = gz + Math.floor((z0 - 9 - gz) / TQ) * TQ, cz1 = gz + Math.ceil((z1 + 9 - gz) / TQ) * TQ;
+  for (const m of tiles) {                   // the coarse cells there come out of their tiles
+    const g = m.geometry, P = g.attributes.position.array, I = g.index.array, keep = [];
+    for (let t = 0; t < I.length; t += 3) {
+      let cx = 0, cz = 0;
+      for (let q = 0; q < 3; q++) { const v = I[t + q] * 3; cx += P[v]; cz += P[v + 2]; }
+      cx /= 3; cz /= 3;
+      if (cx > cx0 && cx < cx1 && cz > cz0 && cz < cz1) continue;
+      keep.push(I[t], I[t + 1], I[t + 2]);
+    }
+    if (keep.length !== I.length) g.setIndex(keep);
+  }
+  // the fine patch: true heights inside; along its edge, the coarse triangles' own edges
+  const F = 0.75, nx = Math.round((cx1 - cx0) / F) + 1, nz = Math.round((cz1 - cz0) / F) + 1;
+  const coarse = (x, z) => {                 // the height the coarse mesh draws at (x, z) on a grid line
+    const fx = (x - gx) / TQ, fz = (z - gz) / TQ, ix = Math.floor(fx + 1e-6), iz = Math.floor(fz + 1e-6);
+    const ux = fx - ix, uz = fz - iz, X = gx + ix * TQ, Z = gz + iz * TQ;
+    if (ux < 1e-6) return terrainHeight(X, Z) + (terrainHeight(X, Z + TQ) - terrainHeight(X, Z)) * uz;
+    return terrainHeight(X, Z) + (terrainHeight(X + TQ, Z) - terrainHeight(X, Z)) * ux;
+  };
+  const pos = new Float32Array(nx * nz * 3), nor = new Float32Array(nx * nz * 3), att = new Float32Array(nx * nz * 2);
+  for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+    const x = cx0 + i * F, z = cz0 + k * F, j = k * nx + i;
+    const edge = i === 0 || k === 0 || i === nx - 1 || k === nz - 1;
+    pos.set([x, edge ? coarse(x, z) : terrainHeight(x, z), z], j * 3);
+    const e = 1.0, ddx = terrainHeight(x - e, z) - terrainHeight(x + e, z), ddz = terrainHeight(x, z - e) - terrainHeight(x, z + e), l = Math.hypot(ddx, 2 * e, ddz);
+    nor.set([ddx / l, 2 * e / l, ddz / l], j * 3);
+    att.set(attrAt ? attrAt(x, z) : [0, 0], j * 2);
+  }
+  const idx = [];
+  for (let k = 0; k + 1 < nz; k++) for (let i = 0; i + 1 < nx; i++) {
+    const a = k * nx + i, b = a + 1, c = a + nx, d = c + 1;
+    const mx = cx0 + (i + 0.5) * F, mz = cz0 + (k + 0.5) * F, my = (pos[a * 3 + 1] + pos[d * 3 + 1]) / 2;
+    if (mx > x0 && mx < x1 && mz > z0 && mz < z1 && my < yTop - 0.6) continue;     // the mouth (under the cave's roof)
+    idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setAttribute('downs', new THREE.BufferAttribute(att, 2));
+  g.setIndex(idx);
+  g.computeBoundingSphere();
+  const mesh = new THREE.Mesh(g, groundMat);
+  mesh.receiveShadow = true; mesh.castShadow = true;
+  mesh.matrixAutoUpdate = false;
+  scene.add(mesh);
 }
 
 function downsMaterial(lib) {

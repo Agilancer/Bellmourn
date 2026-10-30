@@ -1,0 +1,89 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Grotesque preview</title>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
+<style>html,body{margin:0;background:#000;overflow:hidden} canvas{image-rendering:pixelated;width:100vw;height:100vh;display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// A grotesque as the game draws it: zombies.js's gore material (Phong, the skin nearest-filtered,
+// a normal map the GPU derives from it), the game's tone mapping, at the game's pixel size.
+// ?m=<glb under the repo>&clip=idle&t=0.4&view=34|front|side|back|face|near|far&pix=2
+//  &light=day|dusk|night&cmp=<another glb to stand beside it>&yaw=<radians, overrides view>
+//  &rot=<radians: the model turned, so its back can face the light>
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { goreMaterial } from '../../../../src/fps/zombies.js';
+import { Library } from '../../../../src/fps/lib.js';
+const q = new URLSearchParams(location.search);
+const pix = Number(q.get('pix') || 2), view = q.get('view') || '34', t = Number(q.get('t') || 0.4);
+const light = q.get('light') || 'dusk';
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const W = Math.floor(innerWidth / pix), H = Math.floor(innerHeight / pix);
+renderer.setSize(W, H, false);
+const lib = new Library(renderer, { normals: true });
+const scene = new THREE.Scene();
+// the sky's palettes from effects.js: afternoon (16.5), dusk (19.0), night (0) with a torch
+const SKY = { day: [0xc8c4b8, 0xb0b4b4, 0xffe0b0, 2.3, 1.0, 0x3a64a4],
+  dusk: [0x3a2a40, 0x2a2232, 0xff6a40, 0.7, 0.5, 0x0c1030], night: [0x0b1020, 0x0a0e18, 0x9ab0ff, 0.3, 0.3, 0x03050c] }[light];
+scene.background = new THREE.Color(SKY[0]); scene.fog = new THREE.Fog(SKY[1], 14, 50);
+const hemi = new THREE.HemisphereLight(new THREE.Color(SKY[5]).lerp(new THREE.Color(1, 1, 1), 0.55), new THREE.Color(SKY[0]).multiplyScalar(0.3), SKY[4] * 1.15);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(SKY[2], SKY[3]);
+sun.position.set(-4, light === 'day' ? 6 : 3, 5); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 20 }); sun.shadow.bias = -0.0004;
+scene.add(sun);
+if (light !== 'day') {        // a wall torch off to one side, as in the graveyard and the undercroft
+  const torch = new THREE.PointLight(0xffa860, light === 'night' ? 5.0 : 3.0, 9, 1.6);
+  torch.position.set(1.6, 2.1, 1.8); torch.castShadow = true; scene.add(torch);
+}
+const gtex = new THREE.TextureLoader().load('../../../../assets/textures/biome/floors/cathedral_graveyard_grave_soil.png');
+gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(7, 7); gtex.magFilter = THREE.NearestFilter; gtex.colorSpace = THREE.SRGBColorSpace;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshPhongMaterial({ map: gtex, shininess: 4 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+async function place(path, x, clipName, time) {
+  const g = await new GLTFLoader().loadAsync('../../../../' + path);
+  const model = g.scene;
+  if (path.includes('/monsters/') && !path.includes('grotesques')) model.rotation.y = Math.PI;
+  model.position.x = x;
+  if (q.has('rot') && x === 0) model.rotation.y += Number(q.get('rot'));   // spin it to the light
+  scene.add(model);
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+    if (o.isSkinnedMesh) o.material = goreMaterial(o.material, lib);
+  });
+  const mixer = new THREE.AnimationMixer(model);
+  const names = g.animations.map((a) => a.name);
+  const clip = g.animations.find((a) => a.name === clipName) || g.animations.find((a) => a.name === 'idle');
+  if (clip) { mixer.clipAction(clip).play(); mixer.update(time); }
+  model.updateMatrixWorld(true);
+  return { model, names, mixer };
+}
+const main = await place(q.get('m'), 0, q.get('clip') || 'idle', t);
+if (q.get('cmp')) await place(q.get('cmp'), -1.0, 'idle', 0.5);
+// the camera: around the model, or where the player's eyes would be (1.6 m) near and far
+const V = { front: [0, 4.2, 0.95, 32], '34': [-0.6, 4.2, 0.95, 32], side: [-Math.PI / 2, 4.2, 0.95, 32],
+  back: [Math.PI, 4.2, 0.95, 32], face: [-0.35, 1.25, 1.62, 22], near: [-0.25, 2.0, 1.6, 60], far: [-0.2, 8.0, 1.6, 60] }[view];
+const yaw = q.has('yaw') ? Number(q.get('yaw')) : V[0];
+const camera = new THREE.PerspectiveCamera(V[3], W / H, 0.05, 100);
+const look = view === 'near' || view === 'far' ? 1.2 : V[2];
+camera.position.set(Math.sin(yaw) * V[1] + (q.get('cmp') ? -0.5 : 0), V[2] + (view === 'face' ? 0.02 : 0.1), Math.cos(yaw) * V[1]);
+camera.lookAt(q.get('cmp') ? -0.5 : 0, look, 0);
+if (view === 'face') {        // at the head itself, wherever the pose has put it
+  let hb = null;
+  main.model.traverse((o) => { if (o.isBone && o.name === 'head') hb = o; });
+  if (hb) {
+    const p = hb.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.1, 0));
+    camera.position.set(p.x + Math.sin(yaw) * V[1], p.y + 0.03, p.z + Math.cos(yaw) * V[1]);
+    camera.lookAt(p);
+  }
+}
+// the skin's normal map is made on the GPU once its image is in: wait a frame or two
+await new Promise((r) => setTimeout(r, 300));
+renderer.render(scene, camera);
+window.READY = { clips: main.names, W, H };
+</script></body></html>

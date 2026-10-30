@@ -1,10 +1,11 @@
-// The walking dead (templates/models/creatures/zombie/zombie_<a-g>.glb): a horde in the
-// graveyard that keeps clawing its way back out of the graves, and more in the dungeon below.
+// The walking dead (the grotesques: templates/models/creatures/grotesques/<name>.glb): a horde in
+// the graveyard that keeps clawing its way back out of the graves, more in every dungeon level and
+// cave (each place a registered "under", with its own walkable grid), and some out in the world.
 //
 // Every zombie is a skinned glTF with its own clips (idle, walk, run, jump, attack1-3, fall,
 // death, dead, rise, getup, and on the ground: collapse, crawl, crawl_attack, crawl_death,
-// crawl_dead). Seven bodies: a-c from the warrior, d-e from the female fighter, f-g from the
-// male fighter.
+// crawl_dead). The seven zombie bodies before them (a-c from the warrior, d-e from the female
+// fighter, f-g from the male fighter) and the nine monsters stay loadable but aren't loaded.
 //
 // The brain: each zombie sees (a cone, a range, and a clear line from its eyes to yours),
 // hears (you running carries far, walking less, standing still hardly at all; swings, clangs
@@ -12,7 +13,8 @@
 // moans, and the others in earshot come. They close in from different sides instead of
 // queueing, keep apart from each other, feel their way round what's in the way and jump the
 // graves and walls they can get over; runners sprint and lunge. Down in the dungeon they follow
-// you through the corridors by a flow field over the carved grid. Lose them and they search
+// you through the corridors by a flow field over the carved grid of whichever level or cave
+// you are in. Lose them and they search
 // where they last had you, then drift back to wandering. Temperaments: shamblers, runners, and
 // lurkers that lie buried in the graveyard or sprawled like corpses in the dungeon until you
 // come close.
@@ -42,6 +44,29 @@ export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 const MONSTER_ROOT = 'templates/models/creatures/monsters/' + (TOUCH ? 'phone/' : '');
 export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
   'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
+// The grotesques (templates/models/creatures/grotesques/<name>.glb, from tools/creatures/grotesques):
+// the Humans FBX's bare man reshaped and sculpted under ten painted skins, built on the zombies' own
+// bones with the zombies' own clips, so they rise, hunt, crawl and come apart exactly like them.
+// The ember husk's cracks and the chitin fiend's eyes glow (their emissive maps). A phone loads
+// their phone copies (grotesques/phone/), one at a time, with the monsters.
+// They are the game's dead now: the seven zombies and nine monsters before them stay in the repo
+// (load(VARIANTS, MONSTERS) brings them back) but aren't loaded.
+const GROTESQUE_ROOT = 'templates/models/creatures/grotesques/' + (TOUCH ? 'phone/' : '');
+export const GROTESQUES = ['rotting_zombie', 'bloated_drowner', 'plague_bearer', 'tomb_mummy', 'ember_husk',
+  'pale_ghoul', 'chitin_fiend', 'deep_maw', 'fungal_husk', 'bog_troll'];
+// who haunts where: each place draws its dead from its own few (repeats weight the draw)
+export const HAUNTS = {
+  yard: ['rotting_zombie', 'rotting_zombie', 'rotting_zombie', 'plague_bearer', 'plague_bearer', 'pale_ghoul', 'tomb_mummy'],
+  undercroft: ['rotting_zombie', 'rotting_zombie', 'tomb_mummy', 'tomb_mummy', 'pale_ghoul', 'plague_bearer', 'ember_husk'],
+  deep: ['ember_husk', 'chitin_fiend', 'chitin_fiend', 'pale_ghoul', 'tomb_mummy', 'fungal_husk', 'bog_troll'],
+  barrow: ['tomb_mummy', 'tomb_mummy', 'rotting_zombie', 'pale_ghoul', 'pale_ghoul'],
+  cellars: ['plague_bearer', 'plague_bearer', 'rotting_zombie', 'fungal_husk', 'bloated_drowner', 'ember_husk'],
+  water: ['bloated_drowner', 'bloated_drowner', 'deep_maw', 'deep_maw'],
+  fungal: ['fungal_husk', 'fungal_husk', 'chitin_fiend'],
+  troll: ['bog_troll', 'bog_troll', 'fungal_husk'],
+  hollow: ['chitin_fiend', 'fungal_husk', 'pale_ghoul'],
+  wood: ['pale_ghoul', 'rotting_zombie', 'fungal_husk'],
+};
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
   clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',
   lowerarm_l: 'forearmL', lowerarm_r: 'forearmR', hand_l: 'handL', hand_r: 'handR',
@@ -138,6 +163,12 @@ export function goreMaterial(src, lib, u = null) {
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
     mat.normalMap = normals.get(map);
+  }
+  if (src.emissiveMap) {     // what glows: embers in the cracks, eyes
+    const e = src.emissiveMap;
+    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
+    mat.emissiveMap = e;
+    mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
   }
   u ||= { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
     uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
@@ -422,6 +453,7 @@ export class Zombie {
     this.zone = o.zone || 'yard';
     this.home = this.pos.clone();
     this.room = o.room || null;            // dungeon room rectangle it haunts
+    this.dg = o.dg || null;                // the underground place it haunts (its corridors' flow)
     this.kindName = o.kind || 'shambler';
     this.kind = KINDS[this.kindName];
     this.pace = 0.88 + Math.random() * 0.24;
@@ -769,7 +801,7 @@ export class Zombie {
     } else if (this.goal === 'chase') {
       // lost sight: down below it can still follow the corridors to you; up top it goes to where
       // it last had you
-      const near = this.zone === 'dungeon' && owner.flowAt(this.pos) < 32;
+      const near = this.zone === 'dungeon' && owner.flowAt(this.pos, this.dg) < 32;
       if (!near && owner.time - this.lastT > 1.2) this.goal = 'hunt';
     }
   }
@@ -884,13 +916,13 @@ export class Zombie {
         const s = this.flank * Math.min(2.6, dist * 0.45) / dist;
         target.x += -toZOf(player, this) * s; target.z += toXOf(player, this) * s;
       }
-      if (this.zone === 'dungeon' && !this.canSee && owner.flowDir(this.pos, _w)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      if (this.zone === 'dungeon' && !this.canSee && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       if (crawl) speed = 0.12 + 0.2 * this.arm('L') + 0.2 * this.arm('R');
       else if (!this.feet) speed = 0.65;
       else speed = kind.run && dist < 13 && dist > 1.7 && this.has('head') ? kind.run : kind.walk * 1.05;
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
-      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       speed = crawl ? 0.25 : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
@@ -1073,15 +1105,21 @@ export class Zombies {
     this.flow = null; this.flowKey = -1; this.flowT = 0;
   }
 
-  async load(variants = VARIANTS, monsters = MONSTERS) {
+  async load(variants = [], monsters = [], grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
     const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
-    const one = async () => { for (const m of monsters) await monster(m); };   // a phone: one decoding at a time
+    const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
+      try { this.gltf[g] = await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`); } catch (e) { console.warn('grotesque', g, e); }
+    };
+    const one = async () => {   // a phone: one decoding at a time
+      for (const m of monsters) await monster(m);
+      for (const g of grotesques) await grotesque(g);
+    };
     await Promise.all([
       ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
-      ...(TOUCH ? [one()] : monsters.map(monster)),
+      ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
-    this.pool = [...variants, ...monsters];
+    this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */
@@ -1101,7 +1139,13 @@ export class Zombies {
     return zb;
   }
 
-  randomVariant() { const p = this.pool || VARIANTS; return p[Math.floor(Math.random() * p.length)]; }
+  /** One of the dead for a place (a HAUNTS key), from those that loaded; any of them without one. */
+  randomVariant(haunt) {
+    const p = this.pool || VARIANTS;
+    const h = (HAUNTS[haunt] || []).filter((v) => p.includes(v));
+    const from = h.length ? h : p;
+    return from[Math.floor(Math.random() * from.length)];
+  }
 
   /** The graveyard: `n` of the dead about the graves, `buried` more under them, and the horde
    * kept at `n` by more clawing out of the ground. `avoid` [x0, z0, x1, z1] keeps them out of
@@ -1124,8 +1168,8 @@ export class Zombies {
       }
       return [(b.x0 + b.x1) / 2, b.z1 - 4];
     };
-    for (let i = 0; i < n; i++) { const [x, z] = spot(); this.spawn(this.randomVariant(), x, z, { zone: 'yard', kind: pickKind(0.08) }); }
-    for (let i = 0; i < buried; i++) { const [x, z] = this.graveSpot(null) || spot(); this.spawn(this.randomVariant(), x, z, { zone: 'yard', kind: 'lurker', start: 'buried' }); }
+    for (let i = 0; i < n; i++) { const [x, z] = spot(); this.spawn(this.randomVariant('yard'), x, z, { zone: 'yard', kind: pickKind(0.08) }); }
+    for (let i = 0; i < buried; i++) { const [x, z] = this.graveSpot(null) || spot(); this.spawn(this.randomVariant('yard'), x, z, { zone: 'yard', kind: 'lurker', start: 'buried' }); }
   }
 
   /** Beside a grave, between `near` and `far` metres from p (any grave if p is null). */
@@ -1146,31 +1190,40 @@ export class Zombies {
     return null;
   }
 
-  /** The dungeon: `n` of the dead spread through its rooms; some lie as if dead. */
-  populateDungeon(dg, n) {
-    this.dg = dg;
-    // which cells of the carved grid can be walked: carved, and not filled by furniture between
-    // knee and head height
-    const nav = dg.nav;
-    this.walk = new Uint8Array(nav.nx * nav.nz);
+  /** An underground place the dead can find their way about in (a dungeon level or a cave): which
+   * cells of its grid can be walked (carved, and not filled by furniture between knee and head
+   * height). dg: {nav, y or floorAt(x, z), contains(p)}. */
+  addUnder(dg) {
+    if (dg.walk) return dg;
+    const nav = dg.nav, floorY = (x, z) => dg.floorAt?.(x, z) ?? dg.y;
+    dg.walk = new Uint8Array(nav.nx * nav.nz);
     for (let k = 0; k < nav.nz; k++) for (let i = 0; i < nav.nx; i++) {
       const c = k * nav.nx + i;
       if (nav.cell[c] < 0) continue;
-      const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5;
+      const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5, fy = floorY(x, z);
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
-        if (b.tag !== 'prop' || b.max[1] < dg.y + 0.45 || b.min[1] > dg.y + 1.6) continue;   // (walls are in the grid)
+        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
         if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
       }
-      this.walk[c] = open ? 1 : 0;
+      dg.walk[c] = open ? 1 : 0;
     }
+    (this.unders ||= []).push(dg);
+    return dg;
+  }
+
+  /** A dungeon level: `n` of the dead from its haunt spread through its rooms; some lie as if
+   * dead; two sprawled at the foot of its stairs, waiting. */
+  populateDungeon(dg, n, haunt = 'undercroft') {
+    this.addUnder(dg);
+    const nav = dg.nav, walk = dg.walk;
     const rooms = dg.roomList;
     // a spot on the room's own floor: walkable, not in a pit, not up on a dais or in furniture
     const spot = (r, pad) => {
       for (let t = 0; t < 24; t++) {
         const x = r.x0 + pad + Math.random() * (r.x1 - r.x0 - 2 * pad), z = r.z0 + pad + Math.random() * (r.z1 - r.z0 - 2 * pad);
         const c = Math.floor(z - nav.z0) * nav.nx + Math.floor(x - nav.x0);
-        if (this.walk[c] && Math.abs(this.physics.floorAt(x, z, dg.y + 0.3, 0.3, 0.45) - dg.y) < 0.1) return [x, z];
+        if (walk[c] && Math.abs(this.physics.floorAt(x, z, dg.y + 0.3, 0.3, 0.45) - dg.y) < 0.1) return [x, z];
       }
       return null;
     };
@@ -1178,14 +1231,44 @@ export class Zombies {
       const r = rooms[1 + (i % (rooms.length - 1))], p = spot(r, 1.2);
       if (!p) continue;
       const kind = pickKind(0.3);
-      this.spawn(this.randomVariant(), p[0], p[1], { y: dg.y, zone: 'dungeon', room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
+      this.spawn(this.randomVariant(haunt), p[0], p[1], { y: dg.y, zone: 'dungeon', dg, room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
     }
-    // two sprawled at the foot of the stairs, waiting
     const e = rooms[0];
     for (let i = 0; i < 2; i++) {
       const p = spot(e, 2);
-      if (p) this.spawn(this.randomVariant(), p[0], p[1], { y: dg.y, zone: 'dungeon', room: e, kind: 'lurker', start: 'playdead' });
+      if (p) this.spawn(this.randomVariant(haunt), p[0], p[1], { y: dg.y, zone: 'dungeon', dg, room: e, kind: 'lurker', start: 'playdead' });
     }
+  }
+
+  /** A cave: plan [[chamber tag, how many, haunt], ...]; they keep to their chamber till they
+   * find you, and follow its passages after you. */
+  populateCave(cv, plan) {
+    this.addUnder(cv);
+    let n = 0;
+    for (const [tag, count, haunt] of plan) for (let i = 0; i < count; i++) {
+      const p = cv.spot(tag, 1.0);
+      if (!p) continue;
+      const kind = pickKind(0.25);
+      const zb = this.spawn(this.randomVariant(haunt), p.x, p.z, { y: p.y, zone: 'dungeon', dg: cv, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
+      zb.yaw = Math.random() * 6.28;
+      n++;
+    }
+    return n;
+  }
+
+  /** Out in the world: the dead about a place, [{x, z, r, n, haunt}], wandering near it (they
+   * don't come back when cut down: only the graveyard keeps its dead). */
+  populateWild(places) {
+    let n = 0;
+    for (const pl of places) for (let i = 0; i < pl.n; i++) {
+      const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * pl.r;
+      const x = pl.x + Math.cos(a) * d, z = pl.z + Math.sin(a) * d;
+      if (pl.ok && !pl.ok(x, z)) continue;
+      const zb = this.spawn(this.randomVariant(pl.haunt), x, z, { zone: 'wild', kind: pickKind(pl.lurk ?? 0.15), start: pl.start || 'stand' });
+      zb.yaw = Math.random() * 6.28;
+      n++;
+    }
+    return n;
   }
 
   /** A zombie that has found you calls the others within `r` metres. */
@@ -1219,13 +1302,16 @@ export class Zombies {
   /** Steps along the corridors from you (a breadth-first flood over the carved grid, redone when
    * you move to another cell). */
   flowUpdate(player, dt) {
-    const dg = this.dg;
     this.flowT -= dt;
+    const p = player.pos;
+    // the place you are in (the dead of the others can't follow you there)
+    const dg = (this.unders || []).find((u) => u.contains(p)) || null;
+    if (dg !== this.dg) { this.dg = dg; this.flow = null; this.flowKey = -1; }
     if (!dg) return;
-    const nav = dg.nav, p = player.pos;
+    const nav = dg.nav;
     const ci = Math.floor(p.x - nav.x0), ck = Math.floor(p.z - nav.z0);
-    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz || p.y > dg.y + 4 || nav.cell[ck * nav.nx + ci] < 0) { this.flow = null; this.flowKey = -1; return; }
-    const walk = this.walk;
+    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz || nav.cell[ck * nav.nx + ci] < 0) { this.flow = null; this.flowKey = -1; return; }
+    const walk = dg.walk;
     const key = ck * nav.nx + ci;
     if (key === this.flowKey && this.flowT > 0) return;
     this.flowKey = key; this.flowT = 0.5;
@@ -1250,9 +1336,9 @@ export class Zombies {
     this.flow = dist;
   }
 
-  /** How many corridor steps from you p is (Infinity if not reachable or not down there). */
-  flowAt(p) {
-    if (!this.flow) return Infinity;
+  /** How many corridor steps from you p is (Infinity if not reachable, or not where you are). */
+  flowAt(p, dg = this.dg) {
+    if (!this.flow || dg !== this.dg) return Infinity;
     const nav = this.dg.nav, i = Math.floor(p.x - nav.x0), k = Math.floor(p.z - nav.z0);
     if (i < 0 || k < 0 || i >= nav.nx || k >= nav.nz) return Infinity;
     const d = this.flow[k * nav.nx + i];
@@ -1260,8 +1346,8 @@ export class Zombies {
   }
 
   /** The way toward you along the corridors from p, into out; false if there is none. */
-  flowDir(p, out) {
-    if (!this.flow) return false;
+  flowDir(p, out, dg = this.dg) {
+    if (!this.flow || dg !== this.dg) return false;
     const nav = this.dg.nav, i = Math.floor(p.x - nav.x0), k = Math.floor(p.z - nav.z0);
     const at = (a, b) => (a < 0 || b < 0 || a >= nav.nx || b >= nav.nz ? -1 : this.flow[b * nav.nx + a]);
     const here = at(i, k);
@@ -1453,7 +1539,7 @@ export class Zombies {
         const inYard = player.pos.x > y.x0 - 20 && player.pos.x < y.x1 + 20 && player.pos.z > y.z0 - 20 && player.pos.z < y.z1 + 20;
         const s = this.graveSpot(inYard ? player.pos : null);
         if (s) {
-          const zb = this.spawn(this.randomVariant(), s[0], s[1], { zone: 'yard', kind: pickKind(0.08), start: 'rise' });
+          const zb = this.spawn(this.randomVariant('yard'), s[0], s[1], { zone: 'yard', kind: pickKind(0.08), start: 'rise' });
           zb.yaw = Math.atan2(player.pos.x - zb.pos.x, player.pos.z - zb.pos.z);
         }
       }

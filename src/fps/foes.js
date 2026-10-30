@@ -105,17 +105,13 @@ const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3
 const EMBERS = [new THREE.Color(1, 0.55, 0.15), new THREE.Color(1, 0.22, 0.06), new THREE.Color(0.9, 0.08, 0.03)];
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
 
-/** The gore shader, plus: armour, capes and robes stay armour and cloth inside (the `shell`
- * vertex attribute), and the glow map (eyes, slits, runes, cracks, caps) shines in the dark.
- * `u`: wound uniforms shared with the body's other materials (sworn.js's bodies have several). */
+/** The gore shader (which also makes a glow map, eyes, slits, runes, cracks and caps, shine in the
+ * dark), plus: armour, capes and robes stay armour and cloth inside (the `shell` vertex attribute),
+ * and a sworn knight's eyes burn behind the slits. `u`: wound uniforms shared with the body's other
+ * materials (sworn.js's bodies have several). */
 function foeMaterial(src, lib, u = null) {
   const mat = goreMaterial(src, lib, u);
-  if (src.emissiveMap) {
-    const e = src.emissiveMap;
-    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
-    mat.emissiveMap = e;
-    mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
-  } else if (src.userData?.glow) {                   // a sworn knight's eyes, burning behind the slits
+  if (!src.emissiveMap && src.userData?.glow) {      // a sworn knight's eyes, burning behind the slits
     mat.emissive = src.emissive.clone().multiplyScalar(src.emissiveIntensity);
     mat.map = null;
     mat.userData.eyes = true;

@@ -3,13 +3,33 @@
 A first-person retro RPG in the spirit of Heretic, Hexen and Daggerfall, in three.js. This build
 is the first walkable piece of the world: the village of Bellmourn in its forest clearing, ten
 buildings you can walk into, the Cathedral of the Mourning Bell, the walled graveyard behind it,
-and the Undercroft, a 30-room dungeon: go through the door behind the pulpit into the office,
-then through the stair-house door and down. East of the village a trail runs through the forest
-to the Green Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with
-a bridge, Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil
-Road runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall
-with corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
+and the Undercroft under it: go through the door behind the pulpit into the office, then through
+the stair-house door and down to its 24 rooms, and on down the stairwell in its stair hall to the
+15 rooms of the Deep Undercroft. East of the village a trail runs through the forest to the Green
+Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with a bridge,
+Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil Road
+runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall with
+corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
 reliquary, with the Red Throne at the far end.
+
+Under the ground besides (`delves.js`): in the Darkwood two stone stair-houses stand over
+dungeons of their own, the Barrow of Saint Ivo to the north-west and the Old Watch Cellars to the
+south-east; and three caves open in the downs' eastern cliff, the Gloamhollow just north of
+Brightwater Falls, the Drowned Grotto beside them, and the Trollhole far to the north. All of them
+are marked on the map. `node tools/world/walkthrough.cjs <port>` walks the player down every
+stair and into and back out of every cave, has the dead of each place come for him, checks the
+headroom over every walkable metre below ground (nothing under 3 m), and how smoothly the eye rides
+the stairs (it glides: the feet's steps are eased out, so a flight reads as a slope). The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
+vaults and ossuaries, and now flooded crypts, great halls of tall columns, barracks, collapsed
+halls, well chambers, forges and halls round a throne of bones.
+
+The dead are the ten grotesques (`templates/models/creatures/grotesques/`, built by
+`tools/creatures/grotesques`): the rotting zombie, the bloated drowner, the plague-bearer, the tomb
+mummy, the ember husk, the pale ghoul, the chitin fiend, the deep maw, the fungal husk and the bog
+troll. Each place draws its own (`HAUNTS` in `zombies.js`): plague-bearers, ghouls and mummies
+claw out of the graveyard; mummies and ghouls keep the Barrow; drowners and deep maws the grotto,
+the falls' pool and the stream; trolls the Trollhole and the bridge; ember husks and chitin fiends
+the Deep Undercroft. The old zombies and monsters stay in the repo, unloaded.
 
 ## Run
 
@@ -70,9 +90,10 @@ and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, o
 the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
 frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
-loads phone copies of the monsters, foes and villagers (`phone/` in each of their folders under
-`templates/models/creatures/`: their images at most 512, 512 and 256 square), the monsters one at
-a time and the villagers one at a time once the village is up, and the stained glass at half size;
+loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
+`templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
+at a time and the villagers one at a time once the village is up, half as many of the dead, and
+the stained glass at half size;
 re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. If a run
 dies (Safari's "A problem repeatedly occurred"), the next shows under the title how far it got.
 
