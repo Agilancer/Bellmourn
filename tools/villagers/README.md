@@ -23,8 +23,8 @@ The built models are `templates/models/creatures/villagers/<name>.glb`, with pre
   overalls, King armour, Worker vest, Suit coat, Casual jumper, Casual2 trousers, the
   Backpack...); `outfit` names the head whose weights the new head copies. `dress` maps each
   material slot to `[tile, value gain, metres per repeat]`, and `Part:Slot` keys dress one
-  part's slot apart from the same slot elsewhere. `hat` cuts a hat from an FBX head (its
-  materials) and fits it by its crown's opening round his head; `gloves` splits the hands off a
+  part's slot apart from the same slot elsewhere. `hat` can cut a hat from an FBX head and
+  fit it by its crown's opening, but Bellmourn's men go bare-headed: no config uses it; `gloves` splits the hands off a
   slot as `Gloves`; `sleeves` (or `null` for bare arms) turns arm skin into a slot's cloth.
   The metal tiles (`metal_steel`, `metal_dark`, `metal_bronze`, `metal_bands`) come from
   `art/materials/`.

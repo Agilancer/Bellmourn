@@ -51,19 +51,9 @@
    "leather_strapwork",
    0.6,
    0.3
-  ],
-  "V_Hat:Beige": [
-   "burlap_coarse",
-   1.3,
-   0.22
-  ],
-  "V_Hat:Red": [
-   "damask_red",
-   0.8,
-   0.2
   ]
  },
- "line": 0.06,
+ "line": 0.0,
  "scale": 1.03,
  "outfit": "Farmer",
  "sleeves": "Brown",
@@ -76,15 +66,6 @@
   "Farmer_Pants",
   "Farmer_Feet"
  ],
- "hat": {
-  "from": "Farmer_Head",
-  "mats": [
-   "Beige",
-   "Red"
-  ],
-  "loose": 1.1,
-  "band": 0.05
- },
  "name": "villager_m07",
  "views": [
   "hero_34",
