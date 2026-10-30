@@ -139,8 +139,8 @@ def limb(J, top, bottom, strip, front, right, region, joint_s, ext=0.04, past=0.
     if mark:
         b.append((joint_s, mark))
     b.append((n, 1.0))
-    if past:
-        b.append((n + past, 1.0))
+    if past:        # over the heel: read back up the strip a little (its very edge is masked off)
+        b.append((n + past, 0.93))
     a = [(-102, -12 / 180), (-90, 0), (0, 0.5), (90, 1), (102, 1 + 12 / 180)]
     return dict(kind="cyl", region=region, origin=o, axis=e - o, front=front, right=right, a=a, b=b,
                 corners=corners(box, d), feather=(12, feather), clip=box)
@@ -188,10 +188,10 @@ def spec(name, J, H, warp=None):
         el = np.linalg.norm(g(J, f"forearm.{s}") - g(J, f"upper_arm.{s}"))
         kn = np.linalg.norm(g(J, f"shin.{s}") - g(J, f"thigh.{s}"))
         A, Lg = L["arms"][s], L["legs"][s]
-        # arms in the T-pose: front faces forward, its sheet's right toward his outside (up). They
-        # reach in over the tops of the shoulders, where the torso's cylinder would smear
-        P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["front"], FRONT, (0, 0, sx), f"arm{s}+torso", el, 0.07))
-        P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["back"], BACK, (0, 0, -sx), f"arm{s}+torso", el, 0.07))
+        # arms in the T-pose: front faces forward, its sheet's right toward his outside (up). Kept
+        # to the arm itself: reaching onto the torso they framed a yoke across the shoulder blades
+        P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["front"], FRONT, (0, 0, sx), "arm" + s, el, 0.07))
+        P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["back"], BACK, (0, 0, -sx), "arm" + s, el, 0.07))
         # legs: up over the hips and buttocks (cross-fading with the torso over 12 cm), down over
         # the heel; a sheet whose legs are painted alike is mirrored for the right
         mr = -1 if (s == "R" and L.get("legs_mirror")) else 1
@@ -285,7 +285,7 @@ LAYOUTS = {
     ),
     # ---------------------------------------------------------------- 05 the ember husk
     "05": dict(
-        file="05.png", glow=dict(hue=(0.98, 0.09), frac=0.12, smin=0.5, gain=0.8),
+        file="05.png", glow=dict(hue=(0.98, 0.09), frac=0.12, smin=0.5, gain=1.2, zfade=[(0.84, 1.06, 0.65)]),
         face=dict(box=(5, 5, 702, 300), eyes=(280, 422, 108), nose=160, mouth=210, chin=262, ears=(165, 540),
                   ear_y=145, top=8),
         back=dict(box=(720, 5, 1245, 300), cx=960, ears=(762, 1200), top=8, ear_y=130, bottom=298),

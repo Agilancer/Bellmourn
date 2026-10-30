@@ -75,16 +75,70 @@ def smooth_values(A, x, it):
     return x
 
 
-def relief(V, F, spec, atlas, caps, amp, lo_it=60, hi_it=2, cap=0.005):
-    """Raise the skin's painted relief: brightness, high-passed over the surface, along normals."""
+def joints_soft(J, spec=None):
+    """The joints whose painted landmarks (knee caps, elbow creases, ankle wraps) read as clothing
+    where they meet the rest of the limb: (centre, radius, amount)."""
+    out = []
+    for s in "LR":
+        out += [(np.array(J[f"shin.{s}"][0]), 0.085, 0.75), (np.array(J[f"forearm.{s}"][0]), 0.06, 0.6),
+                (np.array(J[f"foot.{s}"][0]) + (0, 0, 0.03), 0.07, 0.6)]
+    return out + list(spec or [])
+
+
+def soften(P, C, spots):
+    """Each spot's colours pulled toward the ring of skin round it: the tone shifted to match, and
+    the painted detail eased (a knee pad's edge, a boot's top), so no landmark reads as a garment."""
+    from scipy.spatial import cKDTree
+    tree = cKDTree(P)
+    C = C.copy()
+    for c, r, amt in spots:
+        inner = tree.query_ball_point(c, r)
+        ring = np.setdiff1d(tree.query_ball_point(c, 2 * r), inner)
+        if not len(inner) or not len(ring):
+            continue
+        inner = np.array(inner)
+        a = amt * np.clip(1 - np.linalg.norm(P[inner] - c, axis=1) / r, 0, 1)[:, None] ** 0.7
+        rm, im = C[ring].mean(0), C[inner].mean(0)
+        x = C[inner] + a * (rm - im)
+        C[inner] = x * (1 - 0.35 * a) + rm * 0.35 * a
+    return C
+
+
+def paint(P, C, shapes, warp):
+    """Colour laid over the skin inside shapes (in the unwarped body's metres), keeping some of
+    the skin's light and dark: ("seg", a, b, r, rgb) or ("ell", centre, radii, rgb)."""
+    C = C.copy()
+    L = C @ np.array([0.3, 0.55, 0.15], np.float32)
+    for sh in shapes or []:
+        if sh[0] == "seg":
+            a, b = warp(np.array(sh[1], float)), warp(np.array(sh[2], float))
+            d = wrap.seg_dist(P, a, b) / sh[3]
+        else:
+            c = warp(np.array(sh[1], float))
+            d = np.linalg.norm((P - c) / np.array(sh[2]), axis=1)
+        k = np.clip((1.15 - d) / 0.3, 0, 1)[:, None]
+        tint = np.asarray(sh[-1], np.float32) * (0.75 + 0.5 * L[:, None])
+        C = C * (1 - k) + np.clip(tint, 0, 1) * k
+    return C
+
+
+def relief(V, F, spec, atlas, caps, amp, lo_it=60, hi_it=2, cap=0.005, spots=(), mask=None):
+    """Raise the skin's painted relief: brightness, high-passed over the surface, along normals
+    (eased at the softened joints, and by `mask(V)` where given)."""
     N = normals(V, F)
     C, W = wrap.shade(spec, atlas, V, N, caps)
     C = wrap.fill_gaps(V, C, W)
+    C = soften(V, C, spots)
     L = C @ np.array([0.3, 0.55, 0.15], np.float32)
     A = adjacency(F, len(V))
     band = L - smooth_values(A, L, lo_it)
     band = smooth_values(A, band, hi_it)
-    d = np.clip(band * amp, -cap, cap)
+    k = np.ones(len(V))
+    for c, r, amt in spots:
+        k *= 1 - 0.6 * amt * np.clip(1 - np.linalg.norm(V - c, axis=1) / r, 0, 1)
+    if mask is not None:
+        k *= mask(V)
+    d = np.clip(band * amp * k, -cap, cap)
     return V + N * d[:, None], C
 
 
@@ -285,6 +339,8 @@ def glow_map(img, pix, P, rule, spots, warp, size):
         score = np.where(inh, mx, 0)
         thr = rule["vmin"] if "vmin" in rule else np.quantile(score, 1 - rule["frac"])
         k = np.clip((score - thr) / 0.06, 0, 1) * inh
+        for z0, z1, f in rule.get("zfade", []):         # dimmer bands (a belt of cracks at the hips)
+            k = k * (1 - (1 - f) * ((P[:, 2] > z0) & (P[:, 2] < z1)))
         G[pix] = np.minimum(C * k[:, None] * rule.get("gain", 1.0), rule.get("cap", 0.85))
     for c, r, rgb in spots or []:
         c = warp(np.array(c, float))
@@ -325,7 +381,8 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
     atlas = wrap.Atlas(os.path.join(skin_dir, spec["file"]), **spec.get("atlas", {}))
     atlas.inpaint(spec["inpaint"])
     wrap.balance(spec, atlas, V, normals(V, F), caps)
-    V, _ = relief(V, F, spec, atlas, caps, M["relief"])
+    spots = joints_soft(J, [(warp(np.array(c, float)), r, a) for c, r, a in M.get("soften", [])])
+    V, _ = relief(V, F, spec, atlas, caps, M["relief"], spots=spots, mask=M.get("relief_mask"))
     log("relief")
     body = base.to_object(V, F, name)
     for p in body.data.polygons:
@@ -336,7 +393,8 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
     unwrap(body, J, head_z=neck_z + 0.02)
     log("unwrapped")
     Vc, Nc, UV, TL = corners(body)
-    img, (pix, P_tex, _) = wrap.bake(Vc, Nc, TL, UV, spec, atlas, caps, size=size)
+    post = lambda P, N, C: paint(P, soften(P, C, spots), M.get("paint"), warp)
+    img, (pix, P_tex, _) = wrap.bake(Vc, Nc, TL, UV, spec, atlas, caps, size=size, post=post)
     img = img.reshape(size, size, 3)
     tex = Image.fromarray((img * 255 + 0.5).astype(np.uint8))
     if out_size and out_size != size:
