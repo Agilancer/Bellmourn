@@ -39,6 +39,7 @@ import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
 import { Foes } from './foes.js';
 import { Villagers } from './villagers.js';
+import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
 
@@ -220,12 +221,14 @@ async function build() {
   await mark('library');
   buildWorld(ctx); await mark('world');
   ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); await mark('dungeon');
+  buildKeep(ctx); await mark('keep');   // (after the undercroft: see keep.js)
   ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); await mark('merge');
   bill.finish(); await mark('billboards');
   ctx.trees3d.finish(scene); await mark('trees');
   await props.finish();
   ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
   ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
@@ -266,6 +269,10 @@ async function build() {
   zombies.onPlayerHit = hurtPlayer;
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
+  ctx.foes = foes;
+  foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
+  // Velscour's Sworn come in behind, while you're on the road (a phone starts once the village is up)
+  setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e)), touch ? 6000 : 0);
   // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
   // background and walk out of their doors as they arrive
   villagers = new Villagers(scene, ctx);
@@ -623,6 +630,8 @@ function zoneAt(p) {
   }
   if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
+  const keep = ctx.keep.place(p);
+  if (keep) return { name: keep, kind: 'out' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
   if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
   return { name: 'Bellmourn', kind: 'out' };
@@ -857,8 +866,9 @@ function tick(dt) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
-      hud.prompt(box.searched ? `The ${box.holds.name} is empty` : `E — search the ${box.holds.name}`);
-      if (!box.searched && inp.was('KeyE')) {
+      hud.prompt(box.searched ? `The ${box.holds.name} is empty` : box.sealed || `E — search the ${box.holds.name}`);
+      if (box.sealed && inp.was('KeyE')) { sfx.clang?.(false); hud.toast('It will not open while he lives'); }
+      if (!box.searched && !box.sealed && inp.was('KeyE')) {
         const n = ctx.loot.search(box, player);
         sfx.door?.(true);
         if (!n) hud.toast(`Nothing in the ${box.holds.name}`);
@@ -884,6 +894,8 @@ function tick(dt) {
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);
+  ctx.keep.update(dt, t, player);
+  hud.boss(foes.bossBar(player));
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);

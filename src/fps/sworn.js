@@ -1,0 +1,227 @@
+// Velscour's Sworn: the knights of Blackvigil Keep. Each is one of the village's own bodies (a
+// villager, templates/models/creatures/villagers) in the Fiend's Panoply (templates/models/armor/fiend),
+// put together here into a body the foes' brain and the zombies' gore can drive:
+//   - the villager's skeleton, its bones renamed to the zombie body's (Wrist.L is handL, and so on);
+//   - the armour, its helm and the villager's head (face, eyes, lashes) merged into one skinned mesh,
+//     a material per swatch (the armour's textures tile, so they can't share one image). The set was
+//     built on the same skeleton as every villager of its sex, so they bind to it as they are;
+//   - the knights' own clips (knight_a's: walk, run, three cuts, the shield bash and block, the
+//     falls, deaths and crawls) carried over bone by bone. Both bodies stand in the same T-pose
+//     facing +z, so each bone takes the knight bone's turn away from that pose, in the world: its
+//     swing is the knight's swing whatever way its own bones were built. The hips also take the
+//     knight's rise and fall (scaled to the leg);
+//   - fists closed (for a hilt), and the knight's sockets, hit shapes and hit frames moved onto it.
+// Sword, axe or mace in the right fist, shield on the left forearm, as the dark knights carry them.
+import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+
+// the villager's bones under the zombie body's names (the rest keep their own: Body, Torso, the
+// fingers, the ends and the pole targets)
+const BONES = { Root: 'root', Hips: 'hips', Abdomen: 'spine', Chest: 'chest', Neck: 'neck', Head: 'head',
+  ShoulderL: 'shoulderL', UpperArmL: 'upper_armL', LowerArmL: 'forearmL', WristL: 'handL',
+  ShoulderR: 'shoulderR', UpperArmR: 'upper_armR', LowerArmR: 'forearmR', WristR: 'handR',
+  UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL', UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR' };
+const HEAD = /^V_(Head|Eyes|Lashes)/;   // what the villager keeps under the helm (not its clothes or hair)
+const FPS = 30;
+// a fist: how far each finger joint closes (radians), the thumb less
+const CURL = { 1: 1.25, 2: 1.45, 3: 1.0, 4: 0.6 };
+const THUMB = { 1: 0.35, 2: 0.55, 3: 0.5 };
+
+const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _m = new THREE.Matrix4();
+
+/** A bone's world rotation and position at bind (from its inverse bind matrix). */
+function bindOf(skel, bone) {
+  _m.copy(skel.boneInverses[skel.bones.indexOf(bone)]).invert();
+  const q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
+  _m.decompose(p, q, s);
+  return { q, p };
+}
+
+/** One skinned mesh of all the parts: [{mesh, shell}] (shell 1: armour, whose inner face is metal
+ * or cloth, not flesh), bound to `skel` by bone name. */
+function merge(parts, skel) {
+  const index = new Map(skel.bones.map((b, i) => [b.name, i]));
+  let nv = 0, ni = 0;
+  for (const { mesh } of parts) { nv += mesh.geometry.attributes.position.count; ni += mesh.geometry.index.count; }
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
+  const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4), shell = new Float32Array(nv);
+  const idx = new Uint32Array(ni);
+  const geo = new THREE.BufferGeometry(), mats = [];
+  let v0 = 0, i0 = 0;
+  for (const { mesh, shell: sh } of parts) {
+    const g = mesh.geometry, a = g.attributes, n = a.position.count;
+    const remap = mesh.skeleton.bones.map((b) => index.get(b.name) ?? 0);
+    for (let i = 0; i < n; i++) {
+      const o = v0 + i;
+      pos[o * 3] = a.position.getX(i); pos[o * 3 + 1] = a.position.getY(i); pos[o * 3 + 2] = a.position.getZ(i);
+      nrm[o * 3] = a.normal.getX(i); nrm[o * 3 + 1] = a.normal.getY(i); nrm[o * 3 + 2] = a.normal.getZ(i);
+      if (a.uv) { uv[o * 2] = a.uv.getX(i); uv[o * 2 + 1] = a.uv.getY(i); }
+      for (let k = 0; k < 4; k++) { si[o * 4 + k] = remap[a.skinIndex.getComponent(i, k)]; sw[o * 4 + k] = a.skinWeight.getComponent(i, k); }
+      shell[o] = sh;
+    }
+    const src = g.index.array;
+    for (let k = 0; k < src.length; k++) idx[i0 + k] = src[k] + v0;
+    geo.addGroup(i0, src.length, mats.length);
+    mats.push(mesh.material);
+    v0 += n; i0 += src.length;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  geo.setAttribute('_shell', new THREE.BufferAttribute(shell, 1));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeBoundingSphere();
+  return { geo, mats };
+}
+
+/** The knight's clips on the sworn body: each named bone turned as the knight's turns away from its
+ * bind, in the world (both bind in a T-pose facing +z), the hips carried as the knight's are. */
+function retarget(knight, dst, dstSkel) {
+  const src = cloneSkinned(knight.scene);
+  let srcSkel = null;
+  src.traverse((o) => { if (o.isSkinnedMesh && !srcSkel) srcSkel = o.skeleton; });
+  const sb = Object.fromEntries(srcSkel.bones.map((b) => [b.name, b]));
+  const db = Object.fromEntries(dstSkel.bones.map((b) => [b.name, b]));
+  const names = Object.keys(db).filter((n) => sb[n]);
+  // their binds, and the turn that takes each knight bone's bind onto the sworn one's
+  const fix = {}, sBind = {}, dBind = {};
+  for (const n of names) {
+    sBind[n] = bindOf(srcSkel, sb[n]); dBind[n] = bindOf(dstSkel, db[n]);
+    fix[n] = sBind[n].q.clone().invert().multiply(dBind[n].q);   // W_dst = W_src * fix
+  }
+  const legs = dBind.hips.p.y / sBind.hips.p.y;
+  // the bones in order down the tree, so a parent is posed before its children
+  const order = [];
+  dstSkel.bones[0].parent.traverse((o) => { if (o.isBone && names.includes(o.name)) order.push(db[o.name]); });
+  const rest = new Map(dstSkel.bones.map((b) => [b, [b.position.clone(), b.quaternion.clone()]]));
+  const mixer = new THREE.AnimationMixer(src);
+  const clips = [];
+  for (const clip of knight.animations) {
+    const act = mixer.clipAction(clip);
+    act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; act.play();
+    const n = Math.max(2, Math.round(clip.duration * FPS) + 1);
+    const times = new Float32Array(n);
+    const q = Object.fromEntries(names.map((k) => [k, new Float32Array(n * 4)]));
+    const hp = new Float32Array(n * 3);
+    for (let f = 0; f < n; f++) {
+      const t = Math.min(clip.duration, f / FPS);
+      times[f] = t;
+      mixer.setTime(t);
+      src.updateMatrixWorld(true);
+      for (const b of order) {
+        const k = b.name;
+        sb[k].getWorldQuaternion(_q).multiply(fix[k]);                       // where it should face
+        b.quaternion.copy(b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(_q));
+        b.updateMatrixWorld(true);
+        const out = q[k], o = f * 4;
+        let s = 1;
+        if (f && b.quaternion.x * out[o - 4] + b.quaternion.y * out[o - 3] + b.quaternion.z * out[o - 2] + b.quaternion.w * out[o - 1] < 0) s = -1;
+        out[o] = b.quaternion.x * s; out[o + 1] = b.quaternion.y * s; out[o + 2] = b.quaternion.z * s; out[o + 3] = b.quaternion.w * s;
+        if (k === 'hips') {                                                    // the knight's rise and fall
+          sb.hips.getWorldPosition(_p).sub(sBind.hips.p).multiplyScalar(legs).add(dBind.hips.p);
+          b.parent.worldToLocal(_p);
+          b.position.copy(_p); b.updateMatrixWorld(true);
+          hp.set([_p.x, _p.y, _p.z], f * 3);
+        }
+      }
+    }
+    act.stop(); mixer.uncacheAction(clip);
+    const tracks = names.map((k) => new THREE.QuaternionKeyframeTrack(`${k}.quaternion`, times, q[k]));
+    tracks.push(new THREE.VectorKeyframeTrack('hips.position', times, hp));
+    clips.push(new THREE.AnimationClip(clip.name, clip.duration, tracks));
+  }
+  for (const [b, [p, r]] of rest) { b.position.copy(p); b.quaternion.copy(r); }
+  return clips;
+}
+
+/** Close the hands into fists: every finger joint turned toward the palm (which faces down in the
+ * T-pose) about the hand's one bend axis (so the turns of a finger's joints add up), the thumb
+ * less. */
+function fists(skel) {
+  const palm = new THREE.Vector3(0, -1, 0), wq = new THREE.Quaternion(), pq = new THREE.Quaternion();
+  const axis = {};
+  for (const s of ['L', 'R']) {
+    const hand = skel.bones.find((b) => b.name === 'hand' + s);
+    axis[s] = new THREE.Vector3(0, 1, 0).applyQuaternion(bindOf(skel, hand).q).cross(palm).normalize();
+  }
+  for (const b of skel.bones) {
+    const m = /^(Index|Middle|Ring|Pinky|Thumb)(\d)([LR])$/.exec(b.name);
+    if (!m) continue;
+    const a = (m[1] === 'Thumb' ? THUMB : CURL)[m[2]];
+    if (!a) continue;
+    b.getWorldQuaternion(wq);
+    _q.setFromAxisAngle(axis[m[3]], a);
+    b.parent.getWorldQuaternion(pq);
+    b.quaternion.copy(pq.invert().multiply(_q).multiply(wq));
+    b.updateMatrixWorld(true);
+  }
+}
+
+/** The knight's sockets moved onto the sworn body: a grip as far beyond the wrist, a shield as far
+ * along the forearm; their axes as they were (both bodies bind in the same pose). */
+function sockets(meta, sSkel, dSkel) {
+  const at = (skel, name) => bindOf(skel, skel.bones.find((b) => b.name === name)).p;
+  const out = {};
+  for (const [k, s] of Object.entries(meta.sockets || {})) {
+    const p = new THREE.Vector3(...s.pos);
+    let q;
+    if (s.bone.startsWith('hand')) {
+      q = p.sub(at(sSkel, s.bone)).add(at(dSkel, s.bone));
+    } else {   // along the forearm, the same fraction of the way to the wrist
+      const side = s.bone.slice(-1), a0 = at(sSkel, s.bone), a1 = at(sSkel, 'hand' + side), b0 = at(dSkel, s.bone), b1 = at(dSkel, 'hand' + side);
+      const L = a1.clone().sub(a0), u = p.clone().sub(a0).dot(L) / L.lengthSq();
+      const off = p.clone().sub(a0).addScaledVector(L, -u);
+      q = b0.clone().lerp(b1, u).add(off);
+    }
+    out[k] = { ...s, pos: q.toArray() };
+  }
+  return out;
+}
+
+/** Build a sworn body: `knight` is knight_a's loaded glTF, `villager` and `armor` the loaded body and
+ * set. Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
+export function swornBody(knight, villager, armor, { eyes = 0xff2a10 } = {}) {
+  const scene = villager.scene;
+  // what the villager keeps (its head) and what it wears (every piece of the set)
+  const parts = [];
+  let skel = null;
+  scene.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    if (HEAD.test(o.name)) { parts.push({ mesh: o, shell: 0 }); skel ||= o.skeleton; }
+  });
+  armor.scene.traverse((o) => { if (o.isSkinnedMesh) parts.push({ mesh: o, shell: 1 }); });
+  // its bones under the zombie body's names, the set's too (they're matched by name)
+  for (const root of [scene, armor.scene]) root.traverse((o) => { if (o.isBone && BONES[o.name]) o.name = BONES[o.name]; });
+  const { geo, mats } = merge(parts, skel);
+  // the eyes behind the slits burn
+  parts.forEach((p, i) => {
+    if (!/^V_Eyes/.test(p.mesh.name)) return;
+    const m = mats[i] = mats[i].clone();
+    m.emissive = new THREE.Color(eyes); m.emissiveMap = null; m.emissiveIntensity = 3;
+    m.userData.glow = true;
+  });
+  const host = skel.bones.find((b) => b.name === 'root').parent;
+  const old = [];
+  scene.traverse((o) => { if (o.isMesh) old.push(o); });
+  for (const o of old) o.parent.remove(o);
+  const body = new THREE.SkinnedMesh(geo, mats);
+  body.name = 'Sworn';
+  const bones = skel.bones.slice();
+  const bound = new THREE.Skeleton(bones, skel.boneInverses.map((m) => m.clone()));
+  host.add(body);
+  body.bind(bound, new THREE.Matrix4());
+  scene.updateMatrixWorld(true);
+  const animations = retarget(knight, scene, bound);
+  fists(bound);
+  // the knight's hit shapes (a little fuller for the plate, and one for the torso between the
+  // spine and chest bones that the knight hasn't), its hit frames, and its sockets
+  const km = knight.userData.foe;
+  let kSkel = null;
+  knight.scene.traverse((o) => { if (o.isSkinnedMesh && !kSkel) kSkel = o.skeleton; });
+  const radius = Object.fromEntries(Object.entries(km.radius).map(([k, r]) => [k, r * 1.12]));
+  radius.Torso = (radius.spine + radius.chest) / 2 * 1.1;
+  const foe = { radius, tip: km.tip, hits: km.hits, kind: 'knight', height: 1.85, sockets: sockets(km, kSkel, bound) };
+  return { scene, animations, userData: { foe } };
+}

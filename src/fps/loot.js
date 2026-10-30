@@ -117,21 +117,23 @@ export class Loot {
     return best;
   }
 
-  /** Search it: what it holds spills out at your feet. */
+  /** Search it: what it holds spills out at your feet (a container with `contents` of its own,
+   * like the Red Throne's hoard, gives those instead of a roll for the place). */
   search(c, player) {
     c.searched = true;
     const H = c.holds, under = this.hooks.zone?.(c)?.under;
     const lv = placeLevel(c, under);
-    const out = [];
-    const n = H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
+    const out = c.contents ? c.contents(lv) : [];
+    const n = c.contents ? 0 : H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
     for (let i = 0; i < n; i++) out.push(makeGear({ ilvl: lv, bonus: H.bonus }));
-    if (Math.random() < H.gold) out.push({ type: 'gold', amount: Math.max(1, Math.round((3 + lv * 2.5) * H.goldK * (0.5 + Math.random()))) });
-    if (Math.random() < H.potion) out.push(makePotion(Math.random() < 0.6 ? 'life' : 'mana', 1));
+    if (!c.contents && Math.random() < H.gold) out.push({ type: 'gold', amount: Math.max(1, Math.round((3 + lv * 2.5) * H.goldK * (0.5 + Math.random()))) });
+    if (!c.contents && Math.random() < H.potion) out.push(makePotion(Math.random() < 0.6 ? 'life' : 'mana', 1));
     // toward you, out of the front of it
     const dx = player.pos.x - c.x, dz = player.pos.z - c.z, l = Math.hypot(dx, dz) || 1;
+    const step = Math.min(0.5, 2.4 / out.length), far = out.length > 4 ? 0.5 : 0;   // (a big haul fans out wider, still in front)
     out.forEach((it, i) => {
-      const a = Math.atan2(dz / l, dx / l) + (i - (out.length - 1) / 2) * 0.5;
-      const r = c.r + 0.55;
+      const a = Math.atan2(dz / l, dx / l) + (i - (out.length - 1) / 2) * step;
+      const r = c.r + 0.55 + far * (i % 2);
       this.spawn(it, c.x + Math.cos(a) * r, c.top, c.z + Math.sin(a) * r, { pop: true });
     });
     return out.length;

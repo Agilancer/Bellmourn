@@ -7,6 +7,7 @@ import { wallPanel } from './sprites.js';
 import { detailedHouse, houseMaterials, lampPost, marketStall, fence, cart, gothicDetail, belfry } from './buildings.js';
 import { buildRegion, SPOTS } from './region.js';
 import { REGION } from './terrain.js';
+import { keepClear } from './keep.js';
 
 export const VILLAGE_R = 100;   // the village clearing
 export const WORLD_R = 300;     // the forest goes on to here; the player stays inside
@@ -654,17 +655,23 @@ function forestRing(ctx, R, houses) {
     if (!inVillage && r < VILLAGE_R + 14 && R() > 0.35) continue; // a ragged forest edge
     const t = (inVillage ? live : trees)[Math.floor(R() * (inVillage ? live : trees).length)];
     const sc = 0.8 + R() * 0.6;
+    // Blackvigil Keep's ground stays open: what would grow there is drawn for and not planted,
+    // so the rest of the forest stands as it always has
+    const open = keepClear(x, z);
     if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
-      ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, 0.9 + R() * 0.5);
+      const s3 = 0.9 + R() * 0.5;
+      if (!open) ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, s3);
       count++;
       continue;
     }
-    bill.add(t.id, x, 0, z, sc, 0.75 + R() * 0.35);
-    if (r < WORLD_R) physics.add([x - 0.4, 0, z - 0.4], [x + 0.4, 5, z + 0.4], 'tree');
+    const shade = 0.75 + R() * 0.35;
+    if (!open) bill.add(t.id, x, 0, z, sc, shade);
+    if (r < WORLD_R && !open) physics.add([x - 0.4, 0, z - 0.4], [x + 0.4, 5, z + 0.4], 'tree');
     count++;
     if (R() < 0.18 && scatter.length) {
       const s = scatter[Math.floor(R() * scatter.length)];
-      bill.add(s.id, x + (R() - 0.5) * 5, 0, z + (R() - 0.5) * 5, 1, 0.8);
+      const sx = x + (R() - 0.5) * 5, sz = z + (R() - 0.5) * 5;
+      if (!open) bill.add(s.id, sx, 0, sz, 1, 0.8);
     }
   }
 }
