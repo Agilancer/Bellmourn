@@ -5,7 +5,7 @@ flip-flops), so his skin is made of: the Beach head with its hair and brows cut 
 body (the vest hugs the chest), the Suit trousers above the knee (slim thighs, where the shorts
 flare), the bare Beach shins, and the Beach feet. Cut edges are capped, the pieces are filled
 into a voxel field and blurred until the low-poly facets, the hems and the sandal straps melt
-into rounded flesh. The FBX's mitten hands are cut off at the wrist and rebuilt (after the blur,
+into rounded flesh. The vest's torso is then cut away and a bare one modelled in its place. The FBX's mitten hands are cut off at the wrist and rebuilt (after the blur,
 so the fingers keep their shape) as a palm and capsule-chain fingers along its own finger bones.
 `joints` are the FBX bones' heads and tails (metres, Blender axes: +X his left, -Y forward,
 +Z up), in its T-pose.
@@ -152,13 +152,43 @@ def hands(f, J, spec):
                 f.capsule(p, q, 0.0022, 0.0022, soft=0.001)
 
 
+def torso(f):
+    """The vest's torso cut away (crotch to the root of the neck) and a bare one modelled in its
+    place, to the FBX's proportions: ribcage, belly, pelvis, pecs, deltoids, the trapezius sloping
+    from the neck to the shoulders, shoulder blades, lats and buttocks, unioned and blurred into one
+    body; then the groove of the spine and the line down the belly pressed in."""
+    f.box((0, -0.06, 1.17), (0.178, 0.16, 0.318), 0.04, mode="cut", soft=0.008)
+    E = lambda c, r: f.ellipsoid(c, r, mode="max", soft=0.004)
+    E((0, -0.058, 1.30), (0.128, 0.098, 0.18))            # ribcage
+    E((0, -0.066, 1.13), (0.118, 0.09, 0.15))              # belly
+    E((0, -0.05, 0.985), (0.138, 0.092, 0.1))              # pelvis
+    E((0, -0.07, 0.90), (0.065, 0.06, 0.055))              # the groin, between the thighs
+    f.capsule((0, -0.045, 1.42), (0, -0.045, 1.6), 0.052, 0.048, mode="max", soft=0.004)   # neck
+    for sx in (1, -1):
+        E((sx * 0.066, -0.118, 1.335), (0.07, 0.038, 0.052))          # pecs
+        f.capsule((sx * 0.035, -0.03, 1.50), (sx * 0.17, -0.05, 1.452), 0.046, 0.042, mode="max", soft=0.004)
+        E((sx * 0.18, -0.055, 1.425), (0.058, 0.055, 0.058))          # deltoids
+        E((sx * 0.08, 0.022, 1.33), (0.062, 0.03, 0.08))              # shoulder blades
+        E((sx * 0.11, -0.03, 1.24), (0.04, 0.078, 0.13))              # lats
+        E((sx * 0.062, 0.0, 0.925), (0.068, 0.062, 0.072))            # buttocks
+        f.capsule((sx * 0.088, -0.06, 0.92), (sx * 0.1, -0.064, 0.70), 0.072, 0.068, mode="max", soft=0.004)  # thigh tops
+    ramp = lambda x, a, b: np.clip((x - a) / (b - a), 0, 1)
+    w = f.mask(lambda g: ramp(np.abs(g[0]), 0.27, 0.21) * ramp(np.abs(g[1] + 0.06), 0.22, 0.17)
+               * ramp(g[2], 0.64, 0.74) * ramp(g[2], 1.57, 1.51))
+    f.blur(0.018, w)
+    f.capsule((0, 0.05, 0.99), (0, 0.04, 1.45), 0.009, 0.009, mode="cut", soft=0.006, amount=0.6)     # spine
+    f.capsule((0, -0.155, 1.03), (0, -0.16, 1.40), 0.006, 0.006, mode="cut", soft=0.006, amount=0.35)  # linea alba
+
+
 def bare_man(fbx, hand_spec=None, h=0.004, sigma=0.012):
-    """(Field of the bare skin, joints). Blurred everywhere; hands added after the blur."""
+    """(Field of the bare skin, joints). Blurred everywhere, the torso remodelled bare; hands added
+    after the blur."""
     parts, J = load(fbx)
     f = Field(LO, HI, h)
     for V, T in parts.values():
         f.fill_mesh(V, T)
     f.blur(sigma)
+    torso(f)
     hands(f, J, hand_spec or {})
     return f, J
 

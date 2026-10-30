@@ -297,6 +297,7 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
     caps = wrap.capsules(J)
     spec = skins.spec(M["skin"], J, H)
     atlas = wrap.Atlas(os.path.join(skin_dir, spec["file"]), **spec.get("atlas", {}))
+    wrap.balance(spec, atlas, V, normals(V, F), caps)
     V, _ = relief(V, F, spec, atlas, caps, M["relief"])
     log("relief")
     body = base.to_object(V, F, name)

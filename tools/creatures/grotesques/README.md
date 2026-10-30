@@ -11,7 +11,10 @@ from the graves exactly as it does the zombies. The built models are
 - `base.py`: the bare man. The FBX dresses every man, so his skin is put together from the barest
   parts (the Beach head without its hair, the Beach body, the Suit trousers above the knee for
   slim thighs, the bare Beach shins and feet), filled into a voxel field and blurred until the
-  facets and hems melt. The FBX's mitten hands are rebuilt after the blur as a palm and
+  facets and hems melt. The torso is the Beach vest's, so it is cut away from crotch to neck and
+  modelled bare in its place (ribcage, belly, pelvis, pecs, collarbones, deltoids, trapezius,
+  shoulder blades, lats, buttocks, the groove of the spine), with no hem at the waist or the
+  armholes. The FBX's mitten hands are rebuilt after the blur as a palm and
   capsule-chain fingers along its own finger bones (length, thickness, knuckles, claws, spread,
   webbing per monster).
 - `field.py`: the clay: a soft occupancy field (3 mm) that meshes are filled into by ray parity
@@ -29,7 +32,8 @@ from the graves exactly as it does the zombies. The built models are
 - `wrap.py`: the projections (cylindrical round the head, torso and limbs, planar for hands, feet,
   crown and ears), gated by soft body-region weights, each island's own mask (the sheet's flat
   background left out) and its box; blended, baked texel by texel into the model's own UVs, and
-  the gaps bled outward for the mipmaps. Also the glow map (paint in a hue range, bright enough).
+  the gaps bled outward for the mipmaps. Each island's tone is balanced toward the rest, so no
+  part of the body (the back, the hips) reads as a garment of another colour. Also the glow map (paint in a hue range, bright enough).
 - `build.py`: one monster end to end: clay, sculpt, mesh, reshape, warp; the skin's brightness
   high-passed and raised as relief along the normals; decimated to ~18k triangles; cut along
   seams between body regions and down each part's hidden side, unwrapped (the face given the most

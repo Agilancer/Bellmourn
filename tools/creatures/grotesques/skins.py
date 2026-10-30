@@ -119,11 +119,13 @@ def torso(L, key, front, right):
                 a=a, b=b, corners=ID, feather=(16, 0.03), clip=t["box"])
 
 
-def limb(J, top, bottom, strip, front, right, region, joint_s):
+def limb(J, top, bottom, strip, front, right, region, joint_s, ext=0.04):
+    """A limb strip from joint `top` to joint `bottom`; it starts `ext` above the top joint (the
+    legs' run up over the hips and buttocks to meet the torso's)."""
     box, d, mark = strip
     o, e = g(J, top), g(J, bottom)
     n = np.linalg.norm(e - o)
-    b = [(-0.04, -0.04 / n), (0, 0)]
+    b = [(-ext, 0.0)]
     if mark:
         b.append((joint_s, mark))
     b.append((n, 1.0))
@@ -168,8 +170,8 @@ def spec(name, J, H):
         # arms in the T-pose: front faces forward, its sheet's right toward his outside (up)
         P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["front"], FRONT, (0, 0, sx), "arm" + s, el))
         P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["back"], BACK, (0, 0, -sx), "arm" + s, el))
-        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["front"], FRONT, LEFT, f"leg{s}+torso", kn))
-        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["back"], BACK, RIGHT, f"leg{s}+torso", kn))
+        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["front"], FRONT, LEFT, f"leg{s}+torso", kn, 0.1))
+        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["back"], BACK, RIGHT, f"leg{s}+torso", kn, 0.1))
         P.append(hand(J, s, L["hands"][s], DOWN))
         P.append(hand(J, s, (L.get("palms") or L["hands"])[s], UP, 0.8))
         P.append(foot(J, s, L["feet"][s], DOWN))

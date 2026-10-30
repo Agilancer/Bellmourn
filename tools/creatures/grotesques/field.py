@@ -99,6 +99,17 @@ class Field:
         r = radii.max() + 3 * soft
         self.apply(lambda X: sd_ellipsoid(X, c, radii, R), c - r, c + r, mode, soft, amount)
 
+    def box(self, c, half, r, mode="add", soft=0.003, amount=1.0):
+        """A box with rounded edges (r), centre c, half extents `half`."""
+        c, half = np.array(c, float), np.array(half, float)
+        e = half.max() + 3 * soft
+        self.apply(lambda X: sd_round_box(X, c, half, r), c - half - 3 * soft, c + half + 3 * soft, mode, soft, amount)
+
+    def mask(self, fn):
+        """A per-voxel weight (0..1) from fn(points (...,3))."""
+        g = np.meshgrid(*[self.centres(k) for k in range(3)], indexing="ij", sparse=True)
+        return np.asarray(fn(g), np.float32)
+
     def blur(self, sigma, mask=None):
         b = ndimage.gaussian_filter(self.v, sigma / self.h)
         self.v = b if mask is None else self.v + (b - self.v) * mask
@@ -114,6 +125,11 @@ def sd_capsule(X, a, b, ra, rb):
     t = np.clip(((X - a) @ d) / L2, 0, 1)
     c = a + t[..., None] * d
     return np.linalg.norm(X - c, axis=-1) - (ra + (rb - ra) * t)
+
+
+def sd_round_box(X, c, half, r):
+    q = np.abs(X - c) - (half - r)
+    return np.linalg.norm(np.maximum(q, 0), axis=-1) + np.minimum(q.max(-1), 0) - r
 
 
 def sd_ellipsoid(X, c, r, R=None):

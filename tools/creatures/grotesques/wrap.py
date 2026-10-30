@@ -93,7 +93,7 @@ def seg_dist(P, a, b):
     return np.linalg.norm(P - (a + t[:, None] * d), axis=1)
 
 
-def regions(P, caps, tau=0.012):
+def regions(P, caps, tau=0.018):
     """Soft region weights {region: (N,)} that sum to 1 at every point."""
     names = list(caps)
     D = np.stack([np.min([seg_dist(P, a, b) - r for a, b, r in caps[n]], 0) for n in names], 1)
@@ -170,6 +170,29 @@ def project(pr, P, N):
     return xy[:, 0], xy[:, 1], w.astype(np.float32)
 
 
+def balance(spec, atlas, P, N, caps, strength=(0.5, 0.85), step=5):
+    """Even out the islands' tones: each projection's average colour over the body is pulled toward
+    the average of them all (half way on the head, most of the way elsewhere), so no island (the
+    back, say) reads as a garment of another colour. Sets pr["gain"]."""
+    p, n = P[::step], N[::step]
+    reg = regions(p, caps)
+    means, mass = [], []
+    for pr in spec["projections"]:
+        rw = sum(reg[k] for k in pr["region"].split("+"))
+        x, y, w = project(pr, p, n)
+        c, mk = atlas.sample(x, y)
+        w = w * mk * rw
+        m = w.sum()
+        means.append((c * w[:, None]).sum(0) / max(m, 1e-9))
+        mass.append(m)
+    means, mass = np.array(means), np.array(mass)
+    ref = (means * mass[:, None]).sum(0) / max(mass.sum(), 1e-9)
+    for pr, mu, m in zip(spec["projections"], means, mass):
+        k = strength[0] if pr["region"] == "head" else strength[1]
+        g = np.clip(1 + (ref / np.maximum(mu, 1e-3) - 1) * k, 0.7, 1.45) if m > 1e-6 else np.ones(3)
+        pr["gain"] = g.astype(np.float32)
+
+
 def shade(spec, atlas, P, N, caps, gamma=2.0, chunk=400000):
     """Colours (N,3) and total weight (N,) for points P with normals N."""
     out = np.zeros((len(P), 3), np.float32)
@@ -186,6 +209,8 @@ def shade(spec, atlas, P, N, caps, gamma=2.0, chunk=400000):
                 continue
             x, y, w = project(pr, p[m], n[m])
             c, mk = atlas.sample(x, y)
+            if "gain" in pr:
+                c = c * pr["gain"]
             w = (w * mk * rw[m] * pr.get("weight", 1.0)) ** gamma
             acc[m] += c * w[:, None]
             wt[m] += w
@@ -195,15 +220,18 @@ def shade(spec, atlas, P, N, caps, gamma=2.0, chunk=400000):
     return out, tot
 
 
-def fill_gaps(P, C, W, eps=1e-4):
-    """Points no projection covered take the colour of the nearest covered point."""
+def fill_gaps(P, C, W, eps=0.02):
+    """Points no projection covers well (total weight under eps, where only the faint edges of
+    islands reach and the sheet's background creeps in) fade to the colour of the nearest
+    well-covered points."""
     good = W > eps
     if good.all() or not good.any():
         return C
     tree = cKDTree(P[good])
-    _, i = tree.query(P[~good], k=4)
+    _, i = tree.query(P[~good], k=6)
+    k = np.clip(W[~good] / eps, 0, 1)[:, None]
     C = C.copy()
-    C[~good] = C[good][i].mean(1)
+    C[~good] = C[~good] * k + C[good][i].mean(1) * (1 - k)
     return C
 
 

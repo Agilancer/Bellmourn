@@ -8,6 +8,7 @@
 // a normal map the GPU derives from it), the game's tone mapping, at the game's pixel size.
 // ?m=<glb under the repo>&clip=idle&t=0.4&view=34|front|side|back|face|near|far&pix=2
 //  &light=day|dusk|night&cmp=<another glb to stand beside it>&yaw=<radians, overrides view>
+//  &rot=<radians: the model turned, so its back can face the light>
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { goreMaterial } from '../../../../src/fps/zombies.js';
@@ -48,6 +49,7 @@ async function place(path, x, clipName, time) {
   const model = g.scene;
   if (path.includes('/monsters/') && !path.includes('grotesques')) model.rotation.y = Math.PI;
   model.position.x = x;
+  if (q.has('rot') && x === 0) model.rotation.y += Number(q.get('rot'));   // spin it to the light
   scene.add(model);
   model.traverse((o) => {
     if (!o.isMesh) return;
