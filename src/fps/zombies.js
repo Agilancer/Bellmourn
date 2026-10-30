@@ -29,6 +29,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { TOUCH } from './input.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -314,9 +315,44 @@ const normals = new Map();   // texture -> its normal map, made once per body
 const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 
+// The monsters carry the same hair, eye and body-detail images byte for byte: one copy of each
+// serves them all. A phone gets their skins at no more than 1024 square; at 2048, with a copy of
+// the hair per monster, they alone ran past half a gigabyte of graphics memory and the tab died.
+const sharedTex = new Map();   // image name -> the texture every monster uses
+const TEX_CAP = TOUCH ? 1024 : Infinity;
+
+function shrink(t) {
+  const img = t.image, big = Math.max(img?.width || 0, img?.height || 0);
+  if (big <= TEX_CAP) return;
+  const c = document.createElement('canvas'), s = TEX_CAP / big;
+  c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+  const g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, c.width, c.height);
+  img.close?.();
+  t.image = c; t.needsUpdate = true;
+}
+
+function shareTextures(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const k of Object.keys(m)) {
+        const t = m[k];
+        if (!t?.isTexture) continue;
+        const kept = t.name && sharedTex.get(t.name);
+        if (kept && kept !== t) { if (kept.source !== t.source) t.image?.close?.(); m[k] = kept; continue; }
+        if (t.name) sharedTex.set(t.name, t);
+        shrink(t);
+      }
+    }
+  });
+}
+
 /** A monster body in the zombie body's terms: bones and tracks renamed, turned to face +z, and
  * the clips the brain asks for (walk, run, attack3, dead) made from its own. */
 function adaptMonster(gltf) {
+  shareTextures(gltf.scene);
   gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
   gltf.scene.rotation.y = Math.PI;                         // built facing -z
   const clips = {};
