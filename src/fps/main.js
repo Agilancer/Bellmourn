@@ -181,8 +181,7 @@ async function build() {
   };
   physics = new Physics();
   // the world is built from the Velscour texture library, its sprites and props; the kit's
-  // props bundle only gives what lies on the ground (a purse, draughts, a pouch) and the
-  // villagers' tools
+  // props bundle only gives what lies on the ground (a purse, draughts, a pouch)
   lib = await new Library(renderer, { normals: HI }).load();
   kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI, packs: ['props'] }).load();
   const b = new Builder(physics);
@@ -252,9 +251,11 @@ async function build() {
   zombies.onPlayerHit = hurtPlayer;
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
-  // the people of the village (made from the foes' bodies), fewer on a phone
-  villagers = new Villagers(foes, ctx);
-  villagers.populate(touch && !HI ? 12 : 21, touch && !HI ? 2 : 4);
+  // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
+  // background and walk out of their doors as they arrive
+  villagers = new Villagers(scene, ctx);
+  villagers.camera = camera;
+  villagers.populate(touch && !HI ? 10 : 22);
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: spellDamage(def), dir: d, heavy: def.size > 0.4, kind: def.kind });
