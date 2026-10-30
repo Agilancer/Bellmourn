@@ -142,14 +142,14 @@ def hands(f, J, spec):
                 tip = pts[-1] + d * claw - np.array([0, 0, claw * 0.3])
                 f.capsule(pts[-1] - d * r1 * 0.5, tip, r1 * 0.85, 0.0008, mode="max", soft=0.001)
             if spec.get("web") and g != "Thumb":
-                roots.append(pts[:2].copy())
+                roots.append(np.array([pts[0], pts[1] + (pts[2] - pts[1]) * 0.35]))
             # the web of flesh from the palm into each finger root
             f.capsule(w + (pts[0] - w) * 0.45 + np.array([sx * 0.0, 0, 0]), pts[0], r0 * 1.15, r0, soft=0.002)
         # webbing: a thin sheet between neighbouring fingers, out to their first joints
         for a, b in zip(roots, roots[1:]):
             for t in np.linspace(0, 1, 8):
                 p, q = a[0] + (a[1] - a[0]) * t, b[0] + (b[1] - b[0]) * t
-                f.capsule(p, q, 0.0036, 0.0036, soft=0.0012)
+                f.capsule(p, q, 0.0045, 0.0045, soft=0.0012)
 
 
 def torso(f):
@@ -160,7 +160,7 @@ def torso(f):
     f.box((0, -0.06, 1.17), (0.178, 0.16, 0.318), 0.04, mode="cut", soft=0.008)
     E = lambda c, r: f.ellipsoid(c, r, mode="max", soft=0.004)
     E((0, -0.058, 1.30), (0.128, 0.098, 0.18))            # ribcage
-    E((0, -0.066, 1.13), (0.128, 0.09, 0.15))              # belly: a man's straight waist
+    E((0, -0.066, 1.13), (0.136, 0.09, 0.15))              # belly: a man's straight waist
     E((0, -0.05, 0.985), (0.13, 0.09, 0.1))                # pelvis: narrower than the ribs
     E((0, -0.07, 0.90), (0.065, 0.06, 0.055))              # the groin, between the thighs
     f.capsule((0, -0.045, 1.42), (0, -0.045, 1.6), 0.052, 0.048, mode="max", soft=0.004)   # neck
@@ -170,7 +170,7 @@ def torso(f):
         E((sx * 0.18, -0.055, 1.425), (0.058, 0.055, 0.058))          # deltoids
         E((sx * 0.08, 0.022, 1.33), (0.062, 0.03, 0.08))              # shoulder blades
         E((sx * 0.11, -0.03, 1.24), (0.04, 0.078, 0.13))              # lats
-        E((sx * 0.062, 0.0, 0.925), (0.068, 0.062, 0.072))            # buttocks
+        E((sx * 0.058, -0.004, 0.925), (0.06, 0.054, 0.066))          # buttocks: a man's, flat
         f.capsule((sx * 0.088, -0.06, 0.92), (sx * 0.1, -0.064, 0.70), 0.072, 0.068, mode="max", soft=0.004)  # thigh tops
     ramp = lambda x, a, b: np.clip((x - a) / (b - a), 0, 1)
     w = f.mask(lambda g: ramp(np.abs(g[0]), 0.27, 0.21) * ramp(np.abs(g[1] + 0.06), 0.22, 0.17)

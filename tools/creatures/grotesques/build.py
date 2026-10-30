@@ -271,17 +271,21 @@ def export(path, body, ao):
 
 
 def glow_map(img, pix, P, rule, spots, warp, size):
-    """The emissive image, or None: paint in a hue range (rule: hue lo, hi, min value, min
-    saturation, gain), plus spots on the body (spots: [(centre, radius, rgb)] in the unwarped
-    body's metres) that burn whatever is painted there."""
+    """The emissive image, or None. rule: paint in a hue range glows, the brightest `frac` of the
+    skin (in that hue, saturated past smin), in its own colour times `gain`; spots: places on the
+    body [(centre in the unwarped body's metres, radius, rgb)] that burn regardless."""
     if not rule and not spots:
         return None
     flat = img.reshape(-1, 3)
     G = np.zeros_like(flat)
     if rule:
-        lo, hi, vmin, smin, gain = (list(rule) + [0.45, 1.6])[:5] if len(rule) < 5 else rule
-        k = wrap.glow(flat, (lo, hi), vmin, smin)
-        G = flat * k[:, None] * gain
+        C = flat[pix]
+        mx = C.max(1)
+        inh = wrap.glow(C, rule["hue"], 0.0, rule.get("smin", 0.45)) > 0.5
+        score = np.where(inh, mx, 0)
+        thr = rule["vmin"] if "vmin" in rule else np.quantile(score, 1 - rule["frac"])
+        k = np.clip((score - thr) / 0.06, 0, 1) * inh
+        G[pix] = np.minimum(C * k[:, None] * rule.get("gain", 1.0), rule.get("cap", 0.85))
     for c, r, rgb in spots or []:
         c = warp(np.array(c, float))
         d = np.linalg.norm(P - c, axis=1)

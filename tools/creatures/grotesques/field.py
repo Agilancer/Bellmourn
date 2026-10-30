@@ -88,13 +88,23 @@ class Field:
         elif mode == "cut":
             self.v[sl] = a * (1 - b)
 
+    def _thin(self, r, soft):
+        """Nothing thinner than the grid can hold: a radius under ~0.6 voxel would mesh into
+        nothing (the tips of fins, tusks, fangs and claws vanished), so it is kept to that."""
+        return max(r, 0.6 * self.h), max(soft, 0.35 * self.h)
+
     def capsule(self, a, b, ra, rb, mode="add", soft=0.003, amount=1.0):
+        ra, soft = self._thin(ra, soft)
+        rb, _ = self._thin(rb, soft)
         a, b = np.array(a, float), np.array(b, float)
         r = max(ra, rb) + 3 * soft
         lo, hi = np.minimum(a, b) - r, np.maximum(a, b) + r
         self.apply(lambda X: sd_capsule(X, a, b, ra, rb), lo, hi, mode, soft, amount)
 
     def ellipsoid(self, c, radii, R=None, mode="add", soft=0.003, amount=1.0):
+        if mode != "cut":
+            radii = [self._thin(r, soft)[0] for r in radii]
+            soft = self._thin(0, soft)[1]
         c, radii = np.array(c, float), np.array(radii, float)
         r = radii.max() + 3 * soft
         self.apply(lambda X: sd_ellipsoid(X, c, radii, R), c - r, c + r, mode, soft, amount)
@@ -109,6 +119,17 @@ class Field:
         """A per-voxel weight (0..1) from fn(points (...,3))."""
         g = np.meshgrid(*[self.centres(k) for k in range(3)], indexing="ij", sparse=True)
         return np.asarray(fn(g), np.float32)
+
+    def surface(self, p, d, step=None, reach=0.3):
+        """Where a ray from p (inside the clay) along d first leaves it."""
+        p, d = np.array(p, float), np.array(d, float) / np.linalg.norm(d)
+        step = step or self.h * 0.5
+        for t in np.arange(0, reach, step):
+            q = p + d * t
+            i = np.round((q - self.lo) / self.h).astype(int)
+            if (i < 0).any() or (i >= self.n).any() or self.v[tuple(i)] < 0.5:
+                return q
+        return p + d * reach
 
     def surface_y(self, z, x=0.0, back=True):
         """Where the clay's surface is along y at (x, z): its back (largest y) or its front."""

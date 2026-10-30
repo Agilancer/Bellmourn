@@ -27,7 +27,7 @@ from scipy.spatial import cKDTree
 # ---------------------------------------------------------------- the atlas
 
 class Atlas:
-    def __init__(self, path, thresh=40, erode=4, feather=6.0, bg=None):
+    def __init__(self, path, thresh=40, erode=8, feather=6.0, bg=None):
         im = Image.open(path).convert("RGB")
         self.rgb = np.asarray(im).astype(np.float32) / 255.0
         H, W, _ = self.rgb.shape

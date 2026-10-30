@@ -165,7 +165,7 @@ def limbs(P, J, up=0.8, fore=0.78, thigh=0.84, shin=0.84, knob=0.95):
         sh, el, wr = g(f"upper_arm.{s}"), g(f"forearm.{s}"), g(f"hand.{s}")
         thick = up > 1 or fore > 1
         us, ks = profile((up, fore), knob if not thick else None, 0.04, thick)
-        w = smoothstep(sh[0] * sx + (-0.01 if thick else 0.02), sh[0] * sx + 0.09, sx * P[:, 0])
+        w = smoothstep(sh[0] * sx + (-0.04 if thick else 0.02), sh[0] * sx + (0.14 if thick else 0.09), sx * P[:, 0])
         P = chain(P, sh, el, wr, us, ks, w, 0.08 * max(1, up, fore))
         hip, kn, an = g(f"thigh.{s}"), g(f"shin.{s}"), g(f"foot.{s}")
         thick = thigh > 1 or shin > 1
@@ -297,23 +297,24 @@ def zombie_reshape(V, J, H):
 def drowner_sculpt(f, H):
     # a swollen face: puffed lids round half-sunk eyes (forward enough that their whites show),
     # fat cheeks and jowls, a slack mouth; no chin wad (it read as a goatee)
-    eyes(f, H, socket=(0.022, 0.016, 0.015), r=0.0145, ey=-0.150, cut=0.8)
+    eyes(f, H, socket=(0.022, 0.016, 0.015), r=0.015, ey=-0.154, cut=0.6)
     both(lambda sx: f.ellipsoid((sx * 0.037, -0.152, H["eye"] - 0.016), (0.02, 0.012, 0.009), soft=0.004))
     both(lambda sx: f.ellipsoid((sx * 0.055, -0.135, H["mouth"] + 0.014), (0.03, 0.026, 0.026), soft=0.008))
-    both(lambda sx: f.ellipsoid((sx * 0.054, -0.112, H["chin"] + 0.014), (0.026, 0.03, 0.022), soft=0.008))
+    both(lambda sx: f.ellipsoid((sx * 0.05, -0.118, H["chin"] + 0.016), (0.016, 0.018, 0.013), soft=0.008))
     ears(f, H, size=1.05)
     brow(f, H, 0.009, -0.158)
     nose(f, H, "bump")
     mouth(f, H, w=0.025, h=0.011, depth=0.012)
     # the body swells: a drum of a belly well forward, fat flanks, a thick waist, soft breasts of fat
-    f.ellipsoid((0, -0.125, 1.10), (0.2, 0.19, 0.21), soft=0.035)
-    both(lambda sx: f.ellipsoid((sx * 0.135, -0.05, 1.04), (0.085, 0.12, 0.12), soft=0.035))
-    f.ellipsoid((0, -0.08, 1.31), (0.15, 0.1, 0.12), soft=0.035)
-    f.ellipsoid((0, 0.03, 1.12), (0.16, 0.08, 0.14), soft=0.035)
+    # (all soft-edged over 6 cm, so the swelling melts into the chest and the hips)
+    f.ellipsoid((0, -0.112, 1.09), (0.21, 0.165, 0.24), soft=0.06)
+    both(lambda sx: f.ellipsoid((sx * 0.135, -0.05, 1.03), (0.095, 0.13, 0.15), soft=0.06))
+    f.ellipsoid((0, -0.08, 1.31), (0.15, 0.1, 0.12), soft=0.05)
+    f.ellipsoid((0, 0.03, 1.10), (0.16, 0.08, 0.16), soft=0.06)
 
 
 def drowner_reshape(V, J, H):
-    P = limbs(V, J, 1.2, 1.32, 1.22, 1.22)
+    P = limbs(V, J, 1.2, 1.32, 1.45, 1.4)
     P = neck(P, 1.3)
     return chest(P, 1.08, 1.12)
 
@@ -338,9 +339,9 @@ def plague_sculpt(f, H):
     nose(f, H, "skull")
     mouth(f, H, w=0.028, h=0.01)
     # a goitre swelling the right of the neck, and a hump between the shoulders
-    f.ellipsoid((-0.045, -0.075, 1.535), (0.04, 0.038, 0.036), soft=0.016)
-    f.ellipsoid((0, 0.06, 1.42), (0.13, 0.085, 0.12), soft=0.035)
-    f.ellipsoid((0, 0.035, 1.49), (0.1, 0.06, 0.06), soft=0.03)
+    f.ellipsoid((-0.048, -0.075, 1.535), (0.052, 0.05, 0.047), soft=0.018)
+    # the hump between the shoulder blades, off to his left
+    f.ellipsoid((0.035, 0.065, 1.34), (0.12, 0.09, 0.12), soft=0.035)
 
 
 def plague_reshape(V, J, H):
@@ -350,16 +351,18 @@ def plague_reshape(V, J, H):
 
 
 def plague_post(V, N, J, H):
-    # buboes and boils on the neck, shoulders, upper back and forearms
+    # great buboes clustered on his left shoulder and the back of the neck (they must read at 10 m),
+    # smaller boils over the shoulders, upper back and forearms
+    big = either(zone(x=(0.1, 0.3), z=(1.38, 1.52)), zone(x=("abs", 0.0, 0.07), y=(0.0, 0.2), z=(1.45, 1.6)))
+    V = bumps(V, N, 12, big, r=(0.016, 0.03), h=(0.01, 0.02), seed=33)
     where = either(zone(x=("abs", 0.0, 0.28), z=(1.36, 1.56)), zone(y=(0.02, 0.2), z=(1.15, 1.5)),
                    zone(x=("abs", 0.36, 0.56)))
-    V = bumps(V, N, 26, where, r=(0.008, 0.02), h=(0.005, 0.012), seed=31)
-    return bumps(V, N, 14, zone(z=(0.95, 1.35)), r=(0.006, 0.012), h=(0.004, 0.008), seed=32)
+    return bumps(V, N, 18, where, r=(0.008, 0.014), h=(0.005, 0.01), seed=31)
 
 
 # ------------------------------------------------------------------ 04 the tomb mummy
 def mummy_sculpt(f, H):
-    eyes(f, H, socket=(0.026, 0.03, 0.021), r=0.011, ey=-0.134)
+    eyes(f, H, socket=(0.026, 0.03, 0.021), r=0.012, ey=-0.142)
     cheeks(f, H, bone=1.2, hollow=0.85, temple=0.6)
     ears(f, H, size=0.9)
     brow(f, H, 0.008)
@@ -367,7 +370,7 @@ def mummy_sculpt(f, H):
     mouth(f, H, w=0.026, h=0.01)
     # a row of long dry teeth in the open mouth
     for x in np.linspace(-0.017, 0.017, 7):
-        f.capsule((x, -0.15, H["mouth"] + 0.008), (x * 1.02, -0.156, H["mouth"] - 0.004), 0.0028, 0.002,
+        f.capsule((x, -0.156, H["mouth"] + 0.009), (x * 1.02, -0.163, H["mouth"] - 0.004), 0.003, 0.0022,
                   mode="max", soft=0.0008)
     # loose wrappings trailing: off both forearms, a hip, the back of the neck, a thigh
     def strip(pts, w0, w1, seed):
@@ -381,18 +384,21 @@ def mummy_sculpt(f, H):
                 p = a + (b - a) * i / n
                 w = w0 + (w1 - w0) * t
                 f.ellipsoid(p, (w, 0.0035, 0.009), rot("z", rng.uniform(-25, 25)), soft=0.0012)
-    strip([(0.42, -0.03, 1.40), (0.43, -0.035, 1.30), (0.45, -0.02, 1.20), (0.44, -0.03, 1.15)], 0.016, 0.006, 1)
-    strip([(-0.30, 0.02, 1.405), (-0.31, 0.035, 1.30), (-0.30, 0.03, 1.22)], 0.014, 0.005, 2)
-    strip([(0.09, -0.15, 0.99), (0.10, -0.165, 0.88), (0.12, -0.17, 0.78)], 0.018, 0.006, 3)
-    strip([(-0.02, 0.06, 1.52), (-0.03, 0.09, 1.42), (-0.05, 0.1, 1.3)], 0.014, 0.005, 4)
-    strip([(-0.15, -0.06, 0.62), (-0.16, -0.08, 0.5), (-0.15, -0.09, 0.42)], 0.013, 0.005, 5)
+    # flat ribbons 3-4 cm wide and 20-30 cm long, hanging and swaying
+    strip([(0.42, -0.03, 1.41), (0.43, -0.04, 1.30), (0.46, -0.02, 1.20), (0.44, -0.035, 1.12)], 0.019, 0.008, 1)
+    strip([(0.26, 0.0, 1.41), (0.27, 0.01, 1.3), (0.25, 0.0, 1.18)], 0.016, 0.007, 6)
+    strip([(-0.36, 0.02, 1.405), (-0.37, 0.035, 1.30), (-0.35, 0.03, 1.2), (-0.36, 0.035, 1.13)], 0.018, 0.007, 2)
+    strip([(0.09, -0.15, 0.99), (0.10, -0.17, 0.88), (0.12, -0.175, 0.76), (0.11, -0.17, 0.7)], 0.02, 0.008, 3)
+    strip([(-0.02, 0.06, 1.52), (-0.03, 0.095, 1.42), (-0.05, 0.105, 1.3), (-0.04, 0.1, 1.24)], 0.017, 0.007, 4)
+    strip([(-0.15, -0.07, 0.62), (-0.16, -0.09, 0.5), (-0.15, -0.1, 0.4)], 0.016, 0.007, 5)
+    strip([(0.12, 0.07, 0.97), (0.13, 0.09, 0.86), (0.12, 0.1, 0.74)], 0.018, 0.008, 7)
 
 
 def mummy_reshape(V, J, H):
     P = limbs(V, J, 0.7, 0.68, 0.74, 0.74, knob=0.9)
     P = neck(P, 0.78)
     P = chest(P, 0.95, 0.94)
-    return belly(P, sink=0.035, waist=0.95)
+    return belly(P, sink=0.035, waist=1.0)
 
 
 # ------------------------------------------------------------------ 05 the ember husk
@@ -404,12 +410,21 @@ def ember_sculpt(f, H):
     nose(f, H, "skull")
     mouth(f, H, w=0.03, h=0.012)
     # charred cavities burned into the body, glowing inside: chest, flank, a forearm, a thigh
-    for c, r in EMBER_HOLES:
-        f.ellipsoid(c, r, mode="cut", soft=0.004)
+    for c, d, r in EMBER_HOLES:
+        c, d = np.array(c), np.array(d) / np.linalg.norm(d)
+        u = np.cross(d, (0, 0, 1)) if abs(d[2]) < 0.9 else np.array((1.0, 0, 0))
+        u /= np.linalg.norm(u)
+        v = np.cross(d, u)
+        for a in np.linspace(0, 2 * np.pi, 10, endpoint=False):       # a charred rim, raised round it
+            f.ellipsoid(c + (u * np.cos(a) * r[0] + v * np.sin(a) * r[2]) * 1.1 - d * 0.004, (0.009, 0.009, 0.009),
+                        soft=0.003)
+        f.ellipsoid(c + d * 0.004, r, mode="cut", soft=0.004)
 
 
-EMBER_HOLES = [((0.06, -0.165, 1.27), (0.032, 0.03, 0.042)), ((-0.13, -0.08, 1.12), (0.03, 0.035, 0.05)),
-               ((0.44, -0.09, 1.44), (0.03, 0.022, 0.02)), ((-0.12, -0.15, 0.72), (0.03, 0.03, 0.045))]
+# cavities: (on the surface, the way in, radii): the chest, a flank, the upper back
+EMBER_HOLES = [((0.065, -0.162, 1.26), (0, 1, 0), (0.032, 0.026, 0.042)),
+               ((-0.125, -0.07, 1.13), (1, 0.2, 0), (0.026, 0.035, 0.05)),
+               ((0.075, 0.062, 1.36), (0, -1, 0), (0.03, 0.026, 0.04))]
 
 
 def ember_reshape(V, J, H):
@@ -417,10 +432,12 @@ def ember_reshape(V, J, H):
 
 
 def ember_glow(H):
-    hot = (1.0, 0.5, 0.12)
-    out = [((sx * 0.036, -0.15, H["eye"]), 0.016, (1.0, 0.75, 0.3)) for sx in (1, -1)]
-    out.append(((0, -0.158, H["mouth"]), 0.022, hot))
-    out += [(c, max(r) * 1.1, hot) for c, r in EMBER_HOLES]
+    """Embers: a 1 cm pupil deep in each socket, the gap of the mouth, the bottom of each cavity."""
+    out = [((sx * 0.036, -0.157, H["eye"]), 0.0065, (0.6, 0.2, 0.04)) for sx in (1, -1)]
+    out.append(((0, -0.146, H["mouth"]), 0.009, (0.7, 0.22, 0.04)))
+    for c, d, r in EMBER_HOLES:
+        d = np.array(d) / np.linalg.norm(d)
+        out.append((tuple(np.array(c) + d * (min(r) * 0.9)), 0.016, (0.8, 0.28, 0.05)))
     return out
 
 
@@ -428,21 +445,26 @@ def ember_glow(H):
 def ghoul_sculpt(f, H):
     eyes(f, H, x=0.032, socket=(0.022, 0.02, 0.017), r=0.0115, ey=-0.142)
     cheeks(f, H, bone=1.35, hollow=0.8, temple=0.6)
-    ears(f, H, size=2.0, point=1.6, tilt=-32, out=0.008, y=0.01)
+    def bat_ear(sx):
+        R = rot("y", sx * 30) @ rot("x", -30)          # out 30 degrees, back 30
+        c = np.array((sx * 0.1, H["cy"] + 0.012, H["ear"] + 0.03))
+        f.ellipsoid(c, (0.009, 0.028, 0.042), R, soft=0.002)
+        f.ellipsoid(c + R @ np.array((sx * 0.004, -0.008, 0.004)), (0.005, 0.02, 0.032), R, mode="cut", soft=0.002)
+        f.capsule(c + R @ np.array((0, 0.006, 0.03)), c + R @ np.array((0, 0.012, 0.062)), 0.008, 0.0015, soft=0.0015)
+    both(bat_ear)
     brow(f, H, 0.009, -0.16, 0.044)
-    f.ellipsoid((0, -0.17, H["nose"] + 0.006), (0.012, 0.009, 0.011), soft=0.003)
-    both(lambda sx: f.ellipsoid((sx * 0.006, -0.178, H["nose"]), (0.0035, 0.005, 0.006), mode="cut", soft=0.0015))
+    both(lambda sx: f.ellipsoid((sx * 0.006, -0.17, H["nose"]), (0.0035, 0.005, 0.006), mode="cut", soft=0.0015))
     # the maw: wide open, fangs well past the lips
     m = H["mouth"]
     f.ellipsoid((0, -0.162, m - 0.002), (0.042, 0.025, 0.03), mode="cut", soft=0.003)
     f.ellipsoid((0, -0.15, m + 0.024), (0.036, 0.01, 0.006), soft=0.0015)
     f.ellipsoid((0, -0.15, m - 0.028), (0.034, 0.01, 0.006), soft=0.0015)
-    both(lambda sx: f.capsule((sx * 0.021, -0.162, m + 0.022), (sx * 0.019, -0.172, m - 0.008), 0.0048, 0.0006,
-                              mode="max", soft=0.0008))     # upper canines, 3 cm
+    both(lambda sx: f.capsule((sx * 0.021, -0.168, m + 0.022), (sx * 0.019, -0.184, m - 0.012), 0.0052, 0.0008,
+                              mode="max", soft=0.0008))     # upper canines, 3.5 cm, past the lower lip
     both(lambda sx: f.capsule((sx * 0.011, -0.16, m + 0.022), (sx * 0.010, -0.166, m + 0.006), 0.003, 0.0005,
                               mode="max", soft=0.0008))
-    both(lambda sx: f.capsule((sx * 0.016, -0.16, m - 0.026), (sx * 0.015, -0.168, m - 0.008), 0.0042, 0.0006,
-                              mode="max", soft=0.0008))     # lower fangs, 2 cm
+    both(lambda sx: f.capsule((sx * 0.015, -0.166, m - 0.026), (sx * 0.014, -0.178, m - 0.004), 0.0045, 0.0008,
+                              mode="max", soft=0.0008))     # lower fangs, 2.5 cm
     # a hunch: the upper back rounded up into the neck; the ridge of the spine over it
     f.ellipsoid((0, 0.05, 1.43), (0.11, 0.075, 0.11), soft=0.03)
     for z in np.arange(1.0, 1.52, 0.035):
@@ -454,7 +476,7 @@ def ghoul_reshape(V, J, H):
     P = limbs(V, J, 0.78, 0.76, 0.82, 0.82, knob=0.95)
     P = neck(P, 0.82)
     P = chest(P, 0.94, 0.95)
-    return belly(P, sink=0.025, waist=0.98)
+    return belly(P, sink=0.025, waist=1.03)
 
 
 # ------------------------------------------------------------------ 07 the chitin fiend
@@ -471,10 +493,10 @@ def fiend_sculpt(f, H):
     mouth(f, H, w=0.022, h=0.012, depth=0.016)
 
     def mandible(sx):
-        pts = [(sx * 0.05, -0.145, m), (sx * 0.056, -0.18, m - 0.01), (sx * 0.038, -0.205, m - 0.02),
-               (sx * 0.012, -0.207, m - 0.022)]
-        rr = (0.013, 0.0095, 0.006, 0.0014)
-        for i in range(3):
+        pts = [(sx * 0.062, -0.12, m - 0.008), (sx * 0.068, -0.165, m - 0.01), (sx * 0.052, -0.205, m - 0.011),
+               (sx * 0.022, -0.226, m - 0.011), (sx * 0.006, -0.222, m - 0.009)]
+        rr = (0.013, 0.011, 0.008, 0.0045, 0.0018)
+        for i in range(4):
             f.capsule(pts[i], pts[i + 1], rr[i], rr[i + 1], mode="max", soft=0.0012)
         f.capsule((sx * 0.088, -0.07, H["ear"] + 0.02), (sx * 0.118, -0.04, H["ear"] + 0.065), 0.009, 0.0015,
                   soft=0.0015)
@@ -530,10 +552,10 @@ def fin(f, base, height, r0=0.005, r1=0.0016, step=0.0045, on_back=False):
 def maw_sculpt(f, H):
     m = H["mouth"]
     # a fish's face: the muzzle pushed out round a round mouth ringed with a flaring lip, small far-set eyes
-    f.ellipsoid((0, -0.15, m + 0.004), (0.05, 0.04, 0.042), soft=0.01)
-    f.ellipsoid((0, -0.192, m), (0.026, 0.035, 0.026), mode="cut", soft=0.003)
-    for a in np.linspace(0, 2 * np.pi, 18, endpoint=False):
-        f.ellipsoid((0.031 * np.cos(a), -0.192, m + 0.031 * np.sin(a)), (0.009, 0.008, 0.009), soft=0.002)
+    f.ellipsoid((0, -0.142, m + 0.004), (0.05, 0.034, 0.042), soft=0.01)
+    f.ellipsoid((0, -0.18, m), (0.027, 0.03, 0.027), mode="cut", soft=0.003)
+    for a in np.linspace(0, 2 * np.pi, 22, endpoint=False):       # the rim flares wider than its base
+        f.ellipsoid((0.04 * np.cos(a), -0.178, m + 0.04 * np.sin(a)), (0.011, 0.006, 0.011), soft=0.002)
     eyes(f, H, x=0.058, socket=(0.016, 0.016, 0.014), sy=-0.14, r=0.0115, ey=-0.126)
     brow(f, H, 0.008, -0.14, 0.065)
     both(lambda sx: [f.ellipsoid((sx * 0.055, -0.04 + i * 0.012, 1.55), (0.006, 0.003, 0.02), mode="cut", soft=0.002)
@@ -541,11 +563,11 @@ def maw_sculpt(f, H):
     # the dorsal fin, crown to sacrum, tallest over the shoulders
     fin(f, [(0, -0.03, 1.80), (0, 0.03, 1.765), (0, 0.06, 1.70), (0, 0.045, 1.62), (0, 0.02, 1.55),
             (0, 0.045, 1.48), (0, 0.062, 1.38), (0, 0.058, 1.25), (0, 0.05, 1.12), (0, 0.055, 1.0)],
-        [0.022, 0.03, 0.038, 0.045, 0.052, 0.062, 0.065, 0.055, 0.035, 0.012], on_back=True)
+        [0.03, 0.04, 0.05, 0.055, 0.062, 0.075, 0.08, 0.068, 0.045, 0.015], on_back=True)
     # small fins down the backs of the forearms and calves
     for sx in (1, -1):
-        fin(f, [(sx * 0.36, -0.03, 1.44), (sx * 0.5, -0.05, 1.445)], [0.012, 0.022], 0.0034)
-        fin(f, [(sx * 0.12, 0.0, 0.45), (sx * 0.122, 0.0, 0.2)], [0.02, 0.012], 0.0034, on_back=True)
+        fin(f, [(sx * 0.36, -0.03, 1.44), (sx * 0.52, -0.05, 1.445)], [0.022, 0.035], 0.004)
+        fin(f, [(sx * 0.12, 0.0, 0.47), (sx * 0.122, 0.0, 0.18)], [0.035, 0.018], 0.004, on_back=True)
 
 
 def maw_reshape(V, J, H):
@@ -565,18 +587,21 @@ def fungal_sculpt(f, H):
     f.ellipsoid((0, -0.162, m + 0.014), (0.02, 0.03, 0.045), mode="cut", soft=0.003)
     both(lambda sx: [f.capsule((sx * 0.018, -0.158, m + 0.014 + dz), (sx * 0.003, -0.16, m + 0.014 + dz), 0.0034,
                                0.0007, mode="max", soft=0.001) for dz in np.linspace(-0.034, 0.034, 9)])
-    # bracket fungi: flat shelves in tiers, asymmetric: up one side of the head, a shoulder, down the
-    # back, the ribs and a thigh
-    for c, ang, r, tiers in (((0.088, -0.06, 1.73), 0, 0.03, 3), ((-0.17, -0.06, 1.47), 180, 0.05, 3),
-                             ((0.07, 0.08, 1.40), 75, 0.055, 3), ((-0.05, 0.085, 1.24), 100, 0.045, 2),
-                             ((0.13, -0.08, 1.20), 20, 0.045, 2), ((-0.13, -0.12, 0.72), 230, 0.04, 2),
-                             ((0.12, 0.06, 1.05), 60, 0.035, 2)):
+    # bracket fungi, 7-12 cm across, thick at the root and thin at the rim, tilted up, in tiers of
+    # two or three; each rooted where a ray from inside the body meets its skin. Asymmetric: up one
+    # side of the head, one shoulder, down the back, the ribs and a thigh
+    for c, ang, r, tiers in (((0.0, -0.05, 1.72), 0, 0.04, 3), ((-0.12, -0.05, 1.45), 180, 0.06, 3),
+                             ((0.05, -0.0, 1.40), 70, 0.06, 3), ((-0.04, 0.0, 1.24), 105, 0.055, 2),
+                             ((0.05, -0.06, 1.18), 20, 0.05, 2), ((-0.10, -0.07, 0.72), 235, 0.045, 2),
+                             ((0.06, -0.02, 1.05), 55, 0.045, 2)):
         a = np.radians(ang)
         out = np.array((np.cos(a), np.sin(a), 0))
         for t in range(tiers):
-            rr = r * (1 - 0.18 * t)
-            p = np.array(c) + np.array((0, 0, -0.03 * t)) + out * rr * 0.55
-            f.ellipsoid(p, (rr, rr * 1.25, 0.0085), rot("z", ang), soft=0.002)
+            rr = r * (1 - 0.2 * t)
+            root = f.surface(np.array(c) + (0, 0, -0.034 * t), out)
+            Rz = rot("z", ang) @ rot("y", -12)               # tilted up toward the rim
+            f.ellipsoid(root + out * rr * 0.25, (rr * 0.55, rr * 0.8, 0.012), Rz, soft=0.003)
+            f.ellipsoid(root + out * rr * 0.62, (rr, rr * 1.2, 0.0075), Rz, soft=0.002)
 
 
 def fungal_reshape(V, J, H):
@@ -588,32 +613,36 @@ def fungal_reshape(V, J, H):
 def fungal_post(V, N, J, H):
     # orange spore blisters, clustered on the chest, shoulders and back
     where = either(zone(x=("abs", 0.0, 0.2), z=(1.1, 1.5)), zone(x=("abs", 0.15, 0.3), z=(1.38, 1.5)))
-    return bumps(V, N, 18, where, r=(0.008, 0.016), h=(0.006, 0.012), seed=91)
+    return bumps(V, N, 22, where, r=(0.01, 0.016), h=(0.008, 0.014), seed=91)
 
 
 # ------------------------------------------------------------------ 10 the bog troll
 def troll_sculpt(f, H):
     e, m = H["eye"], H["mouth"]
     eyes(f, H, x=0.034, socket=(0.02, 0.016, 0.014), r=0.0105, ey=-0.148)
-    brow(f, H, 0.0095, -0.158, 0.056)
+    brow(f, H, 0.0072, -0.158, 0.054)
     nose(f, H, "wide")
-    jaw(f, H, w=1.15, fwd=0.01, drop=0.004)
+    jaw(f, H, w=1.05, fwd=0.01, drop=0.004)
     mouth(f, H, w=0.036, h=0.009, depth=0.012, y=-0.166)
     # tusks from the lower jaw, up and out past the lip, splayed
-    both(lambda sx: f.capsule((sx * 0.024, -0.168, m - 0.02), (sx * 0.042, -0.198, m + 0.045), 0.0078, 0.0015,
-                              mode="max", soft=0.001))
-    both(lambda sx: f.ellipsoid((sx * 0.06, -0.14, e - 0.02), (0.022, 0.018, 0.014), soft=0.005))
+    # tusks from the corners of the lower jaw: 7 cm, 60 degrees up, splayed out 15
+    d = np.array((np.sin(np.radians(15)) * 0.5, -0.5, np.sin(np.radians(60))))
+    d /= np.linalg.norm(d)
+    both(lambda sx: f.capsule((sx * 0.03, -0.158, m - 0.02), (sx * (0.03 + d[0] * 0.07), -0.158 + d[1] * 0.07,
+                              m - 0.02 + d[2] * 0.07), 0.0085, 0.0018, mode="max", soft=0.001))
+    both(lambda sx: f.ellipsoid((sx * 0.058, -0.14, e - 0.02), (0.016, 0.013, 0.01), soft=0.005))
     ears(f, H, size=0.95, out=0.004)
     # one great hump: the trapezius sloping from the back of the skull to the shoulders
-    f.ellipsoid((0, 0.0, 1.47), (0.15, 0.1, 0.11), soft=0.045)
-    f.ellipsoid((0, 0.05, 1.36), (0.15, 0.07, 0.13), soft=0.045)
-    f.ellipsoid((0, -0.12, 1.07), (0.18, 0.14, 0.18), soft=0.035)          # the gut
+    f.ellipsoid((0, 0.0, 1.47), (0.17, 0.11, 0.12), soft=0.045)
+    f.ellipsoid((0, 0.05, 1.36), (0.16, 0.08, 0.14), soft=0.045)
+    both(lambda sx: f.ellipsoid((sx * 0.2, -0.05, 1.43), (0.072, 0.07, 0.07), soft=0.03))   # shoulders
+    f.ellipsoid((0, -0.1, 1.08), (0.14, 0.1, 0.14), soft=0.035)            # the gut, smaller
     # thick round limbs (capsules: the base's forearms are flat paddles)
     for sx in (1, -1):
         f.capsule((sx * 0.16, -0.06, 1.432), (sx * 0.334, -0.058, 1.432), 0.052, 0.046, soft=0.012)
-        f.capsule((sx * 0.334, -0.058, 1.432), (sx * 0.55, -0.08, 1.432), 0.046, 0.034, soft=0.012)
-        f.capsule((sx * 0.112, -0.05, 0.9), (sx * 0.121, -0.07, 0.533), 0.078, 0.06, soft=0.015)
-        f.capsule((sx * 0.121, -0.07, 0.533), (sx * 0.121, -0.06, 0.12), 0.06, 0.042, soft=0.015)
+        f.capsule((sx * 0.334, -0.058, 1.432), (sx * 0.55, -0.08, 1.432), 0.058, 0.042, soft=0.012)
+        f.capsule((sx * 0.112, -0.05, 0.9), (sx * 0.121, -0.07, 0.533), 0.092, 0.07, soft=0.015)
+        f.capsule((sx * 0.121, -0.07, 0.533), (sx * 0.121, -0.06, 0.12), 0.07, 0.05, soft=0.015)
 
 
 def troll_reshape(V, J, H):
@@ -635,7 +664,7 @@ MONSTERS = {
     "bloated_drowner": dict(
         skin="02", H=H_(),
         hands=dict(finger=(0.98, 0.014, 0.0115), palm=(0.042, 1.18), spread=5),
-        sculpt=drowner_sculpt, reshape=drowner_reshape, post=drowner_post, relief=0.0085, tris=18000),
+        sculpt=drowner_sculpt, reshape=drowner_reshape, post=drowner_post, relief=0.006, tris=18000),
     "plague_bearer": dict(
         skin="03", H=H_(),
         hands=dict(finger=(1.08, 0.0085, 0.0065), knuckle=0.0075, palm=(0.027, 0.95), spread=9),
@@ -650,7 +679,7 @@ MONSTERS = {
         hands=dict(finger=(1.0, 0.0095, 0.0074), knuckle=0.0078, claw=0.012, palm=(0.03, 0.98), spread=10),
         sculpt=ember_sculpt, reshape=ember_reshape, relief=0.012, tris=18000, glow_spots=ember_glow(H_())),
     "pale_ghoul": dict(
-        skin="06", H=H_(),
+        skin="06", H=H_(ear_r=0.075, ear_dz=0.03, ear_dy=0.012),
         hands=dict(finger=(1.45, 0.0078, 0.0055), knuckle=0.0075, claw=0.032, palm=(0.024, 0.9), spread=12),
         sculpt=ghoul_sculpt, reshape=ghoul_reshape, warp=head(0.035, 0.02, then=stretch_arms(1.22)),
         relief=0.01, tris=18000),
@@ -668,7 +697,7 @@ MONSTERS = {
         sculpt=fungal_sculpt, reshape=fungal_reshape, post=fungal_post, relief=0.016, tris=19500),
     "bog_troll": dict(
         skin="10", H=H_(),
-        hands=dict(finger=(1.08, 0.0165, 0.0135), knuckle=0.013, claw=0.008, palm=(0.05, 1.4), spread=6),
+        hands=dict(finger=(1.08, 0.019, 0.0155), knuckle=0.015, claw=0.008, palm=(0.058, 1.55), spread=6),
         sculpt=troll_sculpt, reshape=troll_reshape, post=troll_post,
-        warp=head(0.035, 0.04, 0.9, 1.47, 1.56, then=grow(1.2)), relief=0.016, tris=19500),
+        warp=head(0.03, 0.012, 1.0, 1.47, 1.56, then=grow(1.2)), relief=0.011, tris=19500),
 }
