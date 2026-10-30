@@ -48,8 +48,15 @@ the bag, and pause. The picture's resolution follows the frame rate (it drops a 
 frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view.
 
-Bellmourn's people walk its streets by day (`villagers.js`: made from the foes' bodies,
-repainted, men, women, children, the old and the watch) and go home at dusk. `gear.js` and
+Bellmourn's twenty-two people (`villagers.js`: the men and women of
+`templates/models/creatures/villagers/`, built by `tools/villagers`) each have a name, a calling and
+a house, and live like Velscour's townsfolk: by day they wander to the well, the market stalls and
+the cathedral steps, keep a stall, buy at one, work at their door, pray, go home for a while, and
+walk over to each other to talk; the watch patrols. They go home at dusk, come out in the morning,
+run for their doors when the dead come near, and turn and greet you as you come up to them. What
+they say (`townscripts.js`: 261 conversations of two to five lines, chosen by who's talking, plus
+remarks, haggling and greetings) shows in Velscour's parchment bubbles over their heads, anchored in
+3D, rationed so the square never fills with text. `gear.js` and
 `bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
 `map.js` the map.
 
