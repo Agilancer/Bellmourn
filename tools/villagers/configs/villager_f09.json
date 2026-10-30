@@ -1,0 +1,69 @@
+{
+ "seed": 4409,
+ "face": "01_Soldier",
+ "morph": {
+  "caucasian-female-young": 0.6,
+  "caucasian-female-old": 0.4,
+  "mouth-upperlip-volume-inflate": 0.494,
+  "head-scale-horiz-more": 0.422,
+  "chin-prominent-more": 0.032,
+  "nose-scale-horiz-incr": 0.324,
+  "forehead-scale-vert-less": 0.362,
+  "nose-point-width-more": 0.145,
+  "nose-volume-point": 0.06,
+  "chin-jaw-drop-more": 0.316
+ },
+ "eye": "grey",
+ "iris_tint": [
+  0.5,
+  0.78,
+  0.69
+ ],
+ "dress": {
+  "Swat": [
+   "leather_tooled",
+   0.8,
+   0.36
+  ],
+  "Black": [
+   "quilted_red",
+   0.7,
+   0.36
+  ],
+  "Grey": [
+   "burlap_dark",
+   0.7,
+   0.3
+  ],
+  "Soldier_Feet:Black": [
+   "leather_tooled",
+   0.5,
+   0.3
+  ],
+  "Soldier_Feet:Grey": [
+   "leather_strapwork",
+   0.8,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.97,
+ "outfit": "Soldier",
+ "skin_tile": "03_Weathered_Veteran",
+ "hair": "ponytail01",
+ "sleeves": "Black",
+ "parts": [
+  "Soldier_Body",
+  "Soldier_Legs",
+  "Soldier_Feet"
+ ],
+ "name": "villager_f09",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

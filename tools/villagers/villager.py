@@ -10,7 +10,7 @@ import bpy, bmesh, json, math, mathutils
 import numpy as np
 from PIL import Image
 from common import *
-import mh, headbuild, clothes
+import mh, headbuild, clothes, femface
 
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 FBX, OUT, CFG = argv[0], argv[1], json.loads(argv[2])
@@ -117,14 +117,26 @@ for c, (x0, y0, x1, y1) in boxes.items():
             t = (np.array(p) - lo) / np.maximum(hi - lo, 1e-9)
             uvl.data[li].uv = (float(x0 + t[0] * (x1 - x0)), float(y0 + t[1] * (y1 - y0)))
 uv_faces = [[tuple(uvl.data[li].uv) for li in p.loop_indices] for p in head.data.polygons]
-H.warp()
-atlas = f"{PACK}/Face_And_Body_Atlases/{C['face']}_Head_Body_UV_1024.png"
-hair_srgb = C['hair_color'] or FACES[C['face']][0]
-crop = C['crop'] if C['crop'] is not None else FACES[C['face']][1]
-pepper = C['pepper'] if C['pepper'] is not None else (FACES[C['face']][2] if len(FACES[C['face']]) > 2 else 0.0)
+WOMAN = C.get('sex') == 'female'
+if WOMAN:
+    # a women's sheet: only its face is used, by landmarks measured on it (femface.py)
+    atlas = os.path.join(SRC, 'women', 'faces', f"{C['face']}_Face_Atlas.png")
+    det = femface.measured(C['face'])
+    H.warp(femface.landmarks(det))
+    sk_, hr_ = femface.tones(femface.load(atlas), det)
+    hair_srgb = C['hair_color'] or (hr_ / 255).tolist()
+    crop = C['crop'] if C['crop'] is not None else 0.95
+    pepper = C['pepper'] or 0.0
+else:
+    det = None
+    H.warp()
+    atlas = f"{PACK}/Face_And_Body_Atlases/{C['face']}_Head_Body_UV_1024.png"
+    hair_srgb = C['hair_color'] or FACES[C['face']][0]
+    crop = C['crop'] if C['crop'] is not None else FACES[C['face']][1]
+    pepper = C['pepper'] if C['pepper'] is not None else (FACES[C['face']][2] if len(FACES[C['face']]) > 2 else 0.0)
 hair_lin = [((c + 0.055) / 1.055) ** 2.4 for c in hair_srgb]
 H.raster(uv_faces, 2048)
-img = H.bake(atlas, hair=hair_srgb, crop=crop, line=C['line'], pepper=pepper)
+img = H.bake(atlas, hair=hair_srgb, crop=crop, line=C['line'], pepper=pepper, face=det)
 tex_path = f"{OUT}/head_{C['face']}.png"
 Image.fromarray(img).save(tex_path)
 shell_path = f"{OUT}/hair_{C['face']}.png"
@@ -192,7 +204,7 @@ def eye_material(kind):
     return m
 
 
-def alpha_material(name, path, tint=None, rough=0.6, aniso=False):
+def alpha_material(name, path, tint=None, rough=0.6, aniso=False, clip=0.0):
     m = bpy.data.materials.new(name)
     m.use_nodes = True; nt = m.node_tree; b = nt.nodes['Principled BSDF']
     t = tex_node(nt, path)
@@ -209,10 +221,14 @@ def alpha_material(name, path, tint=None, rough=0.6, aniso=False):
         nt.links.new(cr.outputs[0], mul.inputs[6]); mul.inputs[7].default_value = (*tint, 1)
         col = mul.outputs[2]
     nt.links.new(col, b.inputs['Base Color'])
-    nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
+    if clip:
+        gt = nt.nodes.new('ShaderNodeMath'); gt.operation = 'GREATER_THAN'; gt.inputs[1].default_value = clip
+        nt.links.new(t.outputs['Alpha'], gt.inputs[0]); nt.links.new(gt.outputs[0], b.inputs['Alpha'])
+    else:
+        nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
     b.inputs['Roughness'].default_value = rough
     if aniso:
-        b.inputs['Specular IOR Level'].default_value = 0.35
+        b.inputs['Specular IOR Level'].default_value = 0.2
     m.blend_method = 'HASHED' if hasattr(m, 'blend_method') else None
     return m
 
@@ -251,7 +267,7 @@ if C['shells']:
 if C['hair']:
     hp = mh.proxy(f"hair/{C['hair']}/{C['hair']}.json")
     tex = os.path.join(hp['dir'], hp['materials'][0]['mapDiffuse'])
-    hair, _ = proxy_obj('V_Hair', f"hair/{C['hair']}/{C['hair']}.json", alpha_material('V_Hair', tex, tint=hair_lin, rough=0.55, aniso=True))
+    hair, _ = proxy_obj('V_Hair', f"hair/{C['hair']}/{C['hair']}.json", alpha_material('V_Hair', tex, tint=hair_lin, rough=0.78, aniso=True, clip=0.35))
     extra.append(hair)
 
 # ------------------------------------------------------------------ the body
@@ -344,7 +360,7 @@ for o in extra + ([hat] if hat else []):
 bpy.data.objects.remove(donor)
 
 # ------------------------------------------------------------------ the clothes
-SKIN_TILE = f"{PACK}/Seamless_Skin_Tiles/{C['face']}_Skin_Seamless_1024.png"
+SKIN_TILE = f"{PACK}/Seamless_Skin_Tiles/{C.get('skin_tile', C['face'])}_Skin_Seamless_1024.png"
 if not os.path.exists(SKIN_TILE):
     SKIN_TILE = [f for f in __import__('glob').glob(f"{PACK}/Seamless_Skin_Tiles/{C['face'][:2]}_*.png")][0]
 SHEEN = {'linen': 0.25, 'burlap': 0.2, 'quilted': 0.3, 'damask': 0.6, 'leather': 0.0, 'metal': 0.0}
@@ -377,8 +393,11 @@ def body_skin_material():
     m = skin_material('V_Skin_Body', SKIN_TILE, coords=lambda nt, t: None)
     m.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.68   # bare arms: not glossy
     tile = np.asarray(Image.open(SKIN_TILE).convert('RGB'), dtype=np.float64).reshape(-1, 3).mean(0)
-    a_ = np.asarray(Image.open(atlas).convert('RGB'), dtype=np.float64)
-    cheeks = np.concatenate([a_[400:470, 300:360].reshape(-1, 3), a_[400:470, 668:728].reshape(-1, 3)]).mean(0)
+    if WOMAN:
+        cheeks = sk_
+    else:
+        a_ = np.asarray(Image.open(atlas).convert('RGB'), dtype=np.float64)
+        cheeks = np.concatenate([a_[400:470, 300:360].reshape(-1, 3), a_[400:470, 668:728].reshape(-1, 3)]).mean(0)
     gain = [(0.92 * f / max(t, 1)) ** 2.2 for f, t in zip(cheeks, tile)]
     nt = m.node_tree; b = nt.nodes['Principled BSDF']
     t = [n for n in nt.nodes if n.type == 'TEX_IMAGE'][0]
@@ -588,7 +607,16 @@ if 'glb' in STAGES:
         t = tex[0]
         hs = [n for n in nt.nodes if n.type == 'HUE_SAT']
         mul = [n for n in nt.nodes if n.type == 'MIX' and n.blend_type == 'MULTIPLY']
-        if m.name.startswith('V_Hair') and not m.name.startswith('V_HairShell'):
+        if m.name == 'V_Hair':
+            tint_l = np.array(hair_lin)
+            def fn(rgb, tint_l=tint_l):
+                lin = srgb2lin(rgb)
+                g = (lin * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True) * 2.6
+                return lin2srgb(g * tint_l)
+            t.image = baked(t.image, fn, 'V_Hair')
+            for n in [n for n in nt.nodes if n.type in ('MIX', 'RGBTOBW', 'MATH', 'COMBINE_COLOR') and n.type != 'MATH' or (n.type == 'MATH' and n.operation == 'MULTIPLY')]:
+                nt.nodes.remove(n)
+            nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
             continue
         if hs or mul:
             gain_l = np.array(mul[0].inputs[7].default_value[:3]) if mul else np.ones(3)

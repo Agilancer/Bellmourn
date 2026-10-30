@@ -1,0 +1,86 @@
+{
+ "seed": 4411,
+ "face": "02_Worker",
+ "morph": {
+  "caucasian-female-young": 0.45,
+  "caucasian-female-old": 0.4,
+  "african-female-young": 0.15,
+  "head-scale-horiz-more": 0.395,
+  "l-ear-size-small": 0.517,
+  "r-ear-size-small": 0.517,
+  "mouth-upperlip-volume-inflate": 0.453,
+  "nose-point-width-less": 0.091,
+  "eyebrows-trans-depth-less": 0.516,
+  "chin-width-max": 0.34,
+  "forehead-scale-vert-less": 0.36,
+  "chin-prominent-less": 0.104
+ },
+ "eye": "brownlight",
+ "iris_tint": [
+  0.5,
+  0.79,
+  0.72
+ ],
+ "dress": {
+  "LightGreen": [
+   "quilted_red",
+   0.7,
+   0.36
+  ],
+  "White": [
+   "burlap_coarse",
+   1.0,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   0.8,
+   0.3
+  ],
+  "Gold": [
+   "leather_tooled",
+   0.6,
+   0.2
+  ],
+  "Green": [
+   "linen_brown",
+   0.8,
+   0.3
+  ],
+  "Brown_02": [
+   "linen_brown",
+   0.55,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ],
+  "Worker_Feet:Skin": [
+   "leather_strapwork",
+   0.7,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.99,
+ "outfit": "Adventurer",
+ "skin_tile": "02_Tan_Skin",
+ "hair": "Wig_bun_blonde",
+ "sleeves": "White",
+ "parts": [
+  "Adventurer_Body",
+  "Worker_Legs",
+  "Worker_Feet"
+ ],
+ "name": "villager_f11",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

@@ -1,0 +1,74 @@
+{
+ "seed": 4410,
+ "face": "07_SciFi",
+ "morph": {
+  "asian-female-young": 0.6,
+  "caucasian-female-young": 0.4,
+  "mouth-upperlip-volume-inflate": 0.092,
+  "head-square": 0.306,
+  "nose-scale-vert-decr": 0.184,
+  "chin-width-max": 0.298,
+  "nose-point-width-more": 0.549,
+  "forehead-scale-vert-more": 0.084,
+  "nose-volume-potato": 0.208,
+  "mouth-scale-horiz-incr": 0.384
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.76,
+  0.69
+ ],
+ "dress": {
+  "Purple": [
+   "linen_teal",
+   0.9,
+   0.32
+  ],
+  "Gold": [
+   "damask_red",
+   0.8,
+   0.2
+  ],
+  "Brown2": [
+   "linen_brown",
+   0.8,
+   0.3
+  ],
+  "Black": [
+   "linen_brown",
+   0.6,
+   0.3
+  ],
+  "Medieval_Feet:DarkBrown": [
+   "leather_tooled",
+   0.7,
+   0.3
+  ],
+  "Medieval_Feet:LightBrown": [
+   "leather_strapwork",
+   0.9,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.98,
+ "outfit": "Witch",
+ "skin_tile": "07_Olive_Skin",
+ "hair": "Braid01",
+ "sleeves": "Purple",
+ "parts": [
+  "Witch_Body",
+  "Medieval_Legs",
+  "Medieval_Feet"
+ ],
+ "name": "villager_f10",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

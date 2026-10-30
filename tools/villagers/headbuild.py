@@ -353,11 +353,21 @@ class Head:
             c = c * (1 - dark[:, None]) + np.array([0.09, 0.075, 0.065])[None] * dark[:, None]
         return c * 255
 
-    def bake(self, atlas_path, hair=(0.09, 0.06, 0.04), crop=0.6, seed=1, line=0.0, pepper=0.0):
-        """The skin: the atlas over the face and ears, cropped hair and skin elsewhere. RGB uint8."""
+    def bake(self, atlas_path, hair=(0.09, 0.06, 0.04), crop=0.6, seed=1, line=0.0, pepper=0.0, face=None):
+        """The skin: the atlas over the face and ears, cropped hair and skin elsewhere. RGB uint8.
+        face: a women's sheet's measurements (femface): only the face's oval is taken from it."""
         size, cov, pts = self.size, self.cov, self.pts
         pr = self.proj(pts)
         ac = self.tps(pr)   # atlas px
+        if face is not None:
+            import femface
+            atlas = femface.load(atlas_path)
+            sx, sy = ac[:, 0], ac[:, 1]
+            col = np.stack([ndimage.map_coordinates(atlas[..., k], [np.clip(sy, 0, 1023), np.clip(sx, 0, 1023)], order=1, mode='nearest') for k in range(3)], 1)
+            th = np.abs(pr[:, 0] / R0)
+            inside = femface.trust(face, sx, sy) * np.clip((1.2 - th) / 0.3, 0, 1)
+            skin, _ = femface.tones(atlas, face)
+            return self._finish(col, inside, skin, hair, crop, seed, line, pepper)
         atlas = clean_atlas(atlas_path)
         H, Wd = atlas.shape[:2]
         sx = ac[:, 0] * Wd / 1024; sy = ac[:, 1] * H / 1024
@@ -372,12 +382,16 @@ class Head:
         # where the atlas had its ears (now plain fill) our own skin and hair take over
         em = ndimage.map_coordinates(ear_mask(H), [np.clip(sy, 0, H - 1), np.clip(sx, 0, Wd - 1)], order=1)
         inside = inside * (1 - 0.9 * em)
+        skin = np.median(atlas[700:760, 470:550].reshape(-1, 3), 0)
+        return self._finish(col, inside, skin, hair, crop, seed, line, pepper)
+
+    def _finish(self, col, inside, skin, hair, crop, seed, line, pepper):
+        size, cov, pts = self.size, self.cov, self.pts
         hairm = self.hairmask(pts, seed, line) * ~self.ear_px
         st = self.strands(pts, seed)
         mid = vnoise(pts, 18, seed + 2)
         dens = np.clip(crop * (0.6 + 0.5 * mid) * hairm * (0.55 + 0.9 * st), 0, 1)
         hcol = self.tone(pts, hair, st, seed, pepper)
-        skin = np.median(atlas[700:760, 470:550].reshape(-1, 3), 0)
         skin_v = skin * (0.94 + 0.12 * vnoise(pts, 5, seed + 3))[:, None]
         scalp = skin_v * (1 - dens[:, None]) + hcol * dens[:, None]
         # over the scalp the atlas's painted hair stays, but where it is only skin our crop shows
