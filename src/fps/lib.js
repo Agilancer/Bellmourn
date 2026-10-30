@@ -61,6 +61,13 @@ export class Library {
       for (const s of bio.surfaces) this.surf.set(s.id, s);
       for (const k of ['doors', 'arches', 'signs']) for (const x of bio[k]) this.biome[k].set(x.id, x);
     } catch (e) { console.warn('no biome pack art', e); }
+    // the ground sheets (tools/world/import_ground.py): ten seamless tiles each of snow,
+    // flagstones, forest floor, sand, concrete, cobbles, gravel, dirt and grass, as
+    // ground_<set>_NN (only ever asked for by name: take() passes them by)
+    try {
+      const gr = await (await fetch(ROOT + 'ground.json')).json();
+      for (const s of gr.surfaces) this.surf.set(s.id, s);
+    } catch (e) { console.warn('no ground textures', e); }
     return this;
   }
 
@@ -174,21 +181,27 @@ export class Library {
   /** The next surface not used yet that passes `pred` (or, once they're all used, any that
    * does): how the dungeon and the houses get through the whole library. */
   take(pred, salt = 0) {
-    // one-off floor decals and full-height wall panels are only ever asked for by name
-    const all = [...this.surf.values()].filter((s) => s.kind !== 'decal' && !s.wall_set && pred(s));
+    // one-off floor decals, full-height wall panels and the ground sheets' tiles are only ever
+    // asked for by name
+    const all = [...this.surf.values()].filter((s) => s.kind !== 'decal' && s.kind !== 'ground' && !s.wall_set && pred(s));
     const fresh = all.find((s) => !this.used.has(s.id) && !this.reserved?.has(s.id));
     if (fresh) { (this.reserved ??= new Set()).add(fresh.id); return fresh.id; }
     return all.length ? all[Math.abs(salt) % all.length].id : 'castle_slatestone';
   }
 
   /** The outdoor ground: one material that blends meadow, forest floor and graveyard soil
-   * with noise in the shader, so there are no tile seams or squares across the whole map. */
+   * with noise in the shader, so there are no tile seams or squares across the whole map.
+   * `layers` are [id, metres per repeat, tint?] (a tint as a material's). */
   ground({ village, yard, layers }) {
     const tex = layers.map(([id]) => { this.used.add(id); return this.texture(this.surf.get(id).file); });
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x0a0a0a, shininess: 6 });
     m.userData.tileU = m.userData.tileV = 1;
     m.userData.noGlass = true; // out of doors, and its samplers are spoken for
-    const tiles = layers.map(([, t]) => t);
+    // one layer, sampled at its own scale and turn, in its tint
+    const L = (i, rot) => {
+      const c = new THREE.Color(layers[i][2] ?? 0xffffff), tint = [c.r, c.g, c.b].map((v) => v.toFixed(3)).join(', ');
+      return `gTex(gT${i}, gp, ${layers[i][1].toFixed(2)}, ${rot}) * vec3(${tint})`;
+    };
     m.onBeforeCompile = (sh) => {
       tex.forEach((t, i) => { sh.uniforms['gT' + i] = { value: t }; });
       sh.uniforms.gYard = { value: new THREE.Vector4(...yard) };
@@ -215,11 +228,11 @@ export class Library {
         float village = 1.0 - smoothstep(${(village - 14).toFixed(1)}, ${(village + 12).toFixed(1)}, r + (n1 - 0.5) * 40.0);
         vec2 yc = clamp(gp, gYard.xy, gYard.zw);
         float yard = 1.0 - smoothstep(0.0, 5.0, length(gp - yc) + (n2 - 0.5) * 5.0);
-        vec3 grass = mix(gTex(gT0, gp, ${tiles[0].toFixed(2)}, 0.0), gTex(gT1, gp, ${tiles[1].toFixed(2)}, 0.7), smoothstep(0.42, 0.58, n2));
-        grass = mix(grass, gTex(gT2, gp, ${tiles[2].toFixed(2)}, 1.9), smoothstep(0.66, 0.74, n1 * 0.5 + n3 * 0.5));
-        vec3 forest = mix(gTex(gT3, gp, ${tiles[3].toFixed(2)}, 0.3), gTex(gT4, gp, ${tiles[4].toFixed(2)}, 1.1), smoothstep(0.38, 0.62, n3));
-        forest = mix(forest, gTex(gT5, gp, ${tiles[5].toFixed(2)}, 2.3), smoothstep(0.62, 0.72, n2));
-        vec3 soil = mix(gTex(gT6, gp, ${tiles[6].toFixed(2)}, 0.0), gTex(gT7, gp, ${tiles[7].toFixed(2)}, 0.9), smoothstep(0.45, 0.6, n1));
+        vec3 grass = mix(${L(0, '0.0')}, ${L(1, '0.7')}, smoothstep(0.42, 0.58, n2));
+        grass = mix(grass, ${L(2, '1.9')}, smoothstep(0.66, 0.74, n1 * 0.5 + n3 * 0.5));
+        vec3 forest = mix(${L(3, '0.3')}, ${L(4, '1.1')}, smoothstep(0.38, 0.62, n3));
+        forest = mix(forest, ${L(5, '2.3')}, smoothstep(0.62, 0.72, n2));
+        vec3 soil = mix(${L(6, '0.0')}, ${L(7, '0.9')}, smoothstep(0.45, 0.6, n1));
         vec3 gc = mix(forest, grass, village);
         gc = mix(gc, soil, yard);
         gc *= 0.82 + 0.36 * gNoise(gp * 0.012 + 3.0);

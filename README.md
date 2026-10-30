@@ -130,6 +130,15 @@ VectorClad's bark, leaf and plank textures come in with
 `python tools/world/import_vectorclad.py` (it reads the sibling `vectorclad` repo's
 `origin/main`, so re-run it when that repo gets new textures).
 
+The ground sheets in `art/ground/` (snow, flagstones, forest floor, sand, concrete, cobbles,
+gravel, dirt and grass: ten seamless tiles on each, 5 across by 2 down) are cut apart by
+`python tools/world/import_ground.py` into `assets/textures/ground/`, made to wrap exactly, and
+listed in `assets/textures/ground.json` as `ground_<set>_NN` (01 to 10, in reading order); drop
+a new sheet in with the next number and re-run it. They're only ever used by name, toned down
+with a tint to sit with the Velscour floors: the village's meadow and forest floor, the downs'
+grass, paths, gravel and sand by the water and old snow on the plateau above the falls, the
+Vigil Road, and the keep's courtyard.
+
 ---
 
 ## Castle Velscour (the earlier 2D test)
