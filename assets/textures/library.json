@@ -3331,6 +3331,1176 @@
    "tile_y": true,
    "color": "#58432d",
    "note": "un-projected from the camera-facing (SW) slope"
+  },
+  {
+   "id": "masonry_grey_ashlar_01",
+   "file": "surfaces/masonry_grey_ashlar_01.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84827f"
+  },
+  {
+   "id": "masonry_grey_ashlar_02",
+   "file": "surfaces/masonry_grey_ashlar_02.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84827e"
+  },
+  {
+   "id": "masonry_grey_ashlar_03",
+   "file": "surfaces/masonry_grey_ashlar_03.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#868480"
+  },
+  {
+   "id": "masonry_grey_ashlar_04",
+   "file": "surfaces/masonry_grey_ashlar_04.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#85837f"
+  },
+  {
+   "id": "masonry_grey_ashlar_05",
+   "file": "surfaces/masonry_grey_ashlar_05.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#868481"
+  },
+  {
+   "id": "masonry_grey_ashlar_06",
+   "file": "surfaces/masonry_grey_ashlar_06.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#85837f"
+  },
+  {
+   "id": "masonry_grey_ashlar_07",
+   "file": "surfaces/masonry_grey_ashlar_07.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84827f"
+  },
+  {
+   "id": "masonry_grey_ashlar_08",
+   "file": "surfaces/masonry_grey_ashlar_08.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84827f"
+  },
+  {
+   "id": "masonry_grey_ashlar_09",
+   "file": "surfaces/masonry_grey_ashlar_09.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#858380"
+  },
+  {
+   "id": "masonry_grey_ashlar_10",
+   "file": "surfaces/masonry_grey_ashlar_10.png",
+   "kind": "wall",
+   "source": "972fe465-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84827f"
+  },
+  {
+   "id": "masonry_blackstone_01",
+   "file": "surfaces/masonry_blackstone_01.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3d3a39"
+  },
+  {
+   "id": "masonry_blackstone_02",
+   "file": "surfaces/masonry_blackstone_02.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3c3a"
+  },
+  {
+   "id": "masonry_blackstone_03",
+   "file": "surfaces/masonry_blackstone_03.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3c3a"
+  },
+  {
+   "id": "masonry_blackstone_04",
+   "file": "surfaces/masonry_blackstone_04.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3d3b"
+  },
+  {
+   "id": "masonry_blackstone_05",
+   "file": "surfaces/masonry_blackstone_05.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3c3a"
+  },
+  {
+   "id": "masonry_blackstone_06",
+   "file": "surfaces/masonry_blackstone_06.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#403d3c"
+  },
+  {
+   "id": "masonry_blackstone_07",
+   "file": "surfaces/masonry_blackstone_07.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3c3b"
+  },
+  {
+   "id": "masonry_blackstone_08",
+   "file": "surfaces/masonry_blackstone_08.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3f3c3b"
+  },
+  {
+   "id": "masonry_blackstone_09",
+   "file": "surfaces/masonry_blackstone_09.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#403d3c"
+  },
+  {
+   "id": "masonry_blackstone_10",
+   "file": "surfaces/masonry_blackstone_10.png",
+   "kind": "wall",
+   "source": "1482d36c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3c3a"
+  },
+  {
+   "id": "masonry_fieldstone_01",
+   "file": "surfaces/masonry_fieldstone_01.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#81766a"
+  },
+  {
+   "id": "masonry_fieldstone_02",
+   "file": "surfaces/masonry_fieldstone_02.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7d7367"
+  },
+  {
+   "id": "masonry_fieldstone_03",
+   "file": "surfaces/masonry_fieldstone_03.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#807569"
+  },
+  {
+   "id": "masonry_fieldstone_04",
+   "file": "surfaces/masonry_fieldstone_04.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#807568"
+  },
+  {
+   "id": "masonry_fieldstone_05",
+   "file": "surfaces/masonry_fieldstone_05.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7f766a"
+  },
+  {
+   "id": "masonry_fieldstone_06",
+   "file": "surfaces/masonry_fieldstone_06.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#82776b"
+  },
+  {
+   "id": "masonry_fieldstone_07",
+   "file": "surfaces/masonry_fieldstone_07.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#82776a"
+  },
+  {
+   "id": "masonry_fieldstone_08",
+   "file": "surfaces/masonry_fieldstone_08.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#81776b"
+  },
+  {
+   "id": "masonry_fieldstone_09",
+   "file": "surfaces/masonry_fieldstone_09.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#81776a"
+  },
+  {
+   "id": "masonry_fieldstone_10",
+   "file": "surfaces/masonry_fieldstone_10.png",
+   "kind": "wall",
+   "source": "d314419f-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#82776b"
+  },
+  {
+   "id": "masonry_honey_limestone_01",
+   "file": "surfaces/masonry_honey_limestone_01.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ae8a"
+  },
+  {
+   "id": "masonry_honey_limestone_02",
+   "file": "surfaces/masonry_honey_limestone_02.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#caae89"
+  },
+  {
+   "id": "masonry_honey_limestone_03",
+   "file": "surfaces/masonry_honey_limestone_03.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ad89"
+  },
+  {
+   "id": "masonry_honey_limestone_04",
+   "file": "surfaces/masonry_honey_limestone_04.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c8ae8a"
+  },
+  {
+   "id": "masonry_honey_limestone_05",
+   "file": "surfaces/masonry_honey_limestone_05.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ae89"
+  },
+  {
+   "id": "masonry_honey_limestone_06",
+   "file": "surfaces/masonry_honey_limestone_06.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ae89"
+  },
+  {
+   "id": "masonry_honey_limestone_07",
+   "file": "surfaces/masonry_honey_limestone_07.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ae89"
+  },
+  {
+   "id": "masonry_honey_limestone_08",
+   "file": "surfaces/masonry_honey_limestone_08.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9ae89"
+  },
+  {
+   "id": "masonry_honey_limestone_09",
+   "file": "surfaces/masonry_honey_limestone_09.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#caaf89"
+  },
+  {
+   "id": "masonry_honey_limestone_10",
+   "file": "surfaces/masonry_honey_limestone_10.png",
+   "kind": "wall",
+   "source": "3d1360d3-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbaf8b"
+  },
+  {
+   "id": "masonry_slate_01",
+   "file": "surfaces/masonry_slate_01.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d5f61"
+  },
+  {
+   "id": "masonry_slate_02",
+   "file": "surfaces/masonry_slate_02.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5b5e60"
+  },
+  {
+   "id": "masonry_slate_03",
+   "file": "surfaces/masonry_slate_03.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5f6163"
+  },
+  {
+   "id": "masonry_slate_04",
+   "file": "surfaces/masonry_slate_04.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e6162"
+  },
+  {
+   "id": "masonry_slate_05",
+   "file": "surfaces/masonry_slate_05.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e6162"
+  },
+  {
+   "id": "masonry_slate_06",
+   "file": "surfaces/masonry_slate_06.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d6061"
+  },
+  {
+   "id": "masonry_slate_07",
+   "file": "surfaces/masonry_slate_07.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e6062"
+  },
+  {
+   "id": "masonry_slate_08",
+   "file": "surfaces/masonry_slate_08.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e6163"
+  },
+  {
+   "id": "masonry_slate_09",
+   "file": "surfaces/masonry_slate_09.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e6062"
+  },
+  {
+   "id": "masonry_slate_10",
+   "file": "surfaces/masonry_slate_10.png",
+   "kind": "wall",
+   "source": "9976e157-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d6062"
+  },
+  {
+   "id": "masonry_red_sandstone_01",
+   "file": "surfaces/masonry_red_sandstone_01.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#96553d"
+  },
+  {
+   "id": "masonry_red_sandstone_02",
+   "file": "surfaces/masonry_red_sandstone_02.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#96563e"
+  },
+  {
+   "id": "masonry_red_sandstone_03",
+   "file": "surfaces/masonry_red_sandstone_03.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#97573d"
+  },
+  {
+   "id": "masonry_red_sandstone_04",
+   "file": "surfaces/masonry_red_sandstone_04.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#97573e"
+  },
+  {
+   "id": "masonry_red_sandstone_05",
+   "file": "surfaces/masonry_red_sandstone_05.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#9a593f"
+  },
+  {
+   "id": "masonry_red_sandstone_06",
+   "file": "surfaces/masonry_red_sandstone_06.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#96563d"
+  },
+  {
+   "id": "masonry_red_sandstone_07",
+   "file": "surfaces/masonry_red_sandstone_07.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#98573e"
+  },
+  {
+   "id": "masonry_red_sandstone_08",
+   "file": "surfaces/masonry_red_sandstone_08.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#99573e"
+  },
+  {
+   "id": "masonry_red_sandstone_09",
+   "file": "surfaces/masonry_red_sandstone_09.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#98573e"
+  },
+  {
+   "id": "masonry_red_sandstone_10",
+   "file": "surfaces/masonry_red_sandstone_10.png",
+   "kind": "wall",
+   "source": "2d1bf884-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#96573e"
+  },
+  {
+   "id": "masonry_white_limestone_01",
+   "file": "surfaces/masonry_white_limestone_01.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cac3ba"
+  },
+  {
+   "id": "masonry_white_limestone_02",
+   "file": "surfaces/masonry_white_limestone_02.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cac4ba"
+  },
+  {
+   "id": "masonry_white_limestone_03",
+   "file": "surfaces/masonry_white_limestone_03.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9c2b8"
+  },
+  {
+   "id": "masonry_white_limestone_04",
+   "file": "surfaces/masonry_white_limestone_04.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbc5bc"
+  },
+  {
+   "id": "masonry_white_limestone_05",
+   "file": "surfaces/masonry_white_limestone_05.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbc5bb"
+  },
+  {
+   "id": "masonry_white_limestone_06",
+   "file": "surfaces/masonry_white_limestone_06.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbc4bb"
+  },
+  {
+   "id": "masonry_white_limestone_07",
+   "file": "surfaces/masonry_white_limestone_07.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#ccc5bc"
+  },
+  {
+   "id": "masonry_white_limestone_08",
+   "file": "surfaces/masonry_white_limestone_08.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cac4bb"
+  },
+  {
+   "id": "masonry_white_limestone_09",
+   "file": "surfaces/masonry_white_limestone_09.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#ccc5bc"
+  },
+  {
+   "id": "masonry_white_limestone_10",
+   "file": "surfaces/masonry_white_limestone_10.png",
+   "kind": "wall",
+   "source": "ab78937a-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbc5bc"
+  },
+  {
+   "id": "masonry_mossy_ashlar_01",
+   "file": "surfaces/masonry_mossy_ashlar_01.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#646151"
+  },
+  {
+   "id": "masonry_mossy_ashlar_02",
+   "file": "surfaces/masonry_mossy_ashlar_02.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#615e4e"
+  },
+  {
+   "id": "masonry_mossy_ashlar_03",
+   "file": "surfaces/masonry_mossy_ashlar_03.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#615f50"
+  },
+  {
+   "id": "masonry_mossy_ashlar_04",
+   "file": "surfaces/masonry_mossy_ashlar_04.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#656352"
+  },
+  {
+   "id": "masonry_mossy_ashlar_05",
+   "file": "surfaces/masonry_mossy_ashlar_05.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#636050"
+  },
+  {
+   "id": "masonry_mossy_ashlar_06",
+   "file": "surfaces/masonry_mossy_ashlar_06.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#636051"
+  },
+  {
+   "id": "masonry_mossy_ashlar_07",
+   "file": "surfaces/masonry_mossy_ashlar_07.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#616050"
+  },
+  {
+   "id": "masonry_mossy_ashlar_08",
+   "file": "surfaces/masonry_mossy_ashlar_08.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#615f4f"
+  },
+  {
+   "id": "masonry_mossy_ashlar_09",
+   "file": "surfaces/masonry_mossy_ashlar_09.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#636050"
+  },
+  {
+   "id": "masonry_mossy_ashlar_10",
+   "file": "surfaces/masonry_mossy_ashlar_10.png",
+   "kind": "wall",
+   "source": "caa8a64c-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#626051"
+  },
+  {
+   "id": "masonry_ochre_sandstone_01",
+   "file": "surfaces/masonry_ochre_sandstone_01.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9944f"
+  },
+  {
+   "id": "masonry_ochre_sandstone_02",
+   "file": "surfaces/masonry_ochre_sandstone_02.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#ca9753"
+  },
+  {
+   "id": "masonry_ochre_sandstone_03",
+   "file": "surfaces/masonry_ochre_sandstone_03.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9944e"
+  },
+  {
+   "id": "masonry_ochre_sandstone_04",
+   "file": "surfaces/masonry_ochre_sandstone_04.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9944d"
+  },
+  {
+   "id": "masonry_ochre_sandstone_05",
+   "file": "surfaces/masonry_ochre_sandstone_05.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c79450"
+  },
+  {
+   "id": "masonry_ochre_sandstone_06",
+   "file": "surfaces/masonry_ochre_sandstone_06.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cc9a57"
+  },
+  {
+   "id": "masonry_ochre_sandstone_07",
+   "file": "surfaces/masonry_ochre_sandstone_07.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cc9953"
+  },
+  {
+   "id": "masonry_ochre_sandstone_08",
+   "file": "surfaces/masonry_ochre_sandstone_08.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cb9751"
+  },
+  {
+   "id": "masonry_ochre_sandstone_09",
+   "file": "surfaces/masonry_ochre_sandstone_09.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cc9a54"
+  },
+  {
+   "id": "masonry_ochre_sandstone_10",
+   "file": "surfaces/masonry_ochre_sandstone_10.png",
+   "kind": "wall",
+   "source": "0bb56878-image.png",
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cb9754"
   }
  ],
  "sprites": [
@@ -8538,6 +9708,246 @@
     297
    ],
    "height_m": 12.19
+  },
+  {
+   "id": "velscour_crimson_thorn",
+   "file": "banners/velscour_crimson_thorn.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "30819068-image.png",
+   "size": [
+    152,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_bloodstripe",
+   "file": "banners/velscour_bloodstripe.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "30819068-image.png",
+   "size": [
+    143,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_violet_tatters",
+   "file": "banners/velscour_violet_tatters.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "30819068-image.png",
+   "size": [
+    127,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_gilded_sunburst",
+   "file": "banners/velscour_gilded_sunburst.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "30819068-image.png",
+   "size": [
+    137,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_azure_sunburst",
+   "file": "banners/holy_azure_sunburst.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "30819068-image.png",
+   "size": [
+    145,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_verdant_cross",
+   "file": "banners/holy_verdant_cross.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "7232312f-image.png",
+   "size": [
+    140,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_winged_star",
+   "file": "banners/holy_winged_star.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "7232312f-image.png",
+   "size": [
+    152,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_stag",
+   "file": "banners/town_stag.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "7232312f-image.png",
+   "size": [
+    154,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_ship",
+   "file": "banners/town_ship.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "7232312f-image.png",
+   "size": [
+    155,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_tower_and_keys",
+   "file": "banners/town_tower_and_keys.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "7232312f-image.png",
+   "size": [
+    144,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_midnight_moons",
+   "file": "banners/velscour_midnight_moons.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "9ce10adb-image.png",
+   "size": [
+    156,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_ember_rag",
+   "file": "banners/velscour_ember_rag.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "9ce10adb-image.png",
+   "size": [
+    141,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_ash_and_blood",
+   "file": "banners/velscour_ash_and_blood.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "9ce10adb-image.png",
+   "size": [
+    140,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "velscour_twin_serpents",
+   "file": "banners/velscour_twin_serpents.png",
+   "category": "banner",
+   "allegiance": "velscour",
+   "source": "9ce10adb-image.png",
+   "size": [
+    149,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_harvest",
+   "file": "banners/holy_harvest.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "9ce10adb-image.png",
+   "size": [
+    148,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_lilies",
+   "file": "banners/holy_lilies.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "2cfefe67-image.png",
+   "size": [
+    137,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "holy_open_hands",
+   "file": "banners/holy_open_hands.png",
+   "category": "banner",
+   "allegiance": "holy",
+   "source": "2cfefe67-image.png",
+   "size": [
+    132,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_ram",
+   "file": "banners/town_ram.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "2cfefe67-image.png",
+   "size": [
+    124,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_eagle",
+   "file": "banners/town_eagle.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "2cfefe67-image.png",
+   "size": [
+    128,
+    256
+   ],
+   "height_m": 3.4
+  },
+  {
+   "id": "town_bridge",
+   "file": "banners/town_bridge.png",
+   "category": "banner",
+   "allegiance": "town",
+   "source": "2cfefe67-image.png",
+   "size": [
+    134,
+    256
+   ],
+   "height_m": 3.4
   }
  ]
 }
