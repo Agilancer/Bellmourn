@@ -42,6 +42,14 @@ export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 const MONSTER_ROOT = 'templates/models/creatures/monsters/' + (TOUCH ? 'phone/' : '');
 export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
   'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
+// The grotesques (templates/models/creatures/grotesques/<name>.glb, from tools/creatures/grotesques):
+// the Humans FBX's bare man reshaped and sculpted under ten painted skins, built on the zombies' own
+// bones with the zombies' own clips, so they rise, hunt, crawl and come apart exactly like them.
+// The ember husk's cracks and the chitin fiend's eyes glow (their emissive maps). A phone loads
+// their phone copies (grotesques/phone/), one at a time, with the monsters.
+const GROTESQUE_ROOT = 'templates/models/creatures/grotesques/' + (TOUCH ? 'phone/' : '');
+export const GROTESQUES = ['rotting_zombie', 'bloated_drowner', 'plague_bearer', 'tomb_mummy', 'ember_husk',
+  'pale_ghoul', 'chitin_fiend', 'deep_maw', 'fungal_husk', 'bog_troll'];
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
   clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',
   lowerarm_l: 'forearmL', lowerarm_r: 'forearmR', hand_l: 'handL', hand_r: 'handR',
@@ -136,6 +144,12 @@ export function goreMaterial(src, lib) {
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
     mat.normalMap = normals.get(map);
+  }
+  if (src.emissiveMap) {     // what glows: embers in the cracks, eyes
+    const e = src.emissiveMap;
+    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
+    mat.emissiveMap = e;
+    mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
   }
   const u = { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
     uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
@@ -1046,15 +1060,21 @@ export class Zombies {
     this.flow = null; this.flowKey = -1; this.flowT = 0;
   }
 
-  async load(variants = VARIANTS, monsters = MONSTERS) {
+  async load(variants = VARIANTS, monsters = MONSTERS, grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
     const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
-    const one = async () => { for (const m of monsters) await monster(m); };   // a phone: one decoding at a time
+    const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
+      try { this.gltf[g] = await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`); } catch (e) { console.warn('grotesque', g, e); }
+    };
+    const one = async () => {   // a phone: one decoding at a time
+      for (const m of monsters) await monster(m);
+      for (const g of grotesques) await grotesque(g);
+    };
     await Promise.all([
       ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
-      ...(TOUCH ? [one()] : monsters.map(monster)),
+      ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
-    this.pool = [...variants, ...monsters];
+    this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */

@@ -67,16 +67,11 @@ const SPELL = { // bolt colour, its glow, damage
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 
-/** The gore shader, plus: armour, capes and robes stay armour and cloth inside (the `shell`
- * vertex attribute), and the glow map (eyes, slits, runes, cracks, caps) shines in the dark. */
+/** The gore shader (which also makes the glow map, eyes, slits, runes, cracks and caps, shine in
+ * the dark), plus: armour, capes and robes stay armour and cloth inside (the `shell` vertex
+ * attribute). */
 function foeMaterial(src, lib) {
   const mat = goreMaterial(src, lib);
-  if (src.emissiveMap) {
-    const e = src.emissiveMap;
-    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
-    mat.emissiveMap = e;
-    mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
-  }
   const base = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh) => {
     base(sh);
