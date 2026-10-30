@@ -26,7 +26,7 @@ const NAMES = ['rotting_zombie', 'bloated_drowner', 'plague_bearer', 'tomb_mummy
   page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
   page.on('console', (m) => { if (/grotesque|error/i.test(m.text())) console.log('console:', m.text()); });
   // low graphics and big pixels: a software renderer takes seconds a frame at full quality
-  await page.addInitScript(() => { localStorage.setItem('bm.time', 'golden'); localStorage.setItem('bm.quality', 'low'); localStorage.setItem('bm.pix', '3'); });
+  await page.addInitScript(() => { localStorage.setItem('bm.time', 'golden'); localStorage.setItem('bm.quality', 'low'); localStorage.setItem('bm.pix', '2'); });
   await page.goto(`http://127.0.0.1:${port}/index.html`);
   await page.waitForFunction(() => window.bellmourn || window.bootError, null, { timeout: 900000 });
   const err = await page.evaluate(() => window.bootError && String(window.bootError));

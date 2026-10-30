@@ -7,12 +7,15 @@ import { wallPanel } from './sprites.js';
 import { detailedHouse, houseMaterials, lampPost, marketStall, fence, cart, gothicDetail, belfry } from './buildings.js';
 import { buildRegion, SPOTS } from './region.js';
 import { REGION } from './terrain.js';
+import { DELVES, delveFootprint } from './delves.js';
 
 export const VILLAGE_R = 100;   // the village clearing
 export const WORLD_R = 300;     // the forest goes on to here; the player stays inside
 export const CATHEDRAL = { x0: -12, x1: 12, z0: -98, z1: -52, floor: 0.6 };
 export const GRAVEYARD = { x0: -48, x1: 48, z0: -182, z1: -122 };
 export const STAIRS = { x: 5.0, z: -93.6 }; // top of the stairs, in the stair-house in the cathedral office
+// where the outdoor ground is left out: under the cathedral and the delves' stair-houses
+const GROUND_CUTS = [[CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1], ...DELVES.map(delveFootprint)];
 const OFFICE_DOOR_X = -6.5;                   // the office door in the chancel wall, behind the pulpit
 // graveyard-pack sprites that belong inside the church
 const CHURCH = /pipe_organ|confessional|baptismal_font|oak_pew|prayer_lectern|cathedral_altar|iron_candelabrum|votive_candles|resting_censer|church_bell|saint_statue|reliquary_chest/;
@@ -48,12 +51,14 @@ export function buildWorld(ctx) {
     for (let z = -WORLD_R - 36; z < WORLD_R + 36; z += CELL) {
       const cx = x + CELL / 2, cz = z + CELL / 2;
       if (Math.hypot(cx, cz) > WORLD_R + 48 || x >= REGION.x0 - 2) continue; // the downs have their own ground
-      // the cathedral stands on its own floor (and its stairwell must stay open): cut its
-      // footprint out of the cells it overlaps
-      const C = CATHEDRAL, x1 = x + CELL, z1 = z + CELL;
-      const pieces = x1 <= C.x0 || x >= C.x1 || z1 <= C.z0 || z >= C.z1 ? [[x, z, x1, z1]] : [
-        [x, z, Math.min(x1, C.x0), z1], [Math.max(x, C.x1), z, x1, z1],
-        [Math.max(x, C.x0), z, Math.min(x1, C.x1), Math.min(z1, C.z0)], [Math.max(x, C.x0), Math.max(z, C.z1), Math.min(x1, C.x1), z1]];
+      // the cathedral and the delves' stair-houses stand on their own floors (and their
+      // stairwells must stay open): cut their footprints out of the cells they overlap
+      let pieces = [[x, z, x + CELL, z + CELL]];
+      for (const [h0, k0, h1, k1] of GROUND_CUTS) {
+        pieces = pieces.flatMap(([a0, b0, a1, b1]) => (a1 <= h0 || a0 >= h1 || b1 <= k0 || b0 >= k1 ? [[a0, b0, a1, b1]] : [
+          [a0, b0, Math.min(a1, h0), b1], [Math.max(a0, h1), b0, a1, b1],
+          [Math.max(a0, h0), b0, Math.min(a1, h1), Math.min(b1, k0)], [Math.max(a0, h0), Math.max(b0, k1), Math.min(a1, h1), b1]]));
+      }
       for (const [a0, b0, a1, b1] of pieces) {
         if (a1 - a0 < 0.01 || b1 - b0 < 0.01) continue;
         b.quad(ground, [a0, 0, b1], [a1, 0, b1], [a1, 0, b0], [a0, 0, b0], [[a0, -b1], [a1, -b1], [a1, -b0], [a0, -b0]]);
@@ -640,6 +645,7 @@ function forestRing(ctx, R, houses) {
     if (x > GRAVEYARD.x0 - 6 && x < GRAVEYARD.x1 + 6 && z > GRAVEYARD.z0 - 6 && z < GRAVEYARD.z1 + 8) return false;
     if (x > 12 && x < 30 && z > -126 && z < -40) return false; // the graveyard lane
     if (Math.abs(x) < 7 || Math.abs(z) < 7) return false;      // the roads out of the village
+    if (DELVES.some((d) => Math.abs(x - d.x) < 13 && z > d.z - 10 && z < d.z + 14)) return false;   // a delve's clearing
     return true;
   };
   const nearHouse = (x, z) => houses.some((h) => Math.abs(x - h.x) < h.w / 2 + 6 && Math.abs(z - h.z) < h.d / 2 + 6)
