@@ -583,6 +583,7 @@ function onEvent(kind, side, clip) {
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
 function melee(reach, heavy, side = 'R') {
+  player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
   for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
@@ -887,6 +888,7 @@ function tick(dt) {
     }
   }
   hud.guard(guard, vm.blocking);
+  player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);

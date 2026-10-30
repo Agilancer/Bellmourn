@@ -11,7 +11,10 @@
 //     swing is the knight's swing whatever way its own bones were built. The hips also take the
 //     knight's rise and fall (scaled to the leg);
 //   - fists closed (for a hilt), and the knight's sockets, hit shapes and hit frames moved onto it.
-// Sword, axe or mace in the right fist, shield on the left forearm, as the dark knights carry them.
+// Sword, axe or mace in the right fist, shield on the left forearm, as the dark knights carry them;
+// the shield rides as far out from the forearm as its dish needs to clear the plate (shieldLift).
+// The Vigil's adepts go bareheaded (their hair shows, and their burning eyes), with a wand in the
+// left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -22,6 +25,8 @@ const BONES = { Root: 'root', Hips: 'hips', Abdomen: 'spine', Chest: 'chest', Ne
   ShoulderR: 'shoulderR', UpperArmR: 'upper_armR', LowerArmR: 'forearmR', WristR: 'handR',
   UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL', UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR' };
 const HEAD = /^V_(Head|Eyes|Lashes)/;   // what the villager keeps under the helm (not its clothes or hair)
+const HAIR = /^V_Hair/;                 // (and bareheaded, its hair)
+const CASTS = ['cast1', 'cast2', 'blink'];   // what an adept takes of the sorcerers' clips
 const FPS = 30;
 // a fist: how far each finger joint closes (radians), the thumb less
 const CURL = { 1: 1.25, 2: 1.45, 3: 1.0, 4: 0.6 };
@@ -78,7 +83,7 @@ function merge(parts, skel) {
 
 /** The knight's clips on the sworn body: each named bone turned as the knight's turns away from its
  * bind, in the world (both bind in a T-pose facing +z), the hips carried as the knight's are. */
-function retarget(knight, dst, dstSkel) {
+function retarget(knight, dst, dstSkel, only = null) {
   const src = cloneSkinned(knight.scene);
   let srcSkel = null;
   src.traverse((o) => { if (o.isSkinnedMesh && !srcSkel) srcSkel = o.skeleton; });
@@ -99,6 +104,7 @@ function retarget(knight, dst, dstSkel) {
   const mixer = new THREE.AnimationMixer(src);
   const clips = [];
   for (const clip of knight.animations) {
+    if (only && !only.includes(clip.name)) continue;
     const act = mixer.clipAction(clip);
     act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; act.play();
     const n = Math.max(2, Math.round(clip.duration * FPS) + 1);
@@ -182,16 +188,18 @@ function sockets(meta, sSkel, dSkel) {
 
 /** Build a sworn body: `knight` is knight_a's loaded glTF, `villager` and `armor` the loaded body and
  * set. Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
-export function swornBody(knight, villager, armor, { eyes = 0xff2a10 } = {}) {
+export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null } = {}) {
   const scene = villager.scene;
-  // what the villager keeps (its head) and what it wears (every piece of the set)
+  // what the villager keeps (its head, and its hair if bareheaded) and what it wears (every piece
+  // of the set, but the helm if it goes without)
   const parts = [];
   let skel = null;
   scene.traverse((o) => {
     if (!o.isSkinnedMesh) return;
-    if (HEAD.test(o.name)) { parts.push({ mesh: o, shell: 0 }); skel ||= o.skeleton; }
+    if (HEAD.test(o.name) || (!helm && HAIR.test(o.name))) { parts.push({ mesh: o, shell: HAIR.test(o.name) ? 1 : 0 }); if (!HAIR.test(o.name)) skel ||= o.skeleton; }
   });
-  armor.scene.traverse((o) => { if (o.isSkinnedMesh) parts.push({ mesh: o, shell: 1 }); });
+  const inHelm = (o) => { for (let q = o; q; q = q.parent) if (/^Helm/.test(q.name)) return true; return false; };
+  armor.scene.traverse((o) => { if (o.isSkinnedMesh && (helm || !inHelm(o))) parts.push({ mesh: o, shell: 1 }); });
   // its bones under the zombie body's names, the set's too (they're matched by name)
   for (const root of [scene, armor.scene]) root.traverse((o) => { if (o.isBone && BONES[o.name]) o.name = BONES[o.name]; });
   const { geo, mats } = merge(parts, skel);
@@ -214,6 +222,7 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10 } = {}) {
   body.bind(bound, new THREE.Matrix4());
   scene.updateMatrixWorld(true);
   const animations = retarget(knight, scene, bound);
+  if (casts) animations.push(...retarget(casts, scene, bound, CASTS));
   fists(bound);
   // the knight's hit shapes (a little fuller for the plate, and one for the torso between the
   // spine and chest bones that the knight hasn't), its hit frames, and its sockets
@@ -222,6 +231,66 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10 } = {}) {
   knight.scene.traverse((o) => { if (o.isSkinnedMesh && !kSkel) kSkel = o.skeleton; });
   const radius = Object.fromEntries(Object.entries(km.radius).map(([k, r]) => [k, r * 1.12]));
   radius.Torso = (radius.spine + radius.chest) / 2 * 1.1;
-  const foe = { radius, tip: km.tip, hits: km.hits, kind: 'knight', height: 1.85, sockets: sockets(km, kSkel, bound) };
+  const hits = { ...km.hits, ...Object.fromEntries(CASTS.map((c) => [c, casts?.userData.foe.hits?.[c]]).filter(([, v]) => v != null)) };
+  const foe = { radius, tip: km.tip, hits, kind: 'knight', height: 1.85, sockets: sockets(km, kSkel, bound), eyes: eyesOf(parts) };
   return { scene, animations, userData: { foe } };
+}
+
+/** Where the eyes are (model space at bind): the middles of the eye mesh's left and right halves. */
+function eyesOf(parts) {
+  const e = parts.find((p) => /^V_Eyes/.test(p.mesh.name));
+  if (!e) return [];
+  const pos = e.mesh.geometry.attributes.position, sides = [[0, 0, 0, 0], [0, 0, 0, 0]];
+  for (let i = 0; i < pos.count; i++) {
+    const s = sides[pos.getX(i) < 0 ? 0 : 1];
+    s[0] += pos.getX(i); s[1] += pos.getY(i); s[2] += pos.getZ(i); s[3]++;
+  }
+  return sides.filter((s) => s[3]).map((s) => [s[0] / s[3], s[1] / s[3], s[2] / s[3]]);
+}
+
+/** How far out along its socket's z (away from the forearm) a shield must ride for the forearm's
+ * and the fist's plate, as the body stands, to clear its back: shields are dished, their edges
+ * coming back toward the arm, and the Fiend's vambraces and gauntlets are bulkier than the arms the
+ * knights' sockets were made for. `shield`: the item's scene (its own frame is the socket's). */
+export function shieldLift(body, socket, shield, margin = 0.012) {
+  // the shield's back: per 1 cm square of its face, the lowest z of its surface
+  const N = 140, C = 0.01, lo = new Float32Array(N * N).fill(Infinity);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), p = new THREE.Vector3();
+  shield.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(shield.matrixWorld).invert(), m = new THREE.Matrix4();
+  shield.traverse((o) => {
+    if (!o.isMesh) return;
+    m.multiplyMatrices(inv, o.matrixWorld);
+    const pos = o.geometry.attributes.position, idx = o.geometry.index, n = idx ? idx.count : pos.count;
+    for (let t = 0; t < n; t += 3) {
+      const at = (k) => (idx ? idx.getX(t + k) : t + k);
+      a.fromBufferAttribute(pos, at(0)).applyMatrix4(m); b.fromBufferAttribute(pos, at(1)).applyMatrix4(m); c.fromBufferAttribute(pos, at(2)).applyMatrix4(m);
+      const steps = Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / 0.005) + 1;
+      for (let u = 0; u <= steps; u++) for (let v = 0; v <= steps - u; v++) {
+        p.copy(a).multiplyScalar(1 - (u + v) / steps).addScaledVector(b, u / steps).addScaledVector(c, v / steps);
+        const i = Math.floor(p.x / C + N / 2), k = Math.floor(p.y / C + N / 2);
+        if (i >= 0 && k >= 0 && i < N && k < N) lo[k * N + i] = Math.min(lo[k * N + i], p.z);
+      }
+    }
+  });
+  // the forearm's and fist's plate as it stands, in the socket's frame
+  let mesh = null;
+  body.scene.traverse((o) => { if (o.isSkinnedMesh) mesh = o; });
+  body.scene.updateMatrixWorld(true);
+  const skel = mesh.skeleton, want = new Set();
+  skel.bones.forEach((bn, i) => { for (let q = bn; q?.isBone; q = q.parent) if (q.name === 'forearmL') { want.add(i); break; } });
+  const Y = new THREE.Vector3(...socket.y), Z = new THREE.Vector3(...socket.z);
+  const toSocket = new THREE.Matrix4().makeBasis(Y.clone().cross(Z), Y, Z).setPosition(...socket.pos).invert();
+  const g = mesh.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  let lift = 0;
+  for (let i = 0; i < g.attributes.position.count; i++) {
+    let best = 0, bw = -1;
+    for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > bw) { bw = sw.getComponent(i, k); best = si.getComponent(i, k); }
+    if (!want.has(best)) continue;
+    mesh.getVertexPosition(i, p).applyMatrix4(mesh.matrixWorld).applyMatrix4(toSocket);
+    const x = Math.floor(p.x / C + N / 2), k = Math.floor(p.y / C + N / 2);
+    if (x < 0 || k < 0 || x >= N || k >= N || lo[k * N + x] === Infinity) continue;
+    lift = Math.max(lift, p.z - lo[k * N + x]);
+  }
+  return lift + margin;
 }

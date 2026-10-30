@@ -48,13 +48,22 @@ sorcerers march between the downs' places and hold its houses.
 **Blackvigil Keep** (`keep.js`) is garrisoned by Velscour's Sworn: villagers in the Fiend's
 Panoply, put together at load by `sworn.js` (the villager's skeleton under the zombie body's bone
 names, the armour, helm and head merged into one skinned mesh, and knight_a's clips carried over
-bone by bone), so they fight like the dark knights (a dozen one-handed weapons, a shield to block
-and bash with) and come apart like them. They follow you through the keep's doorways by a flow
-field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red, waits with
-two guards before a chest sealed by his oath: he calls Velscour's fire up under you, grows faster
-at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and draughts)
-opens only once he's dead. The Sworn load in the background after the world is up (a phone takes
-one body and half the garrison).
+bone by bone), so they come apart like the dark knights, but fight harder and faster. They take
+you two at a time while the rest circle a few strides off with their shields ready, waiting their
+turn. Up close they cut in combinations of two and three; from further off they lunge, or charge
+behind the shield and bash you off your feet. They raise the shield when they see you swing, bash
+through yours when you hide behind it, and answer any blow that rings off theirs. Their adepts
+go bareheaded with burning eyes, a blade in one hand and a wand in the other (the sorcerers'
+casting clips carried over too): they keep their distance, cast blood, call Velscour's fire up
+under you, mend their wounded brothers, and blink away when cornered. Their kite shields ride as
+far out from the forearm as each one's dish needs to clear the plate (`shieldLift`), and the
+shield arm is posed for the carry, the guard (blocking, bashing, charging) and the wide third cut,
+so no shield goes through an arm or body in any clip. They follow you through the keep's doorways
+by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
+waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
+grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
+draughts) opens only once he's dead. The Sworn load in the background after the world is up (a
+phone takes one body and half the garrison, without the adepts).
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and

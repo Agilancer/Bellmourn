@@ -262,7 +262,8 @@ class Keep {
     this.nx = Math.ceil((KEEP.x1 + 6 - (KEEP.x0 - 2)) / G); this.nz = Math.ceil((KEEP.z1 + 2 - (KEEP.z0 - 2)) / G);
     this.gx0 = KEEP.x0 - 2; this.gz0 = KEEP.z0 - 2;
     this.walk = null; this.flow = null; this.flowKey = -1; this.flowT = 0;
-    // where the Sworn stand: [variant, x, z, {room | area | patrol, yaw}] (a room by its walls' inner faces)
+    // where the Sworn stand (their adepts in the chapel, the hall, the reliquary and the yard):
+    // [variant, x, z, {room | area | patrol, yaw}] (a room by its walls' inner faces)
     const R = Object.fromEntries(Object.entries(room).map(([k, r]) => [k, { x0: r.ix0, x1: r.ix1, z0: r.iz0, z1: r.iz1, id: k }]));
     this.posts = [
       // at the gate, either side of the road
@@ -271,15 +272,15 @@ class Keep {
       // on their rounds of the courtyard
       ['sworn_m', -204, -20, { patrol: [[-204, -20], [-228, -26], [-228, 26], [-204, 20]] }],
       ['sworn_m', -226, 24, { patrol: [[-226, 24], [-204, 28], [-204, -28], [-226, -24]] }],
-      ['sworn_f', -212, 18, { area: { x: -212, z: 20, r: 4 } }],
+      ['sworn_adept_f', -212, 18, { area: { x: -212, z: 20, r: 4 } }],
       ['sworn_m', -230, -4, { area: { x: -230, z: 0, r: 2 }, yaw: Math.PI / 2 }],
       // the hall
-      ['sworn_m', -242, 3, { room: R.hall }], ['sworn_f', -250, -3, { room: R.hall }], ['sworn_m', -256, 4, { room: R.hall }],
+      ['sworn_m', -242, 3, { room: R.hall }], ['sworn_adept_m', -250, -3, { room: R.hall }], ['sworn_m', -256, 4, { room: R.hall }],
       // the barracks, the armoury, the chapel, the reliquary
       ['sworn_m', -244, -19, { room: R.barracks }], ['sworn_f', -254, -21, { room: R.barracks }],
       ['sworn_m', -244, 19, { room: R.armoury }], ['sworn_m', -253, 21, { room: R.armoury }],
-      ['sworn_f', -266, -19.5, { room: R.chapel, yaw: -Math.PI / 2 }], ['sworn_m', -270, -22, { room: R.chapel, yaw: -Math.PI / 2 }],
-      ['sworn_m', -268, 19.5, { room: R.reliquary }],
+      ['sworn_adept_f', -266, -19.5, { room: R.chapel, yaw: -Math.PI / 2 }], ['sworn_adept_m', -270, -22, { room: R.chapel, yaw: -Math.PI / 2 }],
+      ['sworn_adept_m', -268, 19.5, { room: R.reliquary }],
     ];
     // the throne room: its lord before the chest, and his two guards (they keep the room)
     this.lord = ['sworn_lord', DAIS.x1 + 3.2, 0, { keeps: R.throne, yaw: Math.PI / 2 }];
