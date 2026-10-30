@@ -1,0 +1,20 @@
+{
+ "id": "brawler",
+ "name": "Pit Fighter's Harness",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "brawler",
+ "description": "An arena champion's harness for Lord Velscour's pits: a studded leather vest with his sigil on the back and his copper V where its iron straps cross, dark red pteruges, a wide iron belt, one great spiked iron pauldron, spiked knees and a blackened great helm with a shading brow.",
+ "files": {
+  "male": "brawler_m.glb",
+  "female": "brawler_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

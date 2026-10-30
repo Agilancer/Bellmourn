@@ -1,0 +1,20 @@
+{
+ "id": "wayfarer",
+ "name": "Wayfarer's Brigandine",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "wayfarer",
+ "description": "A road-worn brigandine of studded leather over dark red wool, Lord Velscour's sigil across a ragged travelling cloak and his copper V on the breast, belt, rondels, shins and helm: square iron spaulders, iron rerebraces and greaves, and a great helm with a pair of crest boards.",
+ "files": {
+  "male": "wayfarer_m.glb",
+  "female": "wayfarer_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

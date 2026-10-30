@@ -1,0 +1,20 @@
+{
+ "id": "knight",
+ "name": "Knight's Hourglass Harness",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "knight",
+ "description": "Full plate in the manner of the great crusader harnesses: a fluted breastplate with a dark inlaid panel under Lord Velscour's gold V, big lamed pauldrons with upright neck guards and V rondels, brass-edged faulds and tassets, V-bossed knee cops, a crimson cape bearing his V, and a riveted great helm with a cross of bands, eye slits and round breaths.",
+ "files": {
+  "male": "knight_m.glb",
+  "female": "knight_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

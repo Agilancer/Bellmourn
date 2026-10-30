@@ -14,17 +14,25 @@
 // drawn at full resolution over the picture, smaller with distance, hidden behind walls. It is rationed
 // so they never swamp the screen: nothing for the first seconds, at most two ambient bubbles near you at
 // once (three for something said to you), and a gap between lines.
+//
+// Some of them wear Lord Velscour's armour (templates/models/armor, built by tools/armor): the watch,
+// the hunter, a traveller, and his garrison, six men and women at arms who walk the watch with the
+// village's own. A set is skinned to the villagers' own skeleton, so it is bound to theirs by bone
+// name; their clothes are hidden under it, and their hair under its helm.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
 
 const ROOT = 'templates/models/creatures/villagers/';
-// who lives here: model, name, what others call them, their callings, the house they live in
+const ARMOR = 'templates/models/armor/';
+// who lives here: model, name, what others call them, their callings, the house they live in, and
+// the armour set they wear
 const ROSTER = [
   { m: 'villager_m01', name: 'Tobias', tags: ['innkeeper', 'merchant', 'worker'], home: /Tolling Bell/ },
   { m: 'villager_f01', name: 'Elsie', tags: ['young', 'worker'], home: /Tolling Bell/ },
-  { m: 'villager_m08', name: 'Brand', call: 'Sergeant', tags: ['guard'], home: /Barracks/, watch: true },
-  { m: 'villager_f09', name: 'Hild', tags: ['guard'], home: /Barracks/, watch: true },
+  { m: 'villager_m08', name: 'Brand', call: 'Sergeant', tags: ['guard'], home: /Barracks/, watch: true, armor: 'knight' },
+  { m: 'villager_f09', name: 'Hild', tags: ['guard'], home: /Barracks/, watch: true, armor: 'mailed' },
   { m: 'villager_m09', name: 'Garrow', tags: ['smith', 'worker'], home: /Hammerfall/ },
   { m: 'villager_f06', name: 'Agnes', tags: ['baker', 'worker'], home: /Bakehouse/ },
   { m: 'villager_m10', name: 'Grimwald', call: 'Master Grimwald', tags: ['merchant'], home: /Grimwald/, couple: 'Bertha', stall: true },
@@ -39,11 +47,19 @@ const ROSTER = [
   { m: 'villager_f11', name: 'Harrow', call: 'Widow Harrow', tags: ['old'], home: /Harrow/ },
   { m: 'villager_m07', name: 'Tam', tags: ['farmer', 'worker'], home: /Stables/ },
   { m: 'villager_m06', name: 'Hob', tags: ['worker'], home: /Stables/ },
-  { m: 'villager_f03', name: 'Wren', tags: ['hunter'], home: /Mending|Harrow/ },
+  { m: 'villager_f03', name: 'Wren', tags: ['hunter'], home: /Mending|Harrow/, armor: 'hunter' },
   { m: 'villager_f08', name: 'Joan', tags: ['worker'], home: /Chandler|Cooper/ },
-  { m: 'villager_m05', name: 'Sigurd', tags: ['traveller'], home: /Tolling Bell/ },
+  { m: 'villager_m05', name: 'Sigurd', tags: ['traveller'], home: /Tolling Bell/, armor: 'wayfarer' },
   { m: 'villager_m11', name: 'Corin', tags: ['traveller'], home: /Tolling Bell/ },
+  // Lord Velscour's garrison, on the watch (their bodies are other villagers', shared with them)
+  { m: 'villager_m03', name: 'Aldric', call: 'Ser Aldric', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'templar' },
+  { m: 'villager_f08', name: 'Morwen', call: 'Black Morwen', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'fiend' },
+  { m: 'villager_f04', name: 'Sabine', call: 'Dame Sabine', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'drake' },
+  { m: 'villager_m09', name: 'Ulf', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'boneward' },
+  { m: 'villager_m04', name: 'Corvus', call: 'Magister Corvus', tags: ['guard', 'velscour', 'learned'], home: /Barracks/, watch: true, garrison: true, armor: 'runebound' },
+  { m: 'villager_m07', name: 'Bram', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'brawler' },
 ];
+const GARRISON_ON_PHONE = 3;   // a phone gets this many of the garrison (each set is another download)
 
 const QUIET = 5;          // seconds of silence when the game starts
 const NEAR = 22;          // metres: speech this close to you counts against the bubble budget
@@ -70,15 +86,48 @@ export class Villagers {
   /** Bring them in: up to `n` of them (fewer on a phone), each loading in the background and walking
    * out of their door as soon as their model has come. */
   populate(n = ROSTER.length) {
-    const loader = new GLTFLoader();
-    const who = ROSTER.slice(0, n);
-    // a phone gets the watch and a cross-section of the rest
-    if (n < ROSTER.length) who.sort((a, b) => (b.watch ? 1 : 0) - (a.watch ? 1 : 0));
+    const loader = new GLTFLoader(), cache = new Map();
+    const load = (url) => { if (!cache.has(url)) cache.set(url, loader.loadAsync(url)); return cache.get(url); };
+    let who = ROSTER.slice(0, n);
+    // a phone gets the watch, a few of the garrison and a cross-section of the rest
+    if (n < ROSTER.length) {
+      const garrison = ROSTER.filter((p) => p.garrison).slice(0, GARRISON_ON_PHONE);
+      who = [...ROSTER.filter((p) => p.watch && !p.garrison), ...garrison, ...ROSTER.filter((p) => !p.watch)].slice(0, n);
+    }
     let k = 0;
     for (const p of who) {
-      loader.loadAsync(ROOT + p.m + '.glb').then((g) => this.spawn(g, p, k++)).catch((e) => console.warn('villager', p.m, e));
+      const jobs = [load(ROOT + p.m + '.glb')];
+      if (p.armor) jobs.push(load(`${ARMOR}${p.armor}/${p.armor}_${p.m.includes('_f') ? 'f' : 'm'}.glb`));
+      Promise.all(jobs).then(([g, armor]) => this.spawn(g, p, k++, armor)).catch((e) => console.warn('villager', p.m, p.armor, e));
     }
     return who.length;
+  }
+
+  /** A copy of a loaded model's scene, sharing its geometry and textures: the original stays as it
+   * loaded, since a body may be shared by two people and one of them may dress it in armour. */
+  static take(gltf) {
+    return cloneSkinned(gltf.scene);
+  }
+
+  /** Put an armour set on a villager's model: its meshes bound to the villager's own bones (by name:
+   * the set was built on the same skeleton), the villager's clothes hidden under it, and the hair under
+   * its helm. The face stays: it shows through the helm's eye slits. */
+  wear(model, gltf) {
+    const set = Villagers.take(gltf), bones = {};
+    model.traverse((c) => {
+      if (c.isBone) bones[c.name] = c;
+      if (c.isMesh && (!/^V_/.test(c.name) || /^V_Hair/.test(c.name))) c.visible = false;
+    });
+    const host = bones.Root ? bones.Root.parent : model;   // the armature, where the villager's meshes hang
+    const meshes = [];
+    set.traverse((c) => { if (c.isSkinnedMesh) meshes.push(c); });
+    for (const m of meshes) {
+      const skel = new THREE.Skeleton(m.skeleton.bones.map((b) => bones[b.name]), m.skeleton.boneInverses);
+      if (skel.bones.some((b) => !b)) { console.warn('armour: a bone it needs is missing', m.name); continue; }
+      host.add(m);
+      m.bind(skel, m.bindMatrix);
+      m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+    }
   }
 
   homeFor(p, k) {
@@ -89,9 +138,10 @@ export class Villagers {
     return this.homes[k % this.homes.length];
   }
 
-  spawn(gltf, p, k) {
-    const model = gltf.scene, root = new THREE.Group();
+  spawn(gltf, p, k, armor = null) {
+    const model = Villagers.take(gltf), root = new THREE.Group();
     root.add(model);
+    if (armor) this.wear(model, armor);
     let head = null;
     model.traverse((c) => {
       if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; }

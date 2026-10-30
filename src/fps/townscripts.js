@@ -4,8 +4,8 @@
 //
 // A conversation's tags say who may hold it: 'any' (anyone), 'gossip' (any two grown-ups, now and
 // then), or a calling (guard, worker, merchant, smith, baker, healer, hunter, gentry, traveller, old,
-// young, farmer, innkeeper, learned, couple). A calling tag means speaker 0 holds that calling;
-// 'couple' is only for husband and wife.
+// young, farmer, innkeeper, learned, couple, velscour: Lord Velscour's garrison). A calling tag means
+// speaker 0 holds that calling; 'couple' is only for husband and wife.
 
 export const CHATS = [
   // ------------------------------------------------------------------ the bell, the cathedral, the dead
@@ -149,6 +149,13 @@ export const CHATS = [
   { tags: ['guard'], lines: [[0, "Patrol's clear, Sergeant."], [1, 'Clear of what?'], [0, 'Anything I could see.'], [1, "That's not the same thing."]] },
   { tags: ['guard'], lines: [[0, "I'll take the north road. You take the yard."], [1, 'Why do I always get the yard?'], [0, 'The dead like you.']] },
   { tags: ['guard'], lines: [[0, 'Pay is late again.'], [1, 'The reeve says next week.'], [0, 'The reeve said that last spring.']] },
+  // ------------------------------------------------------------------ Lord Velscour's garrison
+  { tags: ['velscour'], lines: [[0, 'Lord Velscour sees this village, {b}.'], [1, 'Does he see the dead in the yard?'], [0, 'He sees everything that is his.']] },
+  { tags: ['velscour'], lines: [[0, 'Polish that V, {b}.'], [1, 'It shines.'], [0, 'It shines for him. Make it shine more.']] },
+  { tags: ['velscour'], lines: [[0, 'The townsfolk stare at us.'], [1, 'Let them.'], [0, 'They stare at the sigil, not at us.']] },
+  { tags: ['velscour'], lines: [[0, 'When does the throne send for us?'], [1, 'When the bell stops ringing.'], [0, 'It never stops ringing.']] },
+  { tags: ['velscour'], lines: [[0, "This helm's too hot, {b}."], [1, 'Then take it off.'], [0, "And let them see my face? No."]] },
+  { tags: ['velscour'], lines: [[0, 'The reeve thinks he runs Bellmourn.'], [1, 'Let him think it.'], [0, 'For now.']] },
   // ------------------------------------------------------------------ work
   { tags: ['worker'], lines: [[0, 'Need a hand with that, {b}?'], [1, 'Need two, and a back.']] },
   { tags: ['worker'], lines: [[0, 'Order is due by sundown.'], [1, 'Sundown or the end of days?'], [0, 'Whichever comes first.']] },
@@ -304,6 +311,7 @@ export const BARKS = {
     "I'll be late. I'm always late.", 'One more day.', 'Smells like smoke.', 'Was that a crow? Or a laugh?', "I'll mend it tomorrow.",
     'Not again.', 'Lovely day for it.', 'Mud. Always mud.', 'Did someone call me?'],
   guard: ['Keep moving.', 'All quiet.', 'Eyes on the tree line.', 'Wall holds.', 'Nothing in the yard. Yet.', 'Stay off the graveyard, stranger.'],
+  velscour: ['For Lord Velscour.', 'His eye is on this town.', 'The V does not tarnish.', 'Steady. We are watched.', 'Nothing passes the garrison.'],
   worker: ['Back to it.', 'My shoulders...', 'Just one more.', 'Where are my nails?', 'Done by dusk, done by dusk.'],
   merchant: ['Fresh goods! Fair prices!', 'Candles, nails, salt!', 'Buy now, the roads may close!', 'Finest wares this side of the forest!'],
   smith: ['Hot iron waits for no one.', 'Hammer and tongs.', 'That one needs another heat.'],
@@ -321,6 +329,7 @@ export const GREETS = {
   any: ['Morning, stranger.', 'Good day to you.', 'Safe roads, traveller.', 'Mind the graveyard.', "You're the one who went down the stair?",
     'Saints keep you.', "Haven't seen you before.", "You look like you've seen things.", 'Welcome to Bellmourn. Such as it is.', 'Evening. Or nearly.'],
   guard: ['Stay out of trouble.', 'Keep that blade sheathed in town.', "If you're going down the stair, go quickly."],
+  velscour: ["You walk in Lord Velscour's town, stranger.", 'Kneel to the V, or keep walking.', 'The garrison is watching you.', 'Serve him well below.'],
   merchant: ['Need anything? Candles? Rope? Courage?', 'Come by my stall, friend.', 'Fair prices for heroes!'],
   healer: ["You're bleeding, dear. Come see me.", 'Mind those wounds.'],
   old: ['Back in my day, heroes were taller.', 'Another one for the stair. Poor thing.'],

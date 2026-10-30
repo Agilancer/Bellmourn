@@ -1,0 +1,20 @@
+{
+ "id": "fiend",
+ "name": "Fiend's Panoply",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "fiend",
+ "description": "Blackened demon-iron edged in gold, sworn to Lord Velscour: his full sigil on a silver breast panel and on a crimson cape, a saw-toothed fin down the spine, an asymmetric spiked great pauldron, gold-rimmed lames, V-bossed knees, an embroidered loincloth, and a black great helm with gold ram's horns and slotted breaths.",
+ "files": {
+  "male": "fiend_m.glb",
+  "female": "fiend_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

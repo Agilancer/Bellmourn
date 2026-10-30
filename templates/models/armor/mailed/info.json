@@ -1,0 +1,20 @@
+{
+ "id": "mailed",
+ "name": "Hauberk of the Vigil",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "mailed",
+ "description": "A knee-length mail hauberk under a crimson tabard embroidered in gold with Lord Velscour's V front and back, gold-rimmed square spaulders with crimson V rondels, V-bossed knee cops, high boots and a tall tapered great helm.",
+ "files": {
+  "male": "mailed_m.glb",
+  "female": "mailed_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

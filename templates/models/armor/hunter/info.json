@@ -1,0 +1,20 @@
+{
+ "id": "hunter",
+ "name": "Warden's Leathers",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "hunter",
+ "description": "A ranger's layered leather sworn to Lord Velscour: a tooled cuirass with his copper V, lamed spaulders with V rondels, verdigris bronze edges, a green mantle and cloak, and a slotted great helm.",
+ "files": {
+  "male": "hunter_m.glb",
+  "female": "hunter_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}
