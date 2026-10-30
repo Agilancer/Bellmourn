@@ -18,8 +18,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Zombie, goreMaterial, wrap } from './zombies.js';
+import { TOUCH } from './input.js';
 
-const ROOT = 'templates/models/creatures/foes/';
+// a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
+// atlases at 512, cut down nearest so the paint keeps its palette)
+const ROOT = 'templates/models/creatures/foes/' + (TOUCH ? 'phone/' : '');
 const ITEM_ROOT = 'templates/models/';
 const FPS = 30;
 

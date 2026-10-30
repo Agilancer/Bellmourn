@@ -94,6 +94,20 @@ for (let i = 0; i < TORCHES; i++) {
 }
 
 const sfx = new Sfx();
+// A phone that runs out of memory is killed and reloaded by the browser with no word of why (Safari's
+// "A problem repeatedly occurred"), so each run notes how far it has got; if it never closed cleanly,
+// the next shows where it stopped, under the title.
+const TRACE = 'bm.trace';
+const run = { step: 'starting', frames: 0, bringing: '' };
+let lastRun = null;
+try { lastRun = localStorage.getItem(TRACE); localStorage.removeItem(TRACE); } catch { /* no storage */ }
+function trace() {
+  const i = renderer.info;
+  const s = `${run.step}, ${run.frames} frames drawn${started ? ' (playing)' : ''}, ${villagers?.list.length ?? 0} villagers in`
+    + `${run.bringing ? `, bringing ${run.bringing}` : ''}, ${i.memory.textures} textures, ${i.programs?.length ?? 0} shaders, ${(performance.now() / 1000).toFixed(1)}s`;
+  try { localStorage.setItem(TRACE, s); } catch { /* no storage */ }
+}
+addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
@@ -177,6 +191,7 @@ async function build() {
   const T0 = performance.now(), times = (window.buildTimes = []);
   const mark = async (k) => {
     times.push([k, Math.round(performance.now() - T0)]);
+    run.step = `built ${k}`; trace();
     if (LOADED[k]) { hud.loading(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
   };
   physics = new Physics();
@@ -255,6 +270,7 @@ async function build() {
   // background and walk out of their doors as they arrive
   villagers = new Villagers(scene, ctx);
   villagers.camera = camera;
+  villagers.onLoading = (p) => { run.bringing = p?.name || ''; trace(); };   // who is coming in (null: they're in)
   villagers.populate(touch && !HI ? 10 : 22);
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
@@ -274,7 +290,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   vm.on(onEvent);
   resize();
-  ready = true;
+  ready = true; run.step = 'loaded';
 }
 
 /** A small picture of an arm model for the bag, rendered from the model itself. */
@@ -880,6 +896,7 @@ function tick(dt) {
   vmPass.enabled = started; // no arms behind the title screen
   if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
   composer.render(dt);
+  if (++run.frames % 30 === 1) trace();
   inp.endFrame();
 }
 
@@ -887,6 +904,7 @@ function tick(dt) {
 hud = new Hud(ui, { spells: SPELLS, items: ITEMS });
 try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); } catch { /* first visit */ }
 hud.showOverlay('loading', touch);
+if (lastRun) hud.lastRun(lastRun);
 gameInput = new Input(canvas, ui);
 // a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
 canvas.addEventListener('webglcontextlost', () => {

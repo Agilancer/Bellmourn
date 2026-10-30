@@ -1,12 +1,14 @@
-"""Phone copies of the monsters and the villagers: <set>/phone/<name>.glb, each the same model with
-every image over the set's cap shrunk down to it (in its own format: JPEG, PNG or WebP, alpha kept).
+"""Phone copies of the monsters, the foes and the villagers: <set>/phone/<name>.glb, each the same
+model with every image over the set's cap shrunk down to it (in its own format: JPEG, PNG or WebP,
+alpha kept).
 
 A phone loading the full ones died: the monsters' 2048 skins (five apiece) and the villagers' 2048
 heads and hair with a dozen 1024 cloths each came to over a gigabyte decoded, and as much again on
-the GPU. A phone draws the world at about 420 pixels across, where a villager stands at most a
-hundred or so tall, so 256 is all its skins need. Re-run this whenever one of their .glbs changes.
+the GPU. A phone draws the world at about 420 pixels across: a villager stands at most a hundred or
+so tall in it, and a monster in your face little more than the screen's height, so 256 and 512 are
+all their skins need. Re-run this whenever one of their .glbs changes.
 
-    python tools/creatures/phone_copies.py [monsters|villagers ...]
+    python tools/creatures/phone_copies.py [monsters|foes|villagers ...]
 """
 import io
 import json
@@ -17,7 +19,7 @@ import sys
 from PIL import Image
 
 ROOT = os.path.join('templates', 'models', 'creatures')
-CAPS = {'monsters': 1024, 'villagers': 256}   # the biggest image side a phone gets
+CAPS = {'monsters': 512, 'foes': 512, 'villagers': 256}   # the biggest image side a phone gets
 
 
 def read_glb(path):
@@ -42,13 +44,14 @@ def write_glb(path, j, bin_):
         f.write(struct.pack('<II', len(bin_), 0x004E4942) + bin_)
 
 
-def shrink(data, mime, cap):
-    """The image's bytes at no more than cap square (unchanged if it already is)."""
+def shrink(data, mime, cap, nearest=False):
+    """The image's bytes at no more than cap square (unchanged if it already is). A texture drawn
+    nearest-filtered (the foes' painted atlases) is cut down nearest too, keeping its palette."""
     im = Image.open(io.BytesIO(data))
     if max(im.size) <= cap:
         return data
     s = cap / max(im.size)
-    im = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
+    im = im.resize((round(im.width * s), round(im.height * s)), Image.NEAREST if nearest else Image.LANCZOS)
     out = io.BytesIO()
     if mime == 'image/png':
         im.save(out, 'PNG', optimize=True)
@@ -63,11 +66,17 @@ def phone_copy(src, dst, cap):
     j, bin_ = read_glb(src)
     assert len(j['buffers']) == 1, src
     images = {im['bufferView']: im.get('mimeType', 'image/jpeg') for im in j.get('images', []) if 'bufferView' in im}
+    samplers = j.get('samplers', [])
+    nearest = set()   # the bufferViews of images some texture draws nearest-filtered
+    for t in j.get('textures', []):
+        src = t.get('source', next((e.get('source') for e in t.get('extensions', {}).values() if 'source' in e), None))
+        if src is not None and 'sampler' in t and samplers[t['sampler']].get('magFilter') == 9728:
+            nearest.add(j['images'][src].get('bufferView'))
     out = bytearray()
     for i, bv in enumerate(j['bufferViews']):
         data = bin_[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
         if i in images:
-            data = shrink(data, images[i], cap)
+            data = shrink(data, images[i], cap, i in nearest)
         out += b'\0' * (-len(out) % 4)
         bv['byteOffset'] = len(out)
         bv['byteLength'] = len(data)

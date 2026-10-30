@@ -37,8 +37,8 @@ export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 // skins, each with its own hand-keyed idle, move, attack1, attack2, roar, hit and death. Their
 // UE-style bones are renamed to the zombie body's on load so the brain and the gore drive them.
 // A phone loads their phone copies (monsters/phone/, from tools/creatures/phone_copies.py:
-// every image over 1024 square halved), one at a time: the full ones carry five 2048 images
-// apiece, and nine of them decoding together ran to hundreds of megabytes and killed the tab.
+// every image at most 512 square), one at a time: the full ones carry five 2048 images apiece,
+// and nine of them decoding together ran to hundreds of megabytes and killed the tab.
 const MONSTER_ROOT = 'templates/models/creatures/monsters/' + (TOUCH ? 'phone/' : '');
 export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
   'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
