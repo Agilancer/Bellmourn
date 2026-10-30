@@ -1,0 +1,69 @@
+{
+ "seed": 4407,
+ "face": "03_Suit",
+ "morph": {
+  "caucasian-female-young": 1.0,
+  "l-ear-flap-in": 0.079,
+  "r-ear-flap-in": 0.079,
+  "head-oval": 0.348,
+  "mouth-scale-horiz-incr": 0.122,
+  "eyebrows-trans-depth-less": 0.017,
+  "head-scale-horiz-more": 0.207,
+  "chin-jaw-drop-less": 0.376,
+  "forehead-scale-vert-less": 0.137,
+  "nose-volume-point": 0.416
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.66,
+  0.74
+ ],
+ "dress": {
+  "Suit_Body:Black": [
+   "quilted_blue",
+   0.8,
+   0.4
+  ],
+  "White": [
+   "burlap_coarse",
+   1.2,
+   0.25
+  ],
+  "Suit_Legs:Black": [
+   "burlap_dark",
+   0.6,
+   0.3
+  ],
+  "Suit_Feet:Black": [
+   "leather_tooled",
+   0.5,
+   0.3
+  ],
+  "Suit_Feet:Skin": [
+   "leather_strapwork",
+   0.6,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.99,
+ "outfit": "Suit",
+ "skin_tile": "02_Tan_Skin",
+ "hair": "curly2",
+ "sleeves": "White",
+ "parts": [
+  "Suit_Body",
+  "Suit_Legs",
+  "Suit_Feet"
+ ],
+ "name": "villager_f07",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

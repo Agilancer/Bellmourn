@@ -1,0 +1,66 @@
+{
+ "seed": 3302,
+ "face": "05_Scarred_Warrior",
+ "morph": {
+  "caucasian-male-young": 0.75,
+  "caucasian-male-old": 0.25,
+  "nose-scale-vert-decr": 0.242,
+  "nose-point-width-more": 0.542,
+  "mouth-scale-horiz-incr": 0.255,
+  "l-cheek-bones-in": 0.32,
+  "r-cheek-bones-in": 0.32,
+  "head-scale-horiz-more": 0.345,
+  "mouth-upperlip-volume-inflate": 0.47,
+  "nose-scale-horiz-decr": 0.513,
+  "forehead-scale-vert-more": 0.245
+ },
+ "eye": "grey",
+ "iris_tint": [
+  0.5,
+  0.7,
+  0.76
+ ],
+ "dress": {
+  "Metal": [
+   "metal_steel",
+   1.0,
+   0.35
+  ],
+  "Metal_Dark": [
+   "metal_dark",
+   0.8,
+   0.3
+  ],
+  "Blue": [
+   "quilted_blue",
+   0.9,
+   0.36
+  ],
+  "Beige": [
+   "leather_strapwork",
+   0.9,
+   0.3
+  ],
+  "DarkBrown": [
+   "burlap_dark",
+   0.75,
+   0.3
+  ]
+ },
+ "line": 0.03,
+ "scale": 1.04,
+ "outfit": "King",
+ "sleeves": "Blue",
+ "parts": [
+  "King_Body",
+  "King_Legs",
+  "King_Feet"
+ ],
+ "name": "villager_m08",
+ "views": [
+  "hero_34",
+  "hero_face",
+  "hero_back"
+ ],
+ "samples": 64
+}

@@ -23,6 +23,7 @@ export class Props {
     this.lib = lib;
     this.place = new Map(); // id -> [{x, y, z, rot, scale}]
     this.lights = [];       // [x, y, z, size] flames
+    this.boxes = new Map(); // id -> its model's bounding box (once loaded)
   }
 
   /** Place prop `id`; `fit` (metres) scales it to that height instead of by `scale`. */
@@ -50,6 +51,7 @@ export class Props {
       geo.scale(1, 1, -1); // glTF stores the models z-mirrored: back to as built (front = +z)
       geo.computeBoundingBox();
       const bb = geo.boundingBox;
+      this.boxes.set(id, bb);
       const mesh = new THREE.InstancedMesh(geo, mat, list.length);
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
       list.forEach((p, i) => {

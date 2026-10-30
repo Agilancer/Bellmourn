@@ -1,0 +1,76 @@
+{
+ "id": "dane_axe",
+ "name": "Dane Axe",
+ "kind": "two-handed weapon",
+ "description": "A broad bearded crescent axe head strapped with riveted iron to a long crooked haft, leather where the hands go, an iron butt shoe.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 1140,
+ "files": [
+  "dane_axe.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/dane_axe_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/dane_axe_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/dane_axe_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/dane_axe_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/dane_axe_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/dane_axe_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "axe head"
+  },
+  {
+   "number": 2,
+   "name": "honed edge"
+  },
+  {
+   "number": 3,
+   "name": "socket"
+  },
+  {
+   "number": 4,
+   "name": "head straps"
+  },
+  {
+   "number": 5,
+   "name": "haft"
+  },
+  {
+   "number": 6,
+   "name": "grip wrap"
+  },
+  {
+   "number": 7,
+   "name": "butt shoe"
+  }
+ ],
+ "set": "set13",
+ "set_name": "model 13"
+}

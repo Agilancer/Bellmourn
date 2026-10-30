@@ -14,12 +14,13 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
+import { Kit } from './kit.js';
 import { Builder } from './geo.js';
 import { Billboards } from './sprites.js';
 import { Props } from './props.js';
-import { buildWorld, WORLD_R, VILLAGE_R, GRAVEYARD } from './world.js';
+import { buildWorld, VILLAGE_R, GRAVEYARD } from './world.js';
 import { buildDungeon } from './dungeon.js';
-import { Input } from './input.js';
+import { Input, TOUCH } from './input.js';
 import { Player } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
@@ -28,14 +29,20 @@ import { Hud } from './hud.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
+import { Cutouts } from './cutout.js';
+import { Loot } from './loot.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter } from './gear.js';
+import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION } from './terrain.js';
 import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
+import { Foes } from './foes.js';
+import { Villagers } from './villagers.js';
+import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
-import { Cutouts } from './cutout.js';
 
-const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const touch = TOUCH;
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
 const HI = QUALITY === 'high';
 
@@ -46,7 +53,10 @@ renderer.setPixelRatio(1);
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.2;
 renderer.shadowMap.enabled = HI;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// a phone at high: plain PCF (a quarter the taps of soft), the sun's map redrawn every other
+// frame (see tick), and less of everything else below
+renderer.shadowMap.type = touch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+if (touch) renderer.shadowMap.autoUpdate = false;
 
 // the world camera: the rigs' 90 degree horizontal view at 16:10 (64 degrees vertical), which
 // stays the vertical view at any aspect ratio
@@ -61,12 +71,13 @@ const sun = new THREE.DirectionalLight(0xfff0d8, 2.0);
 scene.add(hemi, sun, sun.target);
 if (HI) {
   sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.mapSize.set(touch ? 2048 : 4096, touch ? 2048 : 4096);
   const c = sun.shadow.camera;
   c.left = c.bottom = -72; c.right = c.top = 72; c.near = 1; c.far = 600;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
 }
-const TORCHES = HI ? 16 : 8, TORCH_SHADOWS = HI ? 4 : 0;
+// every point light is paid for in every lit pixel: a phone gets fewer
+const TORCHES = HI ? (touch ? 10 : 16) : 8, TORCH_SHADOWS = HI ? (touch ? 2 : 4) : 0;
 const torchPool = [];
 for (let i = 0; i < TORCHES; i++) {
   const l = new THREE.PointLight(0xff9a48, 0, 16, 1.25);
@@ -84,9 +95,10 @@ for (let i = 0; i < TORCHES; i++) {
 
 const sfx = new Sfx();
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, zombies;
-// the graveyard's dead: one of each zombie, among the graves
-const ZOMBIE_SPAWNS = [['a', -14, -140, 0.3], ['b', 24, -150, -0.4], ['c', -28, -161, 0.6]];
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
+// the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
+// lying buried), and more spread through the dungeon below
+const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
 // what each kind of spell does to flesh: a direct hit, and its blast (radius, damage)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, arcane: 18, staff: 30, wisp: 25 };
 const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
@@ -95,9 +107,12 @@ const pending = { R: null, L: null };
 let pix = Number(localStorage.getItem('bm.pix') || (HI ? 2 : 2));
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
 let hour = { golden: 17.6, noon: 12, night: 23, cycle: 16.8 }[timeMode] ?? 16.8;
-let started = false, paused = false;
+let started = false, paused = false, lost = false;
 let W = 2, H = 2;
 let shake = 0, flameList = [], lightTimer = 0;
+// the character: what's worn and carried (gear.js), what it adds up to, and the shield's Guard
+let char = loadCharacter(), st = computeStats(char), bag = null, map = null;
+const guard = { v: 0, max: 0, broken: false, wait: 0 };
 
 // ------------------------------------------------------------------ post-processing
 const composer = new EffectComposer(renderer);
@@ -137,12 +152,15 @@ if (HI || QUALITY === 'low') composer.addPass(bloom);
 composer.addPass(new OutputPass());
 composer.addPass(grade);
 
+// dynamic resolution: the picture is drawn at `rs` of the chosen pixel size's resolution, eased
+// down (to 0.55) when frames run long and back up when there's time to spare
+let rs = 1, frameMs = 16, rsT = 0;
 function resize() {
-  W = Math.max(2, Math.floor(innerWidth / pix));
-  H = Math.max(2, Math.floor(innerHeight / pix));
+  W = Math.max(2, Math.floor(innerWidth / pix * rs));
+  H = Math.max(2, Math.floor(innerHeight / pix * rs));
   renderer.setSize(W, H, false);
   composer.setSize(W, H);
-  bloom.setSize(W, H);
+  bloom.setSize(touch ? Math.ceil(W / 2) : W, touch ? Math.ceil(H / 2) : H);
   camera.aspect = W / H;
   camera.updateProjectionMatrix();
   vm?.resize(W / H);
@@ -151,15 +169,27 @@ function resize() {
 addEventListener('resize', resize);
 
 // ------------------------------------------------------------------ build everything
+// how far through the build each step is (as it runs on a desktop), for the loading line: a
+// phone takes a minute or more, and should be seen to be getting on with it
+const LOADED = { library: 10, world: 37, props: 45, arms: 73, icons: 77, zombies: 80, foes: 100 };
+
 async function build() {
-  const T0 = performance.now(), times = (window.buildTimes = []), mark = (k) => times.push([k, Math.round(performance.now() - T0)]);
+  const T0 = performance.now(), times = (window.buildTimes = []);
+  const mark = async (k) => {
+    times.push([k, Math.round(performance.now() - T0)]);
+    if (LOADED[k]) { hud.loading(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
+  };
   physics = new Physics();
+  // the world is built from the Velscour texture library, its sprites and props; the kit's
+  // props bundle only gives what lies on the ground (a purse, draughts, a pouch) and the
+  // villagers' tools
   lib = await new Library(renderer, { normals: HI }).load();
+  kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI, packs: ['props'] }).load();
   const b = new Builder(physics);
   bill = new Billboards(lib, scene);
   bill.shadows = HI;
   const props = new Props(scene, physics, lib);
-  ctx = { lib, b, props, bill, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
+  ctx = { lib, kit, b, props, bill, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
   ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
   ctx.cutouts = await new Cutouts(ctx).load();      // the biome packs' arches and gateways
   physics.terrain = terrainHeight; // the downs; flat ground everywhere else
@@ -173,16 +203,19 @@ async function build() {
     ctx.scatter.place(id, x, y, z, sc);
     return true;
   };
-  mark('library');
-  buildWorld(ctx); mark('world');
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); mark('dungeon');
-  b.finish(scene); mark('merge');
-  bill.finish(); mark('billboards');
-  ctx.trees3d.finish(scene); mark('trees');
-  await props.finish(); mark('props');
+  await mark('library');
+  buildWorld(ctx); await mark('world');
+  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); await mark('dungeon');
+  ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); await mark('merge');
+  bill.finish(); await mark('billboards');
+  ctx.trees3d.finish(scene); await mark('trees');
+  await props.finish();
+  ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
+  ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  await mark('props');
   ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
-  console.info(`3D scatter models: ${ctx.scatter.count}`);
+  console.info(`3D scatter models: ${ctx.scatter.count}; textures: ${lib.used.size}/${lib.surf.size} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use; ${ctx.containers} containers`);
   flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
   skyDome = new Sky(scene);
@@ -194,105 +227,200 @@ async function build() {
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
-  vm = new ViewModel(manifest, lib);
-  vm.equip = { R: 'onehand', L: 'shield_round' };
-  await vm.load('wayfarer');
+  useManifest(manifest);
+  fitCharacter(char); saveCharacter(char);   // its arms' models, and the basic sword, shield and staff
+  vm = new ViewModel(manifest, kit);
+  await vm.load(char.equip.hands?.model || 'bare');
   vmPass.scene = vm.scene; vmPass.camera = vm.camera;
-  mark('arms');
-  const icons = await renderIcons(); mark('icons');
+  // what lies about to be taken up, and what the chests, crates, barrels and sacks hold
+  Object.assign(ctx.loot.hooks, {
+    models: lootModel,
+    zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
+    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); saveCharacter(char); bag.render(); },
+    full: () => hud.toast('Your bag is full'),
+  });
+  await mark('arms');
+  await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
+  await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
-  zombies = new Zombies(scene, physics, lib, sfx);
-  await zombies.load(); mark('zombies');
-  for (const [v, x, z, yaw] of ZOMBIE_SPAWNS) zombies.spawn(v, x, z, yaw);
+  zombies = new Zombies(scene, physics, kit, sfx);
+  await zombies.load(); await mark('zombies');
+  const G = GRAVEYARD;
+  zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
+  zombies.populateDungeon(ctx.dungeon, DUNGEON_DEAD);
   zombies.onPlayerHit = hurtPlayer;
+  foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
+  await foes.load(); foes.populate(ctx);
+  // the people of the village (made from the foes' bodies), fewer on a phone
+  villagers = new Villagers(foes, ctx);
+  villagers.populate(touch && !HI ? 12 : 21, touch && !HI ? 2 : 4);
+  await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
-  magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: SPELL_DMG[def.kind] ?? 30, dir: d, heavy: def.size > 0.4, kind: def.kind });
-  magic.onBlast = (def, at) => { const b = SPELL_BLAST[def.kind]; if (b) zombies.blast(at, b[0], b[1], def.kind); };
+  magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: spellDamage(def), dir: d, heavy: def.size > 0.4, kind: def.kind });
+  magic.onBlast = (def, at) => {
+    const b = SPELL_BLAST[def.kind];
+    if (b) zombies.blast(at, b[0], b[1], def.kind);
+    zombies.noise(at, def.size > 0.4 ? 26 : 16);   // the dead hear it go off
+  };
 
-  hud.setIcons(icons);
-  hud.o.gauntlets = manifest.arms.map((a) => ({ id: a.id, name: a.name.replace(/^bare arm$/, 'Bare hands') }));
-  hud.refresh(vm.equip, book, vm.gauntlet);
+  bag = new Bag(ui, {
+    char: () => char, stats: () => st, player: () => player, icon: itemIcon, toast: (t) => hud.toast(t),
+    onChange: () => applyGear(), onUse: drinkAt, onDrop: dropFromBag,
+    spells: SPELLS, spellIcons: hud.spellIcons, book: () => book, onAssign: assign, onClose: () => setInventory(false),
+  });
+  hud.refresh(vm.equip, book);
+  map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   vm.on(onEvent);
   resize();
-  const used = lib.used.size, all = lib.surf.size;
-  console.info(`textures: ${used}/${all} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use`);
   ready = true;
 }
 
-/** Small pictures of the six arms for the inventory, rendered from their models. */
-async function renderIcons() {
-  const out = {};
+/** A small picture of an arm model for the bag, rendered from the model itself. */
+const iconRT = { rt: null, sc: null, cv: null };
+function renderIcon(obj) {
   const S = 96;
-  const rt = new THREE.WebGLRenderTarget(S, S);
-  const sc = new THREE.Scene();
-  sc.add(new THREE.HemisphereLight(0xfff0dd, 0x403848, 2.2));
-  const dl = new THREE.DirectionalLight(0xffe8c8, 3); dl.position.set(-1, 2, 3); sc.add(dl);
-  const buf = new Uint8Array(S * S * 4);
-  const cv = document.createElement('canvas'); cv.width = cv.height = S;
-  const g = cv.getContext('2d');
+  if (!iconRT.rt) {
+    iconRT.rt = new THREE.WebGLRenderTarget(S, S);
+    iconRT.sc = new THREE.Scene();
+    iconRT.sc.add(new THREE.HemisphereLight(0xfff0dd, 0x403848, 2.0));
+    iconRT.key = new THREE.DirectionalLight(0xffe8c8, 3.2); iconRT.sc.add(iconRT.key, iconRT.key.target);
+    iconRT.cv = document.createElement('canvas'); iconRT.cv.width = iconRT.cv.height = S;
+  }
+  const { rt, sc, cv } = iconRT, g = cv.getContext('2d'), buf = new Uint8Array(S * S * 4);
   const tm = renderer.toneMapping;
   renderer.toneMapping = THREE.NoToneMapping;
-  for (const kind of Object.keys(ITEMS)) {
-    const obj = await vm.itemScene(kind);
-    const holder = new THREE.Group();
-    holder.add(obj);
-    sc.add(holder);
-    let box = new THREE.Box3().setFromObject(holder);
-    const size = box.getSize(new THREE.Vector3());
-    const thin = ['x', 'y', 'z'].reduce((a, k) => (size[k] < size[a] ? k : a), 'x');
-    const long = size.y > 2.2 * Math.max(size.x, size.z);
-    if (long) holder.rotation.z = -Math.PI / 4; // blades and staves lie corner to corner
-    box = new THREE.Box3().setFromObject(holder);
-    const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
-    const r = Math.max(sz.x, sz.y, sz.z) * 0.56;
-    const cam = new THREE.OrthographicCamera(-r, r, r, -r, 0.01, 20);
-    const dir = long ? new THREE.Vector3(0.25, 0.15, 1) : new THREE.Vector3(thin === 'x' ? 1 : 0.2, 0.2, thin === 'z' ? 1 : 0.3);
-    cam.position.copy(c).addScaledVector(dir.normalize(), 5);
-    cam.lookAt(c);
-    renderer.setRenderTarget(rt);
-    renderer.setClearColor(0x000000, 0);
-    renderer.clear();
-    renderer.render(sc, cam);
-    renderer.readRenderTargetPixels(rt, 0, 0, S, S, buf);
-    renderer.setRenderTarget(null);
-    const img = g.createImageData(S, S);
-    for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
-    g.clearRect(0, 0, S, S);
-    g.putImageData(img, 0, 0);
-    out[kind] = cv.toDataURL();
-    sc.remove(holder);
-  }
+  const holder = new THREE.Group();
+  holder.add(obj);
+  sc.add(holder);
+  let box = new THREE.Box3().setFromObject(holder);
+  const size = box.getSize(new THREE.Vector3());
+  const thin = ['x', 'y', 'z'].reduce((a, k) => (size[k] < size[a] ? k : a), 'x');
+  const long = size.y > 2.2 * Math.max(size.x, size.z);
+  // the arms are held blade up with their edges along z (their flat to x), shields face -z:
+  // look at a blade's flat and a shield's face. Blades and staves lie corner to corner.
+  if (long) holder.rotation.x = Math.PI / 4;
+  box = new THREE.Box3().setFromObject(holder);
+  const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+  const r = Math.max(sz.x, sz.y, sz.z) * 0.56;
+  const cam = new THREE.OrthographicCamera(-r, r, r, -r, 0.01, 20);
+  const dir = long ? new THREE.Vector3(1, 0.12, -0.2) : thin === 'z' ? new THREE.Vector3(0.2, 0.25, -1) : new THREE.Vector3(1, 0.25, -0.3);
+  cam.position.copy(c).addScaledVector(dir.normalize(), 5);
+  cam.lookAt(c);
+  iconRT.key.position.copy(c).addScaledVector(dir, 3).add(new THREE.Vector3(0, 2, 0)); iconRT.key.target.position.copy(c);
+  renderer.setRenderTarget(rt);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear();
+  renderer.render(sc, cam);
+  renderer.readRenderTargetPixels(rt, 0, 0, S, S, buf);
+  renderer.setRenderTarget(null);
   renderer.toneMapping = tm;
-  rt.dispose();
-  return out;
+  sc.remove(holder);
+  // (the target holds linear light: brought to sRGB for the page)
+  const lut = iconRT.lut ||= Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)); });
+  for (let i = 0; i < buf.length; i += 4) { buf[i] = lut[buf[i]]; buf[i + 1] = lut[buf[i + 1]]; buf[i + 2] = lut[buf[i + 2]]; }
+  const img = g.createImageData(S, S);
+  for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+  g.clearRect(0, 0, S, S);
+  g.putImageData(img, 0, 0);
+  return cv.toDataURL();
+}
+
+const icons = new Map();   // model|finish -> data URL ('' while it's being made)
+function itemIcon(it, again) {
+  if (!it.model || it.kind === 'gauntlet') return null;
+  const key = it.model + '|' + (it.finish || '');
+  if (icons.has(key)) return icons.get(key) || null;
+  icons.set(key, '');
+  vm.modelScene(it.model, it.finish).then((obj) => { icons.set(key, renderIcon(obj)); again?.(); });
+  return null;
+}
+
+/** What a thing lying on the ground looks like: its own model for an arm, else a sack, a purse
+ * of coin or a flask. */
+async function lootModel(it) {
+  if (it.type === 'gear' && it.model && it.kind !== 'gauntlet') {
+    const o = await vm.modelScene(it.model, it.finish);
+    const g = new THREE.Group(); g.add(o);
+    o.rotation.z = /shield/.test(it.kind) ? 0 : 0.5;
+    const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+    o.position.sub(c);
+    return g;
+  }
+  const id = it.type === 'gold' ? 'props/Coin_Pile' : it.type === 'potion' ? (it.kind === 'mana' ? 'props/Potion_2' : 'props/Potion_1') : 'props/Pouch_Large';
+  const m = kit.mesh(id);
+  m.scale.setScalar(it.type === 'potion' ? 2.2 : it.type === 'gear' ? 2.4 : 1.4);
+  m.position.y = -0.35;
+  return m;
 }
 
 // ------------------------------------------------------------------ equipment and spells
 let equipping = Promise.resolve();
-function equip(kind, side) {
+/** Put what the character wears into the hands (and the gauntlets onto them), and take its
+ * numbers: life, mana, regeneration, speed, the shield's Guard. */
+function applyGear(first = false) {
   equipping = equipping.then(async () => {
-    const e = vm.equip, it = ITEMS[kind];
-    if (!it || !it.hands.includes(side)) return;
-    const wasIn = e.R === kind || e.L === kind;
-    if (it.both) {
-      if (e.R === kind) e.R = null; else { e.R = kind; e.L = null; }
-    } else if (e[side] === kind) {
-      e[side] = null;
-    } else {
-      for (const s of ['R', 'L']) if (e[s] === kind) e[s] = null; // only one of each
-      if (side === 'L' && e.R && ITEMS[e.R].both) e.R = null;
-      e[side] = kind;
-    }
+    st = computeStats(char);
+    const w = char.equip.weapon, o = char.equip.offhand;
+    if (w) vm.setArm(w.kind, w.model, w.name, w.finish);
+    if (o) vm.setArm(o.kind, o.model, o.name, o.finish);
+    vm.equip.R = w ? w.kind : null;
+    vm.equip.L = o && w?.kind !== 'twohand' ? o.kind : null;
     vm.blocking = false;
     pending.R = pending.L = null;
-    magic.endCharge();
-    await vm.applyEquip();
-    sfx.equip();
-    const now = e.R === kind || e.L === kind;
-    hud.toast(now ? `${it.name} — ${it.both ? 'both hands' : side === 'R' ? 'right hand' : 'left hand'}` : wasIn ? `${it.name} put away` : '');
-    hud.refresh(e, book, vm.gauntlet);
+    magic?.endCharge();
+    player.maxHealth = st.maxLife; player.maxMana = st.maxMana;
+    if (first) { player.health = st.maxLife; player.mana = st.maxMana; }
+    player.health = Math.min(player.health, st.maxLife); player.mana = Math.min(player.mana, st.maxMana);
+    player.lifeRegen = st.lifeRegen; player.manaRegen = st.manaRegen; player.speedMul = 1 + st.moveSpeed / 100;
+    guard.max = st.shield?.guard || 0;
+    guard.v = first ? guard.max : Math.min(guard.v, guard.max);
+    const g = char.equip.hands?.model || 'bare';
+    if (vm.gauntlet !== g) await vm.load(g); else await vm.applyEquip();
+    if (!first) sfx.equip();
+    hud.refresh(vm.equip, book);
+    saveCharacter(char);
   });
+  return equipping;
+}
+
+/** The quick keys: the first thing of that kind in the bag into its hand (or, if it's already
+ * held, back into the bag). */
+function equip(kind) {
+  const slot = /shield/.test(kind) ? 'offhand' : 'weapon';
+  if (char.equip[slot]?.kind === kind) { bag.unequip(slot); return; }
+  const i = char.bag.findIndex((b) => b?.type === 'gear' && b.kind === kind);
+  if (i < 0) { hud.toast(`No ${ITEMS[kind]?.type || kind} in the bag`); return; }
+  bag.equipFromBag(i, slot);
+  hud.toast(`${char.equip[slot].name} in hand`);
+}
+
+/** Drink a draught: Q for healing, Z for mana (or double-click it in the bag). */
+function drink(kind) {
+  const i = char.bag.findIndex((b) => b?.type === 'potion' && b.kind === kind);
+  if (i < 0) { hud.toast(kind === 'life' ? 'No healing draughts' : 'No mana draughts'); return; }
+  drinkAt(i);
+  bag.render();
+}
+function drinkAt(i) {
+  const it = char.bag[i];
+  if (!it || it.type !== 'potion') return;
+  if (it.kind === 'life') player.healing += 45; else player.mana = Math.min(player.maxMana, player.mana + 50);
+  if (--it.count <= 0) char.bag[i] = null;
+  sfx.cast?.('heal');
+  hud.toast(it.kind === 'life' ? 'You drink a healing draught' : 'You drink a mana draught');
+  saveCharacter(char);
+}
+
+/** Out of the bag onto the ground in front of you. */
+function dropFromBag(i) {
+  const it = char.bag[i];
+  if (!it) return;
+  char.bag[i] = null;
+  const f = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const d = ctx.loot.spawn(it, player.pos.x + f.x * 1.6, player.pos.y + 1.2, player.pos.z + f.z * 1.6, { pop: true });
+  d.age = -1.5;   // not taken straight back up
+  saveCharacter(char);
 }
 
 function assign(id, slot) {
@@ -300,15 +428,26 @@ function assign(id, slot) {
   if (book[other] === id) book[other] = book[slot];
   book[slot] = id;
   localStorage.setItem('bm.book', JSON.stringify(book));
-  hud.refresh(vm.equip, book, vm.gauntlet);
+  hud.refresh(vm.equip, book);
 }
 
-function gauntlet(id) {
-  equipping = equipping.then(async () => {
-    await vm.load(id);
-    sfx.equip();
-    hud.refresh(vm.equip, book, vm.gauntlet);
-  });
+/** A melee blow's damage: the weapon's roll, what's worn, and now and then a critical. */
+const stats = {
+  crit: false,
+  meleeDamage(heavy, side) {
+    const w = char.equip.weapon, d = w?.dmg || st.weapon;
+    let x = (d[0] + Math.random() * (d[1] - d[0]) + st.dmg) * (1 + st.dmgPct / 100);
+    this.crit = Math.random() * 100 < st.crit;
+    if (this.crit) x *= 1 + st.critDmg / 100;
+    if (st.lifeSteal) player.health = Math.min(player.maxHealth, player.health + x * st.lifeSteal / 100);
+    return x;
+  },
+};
+/** A spell's damage: its own, the wand's or staff's for their bolts, and the spell bonus. */
+function spellDamage(def) {
+  const w = char.equip.weapon;
+  const base = (def.kind === 'arcane' || def.kind === 'staff') && w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : SPELL_DMG[def.kind] ?? 30;
+  return base * (1 + st.spellPct / 100);
 }
 
 function castSlot(slot) {
@@ -323,16 +462,58 @@ function castSlot(slot) {
   if (def.charge) sfx.chargeUp?.(def.charge);
 }
 
-/** A zombie's blow lands on you; if it kills you, you wake in the village. */
-function hurtPlayer(dmg) {
-  player.health -= dmg;
-  shake = Math.max(shake, 0.9);
-  sfx.clang(true);
+/** A blow (or a spell: kind 'spell') lands on you from `by`. A raised shield with Guard left
+ * stops most of a blow from the front: the Guard pays for what it stops, and when it's gone the
+ * guard breaks and the shield stops nothing until it has come back (it only comes back while
+ * the shield is down). Its enchantments answer whoever struck it. Armour takes its share of
+ * whatever gets through. If it kills you, you wake in the village. */
+function hurtPlayer(dmg, by = null, kind = 'melee') {
+  let d = dmg;
+  const sh = st.shield;
+  let front = true;
+  if (by?.pos) {
+    const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), dx = by.pos.x - player.pos.x, dz = by.pos.z - player.pos.z;
+    front = (fx * dx + fz * dz) / (Math.hypot(dx, dz) || 1) > 0.25;
+  }
+  if (vm.blocking && sh && !guard.broken && guard.v > 0 && front && (kind !== 'spell' || st.enchants.ward)) {
+    const stop = d * sh.block;
+    guard.v -= stop;
+    guard.wait = 0.7;
+    d -= stop;
+    if (guard.v <= 0) {           // what the Guard couldn't pay for comes through
+      d += -guard.v; guard.v = 0; guard.broken = true;
+      hud.toast('Your guard is broken!'); hud.flashGuard();
+      shake = Math.max(shake, 1.2);
+    }
+    sfx.clang(false);
+    magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#fff0b0'), new THREE.Color('#ffb040'), new THREE.Color('#d0d0d0')], 16,
+      { speed: 4, size: 0.03, grav: 9, life: 0.4 });
+    if (by && kind === 'melee' && !by.dead) answerBlow(by);
+    shake = Math.max(shake, 0.35);
+  } else {
+    shake = Math.max(shake, 0.9);
+    sfx.clang(true);
+  }
+  d *= 1 - armorCut(st.armor);
+  player.health -= d;
   if (player.health <= 0) {
     player.health = player.maxHealth;
     player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
-    hud.toast('Torn apart in the graveyard... you wake in the village');
+    zombies.forget();
+    hud.toast('Torn apart by the dead... you wake in the village');
   }
+}
+
+/** The shield's enchantments, on whatever struck it. */
+function answerBlow(by) {
+  const e = st.enchants;
+  const away = new THREE.Vector3(by.pos.x - player.pos.x, 0, by.pos.z - player.pos.z).normalize();
+  const chest = by.bones?.chest;
+  if (e.thorns && chest) by.hit({ bone: chest, point: chest.getWorldPosition(new THREE.Vector3()), z: by }, { dmg: e.thorns, dir: away, kind: 'thorns', push: 0.15 });
+  if (e.frost) { by.chillT = 3.5; magic.particles.burst(by.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), [new THREE.Color('#bfe8ff'), new THREE.Color('#5aa8e8')], 20, { speed: 2, size: 0.03, grav: 2, life: 0.8 }); }
+  if (e.fire) { by.burnT = 3; by.burnDps = e.fire; }
+  if (e.holy) player.healing += e.holy;
+  if (e.repel) { by.knock = away.clone().multiplyScalar(7); by.stagger = 0.6; }
 }
 
 function noMana() { hud.flashMana(); hud.toast('Not enough mana'); sfx.fizzle(); }
@@ -370,12 +551,14 @@ function onEvent(kind, side, clip) {
     const dir = aimPoint().sub(from).normalize();
     magic.launch(p.def, from, dir);
   } else if (kind === 'hit' && /swing/.test(clip) && !(clip.startsWith('r2h') && side === 'L')) {
-    melee(clip.startsWith('r2h') ? 3.0 : 2.4, clip.startsWith('r2h'));
+    melee(clip.startsWith('r2h') ? 3.5 : 2.9, clip.startsWith('r2h'), side);
   }
 }
 
+// the weapons that crush rather than cut (no gash: a split in the flesh where they land)
+const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
-function melee(reach, heavy) {
+function melee(reach, heavy, side = 'R') {
   const o = camera.position;
   let best = null, flesh = null;
   for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
@@ -387,11 +570,19 @@ function melee(reach, heavy) {
     if (zh && (!flesh || zh.t < flesh.t)) flesh = { ...zh, d };
   }
   if (flesh && (!best || flesh.t < best.t)) { // the blade bites into a zombie
-    flesh.z.hit(flesh, { dmg: heavy ? 60 : 34, dir: flesh.d, heavy });
+    const it = ITEMS[vm.equip[side]] || ITEMS[vm.equip.R];
+    // the edge's sweep across the view: a rising diagonal for a one-hander, flatter for a two
+    const right = _v.set(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const edge = right.clone().multiplyScalar(heavy ? 0.94 : 0.82).addScaledVector(up, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)).normalize();
+    const blunt = BLUNT.test(it?.id || '');
+    const dmg = stats.meleeDamage(heavy, side);
+    flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) });
+    zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
   }
   if (!best) return;
+  zombies.noise(o, 14);   // steel on stone carries
   const p = o.clone().addScaledVector(best.d, best.t);
   const n = new THREE.Vector3(...best.normal);
   const tag = best.box ? best.box.tag : 'ground';
@@ -408,7 +599,7 @@ function melee(reach, heavy) {
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
   if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
-  if (p.x > REGION.x0) {
+  if (p.x > REGION.x0) {   // the downs: see a long way
     for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
     for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
     return { name: 'The Green Downs', kind: 'out', open: 1 };
@@ -457,7 +648,7 @@ function light(dt, t) {
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
-  scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface + 46 * L.under;
+  scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + 46 * L.under;   // (a phone draws less of the distance)
   skyDome.update(day, t, camera.position, surface);
   bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
   bill.time.value = t;
@@ -519,6 +710,7 @@ function light(dt, t) {
 
 // ------------------------------------------------------------------ start, pause, menus
 function begin() {
+  if (lost) { location.reload(); return; }
   sfx.start();
   if (!ready) return;
   started = true;
@@ -532,31 +724,48 @@ function begin() {
   }
 }
 
+function setMap(on) {
+  map.show(on, player);
+  if (on && bag.open) bag.show(false);
+  if (touch) { gameInput.release(); }
+  else if (on) document.exitPointerLock?.(); else canvas.requestPointerLock?.();
+}
+
 function setInventory(on) {
-  hud.showInventory(on);
-  if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book, vm.gauntlet); }
+  if (on && map.open) map.show(false);
+  bag.show(on);
+  if (touch) { hud.showTouch(!on); gameInput.release(); } // the thumb controls would lie over the bag
+  if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book); }
   else if (!touch) canvas.requestPointerLock?.();
 }
 
 function pause() {
   paused = true;
-  hud.showInventory(false);
+  bag?.show(false); map?.show(false);
   hud.showOverlay('pause', touch);
-  if (touch) hud.showTouch(false);
+  if (touch) { hud.showTouch(false); gameInput.release(); }
 }
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && started && !hud.invOpen) pause();
+  if (!document.pointerLockElement && started && !bag?.open && !map?.open) pause();
 });
 
 // ------------------------------------------------------------------ the loop
 const clock = new THREE.Clock();
-let t = 0, lastBob = 0;
-const QUICK = { Digit1: ['onehand', 'R'], Digit2: ['twohand', 'R'], Digit3: ['wand', 'R'], Digit4: ['staff', 'R'],
-  Digit5: ['shield_round', 'L'], Digit6: ['shield_kite', 'L'] };
+let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0;
+const QUICK = { Digit1: 'onehand', Digit2: 'twohand', Digit3: 'wand', Digit4: 'staff', Digit5: 'shield_round', Digit6: 'shield_kite' };
 
+let lastFrame = performance.now();
 function frame() {
   requestAnimationFrame(frame);
+  const now = performance.now();
+  frameMs += (Math.min(100, now - lastFrame) - frameMs) * 0.05;
+  lastFrame = now;
+  if (ready && started && !paused && (rsT += 1) > 90) {   // every second and a half or so
+    rsT = 0;
+    const want = frameMs > 26 ? Math.max(0.55, rs * 0.88) : frameMs < 18 ? Math.min(1, rs * 1.07) : rs;
+    if (Math.abs(want - rs) > 0.01) { rs = want; resize(); }
+  }
   tick(Math.min(0.05, clock.getDelta()));
 }
 
@@ -565,13 +774,16 @@ function tick(dt) {
   t += dt;
   if (!ready) return;
   const inp = gameInput;
-  const active = started && !paused && !hud.invOpen;
+  const active = started && !paused && !bag.open && !map.open;
 
-  if (started && (inp.was('Tab') || inp.was('KeyI'))) setInventory(!hud.invOpen);
-  if (started && inp.was('Escape')) { if (hud.invOpen) { hud.showInventory(false); pause(); } else if (touch) pause(); }
+  if (started && (inp.was('Tab') || inp.was('KeyI'))) setInventory(!bag.open);
+  if (started && !paused && inp.was('KeyM')) setMap(!map.open);
+  if (started && inp.was('Escape')) { if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause(); }
   if (active) {
     player.update(dt, inp);
-    for (const [code, [kind, side]] of Object.entries(QUICK)) if (inp.was(code)) equip(kind, side);
+    for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
+    if (inp.was('KeyQ')) drink('life');
+    if (inp.was('KeyZ')) drink('mana');
     // right hand
     if (inp.held('Mouse0') && !vm.busy('R')) {
       const kind = vm.equip.R, bolt = BOLTS[kind];
@@ -623,33 +835,64 @@ function tick(dt) {
     }
   }
   // doors: the one you're looking at, and E to open or close it
+  // and the chest, crate, barrel or sack you're looking at, to search with E
   if (active) {
-    const door = ctx.doors.aimed(camera);
-    hud.prompt(door ? `E — ${door.open ? 'close' : 'open'} the ${door.name}` : '');
-    if (door && inp.was('KeyE')) ctx.doors.toggle(door);
+    const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
+    const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
+    if (boxFirst) {
+      hud.prompt(box.searched ? `The ${box.holds.name} is empty` : `E — search the ${box.holds.name}`);
+      if (!box.searched && inp.was('KeyE')) {
+        const n = ctx.loot.search(box, player);
+        sfx.door?.(true);
+        if (!n) hud.toast(`Nothing in the ${box.holds.name}`);
+      }
+    } else {
+      hud.prompt(door ? `E — ${door.open ? 'close' : 'open'} the ${door.name}` : '');
+      if (door && inp.was('KeyE')) ctx.doors.toggle(door);
+    }
   } else hud.prompt('');
+  // the shield's Guard: it comes back (quickly) only while the shield is down
+  if (guard.max) {
+    if (vm.blocking) guard.wait = Math.max(guard.wait, 0.25);
+    else if ((guard.wait -= dt) <= 0 && guard.v < guard.max) {
+      guard.v = Math.min(guard.max, guard.v + guard.max * 0.45 * (st.shield?.regen || 1) * dt);
+      if (guard.broken && guard.v >= guard.max * 0.5) { guard.broken = false; hud.toast('Your guard is back'); }
+    }
+  }
+  hud.guard(guard, vm.blocking);
   ctx.doors.update(dt);
+  if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
+  for (const m of ctx.builtUnder) m.visible = camera.position.y < 0.5; // the undercroft, only from below
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
+  foes.update(dt, player);
+  villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
   light(dt, t);
   hud.update(player, book);
+  if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started; // no arms behind the title screen
+  if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
   composer.render(dt);
   inp.endFrame();
 }
 
 // ------------------------------------------------------------------ go
-hud = new Hud(ui, { spells: SPELLS, items: ITEMS, gauntlets: [], onEquip: equip, onAssign: assign,
-  onGauntlet: gauntlet, onClose: () => setInventory(false) });
+hud = new Hud(ui, { spells: SPELLS, items: ITEMS });
 try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); } catch { /* first visit */ }
 hud.showOverlay('loading', touch);
 gameInput = new Input(canvas, ui);
+// a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
+canvas.addEventListener('webglcontextlost', () => {
+  lost = true; ready = false;
+  bag?.show(false); hud.showTouch(false);
+  hud.showOverlay('lost', touch);
+});
 canvas.addEventListener('mousedown', () => sfx.start());
 hud.overlay.addEventListener('click', (e) => { if (!e.target.closest('.opts')) begin(); });
 hud.overlay.addEventListener('touchend', (e) => { if (!e.target.closest('.opts')) { e.preventDefault(); begin(); } });
@@ -671,7 +914,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   hud.showOverlay('start', touch);
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, zombies, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
   document.getElementById('boot')?.remove();
 }).catch((e) => {

@@ -9,11 +9,14 @@ light from above is baked in, and island outlines get a one-texel dark rim, the 
 """
 import json
 import os
+import zlib
 
 import numpy as np
 from PIL import Image
 
+import dress
 import kit
+import materials
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LIB = os.path.join(ROOT, "assets", "textures")
@@ -68,10 +71,42 @@ def _lib_tex(tid):
     return _cache[tid]
 
 
-def paint(model, light=(-0.35, 0.85, -0.35)):
-    """The model's texture (model.tex square) painted from the library. The model must be
-    packed (model.pack())."""
-    n = model.tex
+def skin_scale(model, target=700, most=8):
+    """How many times the UV layout's size a dressed model's texture is painted, so the
+    material swatches land about one swatch pixel per texel (a 128 layout -> 512 or 1024)."""
+    k = 1
+    while model.density * k < target and k < most:
+        k *= 2
+    return k
+
+
+def _swatch(mid, shrink, tint):
+    """A material swatch, shrunk by `shrink` (when the model has fewer texels per metre than
+    the swatch has pixels) and optionally recoloured."""
+    key = (mid, round(shrink, 2), tint)
+    if key not in _cache:
+        a = materials.load(mid)
+        if shrink > 1.25:
+            h, w = a.shape[:2]
+            big = Image.fromarray(np.tile(a, (3, 3, 1)).astype(np.uint8))
+            nw, nh = max(4, round(w / shrink)), max(4, round(h / shrink))
+            a = np.asarray(big.resize((nw * 3, nh * 3), Image.BOX), float)[nh:2 * nh, nw:2 * nw]
+        if tint is not None:  # a palette swap: the swatch's light and dark in a new colour,
+            lum = a @ np.array([0.3, 0.59, 0.11])  # its glints fading to white as on metal
+            k = lum / max(lum.mean(), 1.0)
+            col = k[..., None] * np.array(tint, float)
+            s = np.clip((k - 1.15) / 0.9, 0, 1)[..., None] * 0.6
+            a = np.clip(col * (1 - s) + (lum[..., None] * 1.1) * s, 0, 255)
+        _cache[key] = a
+    return _cache[key]
+
+
+def paint(model, light=(-0.35, 0.85, -0.35), dressed=None, finish=None):
+    """The model's texture painted from the library: a model.tex square, or for a model
+    with a dressing (dress.py, by `dressed` = model id) a larger one in the user's material
+    swatches, optionally in one of dress.FINISHES. The model must be packed (model.pack())."""
+    scale = skin_scale(model) if dressed and dressed in dress.DRESS else 1
+    n = model.tex * scale
     out = np.zeros((n, n, 3))
     have = np.zeros((n, n), bool)
     edge = np.zeros((n, n), bool)
@@ -81,8 +116,20 @@ def paint(model, light=(-0.35, 0.85, -0.35)):
     for part, isl in model.islands():
         col = np.array(part.color[:3], float)
         mat = MATERIALS.get(tuple(part.color[:3]))
+        dr = dress.lookup(dressed, part.name, finish) if scale > 1 else None
+        if dr:
+            texels = model.density * scale * part.weight  # this island's texels per metre
+            ppm = dress.PPM * dr["scale"]
+            shrink = ppm / texels
+            sw = _swatch(dr["m"], shrink, dr["tint"])
+            if shrink > 1.25:  # sampled from the shrunk swatch
+                ppm /= shrink
+            # each island starts somewhere else in the swatch, so six flanges or a dozen
+            # spikes don't wear the very same patch
+            seed = zlib.crc32(f"{part.name}/{isl.name}".encode())
+            off = (seed % 997, (seed // 997) % 991)
         for t in isl.t:
-            p = isl.px[t]
+            p = isl.px[t] * scale
             x0, y0 = np.floor(p.min(axis=0)).astype(int)
             x1, y1 = np.ceil(p.max(axis=0)).astype(int)
             xs, ys = np.meshgrid(np.arange(max(x0, 0), min(x1 + 1, n)) + 0.5,
@@ -103,11 +150,25 @@ def paint(model, light=(-0.35, 0.85, -0.35)):
                    + l3[..., None] * isl.n[t[2]])
             nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True) + 1e-9
             ix, iy = xs.astype(int), ys.astype(int)
+            if dr:  # the user's material, in its own colours
+                h, w = sw.shape[:2]
+                a, b = uv[..., 0] * ppm, uv[..., 1] * ppm
+                if dr["rot"]:
+                    a, b = b, -a
+                rgb = sw[(np.floor(b).astype(int) + off[1]) % h, (np.floor(a).astype(int) + off[0]) % w]
+                # the swatches carry their own highlights: only a gentle shape light on top
+                lit = 0.84 + 0.22 * np.clip(nrm @ L, -0.5, 1.0)
+                rgb = np.clip(rgb * lit[..., None], 0, 255)
+                out[iy[inside], ix[inside]] = rgb[inside]
+                have[iy[inside], ix[inside]] = True
+                continue
             if mat:
                 tex, mean = _lib_tex(mat[0])
                 h, w = tex.shape[:2]
-                # this island's texels per metre -> library pixels per metre
-                ppm = model.density * part.weight / mat[1]
+                # this island's texels per metre -> library pixels per metre (on a dressed
+                # model's larger texture the library grain is finer too, to sit with the
+                # swatches instead of in blocks four texels wide)
+                ppm = model.density * scale * part.weight / mat[1]
                 tu = (uv[..., 0] * ppm).astype(int) % w
                 tv = (uv[..., 1] * ppm).astype(int) % h
                 base = tex[tv, tu]
@@ -124,12 +185,13 @@ def paint(model, light=(-0.35, 0.85, -0.35)):
             rgb = np.clip(rgb * lit[..., None], 0, 255)
             out[iy[inside], ix[inside]] = rgb[inside]
             have[iy[inside], ix[inside]] = True
-    # a one-texel darker rim around every island: crisp painted edges
-    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-        edge |= have & ~np.roll(np.roll(have, dy, 0), dx, 1)
-    out[edge] *= 0.72
+    # a darker rim around every island (one texel of the UV layout): crisp painted edges
+    for r in range(1, max(1, scale // 2) + 1):
+        for dy, dx in ((0, r), (0, -r), (r, 0), (-r, 0)):
+            edge |= have & ~np.roll(np.roll(have, dy, 0), dx, 1)
+    out[edge] *= 0.72 if scale == 1 else 0.8
     # bleed past the islands so filtering never pulls in the background
-    for _ in range(3):
+    for _ in range(2 + scale):
         grow = np.zeros_like(out)
         cnt = np.zeros((n, n))
         for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):

@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A saw-toothed blade with a bone guard shaped like fangs and a bone pommel.",
  "texture_size": 128,
+ "skin_size": 1024,
  "triangles": 224,
  "files": [
   "fang_blade.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/fang_blade_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/fang_blade_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/fang_blade_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/fang_blade_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/fang_blade_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/fang_blade_frostbound.png"
+  }
  ],
  "parts": [
   {

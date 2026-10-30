@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Villager preview</title>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
+<style>html,body{margin:0;background:#000;overflow:hidden} canvas{image-rendering:pixelated;width:100vw;height:100vh;display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search);
+const pix = Number(q.get('pix') || 2), view = q.get('view') || '34', t = Number(q.get('t') || 0.4);
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const W = Math.floor(innerWidth / pix), H = Math.floor(innerHeight / pix);
+renderer.setSize(W, H, false);
+const scene = new THREE.Scene();
+// the afternoon (16:30): its sky, sun and ambient from effects.js
+scene.background = new THREE.Color(0xc8c4b8); scene.fog = new THREE.Fog(0xb0b4b4, 18, 60);
+const hemi = new THREE.HemisphereLight(0xc8d8ff, 0x3a3026, 1.0 * 1.15); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffe0b0, 2.3);
+sun.position.set(-4, 6, 5); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 20 }); sun.shadow.bias = -0.0004;
+scene.add(sun);
+const tex = new THREE.TextureLoader().load('../../../assets/textures/biome/floors/town_grey_cobbles.png');
+tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(10, 10); tex.magFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(view === 'face' ? 20 : 32, W / H, 0.05, 100);
+const g = await new GLTFLoader().loadAsync('../../../templates/models/creatures/villagers/' + (q.get('m') || 'villager_m01') + '.glb');
+const model = g.scene; scene.add(model);
+model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+const mixer = new THREE.AnimationMixer(model);
+const clip = g.animations.find((a) => a.name === (q.get('clip') || 'idle'));
+mixer.clipAction(clip).play(); mixer.update(t);
+model.updateMatrixWorld(true);
+const yaw = { '34': -0.55, front: 0, back: Math.PI * 0.9, face: -0.4 }[view];
+const dist = view === 'face' ? 1.6 : 4.6, ty = view === 'face' ? 1.62 : 0.95;
+camera.position.set(Math.sin(yaw) * dist, ty + (view === 'face' ? 0.02 : 0.12), Math.cos(yaw) * dist);
+camera.lookAt(0, ty, 0);
+renderer.render(scene, camera);
+window.READY = { clips: g.animations.map((a) => a.name), W, H };
+</script></body></html>

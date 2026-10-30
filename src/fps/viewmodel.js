@@ -7,12 +7,18 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const ROOT = 'templates/models/';
+// the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
+// (the upright carry shows the flat); it turns back as it rises to upright again
+const ROLL_2H = { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 };
+// the two-handed blades that turn like it; axes, hammers and polearms keep their head leading
+const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloodletter',
+  'penitents_greatsword', 'tombstone']);
+// the kinds whose model can be chosen in the inventory (every model of that kind in the manifest)
+const MODEL_TYPE = { onehand: 'one-handed weapon', twohand: 'two-handed weapon' };
 export const ITEMS = {
   onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
-  // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
-  // (the upright carry shows the flat); it turns back as it rises to upright again
   twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
-    roll: { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 } },
+    roll: ROLL_2H },
   wand: { id: 'crystal_wand', name: 'Crystal Wand', type: 'wand', hands: ['R', 'L'], tip: 0.34 },
   staff: { id: 'gnarled_staff', name: 'Gnarled Crystal Staff', type: 'staff', hands: ['R'], tip: 0.62 },
   shield_round: { id: 'ironbound', name: 'Iron-Bound Roundshield', type: 'round shield', hands: ['L'] },
@@ -142,14 +148,48 @@ export class ViewModel {
 
   async itemScene(kind) {
     const it = ITEMS[kind];
-    const list = Object.values(this.manifest.items).flat();
-    const entry = list.find((e) => e.id === it.id);
-    if (!this.itemCache.has(kind)) {
-      const g = await this.loader.loadAsync(ROOT + entry.path);
-      g.scene.traverse((o) => { if (o.isMesh) o.material = this.skin(o, true); });
-      this.itemCache.set(kind, g.scene);
+    return this.modelScene(it.id, it.finish);
+  }
+
+  /** A clone of arm model `id` (any kind) in a finish (one of the manifest's painted variants),
+   * loaded once. */
+  async modelScene(id, finish = '') {
+    const key = id + '|' + (finish || '');
+    if (!this.itemCache.has(key)) {
+      this.itemCache.set(key, (async () => {
+        const entry = Object.values(this.manifest.items).flat().find((e) => e.id === id);
+        if (!entry) return new THREE.Group();
+        const g = await this.loader.loadAsync(ROOT + entry.path);
+        let map = null;
+        if (finish && entry.variants?.[finish]) {
+          map = await (this.texLoader ||= new THREE.TextureLoader()).loadAsync(ROOT + entry.variants[finish]).catch(() => null);
+          if (map) { map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; }
+        }
+        g.scene.traverse((o) => { if (o.isMesh) { if (map) o.material.map = map; o.material = this.skin(o, true); } });
+        return g.scene;
+      })());
     }
-    return this.itemCache.get(kind).clone();
+    return (await this.itemCache.get(key)).clone();
+  }
+
+  /** The models `kind` can be ([{id, name}]; none for kinds without a choice). */
+  models(kind) {
+    return MODEL_TYPE[kind] ? (this.manifest.items[kind] || []).map((e) => ({ id: e.id, name: e.name })) : [];
+  }
+
+  /** Make `kind` that model (dropping a loot drop's power) and re-arm the hands. */
+  /** Make the `kind` in the hands model `id` in a finish (from the gear worn); applyEquip() after. */
+  setArm(kind, id, name, finish = '') {
+    Object.assign(ITEMS[kind], { id, name, finish, power: undefined });
+    if (ITEMS[kind].both) ITEMS[kind].roll = ROLLED.has(id) ? ROLL_2H : undefined;
+  }
+
+  async setModel(kind, id) {
+    const e = this.models(kind).find((m) => m.id === id);
+    if (!e) return;
+    Object.assign(ITEMS[kind], { id, name: e.name, type: MODEL_TYPE[kind], power: undefined });
+    if (ITEMS[kind].both) ITEMS[kind].roll = ROLLED.has(id) ? ROLL_2H : undefined;
+    await this.applyEquip();
   }
 
   /** A retro-filtered, lit material for a model's skin: steel and gilt catch the light. */

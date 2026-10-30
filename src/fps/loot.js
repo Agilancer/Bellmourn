@@ -1,0 +1,210 @@
+// Loot: what lies on the ground to be taken up, and what the world keeps in its chests, crates,
+// barrels, sacks and pots. A drop lies turning slowly above the ground in a shaft of its
+// rarity's colour until you walk over it: gold and draughts go straight into the purse and the
+// bag, gear into the first free place in the bag (it stays put if the bag is full). A container
+// is searched with E: whatever it held spills out in front of it, and it stays searched.
+//
+// What anything holds is rolled for where it is: better in the undercroft and the caves than in
+// the village, better the further out into the wild countries.
+// foes.js calls ctx.loot.drop([x, y, z], { tier }) when something dies (tier 1-4).
+import * as THREE from 'three';
+import { makeGear, makePotion, RARITY, addToBag } from './gear.js';
+
+// how good what a place holds is (an item level), from where it is
+export function placeLevel(p, under = false) {
+  const d = Math.hypot(p.x, p.z);
+  let lv = d < 100 ? 1 + d / 50 : 3 + (d - 100) / 70;
+  if (under) lv += 5;
+  return Math.max(1, Math.min(30, Math.round(lv + (Math.random() - 0.5) * 2)));
+}
+
+// what each kind of container can hold: [items min, max], chance of gold, gold scale, chance of
+// a draught, rarity bonus, the verb for the prompt
+const HOLDS = [
+  [/Chest_Gold/, { items: [2, 4], gold: 1, goldK: 4, potion: 0.6, bonus: 2.5, name: 'gilded chest' }],
+  [/ossuary_chest/, { items: [1, 3], gold: 0.7, goldK: 2, potion: 0.3, bonus: 1.2, name: 'ossuary chest' }],
+  [/Chest/, { items: [1, 3], gold: 0.8, goldK: 2, potion: 0.5, bonus: 0.8, name: 'chest' }],
+  [/Cabinet|Drawers/, { items: [0, 1], gold: 0.4, goldK: 0.8, potion: 0.5, bonus: 0.2, name: 'cupboard' }],
+  [/Crate/, { items: [0, 1], gold: 0.25, goldK: 0.6, potion: 0.35, bonus: 0, name: 'crate' }],
+  [/Barrel/, { items: [0, 1], gold: 0.2, goldK: 0.5, potion: 0.4, bonus: 0, name: 'barrel' }],
+  [/Bag_Coins/, { items: [0, 0], gold: 1, goldK: 2.5, potion: 0, bonus: 0, name: 'coin purse' }],
+  [/Bag|Pouch/, { items: [0, 1], gold: 0.7, goldK: 1, potion: 0.3, bonus: 0.2, name: 'sack' }],
+  [/Pot_|Vase/, { items: [0, 1], gold: 0.5, goldK: 0.5, potion: 0.25, bonus: 0, name: 'pot' }],
+];
+const KIND_OF = (id) => HOLDS.find(([re]) => re.test(id))?.[1] || null;
+// the Velscour world's props (props.js) that hold something
+const PROP_HOLDS = { treasure_chest: KIND_OF('Chest'), crate: KIND_OF('Crate'), barrel: KIND_OF('Barrel'),
+  sarcophagus: { ...KIND_OF('ossuary_chest'), name: 'sarcophagus' } };
+
+const glowTex = (() => {
+  let t = null;
+  return () => {
+    if (t) return t;
+    const S = 32, cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const g = cv.getContext('2d'), gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    t = new THREE.CanvasTexture(cv);
+    return t;
+  };
+})();
+
+export class Loot {
+  /** hooks: { char(), models: async (item) -> Object3D, onTake(item, text), full(), zone(p) -> {under} } */
+  constructor(ctx, hooks = {}) {
+    this.ctx = ctx;
+    this.hooks = hooks;
+    this.list = [];
+    this.group = new THREE.Group();
+    ctx.scene.add(this.group);
+    this.beamGeo = new THREE.CylinderGeometry(0.03, 0.09, 2.2, 6, 1, true).translate(0, 1.1, 0);
+    this.containers = [];
+    this.grid = new Map();
+  }
+
+  // -------------------------------------------------------------- containers
+  /** Every container the kit placed becomes something to search. */
+  findContainers(kit) {
+    const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+    for (const [key, list] of kit.placed) {
+      const id = key.split('|')[0], info = kit.info_(id) || {};
+      if (info.category !== 'container' && !/Cabinet|Drawers|Prop_Crate|ossuary_chest/.test(id)) continue;
+      const holds = KIND_OF(id);
+      if (!holds) continue;
+      if (/FarmCrate|Coin_Pile/.test(id)) continue;   // the market's open crates of apples: nothing hidden in them
+      const hi = info.max || [0.4, 0.8, 0.4];
+      for (const e of list) {
+        e.m.decompose(p, q, s);
+        this.addContainer({ id, holds, x: p.x, y: p.y + hi[1] * s.y * 0.55, z: p.z, top: p.y + hi[1] * s.y, r: Math.max(hi[0], hi[2]) * Math.max(s.x, s.z), searched: false, rot: new THREE.Euler().setFromQuaternion(q, 'YXZ').y });
+      }
+    }
+    return this.containers.length;
+  }
+
+  /** Every chest, crate, barrel and sarcophagus among the world's props (once they've loaded). */
+  findProps(props) {
+    for (const [id, list] of props.place) {
+      const holds = PROP_HOLDS[id], bb = props.boxes.get(id);
+      if (!holds || !bb) continue;
+      const r = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
+      for (const p of list) this.addContainer({ id, holds, x: p.x, y: p.y + bb.max.y * p.scale * 0.55, z: p.z, top: p.y + bb.max.y * p.scale, r: r * p.scale, searched: false, rot: p.rot });
+    }
+    return this.containers.length;
+  }
+
+  addContainer(c) {
+    this.containers.push(c);
+    const k = `${Math.floor(c.x / 8)},${Math.floor(c.z / 8)}`;
+    if (!this.grid.has(k)) this.grid.set(k, []);
+    this.grid.get(k).push(c);
+  }
+
+  /** The container you're looking at, close enough to reach. */
+  aimed(camera) {
+    const o = camera.position, d = camera.getWorldDirection(new THREE.Vector3());
+    let best = null, bestS = 0;
+    const gx = Math.floor(o.x / 8), gz = Math.floor(o.z / 8);
+    for (let i = -1; i <= 1; i++) for (let k = -1; k <= 1; k++) for (const c of this.grid.get(`${gx + i},${gz + k}`) || []) {
+      const tx = c.x - o.x, ty = c.y - o.y, tz = c.z - o.z, dist = Math.hypot(tx, ty, tz);
+      if (dist > 2.6 + c.r) continue;
+      const dot = (tx * d.x + ty * d.y + tz * d.z) / dist;
+      const need = Math.cos(Math.min(0.9, Math.atan2(c.r + 0.25, dist)));
+      if (dot < need) continue;
+      const score = dot - dist * 0.05;
+      if (score > bestS) { best = c; bestS = score; }
+    }
+    return best;
+  }
+
+  /** Search it: what it holds spills out at your feet. */
+  search(c, player) {
+    c.searched = true;
+    const H = c.holds, under = this.hooks.zone?.(c)?.under;
+    const lv = placeLevel(c, under);
+    const out = [];
+    const n = H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
+    for (let i = 0; i < n; i++) out.push(makeGear({ ilvl: lv, bonus: H.bonus }));
+    if (Math.random() < H.gold) out.push({ type: 'gold', amount: Math.max(1, Math.round((3 + lv * 2.5) * H.goldK * (0.5 + Math.random()))) });
+    if (Math.random() < H.potion) out.push(makePotion(Math.random() < 0.6 ? 'life' : 'mana', 1));
+    // toward you, out of the front of it
+    const dx = player.pos.x - c.x, dz = player.pos.z - c.z, l = Math.hypot(dx, dz) || 1;
+    out.forEach((it, i) => {
+      const a = Math.atan2(dz / l, dx / l) + (i - (out.length - 1) / 2) * 0.5;
+      const r = c.r + 0.55;
+      this.spawn(it, c.x + Math.cos(a) * r, c.top, c.z + Math.sin(a) * r, { pop: true });
+    });
+    return out.length;
+  }
+
+  // -------------------------------------------------------------- drops
+  /** A foe's death: maybe gear, maybe gold, maybe a draught. tier 1-4. */
+  drop(at, { tier = 1, under = false } = {}) {
+    const [x, y, z] = Array.isArray(at) ? at : [at.x, at.y, at.z];
+    const lv = Math.max(placeLevel({ x, z }, under), tier * 3);
+    this.spawn(makeGear({ ilvl: lv, bonus: tier * 0.4 }), x, y + 0.5, z, { pop: true });
+    if (Math.random() < 0.5) this.spawn({ type: 'gold', amount: Math.round((4 + lv * 3) * (0.5 + Math.random())) }, x + 0.4, y + 0.5, z + 0.3, { pop: true });
+    if (Math.random() < 0.25) this.spawn(makePotion('life', 1), x - 0.4, y + 0.5, z - 0.2, { pop: true });
+  }
+
+  /** Something lying in the world to be taken up (it comes to rest on the floor below). */
+  spawn(item, x, y, z, { pop = false } = {}) {
+    const holder = new THREE.Group();
+    holder.position.set(x, y, z);
+    this.group.add(holder);
+    const col = new THREE.Color(item.type === 'gear' ? RARITY[item.rarity].color : item.type === 'gold' ? '#ffd34a' : item.kind === 'mana' ? '#6a8aff' : '#ff5a4a');
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.65 }));
+    glow.scale.setScalar(item.type === 'gear' ? 0.9 : 0.6);
+    holder.add(glow);
+    let beam = null;
+    if (item.type === 'gear' && item.rarity >= 1) {   // the better things show from afar
+      beam = new THREE.Mesh(this.beamGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22 + item.rarity * 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      beam.position.y = -0.45;
+      holder.add(beam);
+    }
+    const it = { item, holder, glow, beam, t: Math.random() * 6, vy: pop ? 2.2 + Math.random() : 0, rest: !pop, floor: null, model: null, age: 0 };
+    const phys = this.ctx.physics;
+    const fl = phys.floorAt(x, z, y + 0.3, 0.15, 3);
+    it.floor = Number.isFinite(fl) ? fl : y - 0.5;
+    if (!pop) holder.position.y = it.floor + 0.45;
+    this.hooks.models?.(item).then((obj) => {
+      if (!obj || !this.list.includes(it)) return;
+      obj.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = true; } });
+      holder.add(obj);
+      it.model = obj;
+    });
+    this.list.push(it);
+    return it;
+  }
+
+  update(dt, player) {
+    const p = player.pos;
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const it = this.list[i], h = it.holder.position;
+      it.t += dt; it.age += dt;
+      if (!it.rest) {
+        it.vy -= 12 * dt;
+        h.y += it.vy * dt;
+        if (h.y <= it.floor + 0.45 && it.vy < 0) { h.y = it.floor + 0.45; it.rest = true; }
+      } else h.y = it.floor + 0.45 + Math.sin(it.t * 2.2) * 0.04;
+      if (it.model) it.model.rotation.y += dt * 1.2;
+      it.glow.material.opacity = 0.45 + 0.25 * Math.max(0, Math.sin(it.t * 4.3)) ** 4;
+      if (it.age < 0.6) continue;
+      const near = Math.hypot(p.x - h.x, p.z - h.z) < 1.2 && Math.abs(p.y + 0.5 - h.y) < 1.6;
+      if (!near) { it.warned = false; continue; }
+      const took = this.take(it.item);
+      if (!took) { if (!it.warned) { it.warned = true; this.hooks.full?.(it.item); } continue; }
+      this.list.splice(i, 1);
+      this.group.remove(it.holder);
+      it.glow.material.dispose(); it.beam?.material.dispose();
+    }
+  }
+
+  take(item) {
+    const c = this.hooks.char();
+    if (item.type === 'gold') { c.gold += item.amount; this.hooks.onTake?.(item, `${item.amount} gold`); return true; }
+    if (!addToBag(c, item)) return false;
+    this.hooks.onTake?.(item, item.type === 'potion' ? `a ${item.name}` : `the ${item.name}`);
+    return true;
+  }
+}

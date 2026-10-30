@@ -1,0 +1,92 @@
+{
+ "id": "gravewarden_halberd",
+ "name": "Gravewarden's Halberd",
+ "kind": "two-handed weapon",
+ "description": "A halberd: a horned axe blade and back spike on an iron socket, a long top spike, iron langets and collars on a dark pole with a leather grip.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 1080,
+ "files": [
+  "gravewarden_halberd.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/gravewarden_halberd_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/gravewarden_halberd_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/gravewarden_halberd_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/gravewarden_halberd_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/gravewarden_halberd_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/gravewarden_halberd_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "axe head"
+  },
+  {
+   "number": 2,
+   "name": "socket"
+  },
+  {
+   "number": 3,
+   "name": "top spike"
+  },
+  {
+   "number": 4,
+   "name": "haft"
+  },
+  {
+   "number": 5,
+   "name": "grip wrap"
+  },
+  {
+   "number": 6,
+   "name": "butt ring"
+  },
+  {
+   "number": 7,
+   "name": "butt spike"
+  },
+  {
+   "number": 8,
+   "name": "collar"
+  },
+  {
+   "number": 9,
+   "name": "lower collar"
+  },
+  {
+   "number": 10,
+   "name": "langet 1"
+  },
+  {
+   "number": 11,
+   "name": "langet 2"
+  }
+ ],
+ "set": "set11",
+ "set_name": "model 11"
+}

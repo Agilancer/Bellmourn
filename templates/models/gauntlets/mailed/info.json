@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A riveted chain-mail glove and mail sleeve, a polished steel plate cuff, a steel knuckle bar and a plain steel elbow cop. Grey, cold, functional.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2104,
  "files": [
   "mailed_R.glb",
   "mailed_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/mailed_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/mailed_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/mailed_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/mailed_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/mailed_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/mailed_frostbound.png"
+  }
  ],
  "parts": [
   {

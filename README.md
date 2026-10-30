@@ -23,13 +23,35 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Left click | right hand: swing, or shoot with a wand or staff |
 | Right click | left hand: hold a shield up, swing, or shoot a wand |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
-| E | open and close doors (the interact key) |
-| Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
-| 1 to 6 | quick-equip sword, greatsword, wand, staff, round shield, kite shield |
+| E | open and close doors, search chests, crates, barrels, sacks and pots |
+| Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
+| 1 to 6 | quick-equip the first one-hander, two-hander, wand, staff, round shield or kite shield in the bag |
+| Q, Z | drink a healing draught, a mana draught |
+| M | the map (the corner map is always up; below ground it charts what you've walked) |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
+You set out with a plain sword and round shield in hand and a staff in the bag (with a
+greatsword, a wand, a kite shield and some draughts); a character saved before this is given the
+sword, shield and staff once, if it doesn't have them.
+
+Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
+it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
+nothing until it has come back; it refills quickly, but only while the shield is down. Better
+shields hold more Guard and stop more, and from Rare up they're enchanted (thorns, frost, fire,
+holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
+you find depends on where you are (the undercroft and the downs hold better). Dread knights and
+sorcerers march between the downs' places and hold its houses.
+
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, use (E), jump, open the bag and pause.
+and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
+the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
+frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
+map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view.
+
+Bellmourn's people walk its streets by day (`villagers.js`: made from the foes' bodies,
+repainted, men, women, children, the old and the watch) and go home at dusk. `gear.js` and
+`bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
+`map.js` the map.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
@@ -37,7 +59,10 @@ lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `ef
 magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
 texture in `assets/textures/library.json` is used somewhere in the world. Scatter art that isn't a
 plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
-trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs.
+trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs. The
+Quaternius-kit world (`realm.js`, `wilds.js`, `land.js`, `houses.js`, `crypt.js`, `cave.js`,
+`kitdoors.js`) is kept but not built; `kit.js` loads only its props bundle, for what lies on the
+ground and the villagers' tools.
 
 VectorClad's bark, leaf and plank textures come in with
 `python tools/world/import_vectorclad.py` (it reads the sibling `vectorclad` repo's

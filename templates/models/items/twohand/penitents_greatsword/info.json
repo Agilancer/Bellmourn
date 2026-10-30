@@ -1,0 +1,72 @@
+{
+ "id": "penitents_greatsword",
+ "name": "Penitent's Greatsword",
+ "kind": "two-handed weapon",
+ "description": "A broad two-handed blade pierced through with three Latin crosses, a heavy square dark-iron guard and pommel, long red leather grip.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 728,
+ "files": [
+  "penitents_greatsword.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/penitents_greatsword_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/penitents_greatsword_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/penitents_greatsword_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/penitents_greatsword_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/penitents_greatsword_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/penitents_greatsword_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "guard"
+  },
+  {
+   "number": 3,
+   "name": "grip"
+  },
+  {
+   "number": 4,
+   "name": "grip ring"
+  },
+  {
+   "number": 5,
+   "name": "grip ring 2"
+  },
+  {
+   "number": 6,
+   "name": "pommel"
+  }
+ ],
+ "set": "set14",
+ "set_name": "model 14"
+}

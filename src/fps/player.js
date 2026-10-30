@@ -19,6 +19,9 @@ export class Player {
     this.speed = 0;   // current ground speed (for the view model)
     this.health = 100; this.maxHealth = 100;
     this.mana = 100; this.maxMana = 100;
+    this.speedMul = 1;          // from what's worn
+    this.lifeRegen = 0.4; this.manaRegen = 6;
+    this.healing = 0;           // life still to come from a draught
   }
 
   update(dt, input) {
@@ -26,7 +29,7 @@ export class Player {
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
     const [ax, ay] = input.axes();
     const run = input.held('ShiftLeft') || input.held('ShiftRight') || input.stickRun;
-    const top = run ? RUN : WALK;
+    const top = (run ? RUN : WALK) * this.speedMul;
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw); // forward
     const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);  // right
     const wx = (fx * ay + rx * ax) * top, wz = (fz * ay + rz * ax) * top;
@@ -65,7 +68,8 @@ export class Player {
       this.onGround = false;
     }
     if (p.y < -60) { p.set(0, 0, 12); this.vel.set(0, 0, 0); } // fell out of the world
-    if (this.physics.terrain && p.x > 286) { // on the downs nothing is below the ground: never sink into it
+    // on the downs nothing is below the ground but caves (physics.belowGround): never sink into it
+    if (this.physics.terrain && p.x > 286 && !this.physics.belowGround?.some((inside) => inside(p))) {
       const g = this.physics.groundAt(p.x, p.z);
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }
@@ -75,6 +79,9 @@ export class Player {
     const bobY = Math.sin(this.bob * 2) * 0.045 * Math.min(1, this.speed / WALK);
     this.camera.position.set(p.x, p.y + EYE + bobY, p.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
-    this.mana = Math.min(this.maxMana, this.mana + dt * 6);
+    this.mana = Math.min(this.maxMana, this.mana + dt * this.manaRegen);
+    const h = Math.min(this.healing, dt * 30);
+    this.healing -= h;
+    this.health = Math.min(this.maxHealth, this.health + h + dt * this.lifeRegen);
   }
 }

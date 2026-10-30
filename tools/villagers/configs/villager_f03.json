@@ -1,0 +1,74 @@
+{
+ "seed": 4403,
+ "face": "04_Adventurer",
+ "morph": {
+  "caucasian-female-young": 0.85,
+  "african-female-young": 0.15,
+  "chin-jaw-drop-more": 0.12,
+  "head-oval": 0.543,
+  "mouth-upperlip-volume-deflate": 0.024,
+  "nose-point-width-less": 0.344,
+  "chin-width-max": 0.164,
+  "mouth-scale-horiz-incr": 0.498,
+  "forehead-scale-vert-more": 0.097,
+  "chin-prominent-less": 0.173
+ },
+ "eye": "brownlight",
+ "iris_tint": [
+  0.5,
+  0.71,
+  0.79
+ ],
+ "dress": {
+  "LightGreen": [
+   "linen_teal",
+   0.75,
+   0.3
+  ],
+  "White": [
+   "linen_brown",
+   1.1,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   0.9,
+   0.3
+  ],
+  "Brown_02": [
+   "leather_strapwork",
+   0.9,
+   0.3
+  ],
+  "Gold": [
+   "leather_tooled",
+   0.6,
+   0.2
+  ],
+  "Green": [
+   "burlap_coarse",
+   0.9,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.99,
+ "outfit": "Adventurer",
+ "skin_tile": "02_Tan_Skin",
+ "hair": "Braid01",
+ "sleeves": "White",
+ "parts": [
+  "Adventurer_Body",
+  "Adventurer_Legs",
+  "Adventurer_Feet"
+ ],
+ "name": "villager_f03",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

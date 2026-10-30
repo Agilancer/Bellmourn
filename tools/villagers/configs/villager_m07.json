@@ -1,0 +1,76 @@
+{
+ "seed": 3301,
+ "face": "01_Fair_Skin",
+ "morph": {
+  "caucasian-male-young": 0.6,
+  "caucasian-male-old": 0.4,
+  "chin-width-max": 0.099,
+  "l-ear-flap-out": 0.412,
+  "r-ear-flap-out": 0.412,
+  "nose-point-width-more": 0.328,
+  "chin-jaw-drop-less": 0.116,
+  "nose-hump-morehump": 0.125,
+  "l-ear-size-big": 0.258,
+  "r-ear-size-big": 0.258,
+  "forehead-scale-vert-more": 0.026,
+  "mouth-upperlip-volume-deflate": 0.007
+ },
+ "eye": "blue",
+ "iris_tint": [
+  0.5,
+  0.78,
+  0.84
+ ],
+ "dress": {
+  "Brown": [
+   "linen_brown",
+   1.1,
+   0.3
+  ],
+  "Gloves": [
+   "leather_strapwork",
+   0.9,
+   0.2
+  ],
+  "LightBlue": [
+   "linen_teal",
+   0.55,
+   0.32
+  ],
+  "Beige": [
+   "linen_brown",
+   0.9,
+   0.3
+  ],
+  "Farmer_Feet:Brown": [
+   "leather_tooled",
+   0.85,
+   0.3
+  ],
+  "Farmer_Feet:Brown2": [
+   "leather_strapwork",
+   0.6,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 1.03,
+ "outfit": "Farmer",
+ "sleeves": "Brown",
+ "gloves": [
+  "Farmer_Body",
+  "Brown"
+ ],
+ "parts": [
+  "Farmer_Body",
+  "Farmer_Pants",
+  "Farmer_Feet"
+ ],
+ "name": "villager_m07",
+ "views": [
+  "hero_34",
+  "hero_face",
+  "hero_back"
+ ],
+ "samples": 64
+}
