@@ -270,6 +270,26 @@ def export(path, body, ao):
         bpy.ops.export_scene.gltf(**kw)
 
 
+def glow_map(img, pix, P, rule, spots, warp, size):
+    """The emissive image, or None: paint in a hue range (rule: hue lo, hi, min value, min
+    saturation, gain), plus spots on the body (spots: [(centre, radius, rgb)] in the unwarped
+    body's metres) that burn whatever is painted there."""
+    if not rule and not spots:
+        return None
+    flat = img.reshape(-1, 3)
+    G = np.zeros_like(flat)
+    if rule:
+        lo, hi, vmin, smin, gain = (list(rule) + [0.45, 1.6])[:5] if len(rule) < 5 else rule
+        k = wrap.glow(flat, (lo, hi), vmin, smin)
+        G = flat * k[:, None] * gain
+    for c, r, rgb in spots or []:
+        c = warp(np.array(c, float))
+        d = np.linalg.norm(P - c, axis=1)
+        k = np.clip(1.4 - d / r, 0, 1) ** 1.5
+        G[pix] = np.maximum(G[pix], np.asarray(rgb, np.float32) * k[:, None])
+    return G.reshape(size, size, 3)
+
+
 # ---------------------------------------------------------------- the build
 
 def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
@@ -286,6 +306,8 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
         F = F[:, ::-1].copy()
     log("meshed", len(V), "verts", len(F), "tris")
     V = M["reshape"](V, J0, H0)
+    if M.get("post"):        # changes that need the surface's normals: boils, blisters, warts
+        V = M["post"](V, normals(V, F), J0, H0)
     # a change of proportion moves the mesh, the joints and the head's landmarks together
     warp = M.get("warp") or (lambda P: np.asarray(P, float))
     V = warp(V)
@@ -295,8 +317,9 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
         H[k] = float(warp(np.array((0, H0["cy"], H0[k])))[2])
     H["cy"] = float(warp(np.array((0, H0["cy"], H0["eye"])))[1])
     caps = wrap.capsules(J)
-    spec = skins.spec(M["skin"], J, H)
+    spec = skins.spec(M["skin"], J, H, M.get("warp"))
     atlas = wrap.Atlas(os.path.join(skin_dir, spec["file"]), **spec.get("atlas", {}))
+    atlas.inpaint(spec["inpaint"])
     wrap.balance(spec, atlas, V, normals(V, F), caps)
     V, _ = relief(V, F, spec, atlas, caps, M["relief"])
     log("relief")
@@ -309,7 +332,7 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
     unwrap(body, J, head_z=neck_z + 0.02)
     log("unwrapped")
     Vc, Nc, UV, TL = corners(body)
-    img, (pix, _, _) = wrap.bake(Vc, Nc, TL, UV, spec, atlas, caps, size=size)
+    img, (pix, P_tex, _) = wrap.bake(Vc, Nc, TL, UV, spec, atlas, caps, size=size)
     img = img.reshape(size, size, 3)
     tex = Image.fromarray((img * 255 + 0.5).astype(np.uint8))
     if out_size and out_size != size:
@@ -317,9 +340,9 @@ def build(fbx, skin_dir, out, name, size=2048, out_size=1024):
     png = os.path.join(out, f"{name}.png")
     tex.save(png)
     glow_png = None
-    if spec.get("glow"):
-        k = wrap.glow(img.reshape(-1, 3), spec["glow"][:2], spec["glow"][2]).reshape(size, size)
-        gl = Image.fromarray((np.clip(img * k[..., None] * 1.6, 0, 1) * 255 + 0.5).astype(np.uint8))
+    G = glow_map(img, pix, P_tex, spec.get("glow"), M.get("glow_spots"), warp, size)
+    if G is not None:
+        gl = Image.fromarray((np.clip(G, 0, 1) * 255 + 0.5).astype(np.uint8))
         if out_size and out_size != size:
             gl = gl.resize((out_size, out_size), Image.LANCZOS)
         glow_png = os.path.join(out, f"{name}_glow.png")

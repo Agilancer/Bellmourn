@@ -27,7 +27,7 @@ from scipy.spatial import cKDTree
 # ---------------------------------------------------------------- the atlas
 
 class Atlas:
-    def __init__(self, path, thresh=40, erode=1, feather=4.0, bg=None):
+    def __init__(self, path, thresh=40, erode=4, feather=6.0, bg=None):
         im = Image.open(path).convert("RGB")
         self.rgb = np.asarray(im).astype(np.float32) / 255.0
         H, W, _ = self.rgb.shape
@@ -52,6 +52,20 @@ class Atlas:
             m = ndimage.binary_erosion(m, iterations=erode)
         dist = ndimage.distance_transform_edt(m)
         self.mask = np.clip(dist / feather, 0, 1).astype(np.float32)
+
+    def inpaint(self, boxes):
+        """Inside these boxes (the hands, the feet), the sheet's background between painted fingers
+        and toes takes the colour of the nearest paint, and counts as paint: the model's fingers lie
+        where they lie, not where the painter's did."""
+        for x0, y0, x1, y1 in boxes:
+            sub = self.mask[y0:y1, x0:x1]
+            paint = sub > 0.5
+            if not paint.any():
+                continue
+            _, (iy, ix) = ndimage.distance_transform_edt(~paint, return_indices=True)
+            rgb = self.rgb[y0:y1, x0:x1]
+            self.rgb[y0:y1, x0:x1] = rgb[iy, ix]
+            self.mask[y0:y1, x0:x1] = 1.0
 
     def sample(self, x, y):
         """Bilinear colour and mask at pixel coordinates (x right, y down)."""
@@ -102,7 +116,7 @@ def regions(P, caps, tau=0.018):
     return {n: W[:, i] for i, n in enumerate(names)}
 
 
-def glow(C, hue, vmin):
+def glow(C, hue, vmin, smin=0.45):
     """How much each colour glows: paint in the hue range (0..1, wrapping), bright and saturated."""
     mx, mn = C.max(1), C.min(1)
     sat = (mx - mn) / np.maximum(mx, 1e-6)
@@ -111,7 +125,7 @@ def glow(C, hue, vmin):
     h = np.where(mx == r, ((g_ - b) / d) % 6, np.where(mx == g_, (b - r) / d + 2, (r - g_) / d + 4)) / 6
     lo, hi = hue
     inh = (h >= lo) & (h <= hi) if lo <= hi else (h >= lo) | (h <= hi)
-    k = np.clip((mx - vmin) / 0.2, 0, 1) * np.clip((sat - 0.45) / 0.25, 0, 1) * inh
+    k = np.clip((mx - vmin) / 0.2, 0, 1) * np.clip((sat - smin) / 0.25, 0, 1) * inh
     return k
 
 
@@ -142,17 +156,23 @@ def project(pr, P, N):
         qa = q - s[:, None] * ax
         A = np.degrees(np.arctan2(qa @ r, qa @ f))
         B = s / pr.get("length", 1.0)
-        facing = np.ones(len(P), np.float32)
+        # a cylinder smears where the surface turns to face along its axis (the tops of the
+        # shoulders under the torso's, the ends of limbs): fade it out there
+        along = np.abs(N @ ax)
+        facing = np.clip((0.97 - along) / 0.4, 0.25, 1).astype(np.float32)
         if pr.get("outward", 0):
             # only the outer surface: normals pointing away from the axis
             rad = qa / np.maximum(np.linalg.norm(qa, axis=1, keepdims=True), 1e-9)
-            facing = np.clip((np.einsum("ij,ij->i", N, rad) - 0.0) / 0.3, 0, 1)
+            facing = facing * np.clip((np.einsum("ij,ij->i", N, rad) - 0.0) / 0.3, 0, 1)
     else:
         r = unit(pr["right"])
         dn = unit(pr["down"])
         view = unit(np.cross(r, dn)) if "view" not in pr else unit(pr["view"])
         A, B = q @ r, q @ dn
-        facing = np.clip(-(N @ view), 0, 1) ** pr.get("facing_pow", 2.0)
+        dot = -(N @ view)
+        facing = np.clip(dot, 0, 1) ** pr.get("facing_pow", 2.0)
+        if pr.get("side_floor"):    # surfaces seen edge-on (the sides of fingers and toes) still take some
+            facing = np.maximum(facing, pr["side_floor"] * np.clip((dot + 0.35) / 0.35, 0, 1))
     if "near" in pr:            # only round a point (an ear)
         c, rad = pr["near"]
         facing = facing * np.clip(1.5 - np.linalg.norm(P - np.asarray(c, float), axis=1) / rad, 0, 1)
@@ -220,7 +240,7 @@ def shade(spec, atlas, P, N, caps, gamma=2.0, chunk=400000):
     return out, tot
 
 
-def fill_gaps(P, C, W, eps=0.02):
+def fill_gaps(P, C, W, eps=0.004):
     """Points no projection covers well (total weight under eps, where only the faint edges of
     islands reach and the sheet's background creeps in) fade to the colour of the nearest
     well-covered points."""

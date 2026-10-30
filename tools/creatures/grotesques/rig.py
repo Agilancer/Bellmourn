@@ -15,7 +15,7 @@ import numpy as np
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "zombie3d"))
+sys.path.append(os.path.join(os.path.dirname(HERE), "zombie3d"))   # after ours: it has a build.py too
 import anims  # noqa: E402  (the zombies' clips)
 
 

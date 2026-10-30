@@ -110,14 +110,14 @@ def ears(L, H):
     return out
 
 
-def torso(L, key, front, right):
+def torso(L, key, front, right, zmap):
     t = L[key]
     x0, y0, x1, y1 = t["box"]
     cx, h = t["cx"], t["half"]
     a = [(-106, max(x0, cx - h * 1.18)), (-90, cx - h), (0, cx), (90, cx + h), (106, min(x1, cx + h * 1.18))]
-    b = sorted((-z, y) for z, y in t["ys"])
+    b = sorted((-zmap(z), y) for z, y in t["ys"])        # the heights are the bare man's: warped
     return dict(kind="cyl", region="torso", origin=(0, -0.055, 0), axis=DOWN, front=front, right=right,
-                a=a, b=b, corners=ID, feather=(16, 0.03), clip=t["box"])
+                a=a, b=b, corners=ID, feather=(16, 0.06), clip=t["box"])
 
 
 def limb(J, top, bottom, strip, front, right, region, joint_s, ext=0.04):
@@ -132,36 +132,45 @@ def limb(J, top, bottom, strip, front, right, region, joint_s, ext=0.04):
     b.append((n, 1.0))
     a = [(-102, -12 / 180), (-90, 0), (0, 0.5), (90, 1), (102, 1 + 12 / 180)]
     return dict(kind="cyl", region=region, origin=o, axis=e - o, front=front, right=right, a=a, b=b,
-                corners=corners(box, d), feather=(12, 0.03), clip=box)
+                corners=corners(box, d), feather=(12, 0.06 if region.startswith("leg") else 0.03), clip=box)
 
 
 def hand(J, s, spec, view, weight=1.0):
     box, d, thumb = spec
     sx = 1 if s == "L" else -1
     w = g(J, f"hand.{s}")
+    k = np.linalg.norm(np.array(J[f"hand.{s}"][1]) - w) / 0.2599    # this hand's size against the bare man's
     # across: away from the thumb (+y, the thumbs point forward) when the thumb is at a=0
     r = (0, 1, 0) if thumb == "a0" else (0, -1, 0)
-    lo, hi = (-0.10, 0.058) if thumb == "a0" else (-0.058, 0.10)
+    lo, hi = (-0.10 * k, 0.058 * k) if thumb == "a0" else (-0.058 * k, 0.10 * k)
     return dict(kind="planar", region="hand" + s, origin=w, right=r, down=(sx, 0, 0), view=view,
-                a=[(lo, 0), (hi, 1)], b=[(-0.02, -0.08), (0, 0), (0.15, 0.42), (0.27, 1.0)],
-                corners=corners(box, d), feather=(0.006, 0.01), facing_pow=1.0, weight=weight, clip=box)
+                # long or spread fingers reach past the bare man's hand: they take the island's edge
+                a=[(lo * 1.4, 0), (lo, 0), (hi, 1), (hi * 1.4, 1)],
+                b=[(-0.02 * k, -0.08), (0, 0), (0.15 * k, 0.42), (0.27 * k, 1.0), (0.4 * k, 1.0)],
+                corners=corners(box, d), feather=(0.006, 0.01), facing_pow=1.0, weight=weight, clip=box,
+                side_floor=0.3)
 
 
 def foot(J, s, spec, view, weight=1.0):
     box, d, big = spec
     sx = 1 if s == "L" else -1
     a0 = g(J, f"foot.{s}")
+    k = np.linalg.norm(np.array(J[f"foot.{s}"][1]) - a0) / 0.1961    # this foot's size against the bare man's
     r = (sx, 0, 0) if big == "a0" else (-sx, 0, 0)
     sole = view == UP
     return dict(kind="planar", region="foot" + s, origin=a0, right=r, down=FRONT, view=view,
-                a=[(-0.062, 0), (0.062, 1)], b=[(-0.07 if sole else -0.03, 0), (0.225, 1)],
+                a=[(-0.062 * k, 0), (0.062 * k, 1)], b=[((-0.07 if sole else -0.03) * k, 0), (0.225 * k, 1)],
                 corners=corners(box, d), feather=(0.006, 0.012), facing_pow=1.5 if sole else 1.0,
-                weight=weight, clip=box)
+                weight=weight, clip=box, side_floor=0.3)
 
 
-def spec(name, J, H):
+def spec(name, J, H, warp=None):
+    """The projections for atlas `name` on a body with joints J and head landmarks H; `warp` is the
+    change of proportion (if any) the body went through, which the torso's heights follow."""
     L = LAYOUTS[name]
-    P = [face(L, H), back_head(L, H), crown(L, H), torso(L, "chest", FRONT, LEFT), torso(L, "backt", BACK, RIGHT)]
+    zmap = (lambda z: float(warp(np.array((0, -0.05, z)))[2])) if warp else (lambda z: z)
+    P = [face(L, H), back_head(L, H), crown(L, H), torso(L, "chest", FRONT, LEFT, zmap),
+         torso(L, "backt", BACK, RIGHT, zmap)]
     if L.get("ear"):
         P += ears(L, H)
     for s, sx in (("L", 1), ("R", -1)):
@@ -171,13 +180,14 @@ def spec(name, J, H):
         # arms in the T-pose: front faces forward, its sheet's right toward his outside (up)
         P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["front"], FRONT, (0, 0, sx), "arm" + s, el))
         P.append(limb(J, f"upper_arm.{s}", f"hand.{s}", A["back"], BACK, (0, 0, -sx), "arm" + s, el))
-        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["front"], FRONT, LEFT, f"leg{s}+torso", kn, 0.1))
-        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["back"], BACK, RIGHT, f"leg{s}+torso", kn, 0.1))
+        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["front"], FRONT, LEFT, f"leg{s}+torso", kn, 0.14))
+        P.append(limb(J, f"thigh.{s}", f"foot.{s}", Lg["back"], BACK, RIGHT, f"leg{s}+torso", kn, 0.14))
         P.append(hand(J, s, L["hands"][s], DOWN))
         P.append(hand(J, s, (L.get("palms") or L["hands"])[s], UP, 0.8))
         P.append(foot(J, s, L["feet"][s], DOWN))
         P.append(foot(J, s, (L.get("soles") or L["feet"])[s], UP))
-    return dict(file=L["file"], projections=P, glow=L.get("glow"), atlas=L.get("atlas", {}))
+    fill = [pr["clip"] for pr in P if pr["region"].startswith(("hand", "foot"))]
+    return dict(file=L["file"], projections=P, glow=L.get("glow"), atlas=L.get("atlas", {}), inpaint=fill)
 
 
 def S(box, d="down", mark=None):
@@ -258,7 +268,7 @@ LAYOUTS = {
     ),
     # ---------------------------------------------------------------- 05 the ember husk
     "05": dict(
-        file="05.png", glow=(0.0, 0.11, 0.42),
+        file="05.png", glow=(0.97, 0.12, 0.30, 0.32, 2.6),
         face=dict(box=(5, 5, 702, 300), eyes=(280, 422, 108), nose=160, mouth=210, chin=262, ears=(165, 540),
                   ear_y=145, top=8),
         back=dict(box=(720, 5, 1245, 300), cx=960, ears=(762, 1200), top=8, ear_y=130, bottom=298),
@@ -268,8 +278,8 @@ LAYOUTS = {
         backt=dict(box=(705, 315, 1118, 732), cx=910, half=205, ys=[(1.55, 320), (0.98, 730)]),
         arms={"L": dict(front=S((630, 740, 1070, 845), "right"), back=S((630, 850, 1070, 950), "right")),
               "R": dict(front=S((160, 740, 625, 845), "left"), back=S((185, 850, 625, 950), "left"))},
-        legs={"L": dict(front=S((320, 1075, 930, 1150), "right"), back=S((640, 960, 920, 1060), "right")),
-              "R": dict(front=S((320, 1160, 930, 1250), "left"), back=S((170, 960, 620, 1060), "left"))},
+        legs={"L": dict(front=S((320, 1075, 930, 1150), "right"), back=S((320, 1160, 930, 1250), "right")),
+              "R": dict(front=S((320, 1075, 930, 1150), "right"), back=S((320, 1160, 930, 1250), "right"))},
         hands={"L": ((5, 800, 170, 990), "up", "a0"), "R": ((1080, 800, 1245, 990), "up", "a1")},
         feet={"L": ((995, 1075, 1245, 1160), "right", "a0"), "R": ((5, 1075, 280, 1160), "left", "a1")},
         soles={"L": ((995, 1160, 1245, 1250), "right", "a1"), "R": ((5, 1160, 280, 1250), "left", "a0")},
@@ -294,7 +304,7 @@ LAYOUTS = {
     ),
     # ---------------------------------------------------------------- 07 the chitin fiend
     "07": dict(
-        file="07.png", glow=(0.03, 0.12, 0.55),
+        file="07.png", glow=(0.03, 0.12, 0.5, 0.45, 2.6),
         face=dict(box=(5, 5, 548, 282), eyes=(205, 345, 100), nose=150, mouth=215, chin=270, ears=None,
                   ear_y=100, top=8),
         back=dict(box=(565, 5, 1005, 295), cx=790, half=220, top=8, ear_y=150, bottom=295),
@@ -304,8 +314,8 @@ LAYOUTS = {
         backt=dict(box=(565, 295, 1005, 658), cx=785, half=220, ys=[(1.55, 300), (0.98, 655)]),
         arms={"L": dict(front=S((5, 795, 805, 898), "right"), back=S((5, 670, 800, 790), "right")),
               "R": dict(front=S((5, 795, 805, 898), "right"), back=S((5, 670, 800, 790), "right"))},
-        legs={"L": dict(front=S((5, 905, 805, 1042), "right"), back=S((5, 1135, 805, 1250), "right")),
-              "R": dict(front=S((5, 905, 805, 1042), "right"), back=S((5, 1135, 805, 1250), "right"))},
+        legs={"L": dict(front=S((5, 905, 805, 1042), "right"), back=S((5, 1135, 805, 1250), "left")),
+              "R": dict(front=S((5, 905, 805, 1042), "right"), back=S((5, 1135, 805, 1250), "left"))},
         hands={"L": ((810, 665, 1050, 812), "right", "a0"), "R": ((810, 665, 1050, 812), "right", "a1")},
         feet={"L": ((1040, 1055, 1110, 1250), "down", "a0"), "R": ((1040, 1055, 1110, 1250), "down", "a1")},
         soles={"L": ((1110, 1050, 1185, 1250), "down", "a0"), "R": ((1110, 1050, 1185, 1250), "down", "a1")},
@@ -332,7 +342,7 @@ LAYOUTS = {
     ),
     # ---------------------------------------------------------------- 09 the fungal husk
     "09": dict(
-        file="09.png",
+        file="09.png", glow=(0.07, 0.13, 0.55, 0.6, 0.7),
         face=dict(box=(5, 5, 617, 272), eyes=(218, 392, 92), nose=140, mouth=195, chin=262, ears=(55, 575),
                   ear_y=70, top=8),
         back=dict(box=(720, 5, 1160, 275), cx=940, half=220, top=8, ear_y=120, bottom=275),

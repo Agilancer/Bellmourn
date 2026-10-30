@@ -110,6 +110,16 @@ class Field:
         g = np.meshgrid(*[self.centres(k) for k in range(3)], indexing="ij", sparse=True)
         return np.asarray(fn(g), np.float32)
 
+    def surface_y(self, z, x=0.0, back=True):
+        """Where the clay's surface is along y at (x, z): its back (largest y) or its front."""
+        i = int(round((x - self.lo[0]) / self.h))
+        k = int(round((z - self.lo[2]) / self.h))
+        col = self.v[i, :, k] > 0.5
+        if not col.any():
+            return None
+        j = np.nonzero(col)[0]
+        return float(self.lo[1] + (j.max() if back else j.min()) * self.h)
+
     def blur(self, sigma, mask=None):
         b = ndimage.gaussian_filter(self.v, sigma / self.h)
         self.v = b if mask is None else self.v + (b - self.v) * mask
