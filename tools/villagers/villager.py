@@ -258,6 +258,45 @@ if C['hair']:
 keep = [f"{C['outfit']}_Body", f"{C['outfit']}_Legs" if f"{C['outfit']}_Legs" in bpy.data.objects else f"{C['outfit']}_Pants", f"{C['outfit']}_Feet"]
 keep = C.get('parts', keep)
 donor = bpy.data.objects[f"{C['outfit']}_Head"] if f"{C['outfit']}_Head" in bpy.data.objects else bpy.data.objects['Casual_Head']
+
+
+def take_hat(spec):
+    """A hat cut from one of the FBX's heads (its faces of spec['mats']), fitted to our head: as
+    wide as our skull is across above the eyes, its crown on ours."""
+    src = bpy.data.objects[spec['from']]
+    me = src.data
+    keepm = [i for i, m in enumerate(me.materials) if m.name in spec['mats']]
+    bm = bmesh.new(); bm.from_mesh(me)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index not in keepm], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    if bm.verts.layers.deform.active:   # its old head's weights go; it rides the Head bone alone
+        bm.verts.layers.deform.remove(bm.verts.layers.deform.active)
+    hm = bpy.data.meshes.new('V_Hat'); bm.to_mesh(hm); bm.free()
+    for m in me.materials:
+        hm.materials.append(m)
+    hat = link(bpy.data.objects.new('V_Hat', hm))
+    # fitted by its opening: the ring at the foot of its crown goes round our head at the band
+    # (`band` above the eyes), as wide as our head is there, a little loose
+    hv_ = np.array([v.co[:] for v in hm.vertices])
+    cxy = np.array([(hv_[:, 0].min() + hv_[:, 0].max()) / 2, (hv_[:, 1].min() + hv_[:, 1].max()) / 2])
+    near = np.hypot(hv_[:, 0] - cxy[0], hv_[:, 1] - cxy[1]) < 0.13
+    foot = hv_[near & (hv_[:, 2] < hv_[near, 2].min() + 0.03)]
+    r_hat = np.hypot(foot[:, 0] - cxy[0], foot[:, 1] - cxy[1]).max()
+    zb = C['eye_z'] + spec.get('band', 0.05)
+    ours = np.array([v.co[:] for v in head.data.vertices]); ring = ours[np.abs(ours[:, 2] - zb) < 0.01]
+    oxy = np.array([(ring[:, 0].min() + ring[:, 0].max()) / 2, (ring[:, 1].min() + ring[:, 1].max()) / 2])
+    r_ours = (np.ptp(ring[:, 0]) + np.ptp(ring[:, 1])) / 4
+    k = r_ours * spec.get('loose', 1.08) / r_hat
+    z0 = foot[:, 2].mean()
+    for v in hm.vertices:
+        p_ = np.array(v.co[:])
+        q = np.array([oxy[0] + (p_[0] - cxy[0]) * k, oxy[1] + (p_[1] - cxy[1]) * k + spec.get('back', 0.0), zb + (p_[2] - z0) * k])
+        v.co = mathutils.Vector(q)
+    smooth(hat)
+    return hat
+
+
+hat = take_hat(C['hat']) if C.get('hat') else None
 for o in list(bpy.data.objects):
     if o.type == 'MESH' and o.name not in keep and not o.name.startswith('V_') and o is not donor:
         bpy.data.objects.remove(o)
@@ -299,7 +338,7 @@ rig(head)
 for o in shells:
     weights_from(o, head, k=1)
     rig(o)
-for o in extra:
+for o in extra + ([hat] if hat else []):
     o.vertex_groups.new(name='Head').add([v.index for v in o.data.vertices], 1.0, 'REPLACE')
     rig(o)
 bpy.data.objects.remove(donor)
@@ -308,7 +347,7 @@ bpy.data.objects.remove(donor)
 SKIN_TILE = f"{PACK}/Seamless_Skin_Tiles/{C['face']}_Skin_Seamless_1024.png"
 if not os.path.exists(SKIN_TILE):
     SKIN_TILE = [f for f in __import__('glob').glob(f"{PACK}/Seamless_Skin_Tiles/{C['face'][:2]}_*.png")][0]
-SHEEN = {'linen': 0.25, 'burlap': 0.2, 'quilted': 0.3, 'damask': 0.6, 'leather': 0.0}
+SHEEN = {'linen': 0.25, 'burlap': 0.2, 'quilted': 0.3, 'damask': 0.6, 'leather': 0.0, 'metal': 0.0}
 
 
 def cloth_material(name, cloth, gain=1.0):
@@ -327,6 +366,8 @@ def cloth_material(name, cloth, gain=1.0):
     b.inputs['Sheen Roughness'].default_value = 0.4
     if cloth.startswith('leather'):
         b.inputs['Specular IOR Level'].default_value = 0.55
+    if cloth.startswith('metal'):
+        b.inputs['Metallic'].default_value = 0.6   # not wholly: the village has no reflections to show
     m['cloth'] = cloth
     return m
 
@@ -334,6 +375,7 @@ def cloth_material(name, cloth, gain=1.0):
 def body_skin_material():
     """The seamless skin tile, its colour brought to the face's (the atlas's neck)."""
     m = skin_material('V_Skin_Body', SKIN_TILE, coords=lambda nt, t: None)
+    m.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.68   # bare arms: not glossy
     tile = np.asarray(Image.open(SKIN_TILE).convert('RGB'), dtype=np.float64).reshape(-1, 3).mean(0)
     a_ = np.asarray(Image.open(atlas).convert('RGB'), dtype=np.float64)
     cheeks = np.concatenate([a_[400:470, 300:360].reshape(-1, 3), a_[400:470, 668:728].reshape(-1, 3)]).mean(0)
@@ -350,7 +392,7 @@ def body_skin_material():
 mats = {}
 tiles = {}
 for slot, (cloth, gain, tile) in C['dress'].items():
-    mats[slot] = cloth_material(f'V_{slot}_{cloth}', cloth, gain); tiles[slot] = tile
+    mats[slot] = cloth_material(f"V_{slot.replace(':', '_')}_{cloth}", cloth, gain); tiles[slot] = tile
 mats['Skin'] = body_skin_material(); tiles['Skin'] = 0.22
 def long_sleeves(o, slot):
     """His arms in the undershirt: the skin of the upper and lower arm becomes the slot's cloth."""
@@ -401,9 +443,31 @@ def smaller_hands(o, k=C.get('hands', 0.86)):
                 v.co = c + (v.co - c) * f
 
 
-for name in keep:
+def gloves(o, slot):
+    """The hands of a slot (a shirt whose cuffs run on into gloves) become their own slot, 'Gloves'."""
+    names = [m.name for m in o.data.materials]
+    if slot not in names:
+        return
+    o.data.materials.append(bpy.data.materials.new('Gloves'))
+    si, gi_ = names.index(slot), len(o.data.materials) - 1
+    gi = {g.index: g.name for g in o.vertex_groups}
+    for p in o.data.polygons:
+        if p.material_index != si:
+            continue
+        w = {}
+        for i in p.vertices:
+            for g in o.data.vertices[i].groups:
+                w[gi[g.group]] = w.get(gi[g.group], 0) + g.weight
+        if w and max(w, key=w.get).startswith(('Wrist', 'Index', 'Middle', 'Ring', 'Pinky', 'Thumb')):
+            p.material_index = gi_
+
+
+for name in keep + (['V_Hat'] if hat else []):
     o = bpy.data.objects[name]
-    smaller_hands(o)
+    if name != 'V_Hat':
+        smaller_hands(o)
+    if C.get('gloves') and C['gloves'][0] == name:
+        gloves(o, C['gloves'][1])
     if C['sleeves']:
         long_sleeves(o, C['sleeves'])
     bpy.context.view_layer.objects.active = o
@@ -415,10 +479,11 @@ for name in keep:
     except Exception as e:
         print('normals', e)
     smooth(o)
-    clothes.unwrap(o, arm, lambda mn: tiles.get(mn, 0.3))
+    slot = lambda mn: f'{name}:{mn}' if f'{name}:{mn}' in mats else mn
+    clothes.unwrap(o, arm, lambda mn: tiles.get(slot(mn), 0.3))
     for i, m in enumerate(o.data.materials):
-        if m.name in mats:
-            o.data.materials[i] = mats[m.name]
+        if slot(m.name) in mats:
+            o.data.materials[i] = mats[slot(m.name)]
         else:
             print('undressed slot', name, m.name)
     if C['subdiv']:

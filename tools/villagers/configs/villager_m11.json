@@ -1,0 +1,82 @@
+{
+ "seed": 3305,
+ "face": "09_Tattooed_Berserker",
+ "morph": {
+  "caucasian-male-young": 0.8,
+  "caucasian-male-old": 0.2,
+  "nose-volume-potato": 0.344,
+  "chin-jaw-drop-less": 0.341,
+  "l-ear-flap-out": 0.33,
+  "r-ear-flap-out": 0.33,
+  "forehead-scale-vert-less": 0.257,
+  "head-scale-horiz-less": 0.247,
+  "chin-prominent-less": 0.424,
+  "nose-scale-horiz-incr": 0.081,
+  "head-oval": 0.066
+ },
+ "eye": "grey",
+ "iris_tint": [
+  0.5,
+  0.74,
+  0.69
+ ],
+ "dress": {
+  "Purple": [
+   "linen_brown",
+   0.8,
+   0.28
+  ],
+  "LightBlue": [
+   "burlap_dark",
+   0.5,
+   0.3
+  ],
+  "Grey": [
+   "leather_strapwork",
+   0.85,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ],
+  "Backpack:Brown": [
+   "leather_tooled",
+   0.9,
+   0.3
+  ],
+  "Backpack:Green": [
+   "leather_strapwork",
+   0.8,
+   0.2
+  ],
+  "Backpack:LightGreen": [
+   "linen_brown",
+   0.8,
+   0.3
+  ],
+  "Backpack:Gold": [
+   "metal_bronze",
+   1.0,
+   0.15
+  ]
+ },
+ "line": 0.02,
+ "scale": 1.04,
+ "outfit": "Casual",
+ "sleeves": null,
+ "parts": [
+  "Casual_Body",
+  "Casual2_Legs",
+  "Adventurer_Feet",
+  "Backpack"
+ ],
+ "name": "villager_m11",
+ "views": [
+  "hero_34",
+  "hero_face",
+  "hero_back"
+ ],
+ "samples": 64
+}

@@ -22,3 +22,18 @@ for k, (r, sp, ns) in TILES.items():
     normal_map(f'{src}/{k}.png', f'{dst}/{k}_n.png', strength=ns, size=512)
     rough_map(f'{src}/{k}.png', f'{dst}/{k}_r.png', r, sp, size=512)
     print(k)
+
+# metal, from the game's own material sheets (3 x 2 finishes each): one finish, mirrored 2 x 2 so it tiles
+METALS = {'metal_steel': ('01_steel', 1, 0, 2.5), 'metal_dark': ('03_bright_steel', 0, 0, 2.0),
+          'metal_bronze': ('10_bronze_copper', 1, 1, 2.0), 'metal_bands': ('09_bands', 0, 0, 3.0)}
+for k, (sheet, cx, cy, ns) in METALS.items():
+    im = Image.open(os.path.join(mh.REPO, 'art', 'materials', sheet + '.webp')).convert('RGB')
+    w, h = im.width // 3, im.height // 2
+    cell = im.crop((cx * w + 8, cy * h + 8, cx * w + w - 8, cy * h + w - 8)).resize((512, 512), Image.LANCZOS)
+    t = Image.new('RGB', (1024, 1024))
+    t.paste(cell, (0, 0)); t.paste(cell.transpose(Image.FLIP_LEFT_RIGHT), (512, 0))
+    t.paste(cell.transpose(Image.FLIP_TOP_BOTTOM), (0, 512)); t.paste(cell.transpose(Image.ROTATE_180), (512, 512))
+    t.save(f'{dst}/{k}.png')
+    normal_map(f'{dst}/{k}.png', f'{dst}/{k}_n.png', strength=ns, size=512)
+    rough_map(f'{dst}/{k}.png', f'{dst}/{k}_r.png', 0.38, -0.25, size=512)
+    print(k)
