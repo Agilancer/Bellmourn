@@ -39,7 +39,7 @@ function layout() {
   room(22, -47, 9, 8, DEEP - 1.6, 4.0, 'nest');
   pass([[37, 14], [35, 26], [30, 39]], 2.1, DEEP - 0.4, DEEP - 0.2, 3.6, 'south');
   room(28, 49, 10, 9, DEEP - 0.2, 5.0, 'warren');
-  pass([[12, -1], [11, -11], [8, -21]], 1.5, null, DEEP - 2.6, 3.0, 'stair');      // down from the tunnel to the shrine
+  pass([[12, -1], [11, -11], [8, -21], [7, -24]], 1.5, null, DEEP - 2.6, 3.0, 'stair');      // down from the tunnel to the shrine
   room(6, -27, 5.5, 5, DEEP - 2.6, 3.2, 'shrine');
   pass([[30, -47], [41, -38], [46, -22], [47, -4]], 1.6, DEEP - 1.6, DEEP - 0.6, 3.0, 'loop');
   pass([[47, -4], [47, 14], [44, 27]], 1.6, DEEP - 0.6, DEEP - 0.4, 3.0, 'loop');
@@ -55,13 +55,13 @@ export function grottoLayout() {
   const F = [];
   const pass = (pts, r, f0, f1, h = 3.6, tag = 'pass') => F.push({ type: 'pass', pts, r, f0, f1, h, tag });
   const room = (a, b, ra, rb, floor, dome, tag) => F.push({ type: 'room', a, b, ra, rb, floor, dome, tag });
-  pass([[-5, 0], [5, 0], [12, -6], [16, -16]], 2.1, null, DEEP + 3, 3.8, 'entrance');
+  pass([[-5, 0], [5, 0], [12, -6], [16, -16], [19, -22]], 2.1, null, DEEP + 3, 3.8, 'entrance');
   room(22, -30, 11, 10, DEEP + 2, 5.0, 'pool');
-  pass([[31, -36], [40, -32], [46, -22]], 1.8, DEEP + 2, DEEP + 1.4, 3.2, 'gallery');
+  pass([[28, -34], [40, -32], [46, -22], [47, -14]], 1.8, DEEP + 2, DEEP + 1.4, 3.2, 'gallery');
   room(47, -12, 7, 6, DEEP + 1.4, 3.6, 'cistern');
-  pass([[17, -40], [14, -52], [18, -62]], 1.8, DEEP + 2, DEEP + 0.6, 3.2, 'drain');
+  pass([[18, -36], [14, -52], [18, -62], [22, -66]], 1.8, DEEP + 2, DEEP + 0.6, 3.2, 'drain');
   room(25, -70, 9, 8, DEEP + 0.6, 4.2, 'drowned');
-  pass([[33, -66], [44, -56], [48, -40], [47, -18]], 1.6, DEEP + 0.6, DEEP + 1.4, 3.0, 'loop');
+  pass([[30, -68], [44, -56], [48, -40], [47, -15]], 1.6, DEEP + 0.6, DEEP + 1.4, 3.0, 'loop');
   return F;
 }
 export const GROTTO_DECOR = {
@@ -80,11 +80,11 @@ export function trollLayout() {
   const room = (a, b, ra, rb, floor, dome, tag) => F.push({ type: 'room', a, b, ra, rb, floor, dome, tag });
   pass([[-5, 0], [8, 2], [18, 8]], 2.4, null, DEEP + 1, 4.2, 'entrance');
   room(32, 14, 14, 12, DEEP + 0.5, 8, 'lair');
-  pass([[40, 25], [44, 38]], 2.0, DEEP + 0.5, DEEP + 0.5, 3.6, 'gnaw');
+  pass([[38, 20], [44, 38], [45, 45]], 2.0, DEEP + 0.5, DEEP + 0.5, 3.6, 'gnaw');
   room(45, 48, 8, 7, DEEP + 0.5, 3.6, 'larder');
-  pass([[26, 3], [28, -12], [34, -22]], 1.8, DEEP + 0.5, DEEP, 3.2, 'seep');
+  pass([[28, 8], [28, -12], [34, -22], [37, -27]], 1.8, DEEP + 0.5, DEEP, 3.2, 'seep');
   room(38, -30, 9, 8, DEEP, 4.2, 'grove');
-  pass([[46, -26], [52, -10], [46, 4]], 1.6, DEEP, DEEP + 0.5, 3.0, 'loop');
+  pass([[42, -28], [52, -10], [46, 4], [41, 9]], 1.6, DEEP, DEEP + 0.5, 3.0, 'loop');
   return F;
 }
 export const TROLL_DECOR = {
@@ -252,7 +252,58 @@ export class Cave {
       const ring = feature(F.reduce((m, f) => (feature(f, water.a, water.b).s < feature(m, water.a, water.b).s ? f : m)), water.a, water.b);
       this.water = { x: px + water.a, z: z + water.b, r: water.r, y: ring.floor - 0.45 };
     } else this.water = null;
+    this.ease(0.3);
     this.build();
+    this.unreached = this.reach();
+    if (this.unreached.length) console.warn(`${this.name}: no way through to`, this.unreached.join(', '));
+  }
+
+  /** No step in the floor higher than `step` between neighbouring cells (the player climbs 0.42):
+   * where the floor drops faster (through the mouth, under the cliff face) the lower cells are
+   * lifted into a ramp. The roof rises with them. */
+  ease(step) {
+    const { nx, nz, s: S, floor: FL, a0 } = this;
+    const open = (j) => S[j] < 0.6 && a0 + (j % nx) * G >= 0;
+    for (let pass = 0; pass < 400; pass++) {
+      let changed = 0;
+      for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+        const j = k * nx + i;
+        if (!open(j)) continue;
+        let hi = -Infinity;
+        if (i > 0 && (S[j - 1] < 0.6)) hi = Math.max(hi, FL[j - 1]);
+        if (i + 1 < nx && open(j + 1)) hi = Math.max(hi, FL[j + 1]);
+        if (k > 0 && open(j - nx)) hi = Math.max(hi, FL[j - nx]);
+        if (k + 1 < nz && open(j + nx)) hi = Math.max(hi, FL[j + nx]);
+        if (hi - step > FL[j] + 1e-4) { FL[j] = hi - step; changed++; }
+      }
+      if (!changed) break;
+    }
+  }
+
+  /** The features (by tag) that can't be walked to from the mouth (and back): a flood over the
+   * open cells (a margin off the walls), no step higher than the player can climb. */
+  reach() {
+    const { nx, nz, s: S, floor: FL } = this;
+    const seen = new Uint8Array(nx * nz), q = [];
+    const start = this.idx(this.px + 1, this.pz);
+    if (start < 0) return this.features.map((f) => f.tag);
+    seen[start] = 1; q.push(start);
+    while (q.length) {
+      const j = q.pop(), i = j % nx, k = (j - i) / nx;
+      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ii = i + di, kk = k + dk;
+        if (ii < 0 || kk < 0 || ii >= nx || kk >= nz) continue;
+        const n = kk * nx + ii;
+        if (seen[n] || S[n] > -0.3 || Math.abs(FL[n] - FL[j]) > 0.42) continue;
+        seen[n] = 1; q.push(n);
+      }
+    }
+    const out = [];
+    for (const f of this.features) {
+      const pts = f.type === 'room' ? [[f.a, f.b]] : [f.pts[0], f.pts[Math.floor(f.pts.length / 2)], f.pts.at(-1)];
+      if (pts.some(([a, b]) => { const j = this.idx(this.px + a, this.pz + b); return j < 0 || !seen[j]; })) out.push(f.tag);
+    }
+    return [...new Set(out)];
   }
 
   idx(x, z) {

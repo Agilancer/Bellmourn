@@ -21,7 +21,7 @@ export const UNDERCROFT = { name: 'The Undercroft', seed: 9001, rooms: 24, loops
   X0: -80, Z0: -260, NX: 170, NZ: 154,
   kinds: ['pillared hall', 'crypt', 'library', 'shrine', 'storeroom', 'vault', 'ossuary', 'flooded crypt', 'great hall', 'barracks',
     'collapsed hall', 'well chamber', 'bone throne', 'forge'] };
-export const DEEP_UNDERCROFT = { name: 'The Deep Undercroft', seed: 4242, rooms: 15, loops: 3,
+export const DEEP_UNDERCROFT = { name: 'The Deep Undercroft', seed: 4242, rooms: 15, loops: 3, footH: 5,
   kinds: ['great hall', 'ossuary', 'flooded crypt', 'bone throne', 'forge', 'collapsed hall', 'crypt', 'vault', 'shrine', 'well chamber'] };
 
 function rng(seed) {
@@ -56,7 +56,7 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   let tries = 0;
   if (opts.down) {
     while (tries++ < 5000) {
-      const w = 10, d = 18, i = 2 + Math.floor(R() * (NX - w - 4)), k = 2 + Math.floor(R() * (NZ - d - 20));
+      const w = 10, d = 22, i = 2 + Math.floor(R() * (NX - w - 4)), k = 2 + Math.floor(R() * (NZ - d - 20));
       if (clash(i, k, w, d) || Math.hypot(i + w / 2 - rooms[0].i - 6, k + d / 2 - rooms[0].k - 6) < 55) continue;
       rooms.push({ i, k, w, d, kind: 'stair hall' });
       break;
@@ -115,13 +115,16 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   const sx = gi(entry.x), FOOT = 1999, TUNNEL = 2999, WELL = 3999;
   for (let k = gk(entry.z); k <= gk(entry.z + 0.6); k++) for (let u = -1; u <= 1; u++) cell[k * NX + sx + u] = FOOT;
   for (let k = gk(entry.z + 0.6) + 1; k <= gk(entry.z + 5); k++) for (let u = -1; u <= 1; u++) if (k < NZ) cell[k * NX + sx + u] = TUNNEL;
-  // the stair hall's stairwell: a flight 12 m down, north along the hall's middle; no floor over it
+  // the stair hall's stairwell: a flight 12 m down (48 steps of 0.34, as the other stairs), north
+  // along the hall's middle; no floor over it
   const stairRoom = rooms.findIndex((r) => r.kind === 'stair hall');
   let well = null;
+  const WELL_STEP = 0.25, WELL_RUN = 0.34, WELL_N = 48;
   if (stairRoom > 0) {
     // (centred on its three cells, so the flight fills them)
-    const r = rooms[stairRoom], wx = X0 + r.i + Math.floor(r.w / 2) + 0.5, top = Z0 + r.k + r.d - 2.5, run = 12;
-    well = { x: wx, top, bot: top - run, room: stairRoom };
+    // (its head on a cell's edge, so the hall's floor ends where the first step begins)
+    const r = rooms[stairRoom], wx = X0 + r.i + Math.floor(r.w / 2) + 0.5, top = Z0 + r.k + r.d - 2;
+    well = { x: wx, top, bot: top - WELL_N * WELL_RUN, room: stairRoom };
     for (let k = gk(well.bot); k < gk(top); k++) for (let u = -1; u <= 1; u++) cell[k * NX + gi(wx) + u] = WELL;
   }
 
@@ -150,7 +153,9 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   // geometry
   const mat = (id, tile, o = {}) => lib.material(id, { tile, ...o });
   const themeOf = (v) => (v === FOOT ? rooms[0].theme : v === WELL ? rooms[well.room].theme : v >= 1000 ? halls[v - 1000] : rooms[v].theme);
-  const ceilOf = (v) => (v === WELL ? rooms[well.room].h : v >= 1000 ? HALL_H : rooms[v].h);
+  // (the passage at the foot of the stairs is as tall as the entry hall when the flight comes
+  // down open, from a stairwell, rather than under a vault)
+  const ceilOf = (v) => (v === WELL ? rooms[well.room].h : v === FOOT ? (opts.footH ?? HALL_H) : v >= 1000 ? HALL_H : rooms[v].h);
   const X = (i) => X0 + i, Z = (k) => Z0 + k;
   // floors and ceilings: merged runs along x of cells with the same theme and height
   for (let k = 0; k < NZ; k++) {
@@ -268,7 +273,10 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
     const kind = r.kind;
     if (kind === 'pillared hall' || kind === 'entry hall') {
       const pil = ['pillar_round', 'pillar_fluted', 'pillar_square', 'pillar_twisted'][id % 4];
-      for (let x = x0 + 3; x < x1 - 2; x += 4) for (const z of [z0 + 2.5, z1 - 2.5]) props.add(pil, x, fy, z, 0, 1.2);
+      for (let x = x0 + 3; x < x1 - 2; x += 4) for (const z of [z0 + 2.5, z1 - 2.5]) {
+        if (kind === 'entry hall' && Math.abs(x - entry.x) < 2.2) continue;     // not before the stairs
+        props.add(pil, x, fy, z, 0, 1.2);
+      }
     } else if (kind === 'crypt') {
       for (let x = x0 + 2.5; x < x1 - 2; x += 3) props.add('sarcophagus', x, fy, cz, Math.PI / 2);
       props.add('candelabrum', x0 + 1.2, fy, z0 + 1.2); props.add('candelabrum', x1 - 1.2, fy, z1 - 1.2);
@@ -301,14 +309,14 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   // round the well (open at its head), and torches down the shaft
   if (well) {
     const stone = mat(rooms[well.room].theme.band, 1.5), wx = well.x;
-    b.stairs(wx, well.top, Y, -12, 2.4, '-z', mat(rooms[well.room].theme.floor, 1.5), { step: 0.25, run: 0.25 });
+    b.stairs(wx, well.top, Y, -WELL_N * WELL_STEP, 2.4, '-z', mat(rooms[well.room].theme.floor, 1.5), { step: WELL_STEP, run: WELL_RUN });
     for (const sgn of [-1, 1]) {
       b.box([wx + sgn * 1.5 - (sgn > 0 ? 0 : 0.5), Y - 12.6, well.bot], [wx + sgn * 1.5 + (sgn > 0 ? 0.5 : 0), Y, well.top], stone, { shade: 0.75 });
       b.box([wx + sgn * 1.5 - (sgn > 0 ? 0 : 0.3), Y, well.bot - 0.3], [wx + sgn * 1.5 + (sgn > 0 ? 0.3 : 0), Y + 1.05, well.top], stone, { shade: 0.85 });
     }
-    b.box([wx - 1.5, Y, well.bot - 0.3], [wx + 1.5, Y + 1.05, well.bot], stone, { shade: 0.85 });
+    b.box([wx - 1.5, Y - 0.5, Math.floor(well.bot) - 0.3], [wx + 1.5, Y + 1.05, well.bot], stone, { shade: 0.85 });   // (over the well's last cell)
     for (let z = well.top - 2, n = 0; z > well.bot + 1; z -= 3, n++) {
-      const sgn = n % 2 ? 1 : -1, y = Y - (well.top - z);
+      const sgn = n % 2 ? 1 : -1, y = Y - (Math.floor((well.top - z) / WELL_RUN) + 1) * WELL_STEP;
       props.add('wall_torch', wx + sgn * 1.48, y, z, sgn < 0 ? Math.PI / 2 : -Math.PI / 2);
     }
   }
@@ -357,10 +365,20 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
     if (t < 2 * (r.w - 2) + r.d - 2) return [X(r.i + r.w) - 1 - (t - (r.w - 2) - (r.d - 2)), Z(r.k + r.d) - 1.1];
     return [X(r.i) + 1.1, Z(r.k + r.d) - 1 - (t - 2 * (r.w - 2) - (r.d - 2))];
   };
+  // (never in front of a doorway or by the stairwell: within 2 m of a hallway or the well)
+  const blocks = (x, z) => {
+    for (let dk = -2; dk <= 2; dk++) for (let di = -2; di <= 2; di++) {
+      const v = at(gi(x) + di, gk(z) + dk);
+      if (v >= 1000 || v === WELL) return true;
+    }
+    return false;
+  };
   const left = [...lib.spr.values()].filter((s) => s.category === 'scatter' && !lib.usedSprites.has(s.id));
   left.forEach((s, j) => {
     const r = rooms[1 + (j % (rooms.length - 1))];
-    const [x, z] = spot(r, Math.floor(j / (rooms.length - 1)), j);
+    let [x, z] = spot(r, Math.floor(j / (rooms.length - 1)), j);
+    for (let q = 1; q < 8 && blocks(x, z); q++) [x, z] = spot(r, Math.floor(j / (rooms.length - 1)) + q * 3, j);
+    if (blocks(x, z)) return;
     bill.add(s.id, x, Y, z, 1, 0.95);
     if (/brazier|candle|lantern|torch|chandelier|fire/.test(s.id)) ctx.flames?.push([x, Y + s.height_m * 0.9, z, 0.22]);
   });
@@ -387,7 +405,7 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   return { name: opts.name || 'The Undercroft', rooms: rooms.length, halls: edges.length, bounds, y: Y, nav, roomList,
     // you are down here: over its carved grid, between its floor and roof
     contains: (p) => { const i = gi(p.x), k = gk(p.z); return p.y > Y - 1.5 && p.y < Y + GREAT_H + 1 && at(i, k) >= 0 && at(i, k) !== TUNNEL; },
-    stairDown: well ? { x: well.x, y: Y - 12, z: well.bot } : null };
+    stairDown: well ? { x: well.x, y: Y - WELL_N * WELL_STEP, z: well.bot } : null };
 
   /** The newer kinds of room: a flooded crypt, a forge, a hall round a throne of bones, barracks, a
    * collapsed hall, a well chamber, a great hall of tall columns. */

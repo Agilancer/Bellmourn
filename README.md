@@ -13,7 +13,8 @@ Under the ground besides (`delves.js`): in the Darkwood two stone stair-houses s
 dungeons of their own, the Barrow of Saint Ivo to the west and the Old Watch Cellars to the
 south-east; and three caves open in the downs' eastern cliff, the Gloamhollow just north of
 Brightwater Falls, the Drowned Grotto beside them, and the Trollhole far to the north. All of them
-are marked on the map. The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
+are marked on the map. `node tools/world/walkthrough.cjs <port>` walks the player down every
+stair and into and back out of every cave, and has the dead of each place come for him. The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
 vaults and ossuaries, and now flooded crypts, great halls of tall columns, barracks, collapsed
 halls, well chambers, forges and halls round a throne of bones.
 

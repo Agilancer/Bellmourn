@@ -11,7 +11,7 @@
 // ({dg, haunt, n} for dungeons, {dg, plan} for caves), for zombies.js to fill.
 import { buildDungeon } from './dungeon.js';
 import { Cave, caveNav, grottoLayout, GROTTO_DECOR, trollLayout, TROLL_DECOR } from './cave.js';
-import { holeTerrain } from './terrain.js';
+import { holeTerrain, CAVE_MOUTHS } from './terrain.js';
 
 // the stairs down: 14 m in 56 steps, going north from the stair-house's door
 const FLIGHT = { depth: 14, step: 0.25, run: 0.34, width: 2.4 };
@@ -78,6 +78,41 @@ function stairHouse(ctx, d) {
   return { x, y: yEnd, z: zEnd };
 }
 
+/** A cave's mouth framed in the cliff's own rock: great stones either side of the cut, a capstone
+ * over it (clear of a man's head), moss on top, and rubble fallen before it; the Trollhole's with
+ * gnawed bones, the Drowned Grotto's wet and mossy. */
+function frameMouth(ctx, c) {
+  const { b, lib, bill } = ctx;
+  const M = (id, t) => lib.material(lib.surf.has(id) ? id : 'castle_basalt', { tile: t });
+  const rock = [M('castle_basalt', 2.6), M('castle_rubble', 2.4), M('castle_slate', 2.4)], moss = M('castle_mossy', 2);
+  const x = c.px, z = c.pz, fl = c.floorAt(x + 0.5, z) ?? c.mouth.y, ground = (xx, zz) => ctx.physics.groundAt(xx, zz);
+  const H = c.name === 'The Trollhole' ? 1.25 : 1;                 // the Trollhole's mouth is the bigger
+  let seed = Math.round(Math.abs(z) * 7) + 31;
+  const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (const side of [-1, 1]) {                     // the jambs: two stones each side, the outer one higher
+    for (let k = 0; k < 2; k++) {
+      const rz = 1.1 + R() * 0.4, cz = z + side * (2.35 + rz + k * 1.4), cx = x - 0.6 + k * 0.9, ry = (2.0 + k * 0.9 + R() * 0.6) * H;
+      b.place(cx, ground(cx, cz) - 0.4, cz, 0, 1, (B) => {
+        B.blob([0, ry * 0.5, 0], [1.2 + R() * 0.5, ry, rz], rock[(k + (side > 0 ? 1 : 0)) % 3], { detail: 1, jitter: 0.18, seed: seed + k });
+        if (R() < 0.7) B.blob([0, ry * 1.05, 0], [1.0, ry * 0.18, rz * 0.8], moss, { detail: 1, jitter: 0.3, seed: seed + 7 });
+      }, { tag: 'rock' });
+    }
+  }
+  // the capstone across the top, its underside 2.9 m over the floor
+  b.place(x - 0.3, fl + 2.9 * H + 0.75, z, 0, 1, (B) => {
+    B.blob([0, 0, 0], [1.5, 0.75, 3.6 * H], rock[0], { detail: 1, jitter: 0.15, seed: seed + 3, floor: -0.7 });
+    B.blob([0.2, 0.6, 0], [1.2, 0.3, 3.0 * H], moss, { detail: 1, jitter: 0.3, seed: seed + 4 });
+  }, { tag: 'rock' });
+  // rubble fallen before it (out of the way in)
+  for (let k = 0; k < 7; k++) {
+    const side = k % 2 ? 1 : -1, cz = z + side * (2.6 + R() * 3.5), cx = x - 2.5 - R() * 4, s = 0.25 + R() * 0.45;
+    b.place(cx, ground(cx, cz) - s * 0.3, cz, R() * 6.28, 1, (B) => B.blob([0, s * 0.5, 0], [s * 1.3, s, s * 1.1], rock[k % 3], { seed: seed + 20 + k }), { tag: 'rock', solid: false });
+  }
+  const BITS = c.name === 'The Trollhole' ? ['catacombs_long_bone_heap', 'catacombs_skull_pyramid', 'catacombs_long_bone_heap']
+    : c.name === 'The Drowned Grotto' ? ['catacombs_burial_urn_cluster'] : ['catacombs_long_bone_heap'];
+  BITS.forEach((id, k) => bill.add(id, x - 3.2 - k * 1.3, ground(x - 3.2 - k * 1.3, z + (k % 2 ? 2.6 : -2.6)), z + (k % 2 ? 2.6 : -2.6), 1, 0.85));
+}
+
 /** Everything under the ground besides the Undercroft: [{dg, haunt, n} or {dg, plan}]. */
 export function buildDelves(ctx) {
   const out = [];
@@ -90,9 +125,10 @@ export function buildDelves(ctx) {
   }
   // the caves in the cliff: their mouths are cut in the downs' ground
   ctx.land = { hole: (x0, z0, x1, z1, yTop, physics) => holeTerrain(x0, z0, x1, z1, yTop, physics, ctx.scene) };
-  const gloam = new Cave(ctx, { z: 8 });
-  const grotto = new Cave(ctx, { z: -74, name: 'The Drowned Grotto', layout: grottoLayout, water: { a: 22, b: -30, r: 7 }, decor: GROTTO_DECOR, seed: 1337 });
-  const troll = new Cave(ctx, { z: 150, name: 'The Trollhole', layout: trollLayout, water: null, decor: TROLL_DECOR, seed: 2718 });
+  const gloam = new Cave(ctx, { z: CAVE_MOUTHS.gloam });
+  const grotto = new Cave(ctx, { z: CAVE_MOUTHS.grotto, name: 'The Drowned Grotto', layout: grottoLayout, water: { a: 22, b: -30, r: 7 }, decor: GROTTO_DECOR, seed: 1337 });
+  const troll = new Cave(ctx, { z: CAVE_MOUTHS.troll, name: 'The Trollhole', layout: trollLayout, water: null, decor: TROLL_DECOR, seed: 2718 });
+  for (const c of [gloam, grotto, troll]) frameMouth(ctx, c);
   ctx.cave = gloam;                  // (the ghasts' and grubbers' own: foes.js fills it)
   ctx.caves = [gloam, grotto, troll];
   out.push({ dg: caveNav(gloam), plan: [['cavern', 3, 'hollow'], ['shrine', 2, 'hollow'], ['loop', 2, 'fungal']] });

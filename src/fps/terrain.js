@@ -8,6 +8,8 @@ import * as THREE from 'three';
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
 export const CLIFF = { x: 736, top: 30 };
+// where along the cliff the caves open (z): the Gloamhollow, the Drowned Grotto, the Trollhole
+export const CAVE_MOUTHS = { gloam: 8, grotto: -74, troll: 150 };
 // the stream, from the pool to where it leaves the downs
 export const STREAM = [[692, -36], [660, -14], [620, 20], [574, 38], [530, 36], [492, 14], [458, -22], [428, -62], [404, -108], [384, -158], [366, -210], [352, -262]];
 const pads = []; // flattened ground for buildings: {x, z, r, y}

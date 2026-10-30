@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Builder } from './geo.js';
 import { detailedHouse } from './buildings.js';
-import { REGION, POOL, CLIFF, STREAM, terrainHeight, addPad, buildTerrain, buildWater, streamAt } from './terrain.js';
+import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, buildWater, streamAt } from './terrain.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -106,6 +106,7 @@ export function buildRegion(ctx, M, hm) {
   for (let i = 0; i < 70; i++) {
     const z = REGION.z0 + 14 + (i / 70) * (REGION.z1 - REGION.z0 - 28) + (R() - 0.5) * 6;
     if (Math.abs(z - (POOL.z - 2)) < 7) continue; // leave the waterfall clear
+    if (Object.values(CAVE_MOUTHS).some((mz) => Math.abs(z - mz) < 9)) continue;   // and the caves' mouths (delves.js frames them)
     const cx = CLIFF.x + Math.sin(z * 0.021) * 9 + Math.sin(z * 0.06) * 3, up = R();
     const x = cx - 7 + up * 9, s = 1.8 + R() * 3.2, y = H(x, z) - s * 0.4;
     b.place(x, y, z, R() * 6.28, 1, (B) => B.blob([0, 0, 0], [s * (0.8 + R() * 0.5), s * (1 + R() * 0.8), s], rock[i % 4], { detail: 1, jitter: 0.25, seed: 900 + i }), { tag: 'rock' });
