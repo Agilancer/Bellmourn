@@ -135,6 +135,7 @@ export function goreMaterial(src, lib, u = null) {
   const map = src.map;
   if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
   const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, specular: 0x2c1e1c, shininess: 30 });
+  mat.name = src.name || '';   // (the Sworn's fittings find their pieces by it)
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
     mat.normalMap = normals.get(map);
