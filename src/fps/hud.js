@@ -78,7 +78,7 @@ export class Hud {
     this.overlay = el('div', 'overlay');
     this.overlay.innerHTML = `
       <div class="title">BELLMOURN</div>
-      <div class="sub">the village under the mourning bell</div>
+      <div class="sub">Velscour's Throne</div>
       <div class="go"></div>
       <table class="keys">
         <tr><td>W A S D</td><td>move</td><td>Mouse</td><td>look</td></tr>
