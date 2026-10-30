@@ -173,6 +173,9 @@ def skin_material(name, path, coords=None):
 
 
 head.data.materials.append(skin_material('V_Skin_Head', tex_path))
+if C.get('sex') == 'female':   # the photo has its own highlights: the light's sheen on top of them reads as a smudge
+    _b = head.data.materials[0].node_tree.nodes['Principled BSDF']
+    _b.inputs['Specular IOR Level'].default_value = 0.22; _b.inputs['Roughness'].default_value = 0.62
 
 # ------------------------------------------------------------------ eyes, lashes, hair
 
@@ -213,8 +216,10 @@ def alpha_material(name, path, tint=None, rough=0.6, aniso=False, clip=0.0):
         bw = nt.nodes.new('ShaderNodeRGBToBW'); nt.links.new(col, bw.inputs[0])
         mul = nt.nodes.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'
         mul.inputs[0].default_value = 1.0
-        g = nt.nodes.new('ShaderNodeMath'); g.operation = 'MULTIPLY'; g.inputs[1].default_value = 2.6
-        nt.links.new(bw.outputs[0], g.inputs[0])
+        pw = nt.nodes.new('ShaderNodeMath'); pw.operation = 'POWER'; pw.inputs[1].default_value = 1.5
+        nt.links.new(bw.outputs[0], pw.inputs[0])
+        g = nt.nodes.new('ShaderNodeMath'); g.operation = 'MULTIPLY'; g.inputs[1].default_value = 4.2
+        nt.links.new(pw.outputs[0], g.inputs[0])
         cr = nt.nodes.new('ShaderNodeCombineColor')
         for k in range(3):
             nt.links.new(g.outputs[0], cr.inputs[k])
@@ -227,8 +232,11 @@ def alpha_material(name, path, tint=None, rough=0.6, aniso=False, clip=0.0):
     else:
         nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
     b.inputs['Roughness'].default_value = rough
-    if aniso:
-        b.inputs['Specular IOR Level'].default_value = 0.2
+    if aniso:   # hair: matte, its strands raised from the texture
+        b.inputs['Specular IOR Level'].default_value = 0.12
+        bw2 = nt.nodes.new('ShaderNodeRGBToBW'); nt.links.new(t.outputs['Color'], bw2.inputs[0])
+        bump = nt.nodes.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.6; bump.inputs['Distance'].default_value = 0.002
+        nt.links.new(bw2.outputs[0], bump.inputs['Height']); nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
     m.blend_method = 'HASHED' if hasattr(m, 'blend_method') else None
     return m
 
@@ -267,7 +275,7 @@ if C['shells']:
 if C['hair']:
     hp = mh.proxy(f"hair/{C['hair']}/{C['hair']}.json")
     tex = os.path.join(hp['dir'], hp['materials'][0]['mapDiffuse'])
-    hair, _ = proxy_obj('V_Hair', f"hair/{C['hair']}/{C['hair']}.json", alpha_material('V_Hair', tex, tint=hair_lin, rough=0.78, aniso=True, clip=0.35))
+    hair, _ = proxy_obj('V_Hair', f"hair/{C['hair']}/{C['hair']}.json", alpha_material('V_Hair', tex, tint=hair_lin, rough=0.88, aniso=True, clip=0.35))
     extra.append(hair)
 
 # ------------------------------------------------------------------ the body
@@ -611,10 +619,10 @@ if 'glb' in STAGES:
             tint_l = np.array(hair_lin)
             def fn(rgb, tint_l=tint_l):
                 lin = srgb2lin(rgb)
-                g = (lin * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True) * 2.6
+                g = (lin * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True) ** 1.5 * 4.2
                 return lin2srgb(g * tint_l)
             t.image = baked(t.image, fn, 'V_Hair')
-            for n in [n for n in nt.nodes if n.type in ('MIX', 'RGBTOBW', 'MATH', 'COMBINE_COLOR') and n.type != 'MATH' or (n.type == 'MATH' and n.operation == 'MULTIPLY')]:
+            for n in [n for n in nt.nodes if n.type in ('MIX', 'RGBTOBW', 'COMBINE_COLOR', 'BUMP') or (n.type == 'MATH' and n.operation in ('MULTIPLY', 'POWER'))]:
                 nt.nodes.remove(n)
             nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
             continue
