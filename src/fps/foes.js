@@ -83,6 +83,18 @@ const KIND = {
 // their lord, who shrugs off what would fell them, hits like a falling bell and calls Velscour's
 // fire up under you
 const GAIT = { walk: 1.3, run: 3.5 };
+// the Sworn's five fittings, so a garrison isn't one knight over and over: each changes a piece or
+// two of the Fiend's Panoply, found by its material's name (the same in the men's and women's
+// sets): the helm's ram's horns and the cloth of the cape and loincloth. A colour multiplies the
+// piece's own texture (gilt horns average (0.31, 0.21, 0.07), the crimson cloth (0.39, 0.09,
+// 0.10)); null takes the piece off.
+const FITTINGS = [
+  {},                                                                                     // gilt horns, crimson cloth
+  { tarnished_gold_dark: [2.8, 3.8, 9.5], cloth_01: [0.1, 0.35, 0.35] },                  // bone horns, black cloth
+  { tarnished_gold_dark: [0.3, 0.38, 1.0] },                                              // blackened horns
+  { tarnished_gold_dark: [2.0, 0.4, 0.6], cloth_01: [0.57, 0.7, 3.0] },                   // blood-red horns, violet cloth
+  { tarnished_gold_dark: null, cloth_01: [0.77, 3.2, 2.7] },                              // no horns, ash-grey cloth
+];
 const STATS = {
   sworn: { hp: 320, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
     dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7 }, cool: [0.3, 0.85] },
@@ -145,32 +157,39 @@ function socketLocal(model, s) {
  * forearm forward and a little down, turned so the shield stands upright beside the leg with its
  * face out and its top leaning clear of the shoulder). For the Sworn (`sworn`), whose plate is
  * bulkier and whose shields ride further out, the carry is held wider of the body, and there are
- * two more: the guard (the upper arm forward and out, the forearm angled across before the chest
- * and out of the sword fist's way, the shield's face to the front) and the swing (the arm drawn
- * back out of the way of the sword's wide sweep). Each was tried against every clip's arms and
- * body until nothing passed through the shield. */
+ * more: the guard (the upper arm forward and down, the forearm across before the chest, so the
+ * shield covers the body with its face to the front, as a shield is held), the swing (the arm
+ * drawn back out of the way of the sword's wide sweep) and, for the sword arm, the cock (drawn
+ * back behind the shoulder as the shield goes into a bash, ready to follow it). Each was tried
+ * against every clip's arms and body, and the blends between them, until nothing passed through
+ * the shield. */
 export function shieldPoses(skel, bones, sworn = false) {
   const bindQ = (b) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(skel.boneInverses[skel.bones.indexOf(b)].clone().invert()));
-  const X = new THREE.Vector3(1, 0, 0);
-  const pose = (up, d, o) => {
+  // the arms' bind frames: along the arm, its outer (back of the hand's) side, and their cross
+  const bind = { L: new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)),
+    R: new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1)) };
+  const pose = (up, d, o, s = 'L') => {
     up.normalize(); d.normalize(); o.addScaledVector(d, -o.dot(d)).normalize();   // (o: the forearm's outer side, the shield's face)
-    return { up: new THREE.Quaternion().setFromUnitVectors(X, up).multiply(bindQ(bones.upper_armL)),
-      fore: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o))).multiply(bindQ(bones.forearmL)) };
+    const turn = new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o)).multiply(bind[s].clone().invert());
+    return { up: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(s === 'L' ? 1 : -1, 0, 0), up).multiply(bindQ(bones['upper_arm' + s])),
+      fore: new THREE.Quaternion().setFromRotationMatrix(turn).multiply(bindQ(bones['forearm' + s])) };
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   if (!sworn) return { carry: pose(V(0.3, -0.95, 0.08), V(0.12, -0.42, 0.9), V(1, -0.16, 0)) };
   return { carry: pose(V(0.5, -0.86, 0.08), V(0.2, -0.4, 0.9), V(1, -0.1, 0)),
-    guard: pose(V(0.35, -0.15, 0.92), V(-0.7, 0.15, 0.7), V(0, 0.1, 1)),
-    swing: pose(V(0.55, -0.75, -0.35), V(0.25, -0.55, -0.8), V(1, 0, 0)) };
+    guard: pose(V(0.35, -0.5, 0.8), V(-1, 0.15, 0.3), V(0, 0.1, 1)),
+    swing: pose(V(0.55, -0.75, -0.35), V(0.25, -0.55, -0.8), V(1, 0, 0)),
+    cock: pose(V(-0.45, -0.55, -0.7), V(-0.1, 0.75, -0.65), V(-1, 0, 0), 'R') };
 }
 
 /** How the shield arm is posed in clip c: drawn into the carry by w (0: the clip's own), and (the
- * Sworn) how far into the guard (blocking, bashing, charging) or the swing (the wide third cut). */
+ * Sworn) how far into the guard (blocking, bashing, charging) or the swing (the wide third cut), and
+ * whether the sword arm is cocked (the bash). */
 export function shieldArm(c, state, standing, sworn) {
-  if (!standing || ['collapse', 'getup', 'death', 'dead'].includes(c)) return { w: 0, guard: 0, swing: 0 };
-  if (!sworn) return { w: state === 'block' || ['block', 'bash', 'fall', 'jump'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1, guard: 0, swing: 0 };
+  if (!standing || ['collapse', 'getup', 'death', 'dead'].includes(c)) return { w: 0, guard: 0, swing: 0, cock: 0 };
+  if (!sworn) return { w: state === 'block' || ['block', 'bash', 'fall', 'jump'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1, guard: 0, swing: 0, cock: 0 };
   const guard = state === 'block' || state === 'charge' || c === 'block' || c === 'bash' ? 1 : 0;
-  return { w: c === 'hit' && !guard ? 0.55 : 1, guard, swing: !guard && c === 'attack3' ? 1 : 0 };
+  return { w: c === 'hit' && !guard ? 0.55 : 1, guard, swing: !guard && c === 'attack3' ? 1 : 0, cock: c === 'bash' ? 1 : 0 };
 }
 
 // ------------------------------------------------------------------ a foe
@@ -223,6 +242,7 @@ class Foe extends Zombie {
         return g;
       });
     }
+    if (this.def.body && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
     // a lord of the Sworn burns: his armour glows from within (brightest where it's gilded)
     if (this.def.glow) {
       this.glowMats = [this.mesh.material].flat().filter((m) => !m.userData.eyes && m.map);
@@ -234,6 +254,15 @@ class Foe extends Zombie {
     if (!Array.isArray(src)) return foeMaterial(src, lib);
     const first = foeMaterial(src[0], lib);       // one set of wounds for all of them
     return [first, ...src.slice(1).map((m) => foeMaterial(m, lib, first.userData.u))];
+  }
+
+  /** Dress a Sworn in fitting i (FITTINGS): its pieces recoloured, or taken off. */
+  fit(i) {
+    this.fitting = i % FITTINGS.length;
+    for (const m of [this.mesh.material].flat()) for (const [piece, tint] of Object.entries(FITTINGS[this.fitting])) {
+      if (!m.name.includes(piece)) continue;
+      if (tint) m.color.setRGB(...tint); else m.visible = false;
+    }
   }
 
   /** Put an item model (already cloned) in a socket. */
@@ -260,11 +289,12 @@ class Foe extends Zombie {
    * jump and fall (see shieldArm). Blended in and out over the clip (dt 0: at once). */
   carryShield(dt = 0) {
     if (!this.shield || !this.arm('L')) return;
-    const { w, guard, swing } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body);
+    const { w, guard, swing, cock } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body);
     const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1;
     this.carryW = (this.carryW ?? w) + (w - (this.carryW ?? w)) * k;
     this.guardW = (this.guardW ?? guard) + (guard - (this.guardW ?? guard)) * k2;
     this.swingW = (this.swingW ?? swing) + (swing - (this.swingW ?? swing)) * k2;
+    this.cockW = (this.cockW ?? cock) + (cock - (this.cockW ?? cock)) * k2;
     if (this.carryW < 0.01) return;
     const P = this.foes.poses(this);
     this.root.updateMatrixWorld(true);
@@ -277,6 +307,15 @@ class Foe extends Zombie {
       _q2.copy(qm).multiply(_q3).premultiply(pq);
       bone.quaternion.slerp(_q2, this.carryW);
       bone.updateMatrixWorld(true);
+    }
+    if (P.cock && this.cockW > 0.01 && this.arm('R')) {        // the sword arm drawn back as the shield goes in
+      for (const part of ['up', 'fore']) {
+        const bone = part === 'up' ? this.bones.upper_armR : this.bones.forearmR;
+        const pq = bone.parent.getWorldQuaternion(_q1).invert();
+        _q2.copy(qm).multiply(P.cock[part]).premultiply(pq);
+        bone.quaternion.slerp(_q2, this.cockW);
+        bone.updateMatrixWorld(true);
+      }
     }
   }
 
@@ -374,7 +413,8 @@ class Foe extends Zombie {
     this.afflict(dt);
     if (this.dead) return;
     this.bleed(dt);
-    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool']) this[k] = Math.max(0, this[k] - dt);
+    // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
+    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT']) this[k] = Math.max(0, (this[k] || 0) - dt);
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
@@ -477,17 +517,18 @@ class Foe extends Zombie {
   /** Turn toward `target` and move at `speed`: forward, or backing/side-stepping while facing
    * `face`. Feels ahead for walls, jumps what it can, and plays the matching gait. */
   go(dt, target, speed, { face = null, back = false, side = 0 } = {}) {
-    const phys = this.owner.physics, K = this.kind;
+    const phys = this.owner.physics, K = this.kind, lean = this.def.body ? 0.75 : 0;
     speed *= this.pace * this.slow;
     const look = face || target;
     if (look) {
       if (this.avoidT > 0) this.avoidT -= dt;
-      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (!face && this.avoidT > 0 ? this.avoid : 0);
+      // (circling, the Sworn turn partly the way they're going, so they walk round you rather than slide)
+      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (!face && this.avoidT > 0 ? this.avoid : 0) + side * lean;
       const turn = K.turn * dt;
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
     if (speed <= 0 || !target) { this.play('idle', 0.3); return; }
-    const ang = this.yaw + (back ? Math.PI : 0) + side * Math.PI / 2;
+    const ang = this.yaw + (back ? Math.PI : 0) + side * (Math.PI / 2 - lean);
     const f = _f.set(Math.sin(ang), 0, Math.cos(ang));
     this.feelT -= dt;
     if (this.feelT <= 0) {
@@ -512,7 +553,7 @@ class Foe extends Zombie {
     const err = face ? 0 : Math.abs(wrap(Math.atan2(target.x - this.pos.x, target.z - this.pos.z) - this.yaw));
     const sp = speed * Math.max(0.25, Math.cos(Math.min(Math.PI / 2, err)));
     phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
-    if (side) this.play('walk', 0.3, 0.8);
+    if (side) this.play('walk', 0.3, lean ? Math.max(0.5, speed / (K.gait?.walk || K.walk)) : 0.8);
     else if (speed > K.walk * 1.6) this.play('run', 0.25, speed / (K.gait?.run || K.run));      // (at the pace its clips were made for)
     else this.play('walk', 0.3, (back ? -1 : 1) * Math.max(0.5, speed / (K.gait?.walk || K.walk)));
   }
@@ -566,7 +607,10 @@ class Foe extends Zombie {
     this.blockT -= dt;
     const turn = this.kind.turn * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
     this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
-    if (dist > 1.3 && dist < 4) this.owner.physics.slide(this.pos, Math.sin(this.yaw) * 0.5 * dt, Math.cos(this.yaw) * 0.5 * dt, this.r, 1.6, 0.45);
+    const advance = dist > 1.3 && dist < 4;
+    if (advance) this.owner.physics.slide(this.pos, Math.sin(this.yaw) * 0.5 * dt, Math.cos(this.yaw) * 0.5 * dt, this.r, 1.6, 0.45);
+    // the Sworn step in behind the shield (it stays up: see shieldArm), the others edge in on the block
+    if (this.def.body) this.play(advance ? 'walk' : 'block', 0.2, advance ? 0.5 / (this.kind.gait?.walk || this.kind.walk) : 1);
     if (this.blockT <= 0 || !this.shield) {
       this.state = 'move'; this.blockCool = 1.2 + Math.random() * 1.5;
       if (this.counter && dist < this.kind.reach + 0.3) { this.strike(this.counter); if (this.def.body) this.comboQ = ['attack2']; this.counter = null; }
@@ -697,7 +741,7 @@ class Foe extends Zombie {
       if (ally) { this.state = 'cast'; this.spell = 'ward'; this.wardOn = ally; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
     }
     if (this.canSee && hands && !this.bigCool && dist > 4 && dist < 18) { this.state = 'cast'; this.spell = 'cast2'; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
-    if (this.canSee && hands && !this.spellCool && dist < 26 && fe < 0.3) { this.state = 'cast'; this.spell = 'cast1'; this.play('cast1', 0.1, 1.15); return; }
+    if (this.canSee && hands && !this.spellCool && dist < 26 && fe < 0.9) { this.state = 'cast'; this.spell = 'cast1'; this.play('cast1', 0.1, 1.15); return; }
     if (!this.canSee || dist > 12) { this.go(dt, this.route(player.pos), dist > 9 && this.feet ? K.run : K.walk); return; }
     if (dist < 5) { this.go(dt, player.pos, K.walk, { face: player.pos, back: true }); return; }
     this.circleT = (this.circleT ?? 0) - dt;
@@ -1233,7 +1277,7 @@ export class Foes {
     const put = ([v, x, z, o]) => {
       if (!this.gltf[v]) v = 'sworn_m';
       if (!this.gltf[v]) return null;
-      return this.spawn(v, x, z, { y: 0, zone: 'keep', ...o });
+      return this.spawn(v, x, z, { y: 0, zone: 'keep', fitting: (this.fittings = (this.fittings ?? -1) + 1), ...o });   // (each fitting in turn)
     };
     let n = 0;
     for (const p of TOUCH ? keep.posts.filter((_, i) => i % 2 === 0) : keep.posts) n += put(p) ? 1 : 0;

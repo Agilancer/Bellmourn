@@ -68,7 +68,9 @@ sorcerers march between the downs' places and hold its houses.
 **Blackvigil Keep** (`keep.js`) is garrisoned by Velscour's Sworn: villagers in the Fiend's
 Panoply, put together at load by `sworn.js` (the villager's skeleton under the zombie body's bone
 names, the armour, helm and head merged into one skinned mesh, and knight_a's clips carried over
-bone by bone), so they come apart like the dark knights, but fight harder and faster. They take
+bone by bone), so they come apart like the dark knights, but fight harder and faster. They come in
+five fittings of the set (gilt, bone, blackened or blood-red ram's horns on the helm, or none, and
+crimson, black, violet or ash-grey cloaks). They take
 you two at a time while the rest circle a few strides off with their shields ready, waiting their
 turn. Up close they cut in combinations of two and three; from further off they lunge, or charge
 behind the shield and bash you off your feet. They raise the shield when they see you swing, bash
@@ -77,8 +79,11 @@ go bareheaded with burning eyes, a blade in one hand and a wand in the other (th
 casting clips carried over too): they keep their distance, cast blood, call Velscour's fire up
 under you, mend their wounded brothers, and blink away when cornered. Their kite shields ride as
 far out from the forearm as each one's dish needs to clear the plate (`shieldLift`), and the
-shield arm is posed for the carry, the guard (blocking, bashing, charging) and the wide third cut,
-so no shield goes through an arm or body in any clip. They follow you through the keep's doorways
+shield arm is posed for the carry, the guard (the forearm across before the chest, the shield's
+face to the front, as it's held when blocking, bashing and charging) and the wide third cut, with
+the sword arm drawn back behind the shoulder in a bash, so no hand or body goes through a shield
+in any clip or in the blends between them. They step in behind a raised shield and walk round
+you when they circle (they don't slide). They follow you through the keep's doorways
 by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
 waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
 grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
