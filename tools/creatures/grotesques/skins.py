@@ -65,8 +65,9 @@ def face(L, H):
          (-H["chin"], f["chin"]), (-(H["chin"] - (y1 - f["chin"]) / s), y1)]
     if face_top < H["top"] - 0.02:
         # past its top edge the sheet is read again, mirrored, nearly to the crown (the crown
-        # itself is laid on from above: unwrapped round the axis it would pinch to a star)
-        b.insert(0, (-(H["top"] - 0.02), t + (H["top"] - 0.02 - face_top) * s))
+        # itself is laid on from above: unwrapped round the axis it would pinch to a star). Only
+        # the forehead is mirrored, squeezed to fit: never as far down as the eyes.
+        b.insert(0, (-(H["top"] - 0.02), t + 0.45 * (ey - t)))
     return dict(kind="cyl", region="head", origin=(0, H["cy"], 0), axis=DOWN, front=FRONT, right=LEFT,
                 a=a, b=b, corners=ID, feather=(14, 0.012), weight=1.3, clip=f["box"])
 

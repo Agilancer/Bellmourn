@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 SHOTS = [("34", "view=34&clip=idle&t=0.4&light=day", (720, 1080)),
          ("front", "view=front&clip=walk&t=0.3&light=day", (720, 1080)),
-         ("back", "view=back&clip=idle&t=0.4&light=day", (720, 1080)),
+         ("back", "view=front&clip=idle&t=0.4&light=day&rot=3.14159", (720, 1080)),   # turned to the sun
          ("face", "view=face&clip=idle&t=0.4&light=day", (720, 1080)),
          ("near", "view=near&clip=attack1&t=0.42&light=night", (1440, 1080))]
 
