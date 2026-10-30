@@ -1,0 +1,81 @@
+{
+ "seed": 4404,
+ "face": "02_Worker",
+ "morph": {
+  "caucasian-female-young": 0.6,
+  "african-female-young": 0.2,
+  "asian-female-young": 0.2,
+  "forehead-scale-vert-less": 0.236,
+  "nose-hump-morehump": 0.024,
+  "l-cheek-bones-out": 0.28,
+  "r-cheek-bones-out": 0.28,
+  "nose-volume-potato": 0.009,
+  "mouth-upperlip-volume-deflate": 0.262,
+  "nose-point-width-less": 0.453,
+  "mouth-scale-horiz-incr": 0.546,
+  "chin-jaw-drop-less": 0.24
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.61,
+  0.69
+ ],
+ "dress": {
+  "White": [
+   "linen_brown",
+   1.1,
+   0.3
+  ],
+  "Worker_Vest": [
+   "leather_tooled",
+   0.8,
+   0.36
+  ],
+  "Worker_Yellow": [
+   "leather_strapwork",
+   0.6,
+   0.3
+  ],
+  "Brown_02": [
+   "burlap_dark",
+   0.8,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   0.7,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ],
+  "Worker_Feet:Skin": [
+   "leather_strapwork",
+   0.7,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 1.0,
+ "outfit": "Worker",
+ "skin_tile": "07_Olive_Skin",
+ "hair": "long01",
+ "sleeves": "White",
+ "parts": [
+  "Worker_Body",
+  "Worker_Legs",
+  "Worker_Feet"
+ ],
+ "name": "villager_f04",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

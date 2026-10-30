@@ -37,6 +37,19 @@ The built models are `templates/models/creatures/villagers/<name>.glb`, with pre
 - `preview/index.html`: a GLB in three.js with the game's tone mapping and afternoon light
   (`?m=villager_m02&view=34|front|back|face&pix=2`; serve the repo with `tools/serve.py`).
 
+## The women (`villager_f01` to `f11`)
+
+Built the same way from the women's FBX (`All_together.fbx`, the same 79-bone rig) with the
+VELSCOUR female face sheets; their configs say `"sex": "female"`. Those sheets paint the face
+in the middle and the ears, hair and neck as patches round it, in a different place on each,
+so `femface.py` uses only the face: its eyes, mouth and hairline are measured per sheet
+(`SHEETS`), a template of landmarks read on `08_Medieval` is moved onto them, and an oval round
+the face says how far the sheet is trusted. Outside it, the head is painted in the sheet's own
+skin and hair tones. The hair is a MakeHuman hair mesh (`hair`: `ponytail01`, `long01`,
+`Braid01`, `Wig_bun_blonde`, `curly`, `curly2`; the bobs hide the face), tinted to the sheet's
+hair and alpha-clipped. There are no seamless skin tiles in the women's pack, so `skin_tile`
+borrows a man's, colour-matched to her cheeks. Her eyes sit at 1.665 m (`eye_z`).
+
 ## Sources (not in the repo: `art/raw/` is ignored)
 
 - `art/raw/villagers/Humans_Master.fbx`: the Humans FBX.
@@ -45,6 +58,8 @@ The built models are `templates/models/creatures/villagers/<name>.glb`, with pre
 - `art/raw/villagers/cloth/<name>.png`: the ten tiles, `linen_teal`, `linen_brown`,
   `burlap_coarse`, `burlap_dark`, `quilted_red`, `quilted_blue`, `damask_red`, `damask_purple`,
   `leather_tooled` and `leather_strapwork`.
+- `art/raw/villagers/women/All_together.fbx` and `art/raw/villagers/women/faces/`: the women's
+  FBX and the `Face_Atlases/` of `VELSCOUR_Female_10_Face_Texture_Atlases`.
 - `art/raw/makehuman/`: the `makehuman-data` npm package (`npm pack makehuman-data`, unpacked).
 
 ## Build
