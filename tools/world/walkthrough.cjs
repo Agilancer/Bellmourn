@@ -1,12 +1,15 @@
 // The ways under the ground, walked: the player's own movement (fixed 1/60 s steps, forward held,
 // steered through waypoints) down every stair and into and back out of every cave, and in each
-// place the farthest of its dead told where he is, to see it come for him along the corridors.
+// place the farthest of its dead told where he is, to see it come for him along the corridors;
+// the headroom over every walkable metre below ground (nothing under 3 m); and how smoothly the
+// eye rides a flight of stairs.
 //
 //   node tools/world/walkthrough.cjs <port> [three_dir]
 //
 // Serve the repo first (python tools/serve.py <port>). three_dir, if given, is an unpacked `three`
 // npm package that stands in for the CDN. Prints each walk (OK, or where it stopped) and each
-// chase (corridor steps to you before and after 45 s); exits 1 if a walk failed.
+// chase (corridor steps to you before and after 45 s) and the lowest ceiling in each place; exits 1
+// if a walk failed or a ceiling is low.
 const path = require('path');
 const { chromium } = require('playwright');
 (async () => {
@@ -98,13 +101,111 @@ const { chromium } = require('playwright');
       const s = c.spot(c.features.find((q) => q.type === 'room').tag, 1.0);
       if (dg && s) C[c.name] = chase(dg, [s.x, s.y, s.z]);
     }
-    return { walks: R, chases: C };
+    // headroom: rays straight up from the floor at every walkable metre of the dungeons, down every
+    // flight of stairs and over every walkable cell of the caves, against the stone itself (the
+    // builders' meshes and the caves' rock: not props, sprites or the dead)
+    // (the builders' masonry, the arches over the hallways and the caves' rock: furniture, props
+    // and sprites are things you walk into, not ceilings)
+    const stone = [...ctx.built];
+    for (const a of ctx.cutouts?.placed || []) a.group?.traverse((o) => { if (o.isMesh) stone.push(o); });
+    for (const c of ctx.caves) stone.push(c.mesh);
+    const ray = new b.camera.position.constructor();          // (a Vector3)
+    const caster = new (window.bellmourn.RaycasterClass)();
+    const up = new b.camera.position.constructor(0, 1, 0);
+    // (only an underside counts, more than 1.2 m up: anything lower is a thing standing on the
+    // floor that the ray started beside, not a ceiling)
+    const clear = (x, y, z, list = stone) => {
+      caster.set(ray.set(x, y + 1.2, z), up); caster.far = 3;
+      const hit = caster.intersectObjects(list, false).find((h) => !h.face || h.face.normal.clone().transformDirection(h.object.matrixWorld).y < -0.3);
+      return hit ? hit.distance + 1.2 : Infinity;
+    };
+    // (a hit under 2.3 m over a walkable cell is the overhang of a piece of furniture beside you,
+    // not a ceiling: the dungeons' rooms are 5 m, their halls 3.2, and the arches and stair vaults,
+    // the only stone that can hang low, are sized to keep 3 m)
+    const LOW = 3.0, FURNITURE = 2.3, H = {};
+    const audit = (name, pts, list) => {
+      let min = Infinity, at = null, low = 0, over = 0;
+      for (const [x, y, z] of pts) {
+        const c = clear(x, y, z, list);
+        if (c < FURNITURE) { over++; continue; }
+        if (c < LOW) low++;
+        if (c < min) { min = c; at = [x, y, z].map((v) => +v.toFixed(1)); }
+      }
+      H[name] = { samples: pts.length, lowest: +min.toFixed(2), at, under3m: low, overhangs: over };
+    };
+    for (const u of ctx.unders) {
+      const dg = u.dg;
+      if (dg.cave) continue;
+      const nav = dg.nav, pts = [];
+      for (let k = 0; k < nav.nz; k++) for (let i = 0; i < nav.nx; i++) {
+        if (!dg.walk?.[k * nav.nx + i]) continue;
+        const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5, f = b.physics.floorAt(x, z, dg.y + 0.3, 0.2, 0.45);
+        if (Math.abs(f - dg.y) < 0.3) pts.push([x, f, z]);
+      }
+      audit(dg.name, pts);
+    }
+    const flight = (name, x, z0, z1, y0) => {            // down a flight from z0 (its head, at y0) to z1
+      const pts = [];
+      for (let z = z0 - 0.17; z > z1; z -= 0.17) {
+        const yStep = y0 - Math.ceil((z0 - z) / 0.34) * 0.25;
+        pts.push([x, b.physics.floorAt(x, z, yStep + 0.1, 0.05, 0), z]);
+      }
+      audit(name, pts);
+    };
+    flight('stairs: cathedral to the Undercroft', 5.0, -93.6, ctx.stairBottom.z, 0.6);
+    flight('stairs: Undercroft to the Deep', ctx.dungeon.stairDown.x, ctx.dungeon.stairDown.z + 48 * 0.34, ctx.dungeon.stairDown.z, -14);
+    flight('stairs: the Barrow', -180, 46, 46 - 56 * 0.34, 0);
+    flight('stairs: the Cellars', 150, 186, 186 - 56 * 0.34, 0);
+    for (const c of ctx.caves) {
+      const pts = [];
+      for (let j = 0; j < c.nx * c.nz; j++) {
+        const a = c.a0 + (j % c.nx) * 0.5;
+        if (c.s[j] > -0.32 || a < 0.5) continue;
+        const k = (j - (j % c.nx)) / c.nx;
+        pts.push([c.px + a, c.floor[j], c.pz + c.b0 + k * 0.5]);
+      }
+      audit(c.name, pts.filter((_, n) => n % 3 === 0), [c.mesh]);
+    }
+    // the eye on the stairs: down and up the Barrow's flight walking and running, how much the
+    // camera's height jerks frame to frame (the second difference; the feet's own is ~0.17-0.2)
+    const cam = {};
+    const ride = (name, start, target, run) => {
+      const inp = { look: [0, 0], axes: () => [0, 1], held: (k) => run && k === 'ShiftLeft', was: () => false, stickRun: false };
+      p.pos.set(...start); p.vel.set(0, 0, 0); p.onGround = true;
+      const ys = [];
+      for (let i = 0; i < 60 * 9; i++) {
+        const dx = target[0] - p.pos.x, dz = target[1] - p.pos.z;
+        if (Math.hypot(dx, dz) < 0.5) break;
+        p.yaw = Math.atan2(-dx, -dz);
+        p.update(1 / 60, inp);
+        ys.push(b.camera.position.y - Math.sin(p.bob * 2) * 0.045 * Math.min(1, p.speed / 6.2));   // (less the walk's bob)
+      }
+      let j = 0;
+      for (let i = 2; i < ys.length; i++) j += (ys[i] - 2 * ys[i - 1] + ys[i - 2]) ** 2;
+      cam[name] = +Math.sqrt(j / ys.length).toFixed(4);
+    };
+    const zf = 46 - 56 * 0.34;
+    ride('down, walking', [-180, 0, 48], [-180, zf - 3], false);
+    ride('up, walking', [-180, -14, zf - 2], [-180, 48], false);
+    ride('down, running', [-180, 0, 48], [-180, zf - 3], true);
+    ride('up, running', [-180, -14, zf - 2], [-180, 48], true);
+    return { walks: R, chases: C, headroom: H, camera: cam };
   });
   let failed = errors;
   for (const [k, v] of Object.entries(out.walks)) {
     const ok = v.reached === v.of;
     if (!ok) failed++;
     console.log(`walk  ${ok ? 'OK  ' : 'FAIL'} ${k.padEnd(28)} ${ok ? '' : `stopped at ${v.end.join(', ')} after waypoint ${v.reached}/${v.of}`}`);
+  }
+  for (const [k, v] of Object.entries(out.headroom)) {
+    const ok = v.under3m === 0;
+    if (!ok) failed++;
+    console.log(`room  ${ok ? 'OK  ' : 'LOW '} ${k.padEnd(36)} lowest ${v.lowest} m${ok ? '' : ` at ${v.at.join(', ')}; ${v.under3m} of ${v.samples} under 3 m`}${v.overhangs ? ` (${v.overhangs} beside furniture)` : ''}`);
+  }
+  for (const [k, v] of Object.entries(out.camera)) {
+    const ok = v < 0.02;
+    if (!ok) failed++;
+    console.log(`eye   ${ok ? 'OK  ' : 'JERK'} stairs ${k.padEnd(29)} jerk ${v}`);
   }
   for (const [k, v] of Object.entries(out.chases)) {
     console.log(`chase ${k.padEnd(28)} ${typeof v === 'string' ? v : `${v.kind}: ${v.stepsFrom} -> ${v.stepsAfter ?? '(you, shoved off the grid by the others)'} steps, ${v.metres} -> ${v.closest} m`}`);

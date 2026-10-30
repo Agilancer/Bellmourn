@@ -15,6 +15,8 @@ import * as THREE from 'three';
 
 const G = 0.5;                                    // grid step (metres)
 const DEEP = -9;                                  // the cavern floor (well under the 'under' line)
+const MIN_H = 3.4;                                // the least headroom anywhere you can walk
+const CURL = -0.3;                                // the roof stays full height to this far from the wall
 
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
 function vnoise(x, z) {
@@ -241,6 +243,7 @@ export class Cave {
       if (water) floor -= 1.1 * Math.max(0, 1 - (Math.hypot(a - water.a, b - water.b) / (water.r + 0.3)) ** 2);
       floor += (fbm(x * 0.6 + 7, zz * 0.6) - 0.5) * 0.35 * smooth(2, 10, a);
       h += (fbm(x * 0.3 + 3, zz * 0.3 + 9) - 0.5) * 1.2 * smooth(4, 10, a);
+      h = Math.max(h, MIN_H);                                       // never a low roof to stoop under
       if (a < 0) { floor = H(x, zz); h = 3.8; }                     // outside: the ground itself
       else if (a < 4) floor = lerp(gMouth, floor, smooth(0, 4, a));
       // never closer than 1.5 m to the land above (away from the mouth)
@@ -256,6 +259,14 @@ export class Cave {
     this.build();
     this.unreached = this.reach();
     if (this.unreached.length) console.warn(`${this.name}: no way through to`, this.unreached.join(', '));
+  }
+
+  /** The clear height over the floor at grid cell j, as the rock is drawn (Infinity outside). */
+  headroom(j) {
+    const S = this.s, HT = this.height, a = this.a0 + (j % this.nx) * G;
+    if (a < 0.5) return Infinity;                               // no roof outside the mouth
+    const l = smooth(CURL, 0.9, S[j]) * (HT[j] * 0.5 + 0.35) * smooth(-0.5, 1.5, a);
+    return HT[j] - 2 * l;
   }
 
   /** No step in the floor higher than `step` between neighbouring cells (the player climbs 0.42):
@@ -328,7 +339,9 @@ export class Cave {
     // ------------------------------------------------ the rock: floor and roof curling into walls
     const pos = [], col = [], idxF = [], idxC = [];
     const vid = new Int32Array(nx * nz * 2).fill(-1);
-    const lift = (j) => smooth(-1.2, 0.9, S[j]) * (HT[j] * 0.5 + 0.35);
+    // the roof keeps its height over all the floor you can stand on and curls down into the walls
+    // only past it (the player keeps 0.32 m off them)
+    const lift = (j) => smooth(CURL, 0.9, S[j]) * (HT[j] * 0.5 + 0.35);
     const vert = (j, roof) => {
       const key = j * 2 + (roof ? 1 : 0);
       if (vid[key] >= 0) return vid[key];
@@ -374,7 +387,7 @@ export class Cave {
     // ------------------------------------------------ the mouth: the cliff opened, the ground dropped
     const HW = 1.9;                                     // the cut's half width
     const hx0 = px - 1.0, hx1 = px + 2.5, hz0 = pz - HW, hz1 = pz + HW;
-    const yTop = this.floorAt(px + 0.5, pz) + 3.0;
+    const yTop = this.floorAt(px + 0.5, pz) + MIN_H + 0.6;          // (the ground is cut up to 0.6 under this)
     if (ctx.land?.hole) ctx.land.hole(hx0, hz0, hx1, hz1, yTop, this.phys);
     else this.phys.groundHoles.push([hx0, hz0, hx1, hz1]);
     (this.phys.belowGround ||= []).push((p) => this.contains(p));    // you may be under the land in here
@@ -471,8 +484,9 @@ export class Cave {
           const r = 0.18 + R() * 0.35, h = 0.6 + R() * 2.2;
           spikes.push(new THREE.ConeGeometry(r, h, 7).translate(p.x, p.y + h / 2 - 0.05, p.z));
           if (r > 0.22) this.phys.add([p.x - r * 0.7, p.y - 0.2, p.z - r * 0.7], [p.x + r * 0.7, p.y + h * 0.8, p.z + r * 0.7], 'cave');
-        } else {                                             // down from the roof
-          const r = 0.12 + R() * 0.3, h = 0.5 + R() * Math.min(2.4, HT[j] * 0.35);
+        } else {                                             // down from the roof, never below 2.6 m
+          const r = 0.12 + R() * 0.3, h = Math.min(0.5 + R() * Math.min(2.4, HT[j] * 0.35), HT[j] - 2.6);
+          if (h < 0.3) continue;
           spikes.push(new THREE.ConeGeometry(r, h, 6).rotateX(Math.PI).translate(p.x, roof - h / 2 + 0.1, p.z));
         }
       }

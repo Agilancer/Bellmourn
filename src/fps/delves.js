@@ -53,7 +53,7 @@ function stairHouse(ctx, d) {
   const n = Math.round(FLIGHT.depth / FLIGHT.step), zEnd = z - n * FLIGHT.run, yEnd = -n * FLIGHT.step;
   b.stairs(x, z, 0, -FLIGHT.depth, FLIGHT.width, '-z', floor, { step: FLIGHT.step, run: FLIGHT.run });
   for (const sx of [-1, 1]) b.box([x + sx * 1.2 - (sx > 0 ? 0 : 0.5), yEnd - 1, zEnd], [x + sx * 1.2 + (sx > 0 ? 0.5 : 0), 0, z], wall, { shade: 0.8 });
-  const slab = (zz) => -((z - zz) / FLIGHT.run) * FLIGHT.step + 3.0;
+  const slab = (zz) => -((z - zz) / FLIGHT.run) * FLIGHT.step + 3.6;     // the vault: 3.4 m clear over the nosings
   b.beam([x, slab(hz0), hz0], [x, slab(zEnd), zEnd], 3.95, 0.4, trim, { up: [0, 1, 0] });
   b.box([x - 1.7, slab(hz0) - 0.3, hz0 - T], [x + 1.7, 0, hz0], wall);      // under the back wall, down to the vault
   for (let zz = z - 1.6, k = 0; zz > zEnd + 0.5; zz -= 3.2, k++) {
@@ -98,8 +98,8 @@ function frameMouth(ctx, c) {
       }, { tag: 'rock' });
     }
   }
-  // the capstone across the top, its underside 2.9 m over the floor
-  b.place(x - 0.3, fl + 2.9 * H + 0.75, z, 0, 1, (B) => {
+  // the capstone across the top, its underside 3.4 m over the floor (the Trollhole's higher)
+  b.place(x - 0.3, fl + 3.4 * H + 0.75, z, 0, 1, (B) => {
     B.blob([0, 0, 0], [1.5, 0.75, 3.6 * H], rock[0], { detail: 1, jitter: 0.15, seed: seed + 3, floor: -0.7 });
     B.blob([0.2, 0.6, 0], [1.2, 0.3, 3.0 * H], moss, { detail: 1, jitter: 0.3, seed: seed + 4 });
   }, { tag: 'rock' });

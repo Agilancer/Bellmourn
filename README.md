@@ -14,7 +14,9 @@ dungeons of their own, the Barrow of Saint Ivo to the west and the Old Watch Cel
 south-east; and three caves open in the downs' eastern cliff, the Gloamhollow just north of
 Brightwater Falls, the Drowned Grotto beside them, and the Trollhole far to the north. All of them
 are marked on the map. `node tools/world/walkthrough.cjs <port>` walks the player down every
-stair and into and back out of every cave, and has the dead of each place come for him. The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
+stair and into and back out of every cave, has the dead of each place come for him, checks the
+headroom over every walkable metre below ground (nothing under 3 m), and how smoothly the eye rides
+the stairs (it glides: the feet's steps are eased out, so a flight reads as a slope). The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
 vaults and ossuaries, and now flooded crypts, great halls of tall columns, barracks, collapsed
 halls, well chambers, forges and halls round a throne of bones.
 

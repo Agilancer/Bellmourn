@@ -229,7 +229,8 @@ async function build() {
   await mark('dungeon');
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
-  ctx.builtUnder = b.finish(scene).filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
+  ctx.built = b.finish(scene);
+  ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   await mark('merge');
   bill.finish(); await mark('billboards');
   ctx.trees3d.finish(scene); await mark('trees');
@@ -966,7 +967,7 @@ resize();
 build().then(() => {
   hud.showOverlay('start', touch);
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
   console.error(e);

@@ -512,9 +512,13 @@ function cathedral(ctx, M) {
   const run = b.stairs(STAIRS.x, STAIRS.z, F, -(F + 14), 2.4, '-z', steps, { step: 0.25, run: 0.34 });
   const zEnd = STAIRS.z - run, yEnd = F - Math.round((F + 14) / 0.25) * 0.25;
   for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z], stone);
-  const CLEAR = 2.8, slab = (z) => F - ((STAIRS.z - z) / 0.34) * 0.25 + CLEAR + 0.2;
+  // (3.4 m clear over the nosings all the way down. Just outside the north wall the vault still
+  // stands above the ground: a stone footing against the wall's foot covers it)
+  const CLEAR = 3.4, slab = (z) => F - ((STAIRS.z - z) / 0.34) * 0.25 + CLEAR + 0.2;
   b.beam([STAIRS.x, slab(STAIRS.z), STAIRS.z], [STAIRS.x, slab(zEnd), zEnd], 3.95, 0.4, stone, { up: [0, 1, 0] });
-  b.box([sh.x0 + 0.4, F + 2.8, STAIRS.z - 0.05], [sh.x1 - 0.4, F + 3.6, STAIRS.z + 0.1], shWall, { solid: false }); // over the vault's head
+  b.box([sh.x0 + 0.4, F + CLEAR, STAIRS.z - 0.05], [sh.x1 - 0.4, F + 3.6, STAIRS.z + 0.1], shWall, { solid: false }); // over the vault's head
+  const vTop = (z) => slab(z) + 0.45, zOut = C.z0 - t / 2, zSunk = STAIRS.z - ((F + CLEAR + 0.65) / 0.25) * 0.34;
+  if (vTop(zOut) > 0) b.box([STAIRS.x - 2.3, 0, zSunk - 0.2], [STAIRS.x + 2.3, vTop(zOut) + 0.15, zOut], M('castle_ashlar', 2));
   // torches down both walls of the flight, every few steps, alternating sides
   for (let z = STAIRS.z - 1.6, k = 0; z > zEnd + 0.5; z -= 3.2, k++) {
     const y = F - (Math.floor((STAIRS.z - z) / 0.34) + 1) * 0.25, sx = k % 2 ? 1 : -1;
