@@ -32,10 +32,20 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+// The monster bodies (templates/models/creatures/monsters/<name>.glb): one human body under nine
+// skins, each with its own hand-keyed idle, move, attack1, attack2, roar, hit and death. Their
+// UE-style bones are renamed to the zombie body's on load so the brain and the gore drive them.
+const MONSTER_ROOT = 'templates/models/creatures/monsters/';
+export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
+  'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
+const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
+  clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',
+  lowerarm_l: 'forearmL', lowerarm_r: 'forearmR', hand_l: 'handL', hand_r: 'handR',
+  thigh_l: 'thighL', thigh_r: 'thighR', calf_l: 'shinL', calf_r: 'shinR', foot_l: 'footL', foot_r: 'footR' };
 const FPS = 30;
 const HIT_AT = { attack1: 14, attack2: 14, attack3: 21, crawl_attack: 13 };   // frame the blow lands
 const ATTACK_DMG = { attack1: 9, attack2: 8, attack3: 14, crawl_attack: 7 };
-const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'death', 'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup']);
+const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'death', 'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup', 'roar', 'hit']);
 // what can be cut off, and how much it takes (waist: the body cut in two at the hips)
 const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
   upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
@@ -304,6 +314,28 @@ const normals = new Map();   // texture -> its normal map, made once per body
 const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 
+/** A monster body in the zombie body's terms: bones and tracks renamed, turned to face +z, and
+ * the clips the brain asks for (walk, run, attack3, dead) made from its own. */
+function adaptMonster(gltf) {
+  gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
+  gltf.scene.rotation.y = Math.PI;                         // built facing -z
+  const clips = {};
+  for (const c of gltf.animations) {
+    for (const t of c.tracks) {
+      const i = t.name.lastIndexOf('.'), n = t.name.slice(0, i);
+      if (MONSTER_BONES[n]) t.name = MONSTER_BONES[n] + t.name.slice(i);
+    }
+    clips[c.name] = c;
+  }
+  const alias = (src, name) => { if (clips[src]) { const c = clips[src].clone(); c.name = name; gltf.animations.push(c); } };
+  alias('move', 'walk'); alias('move', 'run'); alias('attack1', 'attack3');
+  if (clips.death) {
+    const last = Math.round(clips.death.duration * FPS);
+    gltf.animations.push(THREE.AnimationUtils.subclip(clips.death, 'dead', last - 1, last, FPS));
+  }
+  return gltf;
+}
+
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
 
@@ -314,7 +346,8 @@ export class Zombie {
     const root = this.root = new THREE.Group();
     const model = cloneSkinned(gltf.scene);
     root.add(model);
-    model.traverse((c) => { if (c.isSkinnedMesh) this.mesh = c; });
+    // the body is the biggest skinned mesh (monsters also carry eyes, brows and bones)
+    model.traverse((c) => { if (c.isSkinnedMesh && (!this.mesh || c.geometry.attributes.position.count > this.mesh.geometry.attributes.position.count)) this.mesh = c; });
     const mesh = this.mesh;
     // every body of a kind shares its vertices; each has its own triangles, as limbs come off
     const src = mesh.geometry, geo = mesh.geometry = new THREE.BufferGeometry();
@@ -420,6 +453,7 @@ export class Zombie {
   play(name, fade = 0.25, speed = 1) {
     const a = this.actions[name];
     if (!a) return;
+    if (this.holdT > 0 && (name === 'walk' || name === 'run' || name === 'idle')) return;   // let a roar or flinch finish
     a.timeScale = speed;
     if (this.cur === name) {
       if (this.constructor.ONCE.has(name) && this.done()) { a.reset().play(); this.fired = false; }   // again, from the top
@@ -581,6 +615,7 @@ export class Zombie {
     if (!this.dead) {
       if (this.state === 'move' || this.state === 'attack') {
         if (this.state === 'move') this.stagger = heavy ? 0.55 : 0.32;
+        if (this.state === 'move' && this.actions.hit) { this.holdT = 0; this.play('hit', 0.06); this.holdT = this.actions.hit.getClip().duration; this.stagger = Math.max(this.stagger, this.holdT); }
       }
       if (this.hp <= 0) this.die();
     }
@@ -670,7 +705,12 @@ export class Zombie {
     const loud = player.speed > 7 ? 15 : player.speed > 1 ? 7.5 : 2.2;
     const heard = same && d < loud * this.kind.hear * (eyes ? 1 : 1.6);
     if (this.canSee) {
-      if (!this.aggro) { this.aggro = true; owner.sound('groan', this.pos, true); owner.alert(this, player.pos, 18); }
+      if (!this.aggro) {
+        this.aggro = true; owner.sound('groan', this.pos, true); owner.alert(this, player.pos, 18);
+        if (this.actions.roar && this.state === 'move' && this.dist > 3) {   // it has you: it roars first
+          this.holdT = 0; this.play('roar', 0.2); this.holdT = this.actions.roar.getClip().duration; this.stagger = this.holdT;
+        }
+      }
       this.hunt(player.pos, true);
     } else if (heard) {
       this.hunt(player.pos, this.aggro);
@@ -778,6 +818,7 @@ export class Zombie {
     const crawl = this.mode === 'crawl';
     this.cool = Math.max(0, this.cool - dt);
     this.stagger = Math.max(0, this.stagger - dt);
+    this.holdT = Math.max(0, (this.holdT || 0) - dt);
     this.lungeCool -= dt;
     let target = null, speed = 0, routed = false;
     if (this.goal === 'chase' && active) {
@@ -980,9 +1021,13 @@ export class Zombies {
     this.flow = null; this.flowKey = -1; this.flowT = 0;
   }
 
-  async load(variants = VARIANTS) {
+  async load(variants = VARIANTS, monsters = MONSTERS) {
     const loader = new GLTFLoader();
-    await Promise.all(variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }));
+    await Promise.all([
+      ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
+      ...monsters.map(async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); }),
+    ]);
+    this.pool = [...variants, ...monsters];
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */
@@ -1002,7 +1047,7 @@ export class Zombies {
     return zb;
   }
 
-  randomVariant() { return VARIANTS[Math.floor(Math.random() * VARIANTS.length)]; }
+  randomVariant() { const p = this.pool || VARIANTS; return p[Math.floor(Math.random() * p.length)]; }
 
   /** The graveyard: `n` of the dead about the graves, `buried` more under them, and the horde
    * kept at `n` by more clawing out of the ground. `avoid` [x0, z0, x1, z1] keeps them out of
