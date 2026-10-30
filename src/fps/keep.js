@@ -1,6 +1,6 @@
 // Blackvigil Keep: the stronghold of Lord Velscour's Sworn, in the Darkwood west of the village at
 // the end of the Vigil Road (the village's west road, run on through the forest). A curtain wall of
-// black basalt with a round tower at each corner and a gatehouse on the road; inside, a courtyard of
+// black stone with a round tower of slate at each corner and a gatehouse on the road; inside, a courtyard of
 // braziers, banner stands and arms; and the keep itself: the Hall of the Sworn, their barracks and
 // armoury, the chapel where they pray to Velscour, the reliquary, and at the far end of it all the
 // Red Throne, where Ser Malgrave keeps his vigil before a chest sealed by his oath. The chest can't
@@ -47,7 +47,14 @@ export function buildKeep(ctx) {
   const { lib, b, props, scene } = ctx;
   const M = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o });
   const S = (id, x, z, s = 1, rot, y = 0) => ctx.scatter.place(id, x, y, z, s, rot);
-  const basalt = M('castle_basalt', 3), soot = M('castle_soot', 3), iron = M('castle_iron', 3), slate = M('castle_slatestone', 2.5);
+  const iron = M('castle_iron', 3), slate = M('castle_slatestone', 2.5);
+  // the dark masonry (tools/world/import_banners_stone.py): a different blackstone or slate for every
+  // wall and tower, so no two faces of the place are laid alike
+  const black = (n) => M(`masonry_blackstone_${String(n).padStart(2, '0')}`, 3), slab = (n) => M(`masonry_slate_${String(n).padStart(2, '0')}`, 3);
+  // Velscour's banners (the ones bearing his V: only ever where his people are), each in turn
+  const VB = lib.sprites('banner', (q) => q.allegiance === 'velscour').map((q) => q.id);
+  let vk = 0;
+  const vb = () => VB[vk++ % VB.length];
   const roofBlack = M('castle_roof_black', 2.5), beams = M('castle_wood', 2.5);
   const merlon = M('castle_keep_rough_battlement_block', 1.2);
   const quad = (mat, x0, z0, x1, z1, y = 0.03) => b.quad(mat, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
@@ -77,30 +84,30 @@ export function buildKeep(ctx) {
       else b.box([x0 - thick / 2, y, u], [x0 + thick / 2, y + 1.2, u + 1.1], merlon, { solid: false });
     }
   };
-  b.wall(K.x0, K.z0, K.x1, K.z0, 0, WH, WT, basalt); battlements(K.x0, K.z0, K.x1, K.z0, WH, WT);
-  b.wall(K.x0, K.z1, K.x1, K.z1, 0, WH, WT, basalt); battlements(K.x0, K.z1, K.x1, K.z1, WH, WT);
-  b.wall(K.x0, K.z0, K.x0, K.z1, 0, WH, WT, basalt); battlements(K.x0, K.z0, K.x0, K.z1, WH, WT);
-  b.wall(K.x1, K.z0, K.x1, K.z1, 0, WH, WT, basalt, [{ at: -K.z0, w: 5.2, y0: 0, y1: 6.2 }]);
+  b.wall(K.x0, K.z0, K.x1, K.z0, 0, WH, WT, black(1)); battlements(K.x0, K.z0, K.x1, K.z0, WH, WT);
+  b.wall(K.x0, K.z1, K.x1, K.z1, 0, WH, WT, black(2)); battlements(K.x0, K.z1, K.x1, K.z1, WH, WT);
+  b.wall(K.x0, K.z0, K.x0, K.z1, 0, WH, WT, black(3)); battlements(K.x0, K.z0, K.x0, K.z1, WH, WT);
+  b.wall(K.x1, K.z0, K.x1, K.z1, 0, WH, WT, black(4), [{ at: -K.z0, w: 5.2, y0: 0, y1: 6.2 }]);
   battlements(K.x1, K.z0, K.x1, -4, WH, WT); battlements(K.x1, 4, K.x1, K.z1, WH, WT);
   // a round tower at each corner, roofed in black slate
-  for (const [x, z] of [[K.x0, K.z0], [K.x1, K.z0], [K.x0, K.z1], [K.x1, K.z1]]) {
-    b.ring(x, z, 4.6, 0, 12.5, 12, basalt);
+  [[K.x0, K.z0], [K.x1, K.z0], [K.x0, K.z1], [K.x1, K.z1]].forEach(([x, z], i) => {
+    b.ring(x, z, 4.6, 0, 12.5, 12, slab(1 + i));
     b.box([x - 3.6, 12.3, z - 3.6], [x + 3.6, 12.5, z + 3.6], slate, { solid: false });
     b.cone(x, z, 5.2, 12.5, 7.5, 12, roofBlack);
-  }
+  });
   // the gatehouse: two square towers out on the road, the gate between them under a raised portcullis
   for (const s of [-1, 1]) {
-    b.box([K.x1 - 3, 0, s > 0 ? 2.6 : -8.6], [K.x1 + 5, 12, s > 0 ? 8.6 : -2.6], basalt);
+    b.box([K.x1 - 3, 0, s > 0 ? 2.6 : -8.6], [K.x1 + 5, 12, s > 0 ? 8.6 : -2.6], slab(s > 0 ? 5 : 6));
     battlements(K.x1 - 3, s * 8.6, K.x1 + 5, s * 8.6, 12, 0.8);
     battlements(K.x1 + 5, s > 0 ? 2.6 : -8.6, K.x1 + 5, s > 0 ? 8.6 : -2.6, 12, 0.8);
   }
-  b.box([K.x1 - 3, 6.2, -2.6], [K.x1 + 5, 12, 2.6], basalt);
+  b.box([K.x1 - 3, 6.2, -2.6], [K.x1 + 5, 12, 2.6], slab(7));
   const bar = M('met_02_riveted_black_iron', 1);
   for (let z = -2.3; z <= 2.31; z += 0.46) b.box([K.x1 + 3.1, 4.7, z - 0.05], [K.x1 + 3.2, 6.25, z + 0.05], bar, { solid: false });
   for (const y of [5.0, 5.7]) b.box([K.x1 + 3.08, y, -2.5], [K.x1 + 3.22, y + 0.1, 2.5], bar, { solid: false });
   props.add('wall_torch', K.x1 + 5.02, 0, -4.2, Math.PI / 2); props.add('wall_torch', K.x1 + 5.02, 0, 4.2, Math.PI / 2);
-  wallPanel(lib, scene, 'hanging_black_keep_banner', K.x1 + 5.06, 8.2, -5.6, [1, 0, 0], 4.2);
-  wallPanel(lib, scene, 'hanging_black_keep_banner', K.x1 + 5.06, 8.2, 5.6, [1, 0, 0], 4.2);
+  wallPanel(lib, scene, vb(), K.x1 + 5.06, 8.2, -5.6, [1, 0, 0], 4.2);
+  wallPanel(lib, scene, vb(), K.x1 + 5.06, 8.2, 5.6, [1, 0, 0], 4.2);
   for (const z of [-24, -14, 14, 24]) wallPanel(lib, scene, 'hanging_plain_arrow_slit', K.x1 + WT / 2 + 0.03, 5.4, z, [1, 0, 0], 1.6);
 
   // ------------------------------------------------------------ the courtyard
@@ -122,30 +129,30 @@ export function buildKeep(ctx) {
   // ------------------------------------------------------------ the keep
   const H = HALL, OT = IN * 2, OH = 12.5;
   const door = (at, w = 3.2, h = 4.4) => ({ at, w, y0: 0, y1: h });
-  b.wall(H.x1, H.z0, H.x1, H.z1, 0, OH, OT, basalt, [door(26, 4.6, 6.2)]);               // east, the way in
-  b.wall(H.x0, H.z0, H.x0, H.z1, 0, OH, OT, basalt);
-  b.wall(H.x0, H.z0, H.x1, H.z0, 0, OH, OT, basalt);
-  b.wall(H.x0, H.z1, H.x1, H.z1, 0, OH, OT, basalt);
+  b.wall(H.x1, H.z0, H.x1, H.z1, 0, OH, OT, black(5), [door(26, 4.6, 6.2)]);               // east, the way in
+  b.wall(H.x0, H.z0, H.x0, H.z1, 0, OH, OT, black(6));
+  b.wall(H.x0, H.z0, H.x1, H.z0, 0, OH, OT, black(7));
+  b.wall(H.x0, H.z1, H.x1, H.z1, 0, OH, OT, black(8));
   battlements(H.x1, H.z0, H.x1, -3.4, OH, OT); battlements(H.x1, 3.4, H.x1, H.z1, OH, OT);
   battlements(H.x0, H.z0, H.x0, H.z1, OH, OT); battlements(H.x0, H.z0, H.x1, H.z0, OH, OT); battlements(H.x0, H.z1, H.x1, H.z1, OH, OT);
   // the roof over all of it (its underside the rooms' ceiling), a square turret at each corner
-  b.box([H.x0, CEIL, H.z0], [H.x1, CEIL + 0.7, H.z1], { top: slate, bottom: beams, side: basalt }, { shade: 0.75 });
-  for (const [x, z] of [[H.x0, H.z0], [H.x1, H.z0], [H.x0, H.z1], [H.x1, H.z1]]) {
-    b.box([x - 2.6, CEIL, z - 2.6], [x + 2.6, 16, z + 2.6], basalt, { solid: false });
+  b.box([H.x0, CEIL, H.z0], [H.x1, CEIL + 0.7, H.z1], { top: slate, bottom: beams, side: black(5) }, { shade: 0.75 });
+  [[H.x0, H.z0], [H.x1, H.z0], [H.x0, H.z1], [H.x1, H.z1]].forEach(([x, z], i) => {
+    b.box([x - 2.6, CEIL, z - 2.6], [x + 2.6, 16, z + 2.6], slab([8, 9, 10, 3][i]), { solid: false });
     b.cone(x, z, 3.5, 16, 6.5, 8, roofBlack);
-  }
+  });
   // a porch over the door: two piers and a lintel, Velscour's banners either side
-  b.box([H.x1, 0, -4.4], [H.x1 + 1.6, 7, -3.0], basalt); b.box([H.x1, 0, 3.0], [H.x1 + 1.6, 7, 4.4], basalt);
+  b.box([H.x1, 0, -4.4], [H.x1 + 1.6, 7, -3.0], black(9)); b.box([H.x1, 0, 3.0], [H.x1 + 1.6, 7, 4.4], black(9));
   b.box([H.x1, 6.4, -4.4], [H.x1 + 1.6, 7.4, 4.4], merlon, { solid: false });
-  wallPanel(lib, scene, 'hanging_crimson_tower_banner', H.x1 + 0.84, 7.6, -7.4, [1, 0, 0], 5);
-  wallPanel(lib, scene, 'hanging_crimson_tower_banner', H.x1 + 0.84, 7.6, 7.4, [1, 0, 0], 5);
+  wallPanel(lib, scene, vb(), H.x1 + 0.84, 7.6, -7.4, [1, 0, 0], 5);
+  wallPanel(lib, scene, vb(), H.x1 + 0.84, 7.6, 7.4, [1, 0, 0], 5);
   props.add('wall_torch', H.x1 + IN + 0.02, 0, -5.4, Math.PI / 2); props.add('wall_torch', H.x1 + IN + 0.02, 0, 5.4, Math.PI / 2);
   for (const z of [-20, -12, 12, 20]) wallPanel(lib, scene, 'hanging_keyhole_arrow_slit', H.x1 + 0.83, 9.5, z, [1, 0, 0], 1.8);
   for (const x of [-242, -254, -266]) for (const s of [-1, 1]) wallPanel(lib, scene, 'hanging_plain_arrow_slit', x, 9.5, s * (H.z1 + 0.83), [0, 0, s], 1.8);
   // the walls between the rooms (inner walls a metre thick, their doors on the hall's axes)
   const IT = 1;
-  b.wall(H.x0, -13, H.x1, -13, 0, CEIL, IT, soot, [door(7), door(28)]);       // the north rooms: chapel (at x -269), barracks (x -248)
-  b.wall(H.x0, 13, H.x1, 13, 0, CEIL, IT, soot, [door(7), door(28)]);         // the south: reliquary, armoury
+  b.wall(H.x0, -13, H.x1, -13, 0, CEIL, IT, black(10), [door(7), door(28)]);       // the north rooms: chapel (at x -269), barracks (x -248)
+  b.wall(H.x0, 13, H.x1, 13, 0, CEIL, IT, black(2), [door(7), door(28)]);         // the south: reliquary, armoury
   b.wall(-262, H.z0, -262, H.z1, 0, CEIL, IT, iron, [door(6.5), door(26, 5.2, 6.2), door(45.5)]);   // the throne room's wall
   // floors
   const floor = { hall: 'castle_keep_sootdark_great_hall', barracks: 'castle_keep_charcoal_guardstone', chapel: 'castle_keep_ivory_chapel_marble',
@@ -177,9 +184,7 @@ export function buildKeep(ctx) {
     for (const x of [-239.5, -243.5, -252.5, -256.5]) props.add('table', x, 0, z, Math.PI / 2);
     for (const x of [-238.5, -240.5, -242.5, -244.5, -251.5, -253.5, -255.5, -257.5]) for (const s of [-1, 1]) props.add('stool', x, 0, z + s * 1.1);
   }
-  ['hanging_black_keep_banner', 'hanging_crimson_tower_banner'].forEach((id, i) => {
-    for (const x of [-241.5, -251.5]) for (const s of [-1, 1]) wallPanel(lib, scene, id, x + i * 5, 5.6, s * (hall.iz1 - 0.04), [0, 0, -s], 3.6);
-  });
+  for (const x of [-238.5, -243.5, -253, -258]) for (const s of [-1, 1]) wallPanel(lib, scene, vb(), x, 5.6, s * (hall.iz1 - 0.04), [0, 0, -s], 3.6);   // (clear of the doors to the wings)
   S('castle_keep_wall_brazier', -236, -12, 1, 0); S('castle_keep_wall_brazier', -236, 12, 1, Math.PI);
   wallPanel(lib, scene, 'hanging_war_map_tapestry', hall.ix1 - 0.04, 5.2, -9, [-1, 0, 0], 2.4);
   // the barracks: cots down the north wall, a table, their kit
@@ -218,7 +223,7 @@ export function buildKeep(ctx) {
   sigil(ctx, th.ix0 + 0.06, 4.6, 0, [1, 0, 0], 4.6, 1.8);
   for (const s of [-1, 1]) {
     S('sand_scatter_25_bronze_brazier', DAIS.x1 + 0.2, s * 7.4, 1.3, 0);
-    for (const x of [-265, -270]) wallPanel(lib, scene, 'hanging_crimson_tower_banner', x, 5.2, s * (th.iz1 - 0.04), [0, 0, -s], 3.8);
+    for (const x of [-265, -270]) wallPanel(lib, scene, vb(), x, 5.2, s * (th.iz1 - 0.04), [0, 0, -s], 3.8);
     props.add('candelabrum', DAIS.x1 - 0.6, DAIS.h, s * 5.2);
   }
 
@@ -258,7 +263,8 @@ class Keep {
     this.nx = Math.ceil((KEEP.x1 + 6 - (KEEP.x0 - 2)) / G); this.nz = Math.ceil((KEEP.z1 + 2 - (KEEP.z0 - 2)) / G);
     this.gx0 = KEEP.x0 - 2; this.gz0 = KEEP.z0 - 2;
     this.walk = null; this.flow = null; this.flowKey = -1; this.flowT = 0;
-    // where the Sworn stand: [variant, x, z, {room | area | patrol, yaw}] (a room by its walls' inner faces)
+    // where the Sworn stand (their adepts in the chapel, the hall, the reliquary and the yard):
+    // [variant, x, z, {room | area | patrol, yaw}] (a room by its walls' inner faces)
     const R = Object.fromEntries(Object.entries(room).map(([k, r]) => [k, { x0: r.ix0, x1: r.ix1, z0: r.iz0, z1: r.iz1, id: k }]));
     this.posts = [
       // at the gate, either side of the road
@@ -267,15 +273,15 @@ class Keep {
       // on their rounds of the courtyard
       ['sworn_m', -204, -20, { patrol: [[-204, -20], [-228, -26], [-228, 26], [-204, 20]] }],
       ['sworn_m', -226, 24, { patrol: [[-226, 24], [-204, 28], [-204, -28], [-226, -24]] }],
-      ['sworn_f', -212, 18, { area: { x: -212, z: 20, r: 4 } }],
+      ['sworn_adept_f', -212, 18, { area: { x: -212, z: 20, r: 4 } }],
       ['sworn_m', -230, -4, { area: { x: -230, z: 0, r: 2 }, yaw: Math.PI / 2 }],
       // the hall
-      ['sworn_m', -242, 3, { room: R.hall }], ['sworn_f', -250, -3, { room: R.hall }], ['sworn_m', -256, 4, { room: R.hall }],
+      ['sworn_m', -242, 3, { room: R.hall }], ['sworn_adept_m', -250, -3, { room: R.hall }], ['sworn_m', -256, 4, { room: R.hall }],
       // the barracks, the armoury, the chapel, the reliquary
       ['sworn_m', -244, -19, { room: R.barracks }], ['sworn_f', -254, -21, { room: R.barracks }],
       ['sworn_m', -244, 19, { room: R.armoury }], ['sworn_m', -253, 21, { room: R.armoury }],
-      ['sworn_f', -266, -19.5, { room: R.chapel, yaw: -Math.PI / 2 }], ['sworn_m', -270, -22, { room: R.chapel, yaw: -Math.PI / 2 }],
-      ['sworn_m', -268, 19.5, { room: R.reliquary }],
+      ['sworn_adept_f', -266, -19.5, { room: R.chapel, yaw: -Math.PI / 2 }], ['sworn_adept_m', -270, -22, { room: R.chapel, yaw: -Math.PI / 2 }],
+      ['sworn_adept_m', -268, 19.5, { room: R.reliquary }],
     ];
     // the throne room: its lord before the chest, and his two guards (they keep the room)
     this.lord = ['sworn_lord', DAIS.x1 + 3.2, 0, { keeps: R.throne, yaw: Math.PI / 2 }];

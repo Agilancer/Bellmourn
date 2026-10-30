@@ -18,8 +18,9 @@ import { Kit } from './kit.js';
 import { Builder } from './geo.js';
 import { Billboards } from './sprites.js';
 import { Props } from './props.js';
-import { buildWorld, VILLAGE_R, GRAVEYARD } from './world.js';
-import { buildDungeon } from './dungeon.js';
+import { buildWorld, VILLAGE_R, GRAVEYARD, STAIRS } from './world.js';
+import { buildDungeon, UNDERCROFT, DEEP_UNDERCROFT } from './dungeon.js';
+import { buildDelves } from './delves.js';
 import { Input, TOUCH } from './input.js';
 import { Player } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
@@ -33,7 +34,7 @@ import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
 import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter } from './gear.js';
 import { Bag, armorCut } from './bag.js';
-import { terrainHeight, REGION } from './terrain.js';
+import { terrainHeight, REGION, POOL, STREAM } from './terrain.js';
 import { SPOTS } from './region.js';
 import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
@@ -112,8 +113,9 @@ addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } cat
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
-// lying buried), and more spread through the dungeon below
-const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 18;
+// lying buried), and more spread through the Undercroft and the Deep Undercroft (the delves and
+// caves fill their own: delves.js)
+const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 26, DEEP_DEAD = 20;
 // what each kind of spell does to flesh: a direct hit, and its blast (radius, damage)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, arcane: 18, staff: 30, wisp: 25 };
 const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
@@ -220,9 +222,19 @@ async function build() {
   };
   await mark('library');
   buildWorld(ctx); await mark('world');
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom); await mark('dungeon');
-  buildKeep(ctx); await mark('keep');   // (after the undercroft: see keep.js)
-  ctx.builtUnder = b.finish(scene).filter((m) => m.geometry.boundingSphere.center.y < -6); await mark('merge');
+  // the Undercroft; Blackvigil Keep (after the undercroft: see keep.js); the Deep Undercroft below
+  // the Undercroft, the Darkwood's delves and the cliff's caves
+  ctx.entrances = [[STAIRS.x, STAIRS.z]];
+  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom, UNDERCROFT); await mark('dungeon');
+  buildKeep(ctx); await mark('keep');
+  ctx.deep = buildDungeon(ctx, ctx.dungeon.stairDown, DEEP_UNDERCROFT);
+  ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', n: DUNGEON_DEAD }, { dg: ctx.deep, haunt: 'deep', n: DEEP_DEAD }, ...buildDelves(ctx)];
+  await mark('delves');
+  // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
+  // only from below
+  ctx.built = b.finish(scene);
+  ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
+  await mark('merge');
   bill.finish(); await mark('billboards');
   ctx.trees3d.finish(scene); await mark('trees');
   await props.finish();
@@ -265,7 +277,25 @@ async function build() {
   await zombies.load(); await mark('zombies');
   const G = GRAVEYARD;
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
-  zombies.populateDungeon(ctx.dungeon, DUNGEON_DEAD);
+  // every place below ground, and out in the world the dead about the water, the bridge, the
+  // cliff and the deep of the wood (a phone gets half)
+  const few = (n) => (touch && !HI ? Math.ceil(n / 2) : n);
+  for (const u of ctx.unders) {
+    if (u.plan) zombies.populateCave(u.dg, u.plan.map(([tag, n, haunt]) => [tag, few(n), haunt]));
+    else zombies.populateDungeon(u.dg, few(u.n), u.haunt);
+  }
+  const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
+  zombies.populateWild([
+    { x: POOL.x - 14, z: POOL.z + 18, r: 10, n: few(3), haunt: 'water' },                       // the falls' pool
+    ...[3, 6, 8, 10].map((i) => ({ x: STREAM[i][0], z: STREAM[i][1], r: 7, n: few(2), haunt: 'water' })),   // down the stream
+    { x: 596, z: 36, r: 4, n: 1, haunt: 'troll' },                                               // under the bridge
+    { x: 712, z: 150, r: 12, n: few(2), haunt: 'troll' },                                       // before the Trollhole
+    { x: 200, z: 34, r: 18, n: few(2), haunt: 'wood', ok: awayFromHomes },                       // the Darkwood about the trail
+    { x: -150, z: -170, r: 24, n: few(3), haunt: 'wood', ok: awayFromHomes },
+    { x: -225, z: 122, r: 18, n: few(3), haunt: 'barrow', ok: awayFromHomes },                   // about the Barrow
+    { x: 130, z: 222, r: 14, n: few(2), haunt: 'cellars', ok: awayFromHomes },                   // about the Cellars
+    { x: 230, z: -120, r: 20, n: few(2), haunt: 'fungal', ok: awayFromHomes },
+  ]);
   zombies.onPlayerHit = hurtPlayer;
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
@@ -583,6 +613,7 @@ function onEvent(kind, side, clip) {
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
 function melee(reach, heavy, side = 'R') {
+  player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
   for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
@@ -622,6 +653,7 @@ function melee(reach, heavy, side = 'R') {
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
+  for (const u of ctx.unders) if (u.dg.contains(p)) return { name: u.dg.name, kind: 'under' };
   if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
   if (p.x > REGION.x0) {   // the downs: see a long way
     for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
@@ -887,13 +919,17 @@ function tick(dt) {
     }
   }
   hud.guard(guard, vm.blocking);
+  player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
-  for (const m of ctx.builtUnder) m.visible = camera.position.y < 0.5; // the undercroft, only from below
+  // what's under the ground: only from below it, or from the head of the stairs down to it
+  const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
+  for (const m of ctx.builtUnder) m.visible = cp.y < 0.5 || atStairs;
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);
+  for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player));
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
@@ -946,7 +982,7 @@ resize();
 build().then(() => {
   hud.showOverlay('start', touch);
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
   console.error(e);
