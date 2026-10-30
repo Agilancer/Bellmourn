@@ -314,9 +314,10 @@ export function buildDungeon(ctx, entry) {
     const r = rooms[j % rooms.length];
     wallPanel(lib, ctx.scene, s.id, X(r.i) + r.w / 2 + (j - 1) * 2.5, Y + 2.4, Z(r.k + r.d) - 0.08, [0, 0, -1], 2);
   });
-  // (stone, earth, metal and timber only: no grass, leaves, bark or roofing underground)
+  // (stone, earth, metal and timber only: no grass, leaves, bark or roofing underground; and not
+  // the ground sheets' tiles, which are only ever laid by name)
   const UNDERFOOT = /meadow|grass|clover|moss_cover|verge|field|leaves|bark|roof|thatch|wall_/;
-  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id) && s.kind !== 'decal' && !s.wall_set && !UNDERFOOT.test(s.id));
+  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id) && s.kind !== 'decal' && s.kind !== 'ground' && !s.wall_set && !UNDERFOOT.test(s.id));
   floors.forEach((s, j) => {
     const r = rooms[1 + (j % (rooms.length - 1))];
     const n = Math.floor(j / (rooms.length - 1));

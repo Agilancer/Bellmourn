@@ -37,10 +37,11 @@ export function buildWorld(ctx) {
 
   // ------------------------------------------------------------ ground
   // one blended material for all of it (see Library.ground): meadow in the village, forest
-  // floor beyond, grave soil in the graveyard
+  // floor beyond, grave soil in the graveyard. The clover lawn and the oak leaf litter are the
+  // ground sheets' (tools/world/import_ground.py), toned down to sit with the Velscour floors
   const ground = lib.ground({ village: VILLAGE_R, yard: [GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], layers: [
-    ['town_dense_meadow', 3], ['town_olive_meadow', 3.4], ['town_wildflower_grass', 2.6],
-    ['dark_forest_pine_needles', 3], ['dark_forest_damp_moss', 3.2], ['dark_forest_dead_leaves', 2.8],
+    ['ground_grass_02', 1.7, 0xd4b0e4], ['town_olive_meadow', 3.4], ['town_wildflower_grass', 2.6],
+    ['ground_forest_floor_03', 2.4, 0xe0dcd8], ['dark_forest_damp_moss', 3.2], ['ground_forest_floor_08', 2.2, 0xe0d6c8],
     ['cathedral_graveyard_dead_grass', 3], ['cathedral_graveyard_grave_soil', 2.6]] });
   ground.userData.noCast = true;
   ground.userData.chunk = 96;
