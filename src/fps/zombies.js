@@ -36,7 +36,10 @@ export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 // The monster bodies (templates/models/creatures/monsters/<name>.glb): one human body under nine
 // skins, each with its own hand-keyed idle, move, attack1, attack2, roar, hit and death. Their
 // UE-style bones are renamed to the zombie body's on load so the brain and the gore drive them.
-const MONSTER_ROOT = 'templates/models/creatures/monsters/';
+// A phone loads their phone copies (monsters/phone/, from tools/creatures/monsters_phone.py:
+// every image over 1024 square halved), one at a time: the full ones carry five 2048 images
+// apiece, and nine of them decoding together ran to hundreds of megabytes and killed the tab.
+const MONSTER_ROOT = 'templates/models/creatures/monsters/' + (TOUCH ? 'phone/' : '');
 export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
   'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
@@ -316,22 +319,9 @@ const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 
 // The monsters carry the same hair, eye and body-detail images byte for byte: one copy of each
-// serves them all. A phone gets their skins at no more than 1024 square; at 2048, with a copy of
-// the hair per monster, they alone ran past half a gigabyte of graphics memory and the tab died.
+// serves them all (with a copy of the hair per monster, they alone ran past half a gigabyte of
+// graphics memory).
 const sharedTex = new Map();   // image name -> the texture every monster uses
-const TEX_CAP = TOUCH ? 1024 : Infinity;
-
-function shrink(t) {
-  const img = t.image, big = Math.max(img?.width || 0, img?.height || 0);
-  if (big <= TEX_CAP) return;
-  const c = document.createElement('canvas'), s = TEX_CAP / big;
-  c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-  const g = c.getContext('2d');
-  g.imageSmoothingQuality = 'high';
-  g.drawImage(img, 0, 0, c.width, c.height);
-  img.close?.();
-  t.image = c; t.needsUpdate = true;
-}
 
 function shareTextures(root) {
   root.traverse((o) => {
@@ -343,7 +333,6 @@ function shareTextures(root) {
         const kept = t.name && sharedTex.get(t.name);
         if (kept && kept !== t) { if (kept.source !== t.source) t.image?.close?.(); m[k] = kept; continue; }
         if (t.name) sharedTex.set(t.name, t);
-        shrink(t);
       }
     }
   });
@@ -1059,9 +1048,11 @@ export class Zombies {
 
   async load(variants = VARIANTS, monsters = MONSTERS) {
     const loader = new GLTFLoader();
+    const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
+    const one = async () => { for (const m of monsters) await monster(m); };   // a phone: one decoding at a time
     await Promise.all([
       ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
-      ...monsters.map(async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); }),
+      ...(TOUCH ? [one()] : monsters.map(monster)),
     ]);
     this.pool = [...variants, ...monsters];
   }
