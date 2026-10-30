@@ -1,0 +1,68 @@
+{
+ "seed": 3304,
+ "face": "02_Tan_Skin",
+ "morph": {
+  "caucasian-male-young": 0.45,
+  "caucasian-male-old": 0.4,
+  "asian-male-young": 0.15,
+  "chin-width-min": 0.202,
+  "l-ear-size-big": 0.2,
+  "r-ear-size-big": 0.2,
+  "eyebrows-trans-depth-more": 0.526,
+  "nose-scale-vert-incr": 0.544,
+  "nose-point-width-less": 0.178,
+  "nose-hump-lesshump": 0.198,
+  "l-cheek-bones-out": 0.238,
+  "r-cheek-bones-out": 0.238,
+  "chin-jaw-drop-more": 0.22
+ },
+ "eye": "brownlight",
+ "iris_tint": [
+  0.5,
+  0.75,
+  0.67
+ ],
+ "dress": {
+  "Suit_Body:Suit": [
+   "damask_red",
+   0.42,
+   0.42
+  ],
+  "Suit_Legs:Suit": [
+   "burlap_dark",
+   0.55,
+   0.3
+  ],
+  "White": [
+   "burlap_coarse",
+   1.2,
+   0.25
+  ],
+  "Tie": [
+   "damask_purple",
+   1.0,
+   0.2
+  ],
+  "Black": [
+   "leather_tooled",
+   0.5,
+   0.25
+  ]
+ },
+ "line": 0.1,
+ "scale": 1.02,
+ "outfit": "Suit",
+ "sleeves": "White",
+ "parts": [
+  "Suit_Body",
+  "Suit_Legs",
+  "Suit_Feet"
+ ],
+ "name": "villager_m10",
+ "views": [
+  "hero_34",
+  "hero_face",
+  "hero_back"
+ ],
+ "samples": 64
+}

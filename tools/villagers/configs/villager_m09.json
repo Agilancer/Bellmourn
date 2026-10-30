@@ -1,0 +1,77 @@
+{
+ "seed": 3303,
+ "face": "07_Olive_Skin",
+ "morph": {
+  "caucasian-male-young": 0.55,
+  "african-male-young": 0.2,
+  "asian-male-young": 0.25,
+  "mouth-scale-horiz-decr": 0.506,
+  "chin-prominent-less": 0.144,
+  "nose-scale-horiz-incr": 0.259,
+  "head-oval": 0.469,
+  "nose-volume-potato": 0.511,
+  "eyebrows-trans-depth-less": 0.526,
+  "mouth-upperlip-volume-inflate": 0.514,
+  "l-ear-flap-in": 0.522,
+  "r-ear-flap-in": 0.522
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.73,
+  0.81
+ ],
+ "dress": {
+  "Worker_Vest": [
+   "leather_tooled",
+   0.85,
+   0.36
+  ],
+  "Worker_Yellow": [
+   "leather_strapwork",
+   0.55,
+   0.3
+  ],
+  "LightBrown": [
+   "burlap_coarse",
+   0.95,
+   0.3
+  ],
+  "Brown": [
+   "linen_brown",
+   0.6,
+   0.3
+  ],
+  "Brown2": [
+   "leather_tooled",
+   0.7,
+   0.3
+  ],
+  "Grey": [
+   "leather_strapwork",
+   0.8,
+   0.3
+  ],
+  "Black": [
+   "leather_tooled",
+   0.45,
+   0.25
+  ]
+ },
+ "line": 0.05,
+ "scale": 1.05,
+ "outfit": "Worker",
+ "sleeves": null,
+ "parts": [
+  "Worker_Body",
+  "Worker_Legs",
+  "Worker_Feet"
+ ],
+ "name": "villager_m09",
+ "views": [
+  "hero_34",
+  "hero_face",
+  "hero_back"
+ ],
+ "samples": 64
+}
