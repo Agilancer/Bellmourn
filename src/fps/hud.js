@@ -71,7 +71,8 @@ export class Hud {
     this.zoneEl = el('div', 'zone');
     this.toastEl = el('div', 'toast');
     this.promptEl = el('div', 'prompt');
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl);
+    this.bossEl = el('div', 'bossbar off', '<b></b><div><i></i><u></u></div>');
+    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl);
     r.append(this.hud);
 
     // ---- start / pause
@@ -172,6 +173,20 @@ export class Hud {
     this.zoneEl.classList.remove('show');
     void this.zoneEl.offsetWidth; // restart the fade
     this.zoneEl.classList.add('show');
+  }
+
+  /** A boss's name and life across the top while you fight him: {name, frac} or null. The red
+   * shows what's left, the pale trail what was just lost. */
+  boss(b) {
+    this.bossEl.classList.toggle('off', !b);
+    if (!b) { this.bossShown = null; return; }
+    if (this.bossShown !== b.name) { this.bossShown = b.name; this.bossEl.querySelector('b').textContent = b.name; }
+    const w = (Math.max(0, b.frac) * 100).toFixed(1) + '%';
+    if (this.bossEl.dataset.w !== w) {
+      this.bossEl.dataset.w = w;
+      this.bossEl.querySelector('i').style.width = w;
+      this.bossEl.querySelector('u').style.width = w;
+    }
   }
 
   toast(text) {

@@ -98,6 +98,16 @@ export class WorldMap {
     rect(VILLAGE_R + 20, -3, REGION.x0 + 6, 3, DIRT);
     g.strokeStyle = DIRT; g.lineWidth = 1.6;
     for (const pts of ctx.region?.paths || []) { g.beginPath(); pts.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }
+    // the Vigil Road west to Blackvigil Keep, and its curtain wall round the courtyard
+    const keep = ctx.keep;
+    if (keep) {
+      g.strokeStyle = DIRT; g.lineWidth = 2.6;
+      g.beginPath(); keep.road.forEach(([x, z], k) => { const [a, b2] = this.px(x, z); k ? g.lineTo(a, b2) : g.moveTo(a, b2); }); g.stroke();
+      const K = keep.walls;
+      rect(K.x0, K.z0, K.x1, K.z1, 'rgba(70, 64, 58, 0.75)', null);
+      const [a0, b0] = this.px(K.x0, K.z0), [a1, b1] = this.px(K.x1, K.z1);
+      g.strokeStyle = INK; g.lineWidth = 2.4; g.strokeRect(a0, b0, a1 - a0, b1 - b0);
+    }
     // the graveyard, the plaza, the cathedral's forecourt, every building
     rect(GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1, 'rgba(60, 54, 40, 0.6)', '#1a140c');
     rect(-20, -20, 20, 20, '#8a8478'); rect(-16, -52, 16, -40, '#8a8478');
@@ -117,7 +127,8 @@ export class WorldMap {
     };
     name(0, -2, 'Bellmourn', 14); name(0, -102, 'Cathedral', 9); name(0, -150, 'Graveyard', 9);
     name((REGION.x0 + REGION.x1) / 2, -200, 'The Green Downs', 13);
-    name(-160, 160, 'The Darkwood', 13); name((VILLAGE_R + REGION.x0) / 2 + 20, -10, 'The Bellwood Trail', 9);
+    name(-160, 160, 'The Darkwood', 13);
+    if (keep) { name((keep.walls.x0 + keep.walls.x1) / 2, keep.walls.z0 - 6, 'Blackvigil Keep', 10); name(-150, -9, 'The Vigil Road', 9); } name((VILLAGE_R + REGION.x0) / 2 + 20, -10, 'The Bellwood Trail', 9);
     for (const [x, z, , t] of Object.values(SPOTS)) { const [a, b] = this.px(x, z); g.fillStyle = INK; g.beginPath(); g.arc(a, b, 2.2, 0, Math.PI * 2); g.fill(); name(x, z - 14, t, 9); }
     // the frame
     g.strokeStyle = '#1a120a'; g.lineWidth = 6; g.strokeRect(0, 0, this.W, this.H);

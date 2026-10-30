@@ -6,7 +6,10 @@ buildings you can walk into, the Cathedral of the Mourning Bell, the walled grav
 and the Undercroft, a 30-room dungeon: go through the door behind the pulpit into the office,
 then through the stair-house door and down. East of the village a trail runs through the forest
 to the Green Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with
-a bridge, Millhaven farm, a windmill, and a hamlet of homes to explore.
+a bridge, Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil
+Road runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall
+with corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
+reliquary, with the Red Throne at the far end.
 
 ## Run
 
@@ -41,6 +44,17 @@ shields hold more Guard and stop more, and from Rare up they're enchanted (thorn
 holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
 you find depends on where you are (the undercroft and the downs hold better). Dread knights and
 sorcerers march between the downs' places and hold its houses.
+
+**Blackvigil Keep** (`keep.js`) is garrisoned by Velscour's Sworn: villagers in the Fiend's
+Panoply, put together at load by `sworn.js` (the villager's skeleton under the zombie body's bone
+names, the armour, helm and head merged into one skinned mesh, and knight_a's clips carried over
+bone by bone), so they fight like the dark knights (a dozen one-handed weapons, a shield to block
+and bash with) and come apart like them. They follow you through the keep's doorways by a flow
+field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red, waits with
+two guards before a chest sealed by his oath: he calls Velscour's fire up under you, grows faster
+at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and draughts)
+opens only once he's dead. The Sworn load in the background after the world is up (a phone takes
+one body and half the garrison).
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
