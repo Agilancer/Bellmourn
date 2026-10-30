@@ -47,9 +47,11 @@ and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, o
 the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
 frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
-loads phone copies of the monsters and villagers (`monsters/phone/` and `villagers/phone/` under
-`templates/models/creatures/`: their images at most 1024 and 256 square), the monsters one at a
-time; re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes.
+loads phone copies of the monsters, foes and villagers (`phone/` in each of their folders under
+`templates/models/creatures/`: their images at most 512, 512 and 256 square), the monsters one at
+a time and the villagers one at a time once the village is up, and the stained glass at half size;
+re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. If a run
+dies (Safari's "A problem repeatedly occurred"), the next shows under the title how far it got.
 
 Bellmourn's twenty-two people (`villagers.js`: the men and women of
 `templates/models/creatures/villagers/`, built by `tools/villagers`) each have a name, a calling and

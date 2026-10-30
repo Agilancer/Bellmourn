@@ -207,6 +207,13 @@ export class Hud {
     this.overlay.classList.toggle('loading', mode === 'loading');
   }
 
+  /** Where the last run stopped, if it never closed cleanly (see main.js's trace). */
+  lastRun(text) {
+    const d = el('div', 'lastrun');
+    d.textContent = 'Last time it stopped: ' + text;
+    this.overlay.append(d);
+  }
+
   /** The loading line, `pct` per cent of the way. */
   loading(pct) { this.overlay.querySelector('.go').textContent = `Raising the village… ${pct}%`; }
 

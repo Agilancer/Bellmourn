@@ -64,6 +64,7 @@ const ROSTER = [
   { m: 'villager_m07', name: 'Bram', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'brawler' },
 ];
 const GARRISON_ON_PHONE = 3;   // a phone gets this many of the garrison (each set is another download)
+const PHONE_WAIT = 4;          // seconds after the village is built before a phone starts bringing them in
 
 const QUIET = 5;          // seconds of silence when the game starts
 const NEAR = 22;          // metres: speech this close to you counts against the bubble budget
@@ -99,11 +100,17 @@ export class Villagers {
       who = [...ROSTER.filter((p) => p.watch && !p.garrison), ...garrison, ...ROSTER.filter((p) => !p.watch)].slice(0, n);
     }
     let k = 0;
-    for (const p of who) {
+    const bring = (p) => {
       const jobs = [load(ROOT + p.m + '.glb')];
       if (p.armor) jobs.push(load(`${ARMOR}${p.armor}/${p.armor}_${p.m.includes('_f') ? 'f' : 'm'}.glb`));
-      Promise.all(jobs).then(([g, armor]) => this.spawn(g, p, k++, armor)).catch((e) => console.warn('villager', p.m, p.armor, e));
-    }
+      this.onLoading?.(p);
+      return Promise.all(jobs).then(([g, armor]) => this.spawn(g, p, k++, armor)).catch((e) => console.warn('villager', p.m, p.armor, e))
+        .finally(() => this.onLoading?.(null));
+    };
+    // a phone brings them one at a time, once the world has been drawn: all at once, over the first
+    // frames' uploads, was more than it could hold
+    if (TOUCH) who.reduce((prev, p) => prev.then(() => bring(p)), new Promise((r) => setTimeout(r, PHONE_WAIT * 1000)));
+    else who.forEach(bring);
     return who.length;
   }
 
