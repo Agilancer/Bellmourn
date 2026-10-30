@@ -9,9 +9,12 @@ and listed in library.json as a sprite of category 'banner' with its allegiance:
 (They aren't 'hanging' sprites, so the undercroft never hangs one of them by itself.)
 
 Stone: nine sheets of ten seamless masonry tiles each (five across, two down). Each tile is cut
-from its cell (a pixel or two in from the cell's edge, where the sheet draws its grid), brought
-down to 256 px into assets/textures/surfaces/ as masonry_<stone>_<nn>.png and listed as a 'wall'
-surface tiling both ways.
+from its cell exactly where it repeats: outside the grid lines some sheets draw between cells, at
+the bounds where its left edge runs on into its right and its top into its bottom. Some of the
+sheets' tiles don't quite meet themselves at any cut, and what's left of their seams is closed
+(heal). Each is brought down to 256 px with itself wrapped round it (so it stays seamless) into
+assets/textures/surfaces/ as masonry_<stone>_<nn>.png, and listed as a 'wall' surface tiling both
+ways. The run ends by printing the worst wrap seams (1 is seamless).
 
   python tools/world/import_banners_stone.py --banners b1.png b2.png b3.png b4.png \\
       --stone ashlar.png blackstone.png fieldstone.png honey.png slate.png red.png white.png mossy.png ochre.png
@@ -65,11 +68,17 @@ def cut_stone(path, stone):
     im = Image.open(path).convert('RGB')
     W, H = im.size
     out = []
+    grey = np.asarray(im.convert('L')).astype(float)
+    xs, ys = cells(grey, 5, 1), cells(grey, 2, 0)
     for j in range(2):
         for i in range(5):
-            x0, x1 = round(i * W / 5) + 2, round((i + 1) * W / 5) - 2
-            y0, y1 = round(j * H / 2) + 2, round((j + 1) * H / 2) - 2
-            tile = im.crop((x0, y0, x1, y1)).resize((TILE, TILE), Image.LANCZOS)
+            x0, x1 = period(grey, xs[i], (ys[j][1], ys[j][2]), 1)
+            y0, y1 = period(grey, ys[j], (x0, x1), 0)
+            # brought down with the tile wrapped round it (a 3 x 3 of it, the middle kept), so the
+            # resampling at its edges reads the other side, as the game's repeat will
+            cell = heal(np.asarray(im.crop((x0, y0, x1, y1))))
+            big = Image.fromarray(np.tile(cell, (3, 3, 1))).resize((3 * TILE, 3 * TILE), Image.LANCZOS)
+            tile = big.crop((TILE, TILE, 2 * TILE, 2 * TILE))
             sid = f'masonry_{stone}_{j * 5 + i + 1:02d}'
             rel = f'surfaces/{sid}.png'
             tile.save(os.path.join(ROOT, rel), optimize=True)
@@ -77,6 +86,67 @@ def cut_stone(path, stone):
             out.append({'id': sid, 'file': rel, 'kind': 'wall', 'source': os.path.basename(path), 'size': [TILE, TILE],
                         'tile_x': True, 'tile_y': True, 'color': '#%02x%02x%02x' % (round(r), round(g), round(b))})
     return out
+
+
+def cells(grey, n, axis, r=8):
+    """The n cells along `axis` (1: across, 0: down) as (start lo, start hi, end lo, end hi): the
+    ranges each cell's true bounds may lie in. Where the sheet draws a grid line between two cells
+    (a run of lines each far from the next: over 2.5 times the sheet's usual step) the bounds lie
+    just outside it; where the cells simply meet, within r px of the nominal bound."""
+    g = grey if axis == 1 else grey.T
+    L = g.shape[1]
+    jump = np.abs(np.diff(g, axis=1)).mean(0)          # jump[k]: from line k to line k + 1
+    base = np.median(jump)
+    cuts = []                                           # (last line of the cell before, first of the cell after)
+    for k in range(1, n):
+        c = round(k * L / n)
+        hit = [q for q in range(c - r, c + r) if jump[q] > 2.5 * base]
+        cuts.append((min(hit), max(hit) + 1, 3) if hit else (c - 1, c, r))
+    out = []
+    for k in range(n):
+        if k == 0: s0, s1 = 0, 3
+        else: e, s, slack = cuts[k - 1]; s0, s1 = (s, s + slack) if slack == 3 else (s - r, s + r)
+        if k == n - 1: e0, e1 = L - 3, L
+        else: e, s, slack = cuts[k]; e0, e1 = (e + 1 - slack, e + 1) if slack == 3 else (e + 1 - r, e + 1 + r)
+        out.append((s0, s1, e0, e1))
+    return out
+
+
+def period(grey, cell, across, axis):
+    """Where a cell's tile truly starts and ends along `axis`: of the bounds `cell` allows, the pair
+    whose first and last lines meet as smoothly as neighbouring lines inside it do. `across`: the
+    cell's span the other way (the middle of it is what's compared)."""
+    s0, s1, e0, e1 = cell
+    m = (across[1] - across[0]) // 8
+    lo, hi = across[0] + m, across[1] - m
+    g = grey[lo:hi, :] if axis == 1 else grey[:, lo:hi].T
+    inner = np.abs(np.diff(g[:, s1:e0], axis=1)).mean()
+    best = min((np.abs(g[:, s] - g[:, e - 1]).mean() / inner, s, e) for s in range(s0, s1 + 1) for e in range(e0, e1 + 1))
+    return best[1], best[2]
+
+
+def heal(cell, w=24):
+    """Close what's left of a tile's seams: some of the sheets' tiles don't quite meet themselves at
+    any cut. Across each wrap the mismatch (smoothed along the edge, so it brings no streaks) is
+    split between the two sides and faded out over w px in from each, so the tile's edges meet and
+    its inside is left as it was."""
+    a = cell.astype(float)
+    ramp = (1 - np.arange(w) / w)[None, :, None]
+    k = np.ones(9) / 9
+    for axis in (1, 0):
+        b = a if axis == 1 else a.transpose(1, 0, 2)
+        d = (b[:, -1] - b[:, 0]) / 2
+        d = np.stack([np.convolve(np.pad(d[:, c], 4, mode='wrap'), k, 'valid') for c in range(d.shape[1])], 1)
+        b[:, :w] += d[:, None, :] * ramp
+        b[:, -w:] -= d[:, None, :] * ramp[:, ::-1]
+    return np.clip(a, 0, 255).round().astype(np.uint8)
+
+
+def seam(path):
+    """How the tile meets itself across its wrap, against a step inside it (1: seamless)."""
+    a = np.asarray(Image.open(path).convert('L')).astype(float)
+    return max(np.abs(a[:, 0] - a[:, -1]).mean() / np.abs(np.diff(a, axis=1)).mean(),
+               np.abs(a[0] - a[-1]).mean() / np.abs(np.diff(a, axis=0)).mean())
 
 
 def main():
@@ -93,6 +163,8 @@ def main():
     with open(LIB, 'w') as f:
         json.dump(lib, f, indent=1)
     print(f'{len(sprites)} banners, {len(surfaces)} stone tiles')
+    worst = sorted((seam(os.path.join(ROOT, s['file'])), s['id']) for s in surfaces)[-3:]
+    print('worst wrap seams (1 is seamless):', ', '.join(f'{sid} {v:.2f}' for v, sid in worst))
 
 
 if __name__ == '__main__':

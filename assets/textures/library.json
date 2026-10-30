@@ -3356,7 +3356,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#84827e"
+   "color": "#84827f"
   },
   {
    "id": "masonry_grey_ashlar_03",
@@ -3369,7 +3369,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#868480"
+   "color": "#868481"
   },
   {
    "id": "masonry_grey_ashlar_04",
@@ -3408,7 +3408,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#85837f"
+   "color": "#85827f"
   },
   {
    "id": "masonry_grey_ashlar_07",
@@ -3434,7 +3434,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#84827f"
+   "color": "#85837f"
   },
   {
    "id": "masonry_grey_ashlar_09",
@@ -3460,7 +3460,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#84827f"
+   "color": "#83827f"
   },
   {
    "id": "masonry_blackstone_01",
@@ -3473,7 +3473,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#3d3a39"
+   "color": "#3d3b39"
   },
   {
    "id": "masonry_blackstone_02",
@@ -3512,7 +3512,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#3f3d3b"
+   "color": "#3f3c3b"
   },
   {
    "id": "masonry_blackstone_05",
@@ -3525,7 +3525,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#3f3c3a"
+   "color": "#3f3c3b"
   },
   {
    "id": "masonry_blackstone_06",
@@ -3538,7 +3538,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#403d3c"
+   "color": "#3f3c3b"
   },
   {
    "id": "masonry_blackstone_07",
@@ -3551,7 +3551,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#3f3c3b"
+   "color": "#3e3c3a"
   },
   {
    "id": "masonry_blackstone_08",
@@ -3564,7 +3564,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#3f3c3b"
+   "color": "#3e3c3a"
   },
   {
    "id": "masonry_blackstone_09",
@@ -3577,7 +3577,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#403d3c"
+   "color": "#403d3b"
   },
   {
    "id": "masonry_blackstone_10",
@@ -3603,7 +3603,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#81766a"
+   "color": "#817669"
   },
   {
    "id": "masonry_fieldstone_02",
@@ -3616,7 +3616,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#7d7367"
+   "color": "#7d7266"
   },
   {
    "id": "masonry_fieldstone_03",
@@ -3629,7 +3629,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#807569"
+   "color": "#7f7569"
   },
   {
    "id": "masonry_fieldstone_04",
@@ -3655,7 +3655,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#7f766a"
+   "color": "#7f756a"
   },
   {
    "id": "masonry_fieldstone_06",
@@ -3681,7 +3681,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#82776a"
+   "color": "#817669"
   },
   {
    "id": "masonry_fieldstone_08",
@@ -3707,7 +3707,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#81776a"
+   "color": "#807669"
   },
   {
    "id": "masonry_fieldstone_10",
@@ -3720,7 +3720,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#82776b"
+   "color": "#81776a"
   },
   {
    "id": "masonry_honey_limestone_01",
@@ -3772,7 +3772,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#c8ae8a"
+   "color": "#c9ae8a"
   },
   {
    "id": "masonry_honey_limestone_05",
@@ -4006,7 +4006,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#96563e"
+   "color": "#96573e"
   },
   {
    "id": "masonry_red_sandstone_03",
@@ -4084,7 +4084,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#99573e"
+   "color": "#99573d"
   },
   {
    "id": "masonry_red_sandstone_09",
@@ -4240,7 +4240,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#cbc5bc"
+   "color": "#cbc5bb"
   },
   {
    "id": "masonry_mossy_ashlar_01",
@@ -4253,7 +4253,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#646151"
+   "color": "#636150"
   },
   {
    "id": "masonry_mossy_ashlar_02",
@@ -4266,7 +4266,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#615e4e"
+   "color": "#605d4e"
   },
   {
    "id": "masonry_mossy_ashlar_03",
@@ -4292,7 +4292,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#656352"
+   "color": "#656251"
   },
   {
    "id": "masonry_mossy_ashlar_05",
@@ -4318,7 +4318,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#636051"
+   "color": "#626050"
   },
   {
    "id": "masonry_mossy_ashlar_07",
@@ -4331,7 +4331,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#616050"
+   "color": "#615f4f"
   },
   {
    "id": "masonry_mossy_ashlar_08",
@@ -4344,7 +4344,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#615f4f"
+   "color": "#605d4e"
   },
   {
    "id": "masonry_mossy_ashlar_09",
@@ -4357,7 +4357,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#636050"
+   "color": "#635f4f"
   },
   {
    "id": "masonry_mossy_ashlar_10",
@@ -4370,7 +4370,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#626051"
+   "color": "#626050"
   },
   {
    "id": "masonry_ochre_sandstone_01",
@@ -4383,7 +4383,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#c9944f"
+   "color": "#c9954f"
   },
   {
    "id": "masonry_ochre_sandstone_02",
@@ -4409,7 +4409,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#c9944e"
+   "color": "#ca944e"
   },
   {
    "id": "masonry_ochre_sandstone_04",
@@ -4448,7 +4448,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#cc9a57"
+   "color": "#cc9b57"
   },
   {
    "id": "masonry_ochre_sandstone_07",
@@ -4500,7 +4500,7 @@
    ],
    "tile_x": true,
    "tile_y": true,
-   "color": "#cb9754"
+   "color": "#cb9753"
   }
  ],
  "sprites": [
