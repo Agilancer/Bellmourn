@@ -85,6 +85,20 @@ export function buildWorld(ctx) {
   ctx.cutouts?.place('town_fieldstone_round', VILLAGE_R - 8, 0, 0, Math.PI / 2, 6.4, 0.9);
   ctx.cutouts?.place('town_timber_market', -(VILLAGE_R - 8), 0, 0, -Math.PI / 2, 6.4, 0.7);
   ctx.cutouts?.place('town_limestone_guildhall', 0, 0, VILLAGE_R - 8, 0, 5.6, 0.9);
+  // and inside each gate the village's own banners (the town ones: never Velscour's V, nor the
+  // church's T) on a pole either side of the road, facing the way in and out
+  const town = lib.sprites('banner', (s) => s.allegiance === 'town').map((s) => s.id);
+  const post = M('castle_wood', 1.5), arm = M('met_02_riveted_black_iron', 1);
+  [[VILLAGE_R - 10.5, 0, 'x'], [-(VILLAGE_R - 10.5), 0, 'x'], [0, VILLAGE_R - 10.5, 'z']].forEach(([gx, gz, road], g) => {
+    for (const s of [-1, 1]) {
+      const across = road === 'x' ? [0, s] : [s, 0];              // from the road out to the pole
+      const px = gx + across[0] * 5.6, pz = gz + across[1] * 5.6, bx = gx + across[0] * 4.65, bz = gz + across[1] * 4.65;
+      b.cylinder([px, 0, pz], [px, 4.95, pz], 0.09, 8, post);
+      b.beam([px, 4.85, pz], [gx + across[0] * 3.9, 4.85, gz + across[1] * 3.9], 0.07, 0.07, arm);
+      physics.add([px - 0.12, 0, pz - 0.12], [px + 0.12, 4.95, pz + 0.12], 'prop');
+      wallPanel(lib, scene, town[(g * 2 + (s > 0 ? 1 : 0)) % town.length], bx, 3.5, bz, road === 'x' ? [1, 0, 0] : [0, 0, 1], 2.6);
+    }
+  });
 
   // ------------------------------------------------------------ buildings
   const houses = [
@@ -490,8 +504,8 @@ function cathedral(ctx, M) {
     props.add('wall_torch', C.x0 + t / 2 + 0.06, F, z, Math.PI / 2);
     props.add('wall_torch', C.x1 - t / 2 - 0.06, F, z, -Math.PI / 2);
   }
-  // banners on the pillars, the icon over the altar, the map in the office
-  const banners = ['hanging_crimson_tower_banner', 'hanging_navy_crossed_lances_banner', 'hanging_ivory_lion_banner', 'hanging_black_keep_banner'];
+  // the holy banners (the ones bearing the T) down the nave, the icon over the altar, the map in the office
+  const banners = lib.sprites('banner', (s) => s.allegiance === 'holy').map((s) => s.id);
   banners.forEach((id, i) => wallPanel(lib, scene, id, -6 + (i % 2) * 12, F + 6.5, C.z1 - 9 - Math.floor(i / 2) * 10, [i % 2 ? -1 : 1, 0, 0], 3.4));
   wallPanel(lib, scene, 'hanging_chapel_icon_frame', 0, F + 6, chZ0 + 0.3, [0, 0, 1], 3);
   wallPanel(lib, scene, 'hanging_war_map_tapestry', 6, F + 2.6, C.z0 + 0.45, [0, 0, 1], 2.2);

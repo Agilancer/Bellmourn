@@ -83,7 +83,13 @@ The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build t
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
 lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `effects.js` the
 magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
-texture in `assets/textures/library.json` is used somewhere in the world. Scatter art that isn't a
+texture in `assets/textures/library.json` is used somewhere in the world, but for the masonry kit:
+90 seamless stone tiles in nine stones (`masonry_<stone>_<nn>`: grey ashlar, blackstone, fieldstone,
+honey and white limestone, slate, red and ochre sandstone, mossy ashlar) for building castles and
+towers with; the keep is laid in the blackstone and slate. The banners (`assets/textures/banners/`,
+sprites of category `banner`) each have an allegiance: `velscour` (his V) hang only where his people
+are, `holy` (the T) in the cathedral and holy places, `town` in the village and among good folk.
+Both come in with `python tools/world/import_banners_stone.py` (see its docstring). Scatter art that isn't a
 plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
 trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs. The
 Quaternius-kit world (`realm.js`, `wilds.js`, `land.js`, `houses.js`, `crypt.js`, `cave.js`,
