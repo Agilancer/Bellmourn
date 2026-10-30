@@ -153,7 +153,9 @@ float gore(inout vec4 col) {
   return 1.0;
 }`;
 
-export function goreMaterial(src, lib) {
+/** The gore shader on a body's material. `u`: the wound uniforms to use (a body of several
+ * materials shares one set, so a wound shows across all of them); a new set if not given. */
+export function goreMaterial(src, lib, u = null) {
   const normals = goreMaterial.normals || (goreMaterial.normals = new Map());
   const map = src.map;
   if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
@@ -168,7 +170,7 @@ export function goreMaterial(src, lib) {
     mat.emissiveMap = e;
     mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
   }
-  const u = { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
+  u ||= { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
     uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
     uWoundB: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector3()) }, uWoundN: { value: 0 } };
   mat.userData.u = u;
@@ -415,7 +417,13 @@ export class Zombie {
     mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.frustumCulled = false;
-    this.u = mesh.material.userData.u;
+    this.u = [mesh.material].flat()[0].userData.u;
+    // a body of several materials (the sworn's armour): which group each triangle draws in, so
+    // the groups can be laid out again as limbs come off
+    if (geo.groups.length > 1) {
+      this.triGroup = new Uint8Array(geo.index.count / 3);
+      geo.groups.forEach((g, i) => this.triGroup.fill(i, g.start / 3, (g.start + g.count) / 3));
+    }
     this.skel = mesh.skeleton;
     this.bones = {};
     for (const b of this.skel.bones) this.bones[b.name] = b;
@@ -687,22 +695,23 @@ export class Zombie {
     const set = new Set();
     const take = (o) => o.traverse((c) => { if (c.isBone) set.add(this.skel.bones.indexOf(c)); });
     if (waist) { set.add(this.skel.bones.indexOf(this.bones.hips)); take(this.bones.thighL); take(this.bones.thighR); } else take(bone);
-    const idx = this.index, keep = [], gone = [];
+    const idx = this.index, keep = [], gone = [], keptT = [], goneT = [];
     for (let t = 0; t < this.alive.length; t++) {
       if (!this.alive[t]) continue;
       const a = idx[t * 3], b = idx[t * 3 + 1], c = idx[t * 3 + 2];
       const n = set.has(this.dom[a]) + set.has(this.dom[b]) + set.has(this.dom[c]);
-      if (n >= 2) { this.alive[t] = 0; gone.push(a, b, c); } else keep.push(a, b, c);
+      if (n >= 2) { this.alive[t] = 0; gone.push(a, b, c); goneT.push(t); } else { keep.push(a, b, c); keptT.push(t); }
     }
     this.lost.add(name);
     if (waist) { this.lost.add('thighL'); this.lost.add('thighR'); }
     this.mesh.geometry.setIndex(keep);
+    const goneGroups = this.triGroup ? this.regroup(this.mesh.geometry, keptT, goneT) : null;
     // the joint, in world space and bind space; a cut there colours the stump and the piece
     const joint = bone.getWorldPosition(new THREE.Vector3());
     const jb = this.toBind(joint, parent);
     this.cuts.push(new THREE.Vector4(jb.x, jb.y, jb.z, -(waist ? 0.15 : name === 'head' ? 0.09 : 0.075)));
     this.writeWounds();
-    if (gone.length) owner.addPiece(this, gone, joint, dir);
+    if (gone.length) owner.addPiece(this, gone, joint, dir, goneGroups);
     // a bone stub on the stump (the spine, cut in two), and a spurting pulse
     const at = waist ? new THREE.Vector3(0, 0.01, 0) : bone.position.clone();
     const along = waist ? new THREE.Vector3(0, -1, 0) : bone.position.clone().normalize();
@@ -723,6 +732,24 @@ export class Zombie {
       this.play('collapse', 0.12);
       if (waist) this.pos.y += 0;   // the upper half drops where it stood
     }
+  }
+
+  /** The body's material groups laid out again over the triangles it keeps (`kept` and `gone` are
+   * triangle numbers in their first order, so each group's still sit together); returns the groups
+   * of the piece cut off, as [start, count, material]. */
+  regroup(geo, kept, gone) {
+    const n = new Uint32Array(this.mesh.material.length);
+    const groups = (tris) => {
+      n.fill(0);
+      for (const t of tris) n[this.triGroup[t]]++;
+      const out = [];
+      let at = 0;
+      n.forEach((c, g) => { if (c) out.push([at, c * 3, g]); at += c * 3; });
+      return out;
+    };
+    geo.clearGroups();
+    for (const [s, c, g] of groups(kept)) geo.addGroup(s, c, g);
+    return groups(gone);
   }
 
   die() {
@@ -1021,7 +1048,7 @@ export class Zombie {
     this.owner.scene.remove(this.root);
     for (const k of this.shared) this.mesh.geometry.deleteAttribute(k); // the other bodies still draw with them
     this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    for (const m of [this.mesh.material].flat()) m.dispose();
     this.mixer.stopAllAction();
   }
 }
@@ -1363,7 +1390,9 @@ export class Zombies {
     }
   }
 
-  addPiece(z, tris, joint, dir) {
+  /** A piece cut off z: its triangles `tris` (vertex numbers in threes), drawn in `groups`
+   * ([start, count, material]) when z has several materials. */
+  addPiece(z, tris, joint, dir, groups = null) {
     const src = z.mesh.geometry, uv = src.attributes.uv, bind = src.attributes.bindPos, shell = src.attributes.shell;
     const map = new Map(), pos = [], bp = [], uvs = [], sh = [], index = [];
     const v = new THREE.Vector3();
@@ -1390,18 +1419,22 @@ export class Zombies {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     if (shell) g.setAttribute('shell', new THREE.Float32BufferAttribute(sh, 1));   // armour and cloth stay armour and cloth inside
     g.setIndex(index);
+    for (const [s, n, k] of groups || []) g.addGroup(s, n, k);
     g.computeVertexNormals();
     g.computeBoundingSphere();
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
-    const mat = z.mesh.material.clone();
-    mat.userData.u = z.u;
-    mat.onBeforeCompile = z.mesh.material.onBeforeCompile;
-    mat.customProgramCacheKey = z.mesh.material.customProgramCacheKey;
-    const m = new THREE.Mesh(g, mat);
+    const own = (src) => {
+      const mat = src.clone();
+      mat.userData.u = z.u;
+      mat.onBeforeCompile = src.onBeforeCompile;
+      mat.customProgramCacheKey = src.customProgramCacheKey;
+      return mat;
+    };
+    const m = new THREE.Mesh(g, Array.isArray(z.mesh.material) ? z.mesh.material.map(own) : own(z.mesh.material));
     m.position.copy(c);
     m.castShadow = true;
     this.scene.add(m);
-    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); }
+    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); o.m.geometry.dispose(); for (const x of [o.m.material].flat()) x.dispose(); }
     // its long axis (towards the farthest vertex) and how thick it is, to lie it down on the ground
     let far = 0;
     const long = new THREE.Vector3();

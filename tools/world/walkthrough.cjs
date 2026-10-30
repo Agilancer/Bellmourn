@@ -55,7 +55,7 @@ const { chromium } = require('playwright');
     const u = (name) => ctx.unders.find((q) => q.dg.name === name).dg;
     // the delves: from outside the stair-house door, in, down the flight, into the entry hall
     const n = Math.round(14 / 0.25), run = n * 0.34;
-    for (const [key, x, z] of [['barrow', -180, 46], ['cellars', 150, 186]]) {
+    for (const [key, x, z] of [['barrow', -205, 95], ['cellars', 150, 186]]) {
       R[key] = walk([x, 0, z + 9], [[x, z + 4], [x, z + 0.5], [x, z - run + 0.3], [x, z - run - 6]]);
     }
     // the Undercroft: down from the cathedral office's stair-house into the entry hall, then across
@@ -154,7 +154,7 @@ const { chromium } = require('playwright');
     };
     flight('stairs: cathedral to the Undercroft', 5.0, -93.6, ctx.stairBottom.z, 0.6);
     flight('stairs: Undercroft to the Deep', ctx.dungeon.stairDown.x, ctx.dungeon.stairDown.z + 48 * 0.34, ctx.dungeon.stairDown.z, -14);
-    flight('stairs: the Barrow', -180, 46, 46 - 56 * 0.34, 0);
+    flight('stairs: the Barrow', -205, 95, 95 - 56 * 0.34, 0);
     flight('stairs: the Cellars', 150, 186, 186 - 56 * 0.34, 0);
     for (const c of ctx.caves) {
       const pts = [];
@@ -184,11 +184,11 @@ const { chromium } = require('playwright');
       for (let i = 2; i < ys.length; i++) j += (ys[i] - 2 * ys[i - 1] + ys[i - 2]) ** 2;
       cam[name] = +Math.sqrt(j / ys.length).toFixed(4);
     };
-    const zf = 46 - 56 * 0.34;
-    ride('down, walking', [-180, 0, 48], [-180, zf - 3], false);
-    ride('up, walking', [-180, -14, zf - 2], [-180, 48], false);
-    ride('down, running', [-180, 0, 48], [-180, zf - 3], true);
-    ride('up, running', [-180, -14, zf - 2], [-180, 48], true);
+    const zf = 95 - 56 * 0.34;
+    ride('down, walking', [-205, 0, 97], [-205, zf - 3], false);
+    ride('up, walking', [-205, -14, zf - 2], [-205, 97], false);
+    ride('down, running', [-205, 0, 97], [-205, zf - 3], true);
+    ride('up, running', [-205, -14, zf - 2], [-205, 97], true);
     return { walks: R, chases: C, headroom: H, camera: cam };
   });
   let failed = errors;

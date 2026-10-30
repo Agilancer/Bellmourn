@@ -63,6 +63,13 @@
   .toast.show { animation: toast 2.2s ease-out; }
   .prompt { position: absolute; left: 0; right: 0; top: 58%; text-align: center; font-size: 15px; color: #f4e4c0; text-shadow: 0 1px 3px #000, 0 0 8px #000; opacity: 0; transition: opacity .15s; letter-spacing: .04em; }
   .prompt.show { opacity: 1; }
+  .bossbar { position: absolute; left: 50%; top: 22px; width: min(520px, 62vw); transform: translateX(-50%); text-align: center; transition: opacity .6s; }
+  .bossbar.off { opacity: 0; }
+  .bossbar b { display: block; font: 700 15px Cinzel, Georgia, serif; letter-spacing: .08em; color: #f0c8b0; text-shadow: 0 0 8px #a01808, 0 1px 3px #000; margin-bottom: 5px; }
+  .bossbar div { position: relative; height: 12px; background: #1a0c0c; border: 2px solid #6a3a2a; box-shadow: 0 0 0 1px #000, 0 0 12px rgba(200, 30, 10, .35), inset 0 0 6px #000; }
+  .bossbar i, .bossbar u { position: absolute; left: 0; top: 0; bottom: 0; }
+  .bossbar u { background: #e8c8a0; opacity: .55; transition: width 1.2s ease-in .35s; }
+  .bossbar i { background: linear-gradient(#ff5030, #8a0c08); z-index: 1; transition: width .15s; }
   @keyframes toast { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
   /* ---------------- panels */

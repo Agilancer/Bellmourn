@@ -40,6 +40,7 @@ import { Sfx } from './audio.js';
 import { Zombies } from './zombies.js';
 import { Foes } from './foes.js';
 import { Villagers } from './villagers.js';
+import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
 
@@ -221,12 +222,14 @@ async function build() {
   };
   await mark('library');
   buildWorld(ctx); await mark('world');
-  // the Undercroft and the Deep Undercroft below it, the Darkwood's delves and the cliff's caves
+  // the Undercroft; Blackvigil Keep (after the undercroft: see keep.js); the Deep Undercroft below
+  // the Undercroft, the Darkwood's delves and the cliff's caves
   ctx.entrances = [[STAIRS.x, STAIRS.z]];
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom, UNDERCROFT);
+  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom, UNDERCROFT); await mark('dungeon');
+  buildKeep(ctx); await mark('keep');
   ctx.deep = buildDungeon(ctx, ctx.dungeon.stairDown, DEEP_UNDERCROFT);
   ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', n: DUNGEON_DEAD }, { dg: ctx.deep, haunt: 'deep', n: DEEP_DEAD }, ...buildDelves(ctx)];
-  await mark('dungeon');
+  await mark('delves');
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
@@ -237,6 +240,7 @@ async function build() {
   await props.finish();
   ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
   ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
@@ -288,13 +292,17 @@ async function build() {
     { x: 712, z: 150, r: 12, n: few(2), haunt: 'troll' },                                       // before the Trollhole
     { x: 200, z: 34, r: 18, n: few(2), haunt: 'wood', ok: awayFromHomes },                       // the Darkwood about the trail
     { x: -150, z: -170, r: 24, n: few(3), haunt: 'wood', ok: awayFromHomes },
-    { x: -205, z: 86, r: 18, n: few(3), haunt: 'barrow', ok: awayFromHomes },                    // about the Barrow
+    { x: -225, z: 122, r: 18, n: few(3), haunt: 'barrow', ok: awayFromHomes },                   // about the Barrow
     { x: 130, z: 222, r: 14, n: few(2), haunt: 'cellars', ok: awayFromHomes },                   // about the Cellars
     { x: 230, z: -120, r: 20, n: few(2), haunt: 'fungal', ok: awayFromHomes },
   ]);
   zombies.onPlayerHit = hurtPlayer;
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
+  ctx.foes = foes;
+  foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
+  // Velscour's Sworn come in behind, while you're on the road (a phone starts once the village is up)
+  setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e)), touch ? 6000 : 0);
   // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
   // background and walk out of their doors as they arrive
   villagers = new Villagers(scene, ctx);
@@ -605,6 +613,7 @@ function onEvent(kind, side, clip) {
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
 function melee(reach, heavy, side = 'R') {
+  player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
   for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
@@ -653,6 +662,8 @@ function zoneAt(p) {
   }
   if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
+  const keep = ctx.keep.place(p);
+  if (keep) return { name: keep, kind: 'out' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
   if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
   return { name: 'Bellmourn', kind: 'out' };
@@ -887,8 +898,9 @@ function tick(dt) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
-      hud.prompt(box.searched ? `The ${box.holds.name} is empty` : `E — search the ${box.holds.name}`);
-      if (!box.searched && inp.was('KeyE')) {
+      hud.prompt(box.searched ? `The ${box.holds.name} is empty` : box.sealed || `E — search the ${box.holds.name}`);
+      if (box.sealed && inp.was('KeyE')) { sfx.clang?.(false); hud.toast('It will not open while he lives'); }
+      if (!box.searched && !box.sealed && inp.was('KeyE')) {
         const n = ctx.loot.search(box, player);
         sfx.door?.(true);
         if (!n) hud.toast(`Nothing in the ${box.holds.name}`);
@@ -907,6 +919,7 @@ function tick(dt) {
     }
   }
   hud.guard(guard, vm.blocking);
+  player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
@@ -917,6 +930,8 @@ function tick(dt) {
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
+  ctx.keep.update(dt, t, player);
+  hud.boss(foes.bossBar(player));
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
   magic.update(dt, camera, H, player);

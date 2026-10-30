@@ -1,7 +1,8 @@
 // The other ways under the ground, and who waits down them.
 //
 // In the Darkwood two old stone stair-houses stand over flights down to dungeons of their own
-// (dungeon.js, each from its own seed): the Barrow of Saint Ivo to the west, a crypt of the dead
+// (dungeon.js, each from its own seed): the Barrow of Saint Ivo to the north-west (clear of the
+// Vigil Road and Blackvigil Keep's clearing), a crypt of the dead
 // and their bones, and the Old Watch Cellars to the south-east, the stores, barracks and forge
 // of a watch-house long gone. Along the Green Downs' cliff three caves open (cave.js): the
 // Gloamhollow just north of Brightwater Falls, the Drowned Grotto beside them, and the Trollhole
@@ -16,7 +17,7 @@ import { holeTerrain, CAVE_MOUTHS } from './terrain.js';
 // the stairs down: 14 m in 56 steps, going north from the stair-house's door
 const FLIGHT = { depth: 14, step: 0.25, run: 0.34, width: 2.4 };
 export const DELVES = [
-  { key: 'barrow', name: 'The Barrow of Saint Ivo', x: -180, z: 46, seed: 7331, rooms: 13, loops: 2, haunt: 'barrow', n: 16,
+  { key: 'barrow', name: 'The Barrow of Saint Ivo', x: -205, z: 95, seed: 7331, rooms: 13, loops: 2, haunt: 'barrow', n: 16,
     wall: 'castle_mossy', kinds: ['crypt', 'ossuary', 'shrine', 'collapsed hall', 'bone throne', 'vault', 'flooded crypt', 'great hall'] },
   { key: 'cellars', name: 'The Old Watch Cellars', x: 150, z: 186, seed: 5150, rooms: 12, loops: 2, haunt: 'cellars', n: 14,
     wall: 'castle_soot', kinds: ['storeroom', 'barracks', 'well chamber', 'forge', 'library', 'flooded crypt', 'pillared hall'] },

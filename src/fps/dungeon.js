@@ -388,14 +388,16 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
     bill.add(s.id, x, Y, z, 1, 0.95);
     if (/brazier|candle|lantern|torch|chandelier|fire/.test(s.id)) ctx.flames?.push([x, Y + s.height_m * 0.9, z, 0.22]);
   });
-  const hang = [...lib.spr.values()].filter((s) => s.category === 'hanging' && !lib.usedSprites.has(s.id));
+  // (not the old banners: the world's banners are the banner sheets' now, Velscour's only where his people are)
+  const hang = [...lib.spr.values()].filter((s) => s.category === 'hanging' && !/_banner$/.test(s.id) && !lib.usedSprites.has(s.id));
   hang.forEach((s, j) => {
     const r = rooms[j % rooms.length];
     wallPanel(lib, ctx.scene, s.id, X(r.i) + r.w / 2 + (j - 1) * 2.5, Y + 2.4, Z(r.k + r.d) - 0.08, [0, 0, -1], 2);
   });
   // (stone, earth, metal and timber only: no grass, leaves, bark or roofing underground)
   const UNDERFOOT = /meadow|grass|clover|moss_cover|verge|field|leaves|bark|roof|thatch|wall_/;
-  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id) && s.kind !== 'decal' && !s.wall_set && !UNDERFOOT.test(s.id));
+  // (nor the masonry: that's for building walls and towers with)
+  const floors = [...lib.surf.values()].filter((s) => !lib.used.has(s.id) && s.kind !== 'decal' && !s.wall_set && !UNDERFOOT.test(s.id) && !s.id.startsWith('masonry_'));
   floors.forEach((s, j) => {
     const r = rooms[1 + (j % (rooms.length - 1))];
     const n = Math.floor(j / (rooms.length - 1));

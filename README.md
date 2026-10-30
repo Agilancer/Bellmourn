@@ -7,10 +7,13 @@ and the Undercroft under it: go through the door behind the pulpit into the offi
 the stair-house door and down to its 24 rooms, and on down the stairwell in its stair hall to the
 15 rooms of the Deep Undercroft. East of the village a trail runs through the forest to the Green
 Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with a bridge,
-Millhaven farm, a windmill, and a hamlet of homes to explore.
+Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil Road
+runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall with
+corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
+reliquary, with the Red Throne at the far end.
 
 Under the ground besides (`delves.js`): in the Darkwood two stone stair-houses stand over
-dungeons of their own, the Barrow of Saint Ivo to the west and the Old Watch Cellars to the
+dungeons of their own, the Barrow of Saint Ivo to the north-west and the Old Watch Cellars to the
 south-east; and three caves open in the downs' eastern cliff, the Gloamhollow just north of
 Brightwater Falls, the Drowned Grotto beside them, and the Trollhole far to the north. All of them
 are marked on the map. `node tools/world/walkthrough.cjs <port>` walks the player down every
@@ -62,6 +65,26 @@ holy light, a ward against spells, a shove). Gear rolls from Common to Mythic wi
 you find depends on where you are (the undercroft and the downs hold better). Dread knights and
 sorcerers march between the downs' places and hold its houses.
 
+**Blackvigil Keep** (`keep.js`) is garrisoned by Velscour's Sworn: villagers in the Fiend's
+Panoply, put together at load by `sworn.js` (the villager's skeleton under the zombie body's bone
+names, the armour, helm and head merged into one skinned mesh, and knight_a's clips carried over
+bone by bone), so they come apart like the dark knights, but fight harder and faster. They take
+you two at a time while the rest circle a few strides off with their shields ready, waiting their
+turn. Up close they cut in combinations of two and three; from further off they lunge, or charge
+behind the shield and bash you off your feet. They raise the shield when they see you swing, bash
+through yours when you hide behind it, and answer any blow that rings off theirs. Their adepts
+go bareheaded with burning eyes, a blade in one hand and a wand in the other (the sorcerers'
+casting clips carried over too): they keep their distance, cast blood, call Velscour's fire up
+under you, mend their wounded brothers, and blink away when cornered. Their kite shields ride as
+far out from the forearm as each one's dish needs to clear the plate (`shieldLift`), and the
+shield arm is posed for the carry, the guard (blocking, bashing, charging) and the wide third cut,
+so no shield goes through an arm or body in any clip. They follow you through the keep's doorways
+by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
+waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
+grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
+draughts) opens only once he's dead. The Sworn load in the background after the world is up (a
+phone takes one body and half the garrison, without the adepts).
+
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
 the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
@@ -90,7 +113,13 @@ The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build t
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
 lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `effects.js` the
 magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
-texture in `assets/textures/library.json` is used somewhere in the world. Scatter art that isn't a
+texture in `assets/textures/library.json` is used somewhere in the world, but for the masonry kit:
+90 seamless stone tiles in nine stones (`masonry_<stone>_<nn>`: grey ashlar, blackstone, fieldstone,
+honey and white limestone, slate, red and ochre sandstone, mossy ashlar) for building castles and
+towers with; the keep is laid in the blackstone and slate. The banners (`assets/textures/banners/`,
+sprites of category `banner`) each have an allegiance: `velscour` (his V) hang only where his people
+are, `holy` (the T) in the cathedral and holy places, `town` in the village and among good folk.
+Both come in with `python tools/world/import_banners_stone.py` (see its docstring). Scatter art that isn't a
 plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
 trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs. The
 Quaternius-kit world (`realm.js`, `wilds.js`, `land.js`, `houses.js`, `crypt.js`, `cave.js`,
