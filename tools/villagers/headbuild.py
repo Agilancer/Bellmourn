@@ -365,9 +365,14 @@ class Head:
             sx, sy = ac[:, 0], ac[:, 1]
             col = np.stack([ndimage.map_coordinates(atlas[..., k], [np.clip(sy, 0, 1023), np.clip(sx, 0, 1023)], order=1, mode='nearest') for k in range(3)], 1)
             th = np.abs(pr[:, 0] / R0)
-            inside = femface.trust(face, sx, sy) * np.clip((1.2 - th) / 0.3, 0, 1)
+            # the sheet only on the face's front: not round the sides, not under the chin (where the
+            # warp, extrapolating, would fetch a second face)
+            inside = femface.trust(face, sx, sy) * np.clip((1.0 - th) / 0.25, 0, 1) * np.clip((pts[:, 1] - 6.98) / 0.1, 0, 1) * (pts[:, 2] > 0.6)
             skin, _ = femface.tones(atlas, face)
-            return self._finish(col, inside, skin, hair, crop, seed, line, pepper)
+            field = femface.beyond(atlas, face, sx, sy)
+            # skin's own grain where the sheet isn't used: pores, and a faint blotchiness
+            g = 1 + 0.07 * (vnoise(pts, 260, seed + 11) - 0.5) + 0.06 * (vnoise(pts, 40, seed + 12) - 0.5) + 0.05 * (vnoise(pts, 9, seed + 13) - 0.5)
+            return self._finish(col, inside, skin, hair, crop, seed, line, pepper, field=field * g[:, None])
         atlas = clean_atlas(atlas_path)
         H, Wd = atlas.shape[:2]
         sx = ac[:, 0] * Wd / 1024; sy = ac[:, 1] * H / 1024
@@ -385,14 +390,14 @@ class Head:
         skin = np.median(atlas[700:760, 470:550].reshape(-1, 3), 0)
         return self._finish(col, inside, skin, hair, crop, seed, line, pepper)
 
-    def _finish(self, col, inside, skin, hair, crop, seed, line, pepper):
+    def _finish(self, col, inside, skin, hair, crop, seed, line, pepper, field=None):
         size, cov, pts = self.size, self.cov, self.pts
         hairm = self.hairmask(pts, seed, line) * ~self.ear_px
         st = self.strands(pts, seed)
         mid = vnoise(pts, 18, seed + 2)
         dens = np.clip(crop * (0.6 + 0.5 * mid) * hairm * (0.55 + 0.9 * st), 0, 1)
         hcol = self.tone(pts, hair, st, seed, pepper)
-        skin_v = skin * (0.94 + 0.12 * vnoise(pts, 5, seed + 3))[:, None]
+        skin_v = skin * (0.94 + 0.12 * vnoise(pts, 5, seed + 3))[:, None] if field is None else field
         scalp = skin_v * (1 - dens[:, None]) + hcol * dens[:, None]
         # over the scalp the atlas's painted hair stays, but where it is only skin our crop shows
         out_c = col * inside[:, None] + scalp * (1 - inside[:, None])

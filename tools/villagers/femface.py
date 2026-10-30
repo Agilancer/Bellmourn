@@ -34,11 +34,46 @@ SHEETS = {
     '09_Witch': ((402, 450), (618, 450), 647, 268), '10_Casual': ((430, 428), (638, 428), 652, 232)}
 
 
+# and its lips: the upper lip's top, where they part, the lower lip's foot (read on each sheet)
+LIPS = {'01_Soldier': (575, 600, 630), '02_Worker': (575, 599, 625), '03_Suit': (583, 607, 633),
+        '04_Adventurer': (603, 616, 656), '05_Punk': (565, 592, 617), '06_Formal': (656, 691, 723),
+        '07_SciFi': (560, 590, 620), '08_Medieval': (560, 583, 613), '09_Witch': (605, 639, 669),
+        '10_Casual': (610, 644, 680)}
+
+
+# half the width of the nose (its wings) and of the mouth (its corners), read on each sheet
+WIDTHS = {'01_Soldier': (50, 75), '02_Worker': (55, 80), '03_Suit': (45, 70), '04_Adventurer': (50, 72),
+          '05_Punk': (45, 68), '06_Formal': (40, 82), '07_SciFi': (43, 82), '08_Medieval': (40, 72),
+          '09_Witch': (38, 62), '10_Casual': (60, 80)}
+
+
 def measured(name):
     l, r, my, hy = SHEETS[name]
+    lt, my, lb = LIPS[name]
     cx = (l[0] + r[0]) / 2; ey = (l[1] + r[1]) / 2
-    return {'eyeL': l, 'eyeR': r, 'mouth': (cx, my), 'hair': (cx, hy),
-            'chin': (cx, my + (my - ey) * (T['chin'][1] - T['mouth'][1]) / (T['mouth'][1] - T['eyeL'][1]))}
+    d = {'eyeL': l, 'eyeR': r, 'mouth': (cx, my), 'hair': (cx, hy),
+         'chin': (cx, my + (my - ey) * (T['chin'][1] - T['mouth'][1]) / (T['mouth'][1] - T['eyeL'][1])),
+         'lips': (lt, lb + 4), 'nose_w': WIDTHS[name][0] * 0.85, 'mouth_w': WIDTHS[name][1]}
+    return d
+
+
+def lips(a, det):
+    """The lips' top and bottom on the sheet: where the redness down the middle of the mouth
+    falls to half way between the lips' and the skin's."""
+    cx, my = det['mouth']
+    red = a[..., 0] - 0.5 * (a[..., 1] + a[..., 2])
+    col = ndimage.gaussian_filter1d(red[:, int(cx) - 14:int(cx) + 14].mean(1), 2)
+    seg = col[int(my) - 70:int(my) + 70]
+    peak = seg[50:90].max(); base = np.median(np.concatenate([seg[:15], seg[-15:]]))
+    thr = base + 0.45 * (peak - base)
+    i = int(np.argmax(seg[50:90])) + 50
+    top = i
+    while top > 5 and seg[top] > thr:
+        top -= 1
+    bot = i
+    while bot < len(seg) - 5 and seg[bot] > thr:
+        bot += 1
+    return int(my) - 70 + top, int(my) - 70 + bot
 
 
 def load(path):
@@ -89,18 +124,29 @@ def mapper(det):
 def landmarks(det):
     f = mapper(det)
     L = []
+    lt, lb = det.get('lips', (None, None))
+    cx = (det['eyeL'][0] + det['eyeR'][0]) / 2
     for spec, l, r in FRONT:
-        L.append((('f', -spec[1], spec[2]), f(*l)))   # her right is the sheet's left
-        L.append((('f', spec[1], spec[2]), f(*r)))
+        pl, pr = f(*l), f(*r)
+        w = det.get('nose_w') if spec[2] == 7.78 else det.get('mouth_w') if spec[2] == 7.51 else None
+        if w:   # the nose's and the mouth's own width, so no second nostril or lip corner shows beside them
+            pl, pr = (cx - w, pl[1]), (cx + w, pr[1])
+        L.append((('f', -spec[1], spec[2]), pl))   # her right is the sheet's left
+        L.append((('f', spec[1], spec[2]), pr))
     for spec, y in MID:
-        L.append((spec, f(512, y)))
+        x, Y = f(512, y)
+        if lt is not None and spec[2] == 7.585:
+            Y = lt
+        if lb is not None and spec[2] == 7.405:
+            Y = lb
+        L.append((spec, (x, Y)))
     return L
 
 
 def trust(det, sx, sy):
     """0..1: inside the face's oval (temple to temple, hairline to under the chin), feathered."""
     f = mapper(det)
-    cx, top = f(512, 175); _, bot = f(512, 745)
+    cx, top = f(512, 222); _, bot = f(512, 745)   # its top under the sheet's painted hairline
     hw = (f(706, 0)[0] - f(318, 0)[0]) / 2
     e = np.hypot((sx - cx) / hw, (sy - (top + bot) / 2) / ((bot - top) / 2))
     t = np.clip((1.0 - e) / 0.12, 0, 1)
@@ -117,3 +163,40 @@ def tones(a, det):
     h = a[max(0, int(hy) - 60):int(hy), int(hx) - 70:int(hx) + 70].reshape(-1, 3)
     lum = h.mean(1)
     return np.median(np.concatenate(cs), 0), h[lum <= np.percentile(lum, 60)].mean(0)
+
+
+def oval(det):
+    """The face's oval: centre, half-width, half-height (sheet px)."""
+    f = mapper(det)
+    cx, top = f(512, 222); _, bot = f(512, 745)
+    return cx, (top + bot) / 2, (f(706, 0)[0] - f(318, 0)[0]) / 2, (bot - top) / 2
+
+
+def skin_only(a, det):
+    """The sheet with its features taken out (eyes and brows, nose, mouth, the hairline): each
+    filled from the skin round it, so nothing of them can be carried outside the face."""
+    f = mapper(det)
+    yy, xx = np.mgrid[0:1024, 0:1024]
+    m = np.zeros((1024, 1024), bool)
+    for (x, y), (rx, ry) in ((f(418, 362), (85, 60)), (f(606, 362), (85, 60)), (f(512, 470), (60, 70)), (f(512, 585), (95, 45))):
+        m |= ((xx - x) / rx) ** 2 + ((yy - y) / ry) ** 2 < 1
+    m |= yy < f(512, 235)[1]
+    keep = (~m).astype(np.float64)
+    out = np.empty_like(a)
+    for c in range(3):
+        num = ndimage.gaussian_filter(a[..., c] * keep, 18); den = ndimage.gaussian_filter(keep, 18)
+        out[..., c] = num / np.maximum(den, 1e-4)
+    return out
+
+
+def beyond(a, det, sx, sy, inset=0.9, blur=10):
+    """Colour for points outside the face: the sheet's own colour, blurred, at the point drawn in
+    along the ray from the face's centre to just inside the oval, so the cheek's tone carries on
+    round the jaw, the temples, the ears and down the neck."""
+    cx, cy, hw, hh = oval(det)
+    e = np.hypot((sx - cx) / hw, (sy - cy) / hh)
+    k = np.where(e > inset, inset / np.maximum(e, 1e-6), 1.0)
+    px, py = cx + (sx - cx) * k, cy + (sy - cy) * k
+    so = skin_only(a, det)
+    b = np.stack([ndimage.gaussian_filter(so[..., c], blur) for c in range(3)], -1)
+    return np.stack([ndimage.map_coordinates(b[..., c], [np.clip(py, 0, 1023), np.clip(px, 0, 1023)], order=1) for c in range(3)], 1)
