@@ -1,0 +1,20 @@
+{
+ "id": "runebound",
+ "name": "Runebound Regalia",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "runebound",
+ "description": "A battle-mage's violet robe with silver embroidery and Lord Velscour's crystal V and sigil, a mantle, silver spaulders, and a silver great helm under a crystal-knobbed ring.",
+ "files": {
+  "male": "runebound_m.glb",
+  "female": "runebound_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

@@ -1,0 +1,905 @@
+{
+ "R": {
+  "fingers": {
+   "index": {
+    "joints": [
+     [
+      0.017355,
+      0.080683,
+      0.0255
+     ],
+     [
+      -0.017355,
+      0.080683,
+      0.0255
+     ],
+     [
+      -0.025372,
+      0.050765,
+      0.0255
+     ],
+     [
+      -0.009235,
+      0.034628,
+      0.0255
+     ]
+    ],
+    "back": [
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      -0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0158
+   },
+   "middle": {
+    "joints": [
+     [
+      0.017355,
+      0.080683,
+      0.0085
+     ],
+     [
+      -0.017355,
+      0.080683,
+      0.0085
+     ],
+     [
+      -0.025372,
+      0.050765,
+      0.0085
+     ],
+     [
+      -0.009235,
+      0.034628,
+      0.0085
+     ]
+    ],
+    "back": [
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      -0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0164
+   },
+   "ring": {
+    "joints": [
+     [
+      0.017355,
+      0.080683,
+      -0.0085
+     ],
+     [
+      -0.017355,
+      0.080683,
+      -0.0085
+     ],
+     [
+      -0.025372,
+      0.050765,
+      -0.0085
+     ],
+     [
+      -0.009235,
+      0.034628,
+      -0.0085
+     ]
+    ],
+    "back": [
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      -0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      -0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0156
+   },
+   "pinky": {
+    "joints": [
+     [
+      0.014339,
+      0.080479,
+      -0.0255
+     ],
+     [
+      -0.017678,
+      0.077678,
+      -0.0255
+     ],
+     [
+      -0.022658,
+      0.049435,
+      -0.0255
+     ],
+     [
+      -0.00647,
+      0.035852,
+      -0.0255
+     ]
+    ],
+    "back": [
+     [
+      -0.087156,
+      0.996195,
+      0.0
+     ],
+     [
+      -0.984808,
+      0.173648,
+      0.0
+     ],
+     [
+      -0.642788,
+      -0.766044,
+      0.0
+     ]
+    ],
+    "width": 0.0138
+   },
+   "thumb": {
+    "joints": [
+     [
+      -0.006,
+      0.01,
+      0.03
+     ],
+     [
+      -0.024,
+      0.034,
+      0.04
+     ],
+     [
+      -0.036,
+      0.058,
+      0.037
+     ],
+     [
+      -0.033,
+      0.079,
+      0.031
+     ]
+    ],
+    "back": [
+     [
+      -0.356638,
+      -0.903482,
+      0.237759
+     ],
+     [
+      -0.867472,
+      -0.40482,
+      0.289157
+     ],
+     [
+      -0.934654,
+      0.230277,
+      0.270914
+     ]
+    ],
+    "width": 0.018
+   }
+  },
+  "back": [
+   1,
+   0,
+   0
+  ]
+ },
+ "L": {
+  "fingers": {
+   "index": {
+    "joints": [
+     [
+      -0.017355,
+      0.080683,
+      0.0255
+     ],
+     [
+      0.017355,
+      0.080683,
+      0.0255
+     ],
+     [
+      0.025372,
+      0.050765,
+      0.0255
+     ],
+     [
+      0.009235,
+      0.034628,
+      0.0255
+     ]
+    ],
+    "back": [
+     [
+      -0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0158
+   },
+   "middle": {
+    "joints": [
+     [
+      -0.017355,
+      0.080683,
+      0.0085
+     ],
+     [
+      0.017355,
+      0.080683,
+      0.0085
+     ],
+     [
+      0.025372,
+      0.050765,
+      0.0085
+     ],
+     [
+      0.009235,
+      0.034628,
+      0.0085
+     ]
+    ],
+    "back": [
+     [
+      -0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0164
+   },
+   "ring": {
+    "joints": [
+     [
+      -0.017355,
+      0.080683,
+      -0.0085
+     ],
+     [
+      0.017355,
+      0.080683,
+      -0.0085
+     ],
+     [
+      0.025372,
+      0.050765,
+      -0.0085
+     ],
+     [
+      0.009235,
+      0.034628,
+      -0.0085
+     ]
+    ],
+    "back": [
+     [
+      -0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.965926,
+      0.258819,
+      0.0
+     ],
+     [
+      0.707107,
+      -0.707107,
+      0.0
+     ]
+    ],
+    "width": 0.0156
+   },
+   "pinky": {
+    "joints": [
+     [
+      -0.014339,
+      0.080479,
+      -0.0255
+     ],
+     [
+      0.017678,
+      0.077678,
+      -0.0255
+     ],
+     [
+      0.022658,
+      0.049435,
+      -0.0255
+     ],
+     [
+      0.00647,
+      0.035852,
+      -0.0255
+     ]
+    ],
+    "back": [
+     [
+      0.087156,
+      0.996195,
+      0.0
+     ],
+     [
+      0.984808,
+      0.173648,
+      0.0
+     ],
+     [
+      0.642788,
+      -0.766044,
+      0.0
+     ]
+    ],
+    "width": 0.0138
+   },
+   "thumb": {
+    "joints": [
+     [
+      0.006,
+      0.01,
+      0.03
+     ],
+     [
+      0.024,
+      0.034,
+      0.04
+     ],
+     [
+      0.036,
+      0.058,
+      0.037
+     ],
+     [
+      0.033,
+      0.079,
+      0.031
+     ]
+    ],
+    "back": [
+     [
+      0.356638,
+      -0.903482,
+      0.237759
+     ],
+     [
+      0.867472,
+      -0.40482,
+      0.289157
+     ],
+     [
+      0.934654,
+      0.230277,
+      0.270914
+     ]
+    ],
+    "width": 0.018
+   }
+  },
+  "back": [
+   -1,
+   0,
+   0
+  ]
+ },
+ "fore_radius": [
+  [
+   -0.3,
+   0.042,
+   0.038
+  ],
+  [
+   -0.275,
+   0.042,
+   0.038
+  ],
+  [
+   -0.25,
+   0.04414285714285714,
+   0.03942857142857143
+  ],
+  [
+   -0.225,
+   0.044,
+   0.039
+  ],
+  [
+   -0.2,
+   0.042333333333333334,
+   0.037333333333333336
+  ],
+  [
+   -0.175,
+   0.04066666666666666,
+   0.035666666666666666
+  ],
+  [
+   -0.15,
+   0.039,
+   0.034
+  ],
+  [
+   -0.125,
+   0.03741549295774648,
+   0.03259154929577465
+  ],
+  [
+   -0.1,
+   0.035830985915492955,
+   0.0311830985915493
+  ],
+  [
+   -0.075,
+   0.034246478873239436,
+   0.029774647887323945
+  ],
+  [
+   -0.05,
+   0.03266197183098592,
+   0.02836619718309859
+  ],
+  [
+   -0.025,
+   0.03107746478873239,
+   0.026957746478873237
+  ],
+  [
+   0.0,
+   0.03,
+   0.026
+  ]
+ ],
+ "hand": 0.06,
+ "parts": {
+  "wayfarer": [
+   "sleeve",
+   "elbow",
+   "elbow point",
+   "elbow knob top",
+   "elbow knob bottom",
+   "sleeve cuff",
+   "leather bracer",
+   "iron wrist band",
+   "iron elbow band",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index plate 1",
+   "index plate 2",
+   "index plate 3",
+   "middle plate 1",
+   "middle plate 2",
+   "middle plate 3",
+   "ring plate 1",
+   "ring plate 2",
+   "ring plate 3",
+   "pinky plate 1",
+   "pinky plate 2",
+   "pinky plate 3",
+   "thumb plate 1",
+   "thumb plate 2",
+   "thumb plate 3",
+   "knuckle guard",
+   "hand plate"
+  ],
+  "hunter": [
+   "sleeve",
+   "elbow",
+   "elbow point",
+   "elbow knob top",
+   "elbow knob bottom",
+   "sleeve cuff",
+   "bracer",
+   "wrap 1",
+   "wrap 2",
+   "wrap 3",
+   "wrap 4",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "glove cuff"
+  ],
+  "mailed": [
+   "mail sleeve",
+   "elbow",
+   "elbow point",
+   "couter",
+   "mail sleeve (forearm)",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "plate cuff",
+   "knuckle guard"
+  ],
+  "knight": [
+   "mail sleeve",
+   "elbow",
+   "elbow point",
+   "couter",
+   "couter wing",
+   "vambrace",
+   "hourglass cuff",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index plate 1",
+   "index plate 2",
+   "index plate 3",
+   "middle plate 1",
+   "middle plate 2",
+   "middle plate 3",
+   "ring plate 1",
+   "ring plate 2",
+   "ring plate 3",
+   "pinky plate 1",
+   "pinky plate 2",
+   "pinky plate 3",
+   "thumb plate 1",
+   "thumb plate 2",
+   "thumb plate 3",
+   "knuckle guard",
+   "hand plate"
+  ],
+  "brawler": [
+   "sleeve",
+   "elbow",
+   "elbow point",
+   "elbow knob top",
+   "elbow knob bottom",
+   "sleeve cuff",
+   "studded bracer",
+   "bracer spike back 1",
+   "bracer spike outer 1",
+   "bracer spike back 2",
+   "bracer spike outer 2",
+   "bracer spike back 3",
+   "bracer spike outer 3",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index knuckle spike",
+   "middle knuckle spike",
+   "ring knuckle spike",
+   "pinky knuckle spike",
+   "knuckle pad"
+  ],
+  "boneward": [
+   "fur sleeve",
+   "elbow",
+   "elbow point",
+   "bone couter",
+   "hide bracer",
+   "rib 1",
+   "rib 2",
+   "rib 3",
+   "rib 4",
+   "rib 5",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index bone plate 1",
+   "index bone plate 2",
+   "middle bone plate 1",
+   "middle bone plate 2",
+   "ring bone plate 1",
+   "ring bone plate 2",
+   "pinky bone plate 1",
+   "pinky bone plate 2",
+   "thumb bone plate 1",
+   "thumb bone plate 2",
+   "bone hand plate"
+  ],
+  "fiend": [
+   "sleeve",
+   "elbow",
+   "elbow point",
+   "couter",
+   "couter spike",
+   "vambrace",
+   "spine fin",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index plate 1",
+   "index plate 2",
+   "index plate 3",
+   "middle plate 1",
+   "middle plate 2",
+   "middle plate 3",
+   "ring plate 1",
+   "ring plate 2",
+   "ring plate 3",
+   "pinky plate 1",
+   "pinky plate 2",
+   "pinky plate 3",
+   "thumb plate 1",
+   "thumb plate 2",
+   "thumb plate 3",
+   "index claw",
+   "middle claw",
+   "ring claw",
+   "pinky claw",
+   "thumb claw",
+   "hand plate",
+   "ember stone"
+  ],
+  "templar": [
+   "tabard sleeve",
+   "elbow",
+   "elbow point",
+   "couter",
+   "couter wing",
+   "vambrace",
+   "gold trim",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index plate 1",
+   "index plate 2",
+   "index plate 3",
+   "middle plate 1",
+   "middle plate 2",
+   "middle plate 3",
+   "ring plate 1",
+   "ring plate 2",
+   "ring plate 3",
+   "pinky plate 1",
+   "pinky plate 2",
+   "pinky plate 3",
+   "thumb plate 1",
+   "thumb plate 2",
+   "thumb plate 3",
+   "gilded knuckle bar",
+   "hand plate",
+   "sun medallion",
+   "fluted cuff"
+  ],
+  "drake": [
+   "sleeve",
+   "elbow",
+   "elbow point",
+   "scale couter",
+   "under-bracer",
+   "scales row 1",
+   "scales row 2",
+   "scales row 3",
+   "scales row 4",
+   "scales row 5",
+   "scales row 6",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "index scale 1",
+   "index scale 2",
+   "index scale 3",
+   "middle scale 1",
+   "middle scale 2",
+   "middle scale 3",
+   "ring scale 1",
+   "ring scale 2",
+   "ring scale 3",
+   "pinky scale 1",
+   "pinky scale 2",
+   "pinky scale 3",
+   "thumb scale 1",
+   "thumb scale 2",
+   "thumb scale 3",
+   "drake plate",
+   "index knuckle spike",
+   "middle knuckle spike",
+   "ring knuckle spike",
+   "pinky knuckle spike"
+  ],
+  "runebound": [
+   "robe sleeve",
+   "elbow",
+   "elbow point",
+   "elbow knob top",
+   "elbow knob bottom",
+   "sleeve cuff",
+   "cloth bracer",
+   "silver band 1",
+   "silver band 2",
+   "glove wrist",
+   "palm",
+   "index 1",
+   "index 2",
+   "index 3",
+   "middle 1",
+   "middle 2",
+   "middle 3",
+   "ring 1",
+   "ring 2",
+   "ring 3",
+   "pinky 1",
+   "pinky 2",
+   "pinky 3",
+   "thumb 1",
+   "thumb 2",
+   "thumb 3",
+   "silver mount",
+   "focus crystal"
+  ]
+ }
+}

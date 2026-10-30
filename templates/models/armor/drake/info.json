@@ -1,0 +1,20 @@
+{
+ "id": "drake",
+ "name": "Drakescale Plate",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "drake",
+ "description": "Green drake scale over copper-edged plate with Lord Velscour's gold Vs: a horned spine ridge, a scaled skirt, horn-spiked pauldrons, a crimson cape, and a bronze great helm with scaled bat wings.",
+ "files": {
+  "male": "drake_m.glb",
+  "female": "drake_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}
