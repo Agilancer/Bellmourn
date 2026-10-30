@@ -19,7 +19,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Zombie, goreMaterial, wrap } from './zombies.js';
-import { swornBody } from './sworn.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { swornBody, shieldLift } from './sworn.js';
 import { TOUCH } from './input.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
@@ -46,13 +47,19 @@ export const FOES = {
   grubber_c: { kind: 'grubber', title: 'Flayed Grubber' },
   // Velscour's Sworn, who hold Blackvigil Keep (keep.js): villagers in the Fiend's Panoply on the
   // knights' clips (sworn.js), each with one of a dozen blades, axes, maces and hammers in a dark
-  // finish and a shield on the arm. Their lord is the same body half as big again, burning red.
+  // finish and a kite shield on the arm (the round ones are dished too deep to ride a vambrace).
+  // Their adepts go bareheaded with burning eyes, a blade in one hand and a wand in the other, and
+  // cast. Their lord is the same body half as big again, burning red.
   sworn_m: { kind: 'knight', title: 'Sworn of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['ancient', 'bloodforged', 'worn'], stats: 'sworn',
     R: ['arming_sword', 'bearded_axe', 'flanged_mace', 'morning_star', 'falchion', 'war_hammer', 'grave_messer', 'coffin_hammer', 'reliquary_blade', 'fang_blade', 'wolfjaw_sickle', 'scimitar'],
-    L: ['thorned_kite', 'knights_kite', 'banded_kite', 'skull_boss', 'spiked_buckler'] },
+    L: ['thorned_kite', 'knights_kite', 'banded_kite'] },
   sworn_f: { kind: 'knight', title: 'Sworn of the Vigil', body: { villager: 'villager_f08', armor: 'fiend', sex: 'f' }, finish: ['ancient', 'bloodforged', 'worn'], stats: 'sworn',
     R: ['arming_sword', 'falchion', 'scimitar', 'grave_messer', 'fang_blade', 'flanged_mace', 'morning_star', 'wolfjaw_sickle', 'gaolers_hook', 'bearded_axe'],
-    L: ['thorned_kite', 'knights_kite', 'spiked_buckler', 'skull_boss'] },
+    L: ['thorned_kite', 'knights_kite', 'banded_kite'] },
+  sworn_adept_m: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
+    caster: true, spell: 'blood', R: ['reliquary_blade', 'grave_messer', 'fang_blade', 'flanged_mace'], L: ['ember_rod', 'obsidian_shard', 'bone_wand'], Lsock: 'gripL' },
+  sworn_adept_f: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_f08', armor: 'fiend', sex: 'f', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
+    caster: true, spell: 'blood', R: ['reliquary_blade', 'scimitar', 'fang_blade', 'grave_messer'], L: ['ember_rod', 'obsidian_shard', 'serpent_wand'], Lsock: 'gripL' },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
@@ -71,12 +78,18 @@ const KIND = {
     dmg: { attack1: 14, attack2: 9, attack3: 11 }, cool: [0.8, 1.5] },
 };
 // a variant's own `stats` over its kind's: the Sworn in heavier plate than the dark knights of the
-// downs, and their lord, who shrugs off what would fell them, hits like a falling bell and calls
-// Velscour's fire up under you
+// downs and quicker on their feet and with a blade (`swing`: how fast their cuts play; `gait`: the
+// walk and run their clips were made at, so their feet don't slide), their adepts lighter, and
+// their lord, who shrugs off what would fell them, hits like a falling bell and calls Velscour's
+// fire up under you
+const GAIT = { walk: 1.3, run: 3.5 };
 const STATS = {
-  sworn: { hp: 320, armor: 0.62, limb: 1.7, run: 3.6, sight: 26, tier: 4, heft: 1.8, dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7 } },
-  lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.2, run: 3.3, sight: 34, hear: 1.3, turn: 2.9, reach: 2.75, flinch: 0.05, tier: 6, heft: 5,
-    dmg: { attack1: 24, attack2: 30, attack3: 22, bash: 14 }, cool: [0.8, 1.6] },
+  sworn: { hp: 320, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
+    dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7 }, cool: [0.3, 0.85] },
+  adept: { hp: 220, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
+    dmg: { attack1: 12, attack2: 15, attack3: 11 }, cool: [0.5, 1.1] },
+  lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
+    dmg: { attack1: 24, attack2: 30, attack3: 22, bash: 14 }, cool: [0.6, 1.3] },
 };
 const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
   upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
@@ -90,7 +103,7 @@ const SPELL = { // bolt colour, its glow, damage
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
 const EMBERS = [new THREE.Color(1, 0.55, 0.15), new THREE.Color(1, 0.22, 0.06), new THREE.Color(0.9, 0.08, 0.03)];
-const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
 
 /** The gore shader, plus: armour, capes and robes stay armour and cloth inside (the `shell`
  * vertex attribute), and the glow map (eyes, slits, runes, cracks, caps) shines in the dark.
@@ -131,6 +144,39 @@ function socketLocal(model, s) {
   return { bone: s.bone, m: bone.matrixWorld.clone().invert().multiply(m) };
 }
 
+/** The shield arm's poses for a body (model space), from its bind (the arm straight out along +x,
+ * the shield flat on the forearm, face up): the carry (the upper arm hanging a little out, the
+ * forearm forward and a little down, turned so the shield stands upright beside the leg with its
+ * face out and its top leaning clear of the shoulder). For the Sworn (`sworn`), whose plate is
+ * bulkier and whose shields ride further out, the carry is held wider of the body, and there are
+ * two more: the guard (the upper arm forward and out, the forearm angled across before the chest
+ * and out of the sword fist's way, the shield's face to the front) and the swing (the arm drawn
+ * back out of the way of the sword's wide sweep). Each was tried against every clip's arms and
+ * body until nothing passed through the shield. */
+export function shieldPoses(skel, bones, sworn = false) {
+  const bindQ = (b) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(skel.boneInverses[skel.bones.indexOf(b)].clone().invert()));
+  const X = new THREE.Vector3(1, 0, 0);
+  const pose = (up, d, o) => {
+    up.normalize(); d.normalize(); o.addScaledVector(d, -o.dot(d)).normalize();   // (o: the forearm's outer side, the shield's face)
+    return { up: new THREE.Quaternion().setFromUnitVectors(X, up).multiply(bindQ(bones.upper_armL)),
+      fore: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o))).multiply(bindQ(bones.forearmL)) };
+  };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  if (!sworn) return { carry: pose(V(0.3, -0.95, 0.08), V(0.12, -0.42, 0.9), V(1, -0.16, 0)) };
+  return { carry: pose(V(0.5, -0.86, 0.08), V(0.2, -0.4, 0.9), V(1, -0.1, 0)),
+    guard: pose(V(0.35, -0.15, 0.92), V(-0.7, 0.15, 0.7), V(0, 0.1, 1)),
+    swing: pose(V(0.55, -0.75, -0.35), V(0.25, -0.55, -0.8), V(1, 0, 0)) };
+}
+
+/** How the shield arm is posed in clip c: drawn into the carry by w (0: the clip's own), and (the
+ * Sworn) how far into the guard (blocking, bashing, charging) or the swing (the wide third cut). */
+export function shieldArm(c, state, standing, sworn) {
+  if (!standing || ['collapse', 'getup', 'death', 'dead'].includes(c)) return { w: 0, guard: 0, swing: 0 };
+  if (!sworn) return { w: state === 'block' || ['block', 'bash', 'fall', 'jump'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1, guard: 0, swing: 0 };
+  const guard = state === 'block' || state === 'charge' || c === 'block' || c === 'bash' ? 1 : 0;
+  return { w: c === 'hit' && !guard ? 0.55 : 1, guard, swing: !guard && c === 'attack3' ? 1 : 0 };
+}
+
 // ------------------------------------------------------------------ a foe
 class Foe extends Zombie {
   static ONCE = ONCE;
@@ -165,9 +211,22 @@ class Foe extends Zombie {
     this.retreatT = 0; this.chargeT = 0; this.chargeCool = 2 + Math.random() * 3;
     this.shrieked = false; this.summoned = [];
     this.zig = Math.random() * 6.28;
+    this.wardCool = 3 + Math.random() * 4; this.rushCool = 2 + Math.random() * 3; this.comboQ = null;
     this.keeps = o.keeps || null;          // a room it holds and won't be drawn out of (the Red Throne's)
     this.postYaw = o.yaw ?? this.yaw;
     if (o.start === 'ambush') { this.state = 'ambush'; this.play('idle', 0); }
+    // the Sworn's eyes burn: a glint at each (through the helm's slits, or bare on an adept)
+    if (this.def.body && meta.eyes?.length) {
+      const head = this.bones.head, inv = this.skel.boneInverses[this.skel.bones.indexOf(head)];
+      this.eyes = meta.eyes.map((e) => {
+        const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+          color: this.def.caster ? new THREE.Color(2.4, 0.3, 0.1) : new THREE.Color(0xff3010) }));   // (an adept's, bare, burn brightest)
+        g.position.set(...e).applyMatrix4(inv);
+        g.scale.setScalar(this.def.caster ? 0.09 : 0.05);
+        head.add(g);
+        return g;
+      });
+    }
     // a lord of the Sworn burns: his armour glows from within (brightest where it's gilded)
     if (this.def.glow) {
       this.glowMats = [this.mesh.material].flat().filter((m) => !m.userData.eyes && m.map);
@@ -199,20 +258,27 @@ class Foe extends Zombie {
   /** The clips swing the shield arm across the body (the shield goes through the chest as it
    * walks, and across it as the sword comes round). Unless it's blocking or bashing, the arm is
    * drawn into a carry instead: the upper arm hanging a little out from the side, the forearm
-   * forward and turned so the shield stands upright beside the leg, its face out. Blended in and
-   * out over the clip (dt 0: at once). */
+   * forward and turned so the shield stands upright beside the leg, its face out. The Sworn's
+   * bulkier arms would go through their shields in the knights' own blocks and bashes, so theirs
+   * are drawn into a guard there instead (and as they charge), and they keep the carry as they
+   * jump and fall (see shieldArm). Blended in and out over the clip (dt 0: at once). */
   carryShield(dt = 0) {
     if (!this.shield || !this.arm('L')) return;
-    const c = this.cur;
-    const want = this.dead || this.mode !== 'stand' || this.state === 'block' || ['block', 'bash', 'collapse', 'getup', 'fall', 'jump', 'death', 'dead'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1;
-    this.carryW = dt ? (this.carryW ?? want) + (want - (this.carryW ?? want)) * Math.min(1, dt * 7) : want;
+    const { w, guard, swing } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body);
+    const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1;
+    this.carryW = (this.carryW ?? w) + (w - (this.carryW ?? w)) * k;
+    this.guardW = (this.guardW ?? guard) + (guard - (this.guardW ?? guard)) * k2;
+    this.swingW = (this.swingW ?? swing) + (swing - (this.swingW ?? swing)) * k2;
     if (this.carryW < 0.01) return;
-    const C = this.foes.carry(this);
+    const P = this.foes.poses(this);
     this.root.updateMatrixWorld(true);
     const model = this.root.children[0], qm = model.getWorldQuaternion(_q0);
-    for (const [bone, target] of [[this.bones.upper_armL, C.up], [this.bones.forearmL, C.fore]]) {
+    for (const part of ['up', 'fore']) {
+      const bone = part === 'up' ? this.bones.upper_armL : this.bones.forearmL;
+      _q3.copy(P.carry[part]);
+      if (P.guard) _q3.slerp(P.guard[part], this.guardW).slerp(P.swing[part], this.swingW);
       const pq = bone.parent.getWorldQuaternion(_q1).invert();
-      _q2.copy(qm).multiply(target).premultiply(pq);
+      _q2.copy(qm).multiply(_q3).premultiply(pq);
       bone.quaternion.slerp(_q2, this.carryW);
       bone.updateMatrixWorld(true);
     }
@@ -260,11 +326,13 @@ class Foe extends Zombie {
     this.blockT = Math.min(this.blockT, 0.25);
     this.hunt(this.owner.player?.pos, true);
     if (opts.heavy) { this.state = 'hit'; this.play('hit', 0.06); }
+    else if (this.def.body) this.counter = ['attack1', 'attack2', 'bash'][Math.floor(Math.random() * 3)];   // the Sworn always answer it
     else if (Math.random() < 0.45) this.counter = 'bash';
   }
 
   sever(name, dir) {
     super.sever(name, dir);
+    if (this.eyes && this.cutAway('head')) for (const g of this.eyes) g.visible = false;
     this.drop((it) => this.cutAway(it.bone));
     if (this.mode === 'stand' && !this.legs) this.drop((it) => it.socket === 'shieldL');
   }
@@ -272,6 +340,7 @@ class Foe extends Zombie {
   die() {
     super.die();
     this.drop();
+    for (const g of this.eyes || []) g.visible = false;
     this.foes.voice(this, 'die');
     if (this.def.boss) this.foes.bossDown(this);
     const loot = this.foes.ctx?.loot;
@@ -309,7 +378,7 @@ class Foe extends Zombie {
     this.afflict(dt);
     if (this.dead) return;
     this.bleed(dt);
-    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT']) this[k] = Math.max(0, this[k] - dt);
+    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool']) this[k] = Math.max(0, this[k] - dt);
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
@@ -329,6 +398,7 @@ class Foe extends Zombie {
     else if (st === 'block') this.blocking(dt, player, active, dist);
     else if (st === 'hit' || st === 'shriek') { if (this.done()) this.state = 'move'; }
     else if (st === 'blink') this.blinking(dt, player);
+    else if (st === 'charge') this.charging(dt, player, dist, facingErr);
     else if (st === 'jump') {
       this.pos.addScaledVector(this.forward(), 2.3 * dt);
       if (this.done()) { this.state = 'move'; owner.physics.slide(this.pos, 0, 0, this.r, 1.6, 0.45); }
@@ -360,7 +430,7 @@ class Foe extends Zombie {
     if (this.stagger > 0) { this.play('idle', 0.2); return; }
     if (this.keeps && !this.foes.keep?.inside(this.keeps, player.pos)) return this.keepPost(dt, player, active, dist);
     if (this.goal === 'chase' && active) {
-      if (this.kindName === 'knight') return this.knight(dt, player, dist, facingErr);
+      if (this.kindName === 'knight') return this.def.caster ? this.adept(dt, player, dist, facingErr) : this.def.body ? this.sworn(dt, player, dist, facingErr) : this.knight(dt, player, dist, facingErr);
       if (this.kindName === 'sorcerer') return this.sorcerer(dt, player, dist, facingErr);
       if (this.kindName === 'ghast') return this.ghast(dt, player, dist, facingErr);
       return this.grubber(dt, player, dist, facingErr);
@@ -447,15 +517,15 @@ class Foe extends Zombie {
     const sp = speed * Math.max(0.25, Math.cos(Math.min(Math.PI / 2, err)));
     phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
     if (side) this.play('walk', 0.3, 0.8);
-    else if (speed > K.walk * 1.6) this.play('run', 0.25, speed / K.run);
-    else this.play('walk', 0.3, (back ? -1 : 1) * Math.max(0.5, speed / K.walk));
+    else if (speed > K.walk * 1.6) this.play('run', 0.25, speed / (K.gait?.run || K.run));      // (at the pace its clips were made for)
+    else this.play('walk', 0.3, (back ? -1 : 1) * Math.max(0.5, speed / (K.gait?.walk || K.walk)));
   }
 
   /** Start a melee move (it lands at the clip's hit frame). */
   strike(name, lunge = 0) {
     this.state = 'attack';
     this.lungeT = lunge;
-    this.play(name, 0.1);
+    this.play(name, 0.1, this.kind.swing || 1);
     this.foes.voice(this, 'attack');
   }
 
@@ -481,7 +551,13 @@ class Foe extends Zombie {
         }
       }
     }
-    if (this.done()) { this.state = 'move'; this.cool = this.kind.cool[0] + Math.random() * (this.kind.cool[1] - this.kind.cool[0]); }
+    if (this.done()) {
+      this.state = 'move';
+      const next = this.comboQ?.shift();     // the next cut of a combination, while you're still there
+      if (next && active && this.goal === 'chase' && dist < this.kind.reach + 0.5 && facingErr < 1.0 && (next !== 'bash' || this.shield)) { this.strike(next); return; }
+      this.comboQ = null;
+      this.cool = this.kind.cool[0] + Math.random() * (this.kind.cool[1] - this.kind.cool[0]);
+    }
   }
 
   // ---- knights
@@ -497,7 +573,7 @@ class Foe extends Zombie {
     if (dist > 1.3 && dist < 4) this.owner.physics.slide(this.pos, Math.sin(this.yaw) * 0.5 * dt, Math.cos(this.yaw) * 0.5 * dt, this.r, 1.6, 0.45);
     if (this.blockT <= 0 || !this.shield) {
       this.state = 'move'; this.blockCool = 1.2 + Math.random() * 1.5;
-      if (this.counter && dist < this.kind.reach + 0.3) { this.strike(this.counter); this.counter = null; }
+      if (this.counter && dist < this.kind.reach + 0.3) { this.strike(this.counter); if (this.def.body) this.comboQ = ['attack2']; this.counter = null; }
     }
   }
 
@@ -546,12 +622,95 @@ class Foe extends Zombie {
     }
   }
 
-  knight(dt, player, dist, fe) {
-    const K = this.kind;
+  // ---- the Sworn
+  /** A knight of the Vigil. They take you two at a time (their lord as he likes), the rest
+   * circling a few strides off with their shields ready, waiting their turn. Up close they cut in
+   * combinations of two and three; from further off they lunge, or come at you behind the shield at
+   * a run and bash you off your feet. They get the shield up when they see you swing, bash your
+   * guard when you hide behind yours, and answer any blow that rings off theirs. */
+  sworn(dt, player, dist, fe) {
+    const K = this.kind, now = this.owner.time;
     if (this.def.boss) {
-      if (!this.enraged && this.hp < this.kind.hp * 0.5) this.enrage();
+      if (!this.enraged && this.hp < K.hp * 0.5) this.enrage();
       if (this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }
     }
+    const shield = this.shield && this.arm('L'), armed = this.arm('R') && this.has('handR');
+    if (shield && !this.blockCool && dist < K.reach + 1.2 && fe < 0.9 && now - (player.swingAt ?? -9) < 0.2 && Math.random() < (this.def.boss ? 0.3 : 0.45)) { this.raiseShield(0.45 + Math.random() * 0.35); return; }
+    const turn = this.def.boss || this.foes.engage(this, player);
+    if (dist < K.reach && fe < 0.5 && !this.cool && (turn || dist < K.reach * 0.8)) {
+      if (player.blocking && shield && Math.random() < 0.6) { this.strike('bash'); this.comboQ = armed ? ['attack2'] : null; return; }   // through your guard
+      if (armed) { this.combo(shield); return; }
+      if (shield) { this.strike('bash'); return; }
+    }
+    if (turn && this.feet && armed && fe < 0.35 && dist > 2.6 && dist < 5.2 && this.lungeCool < 0) {   // a lunging cut
+      this.lungeCool = 3.5 + Math.random() * 3;
+      this.strike('attack3', 0.42);
+      return;
+    }
+    if (turn && this.feet && shield && this.canSee && !this.rushCool && dist > 5.5 && dist < 11 && fe < 0.4) {   // the shield charge
+      this.state = 'charge'; this.rushT = 2.4; this.rushCool = 7 + Math.random() * 5;
+      this.foes.voice(this, 'alert');
+      return;
+    }
+    if (dist < 0.95) { this.go(dt, player.pos, K.walk * 0.8, { face: player.pos, back: true }); return; }
+    if (turn) {
+      const close = dist < K.reach * 1.05;
+      this.go(dt, this.flanked(player, dist), close ? 0 : dist > 5 && this.feet ? K.run : K.walk * 1.2, close ? { face: player.pos } : {});
+      return;
+    }
+    // waiting its turn: round you a few strides off, facing you, shield up now and then
+    this.circleT = (this.circleT ?? 0) - dt;
+    if (this.circleT < 0) { this.circleT = 1.5 + Math.random() * 2.5; this.circleDir = Math.random() < 0.5 ? -1 : 1; }
+    if (shield && !this.blockCool && dist < 5 && Math.random() < dt * 0.35) { this.raiseShield(0.6 + Math.random() * 0.6); return; }
+    if (dist > 5.5 || !this.canSee) this.go(dt, this.route(player.pos), dist > 9 && this.feet ? K.run : K.walk);
+    else if (dist < 3.2) this.go(dt, player.pos, K.walk * 0.9, { face: player.pos, back: true });
+    else this.go(dt, player.pos, K.walk * 0.75, { face: player.pos, side: this.circleDir });
+  }
+
+  /** Two or three cuts one after another (attacking() strikes the rest while you're still there). */
+  combo(shield) {
+    const C = [['attack1', 'attack2'], ['attack2', 'attack1', 'attack3'], ['attack1', 'attack3'], ['attack2', 'attack3'], ['attack3', 'attack1']];
+    if (shield) C.push(['attack1', 'attack2', 'bash'], ['bash', 'attack2']);
+    const c = C[Math.floor(Math.random() * C.length)];
+    this.strike(c[0]);
+    this.comboQ = c.slice(1);
+  }
+
+  /** The shield charge: at a run straight at you behind the shield, and the bash when it gets there
+   * (spent after a couple of seconds, or when something stops it). */
+  charging(dt, player, dist, fe) {
+    this.rushT -= dt;
+    const K = this.kind, turn = K.turn * 0.8 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+    this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
+    const f = this.forward(_u), sp = K.run * 1.1 * this.pace * this.slow, x0 = this.pos.x, z0 = this.pos.z;
+    this.owner.physics.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
+    this.play('run', 0.2, sp / (K.gait?.run || K.run));
+    if (dist < K.reach + 0.4 && fe < 0.6) { this.strike('bash', 0.2); this.comboQ = this.arm('R') ? ['attack1'] : null; return; }
+    if (this.rushT <= 0 || !this.shield || Math.hypot(this.pos.x - x0, this.pos.z - z0) < sp * dt * 0.3) this.state = 'move';
+  }
+
+  // ---- the Vigil's adepts
+  /** An adept keeps a few strides off, circling, casting blood at you, calling Velscour's fire up
+   * under you and mending its wounded brothers; cornered, it cuts at you or blinks away. */
+  adept(dt, player, dist, fe) {
+    const K = this.kind, F = this.foes, now = this.owner.time, hands = this.arm('L') || this.arm('R');
+    if (dist < 2.4 && this.feet && !this.blinkCool && (now - (player.swingAt ?? -9) < 0.3 || Math.random() < dt * 0.8)) { this.state = 'blink'; this.play('blink', 0.1); return; }
+    if (dist < K.reach && fe < 0.5 && !this.cool && this.arm('R') && this.has('handR')) { this.combo(false); return; }
+    if (hands && !this.wardCool && !this.spellCool) {
+      const ally = F.wounded(this, 14);
+      if (ally) { this.state = 'cast'; this.spell = 'ward'; this.wardOn = ally; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
+    }
+    if (this.canSee && hands && !this.bigCool && dist > 4 && dist < 18) { this.state = 'cast'; this.spell = 'cast2'; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
+    if (this.canSee && hands && !this.spellCool && dist < 26 && fe < 0.3) { this.state = 'cast'; this.spell = 'cast1'; this.play('cast1', 0.1, 1.15); return; }
+    if (!this.canSee || dist > 12) { this.go(dt, this.route(player.pos), dist > 9 && this.feet ? K.run : K.walk); return; }
+    if (dist < 5) { this.go(dt, player.pos, K.walk, { face: player.pos, back: true }); return; }
+    this.circleT = (this.circleT ?? 0) - dt;
+    if (this.circleT < 0) { this.circleT = 1.5 + Math.random() * 2.5; this.circleDir = Math.random() < 0.5 ? -1 : 1; }
+    this.go(dt, player.pos, K.walk * 0.8, { face: player.pos, side: this.circleDir });
+  }
+
+  knight(dt, player, dist, fe) {
+    const K = this.kind;
     // you squaring up to it with your eyes on it: it gets its shield up
     const pf = _u.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
     const toMe = _w.set(this.pos.x - player.pos.x, 0, this.pos.z - player.pos.z).normalize();
@@ -609,6 +768,10 @@ class Foe extends Zombie {
         from.addScaledVector(this.forward(_u), 0.25);
         this.foes.bolts.fire(from, player, this.def.spell, this);
         this.spellCool = 2.2 + Math.random() * 1.8;
+      } else if (this.spell === 'ward') {    // an adept mending a brother
+        this.foes.ward(this, this.wardOn);
+        this.wardCool = 12 + Math.random() * 6;
+        this.spellCool = 1.2;
       } else {
         if (this.def.big === 'summon') this.foes.summon(this, player);
         else this.foes.hex(this, player);
@@ -795,19 +958,21 @@ export class Foes {
     await this.loadItems(variants);
   }
 
-  /** The Sworn (sworn.js): each body (a villager and its armour set) loaded and put together once,
-   * on knight_a's clips, then their weapons. A phone loads the villagers' phone copies, one body at
-   * a time. */
+  /** The Sworn (sworn.js): each body (a villager and its armour set, helmed or bareheaded, with
+   * the sorcerers' casting if it casts) put together once on knight_a's clips, then their weapons.
+   * Each villager and set is loaded once, and built from copies. A phone loads the villagers' phone
+   * copies, one body at a time. */
   async loadSworn(variants = SWORN) {
     const knight = this.gltf.knight_a || (await this.load(['knight_a']), this.gltf.knight_a);
-    const bodies = new Map();
-    const body = async (b) => {
-      const key = `${b.villager}|${b.armor}`;
+    const files = new Map(), bodies = new Map();
+    const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(url)); return files.get(url); };
+    const body = (b) => {
+      const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}`;
       if (!bodies.has(key)) bodies.set(key, (async () => {
-        const [villager, armor] = await Promise.all([
-          this.loader.loadAsync(`${VILLAGERS}${b.villager}.glb`),
-          this.loader.loadAsync(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`)]);
-        return swornBody(knight, villager, armor);
+        const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`)]);
+        if (b.casts && !this.gltf[b.casts]) await this.load([b.casts]);
+        return swornBody(knight, { scene: cloneSkinned(villager.scene) }, { scene: cloneSkinned(armor.scene) },
+          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null });
       })());
       return bodies.get(key);
     };
@@ -817,6 +982,14 @@ export class Foes {
     }
     for (const v of variants) this.gltf[v] = await body(FOES[v].body);
     await this.loadItems(variants);
+  }
+
+  /** How far out a Sworn's shield rides off the forearm (sworn.js's shieldLift), once per body
+   * and shield. */
+  lift(v, id, item) {
+    const key = `${v}|${id}`;
+    if (!(key in (this._lift ||= {}))) this._lift[key] = shieldLift(this.gltf[v], this.gltf[v].userData.foe.sockets.shieldL, item);
+    return this._lift[key];
   }
 
   /** The weapons and shields the variants carry, in each of their finishes. */
@@ -841,26 +1014,9 @@ export class Foes {
     }));
   }
 
-  /** The shield carry for a body (model space): the bind pose's arm (straight out along +x, the
-   * shield flat on the forearm, face up) turned so the upper arm hangs and the forearm points
-   * forward with the shield's face to the outside. Worked out once per variant. */
-  carry(f) {
-    const key = f.variant;
-    if (this._carry?.[key]) return this._carry[key];
-    const bindQ = (b) => {
-      const m = f.skel.boneInverses[f.skel.bones.indexOf(b)].clone().invert();
-      return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(m));
-    };
-    const X = new THREE.Vector3(1, 0, 0);
-    const up = new THREE.Vector3(0.3, -0.95, 0.08).normalize();
-    const d = new THREE.Vector3(0.12, -0.42, 0.9).normalize();                 // the forearm: forward, a little down
-    const o = new THREE.Vector3(1, -0.16, 0);                                   // its outer side (the shield's face): out,
-    o.addScaledVector(d, -o.dot(d)).normalize();                                // tipped so its top leans clear of the shoulder
-    const Ru = new THREE.Quaternion().setFromUnitVectors(X, up);
-    const Rf = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o)));
-    const c = { up: Ru.multiply(bindQ(f.bones.upper_armL)), fore: Rf.multiply(bindQ(f.bones.forearmL)) };
-    (this._carry ||= {})[key] = c;
-    return c;
+  /** The shield arm's carry and guard for a body (shieldPoses), worked out once per variant. */
+  poses(f) {
+    return (this._poses ||= {})[f.variant] ||= shieldPoses(f.skel, f.bones, !!f.def.body);
   }
 
   /** A socket of variant v as {bone, m (relative to the bone)}, worked out once per body. */
@@ -882,7 +1038,14 @@ export class Foes {
     const pick = (a) => a[Math.floor(Math.random() * a.length)];
     const finish = pick([def.finish || ''].flat());
     if (def.R) { const it = this.items[`${opts.weapon || pick(def.R)}|${finish}`]; if (it) f.hold('gripR', it.clone()); }
-    if (def.L) { const it = this.items[`${opts.shield || pick(def.L)}|${finish}`] || this.items[`${pick(def.L)}|${finish}`]; if (it) f.hold('shieldL', it.clone()); }
+    if (def.L) {                // a shield on the forearm (a Sworn's out as far as its dish needs), or an adept's wand
+      const id = opts.shield || pick(def.L), it = this.items[`${id}|${finish}`], sock = def.Lsock || 'shieldL';
+      if (it) {
+        const obj = it.clone();
+        if (def.body && sock === 'shieldL') obj.position.z = this.lift(v, id, it);
+        f.hold(sock, obj);
+      }
+    }
     phys.slide(f.pos, 0, 0, f.r, 1.6, 0.45);
     f.home.copy(f.pos);
     f.sync();
@@ -1081,6 +1244,48 @@ export class Foes {
     for (const p of keep.guards) n += put(p) ? 1 : 0;
     this.boss = put(keep.lord);
     console.info(`Blackvigil Keep: ${n} of the Sworn${this.boss ? ', and their lord' : ''}`);
+  }
+
+  /** Whether f may press you now: no more than two of the Sworn at a time, each for a while
+   * before it falls back (only if another is waiting) and lets the next one in. */
+  engage(f, player) {
+    const t = this.zombies.time, waiting = t - (this.waitT ?? -9) < 0.6;
+    this.pressing = (this.pressing || []).filter((q) => {
+      const stay = !q.dead && !q.gone && q.goal === 'chase' && Math.hypot(q.pos.x - player.pos.x, q.pos.z - player.pos.z) < 10 && (t - q.pressT < 6 || !waiting);
+      if (!stay) q.restT = t + 2 + Math.random() * 1.5;
+      return stay;
+    });
+    if (this.pressing.includes(f)) return true;
+    if (this.pressing.length >= 2 || (f.restT || 0) > t) { this.waitT = t; return false; }
+    f.pressT = t;
+    this.pressing.push(f);
+    return true;
+  }
+
+  /** The most wounded of the Sworn within r of `by` (under 60% of its life), or null. */
+  wounded(by, r) {
+    let best = null;
+    for (const z of this.zombies.list) {
+      if (z === by || z.dead || z.gone || !z.def?.body || z.hp > z.kind.hp * 0.6) continue;
+      if (Math.hypot(z.pos.x - by.pos.x, z.pos.z - by.pos.z) > r || Math.abs(z.pos.y - by.pos.y) > 2) continue;
+      if (!best || z.hp / z.kind.hp < best.hp / best.kind.hp) best = z;
+    }
+    return best;
+  }
+
+  /** An adept mends a brother: Velscour's blood swirls up round him and closes a third of his wounds. */
+  ward(by, f) {
+    if (!f || f.dead || f.gone) return;
+    f.hp = Math.min(f.kind.hp, f.hp + f.kind.hp * 0.35);
+    const S = SPELL[by.def.spell] || SPELL.blood, g = this.zombies.gore;
+    const col = [new THREE.Color(S.glow), new THREE.Color(S.core), new THREE.Color(1, 0.8, 0.4)];
+    for (let i = 0; i < 70; i++) {
+      const a = Math.random() * 6.28, r = 0.4 + Math.random() * 0.4;
+      g.drop(_t.copy(f.pos).add(_u.set(Math.cos(a) * r, 0.2 + Math.random() * 1.8 * f.size, Math.sin(a) * r)),
+        _v.set(-Math.cos(a) * 0.6, 1.5 + Math.random() * 2, -Math.sin(a) * 0.6), 0.012, col[i % 3]);
+    }
+    this.flash(f.pos.clone().add(_u.set(0, 1.4, 0)), S.glow, 0.5);
+    this.sound('cast', f.pos, by.def.spell);
   }
 
   /** The lord is dead: his light goes out, and the seal on the chest behind him breaks. */
