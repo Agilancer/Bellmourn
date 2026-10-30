@@ -23,8 +23,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
+import { TOUCH } from './input.js';
 
-const ROOT = 'templates/models/creatures/villagers/';
+// a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
+// image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
+// gigabyte between the decoded images and the GPU, and the tab died
+const ROOT = 'templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : '');
 const ARMOR = 'templates/models/armor/';
 // who lives here: model, name, what others call them, their callings, the house they live in, and
 // the armour set they wear
