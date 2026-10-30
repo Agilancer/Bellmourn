@@ -46,7 +46,10 @@ On a phone, turn it sideways: left thumb moves (push it right out to run), right
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
 the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
 frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
-map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view.
+map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
+loads the monsters' phone copies (`templates/models/creatures/monsters/phone/`, their skins at
+1024), one at a time; re-run `python tools/creatures/monsters_phone.py` whenever a monster's
+`.glb` changes.
 
 Bellmourn's people walk its streets by day (`villagers.js`: made from the foes' bodies,
 repainted, men, women, children, the old and the watch) and go home at dusk. `gear.js` and
