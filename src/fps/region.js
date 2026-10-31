@@ -73,8 +73,10 @@ export function buildRegion(ctx, M, hm) {
   windmill(ctx, M, mill.x, mill.z, mill.y, hm);
 
   // ---------------------------------------------------------------- the hamlet
+  // (the bookshelf against the north wall, or the south where the door is in the north)
   homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0,
-    furnish: [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2], ['bookshelf', 1.5, -h.d / 2 + 0.6, 0]] },
+    furnish: [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2],
+      h.door === 'n' ? ['bookshelf', 1.5, h.d / 2 - 0.6, Math.PI] : ['bookshelf', 1.5, -h.d / 2 + 0.6, 0]] },
   M, { ...hm, ...hm.perHouse(3 + i) }));
   for (const h of homes) { // a little clutter by each home
     S(['town_scatter_16_firewood_stack', 'town_scatter_01_closed_barrel', 'town_scatter_31_vegetable_basket', 'town_scatter_17_workbench'][homes.indexOf(h)], h.x + h.w / 2 + 2, h.z - 2);

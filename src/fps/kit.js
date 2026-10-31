@@ -296,7 +296,7 @@ export class Kit {
     const solid = opts.solid ?? (!/tree|plant/.test(info.category || '') && !(info.tags || []).includes('plant'));
     if (solid === 'trunk') {
       const r = Math.max(0.18, Math.min(0.6, 0.12 * size / 4)) ;
-      this.physics.add([x - r, y, z - r], [x + r, y + Math.min(6, (hi[1]) * S[1]), z + r], opts.tag || 'tree');
+      this.physics.add([x - r, y, z - r], [x + r, y + Math.min(6, (hi[1]) * S[1]), z + r], opts.tag || 'tree').src = id;
     } else if (solid) {
       const p = new THREE.Vector3(), mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
       for (const cx of [lo[0], hi[0]]) for (const cy of [lo[1], hi[1]]) for (const cz of [lo[2], hi[2]]) {
@@ -304,7 +304,7 @@ export class Kit {
         mn[0] = Math.min(mn[0], p.x); mn[1] = Math.min(mn[1], p.y); mn[2] = Math.min(mn[2], p.z);
         mx[0] = Math.max(mx[0], p.x); mx[1] = Math.max(mx[1], p.y); mx[2] = Math.max(mx[2], p.z);
       }
-      if (mx[1] - mn[1] > 0.12) this.physics.add(mn, mx, opts.tag || 'prop');
+      if (mx[1] - mn[1] > 0.12) this.physics.add(mn, mx, opts.tag || 'prop').src = id;
     }
     // flames (near ones merged: a candle's wick is one flame)
     if (opts.flames !== false && info.flames?.length) {
