@@ -46,11 +46,17 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Left click | right hand: swing, or shoot with a staff |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
+<<<<<<< HEAD
+| E | open and close doors (the interact key) |
+| Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
+| 1 to 5 | quick-equip sword, greatsword, staff, round shield, kite shield |
+=======
 | E | open and close doors, search chests, crates, barrels, sacks and pots |
 | Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
 | 1 to 5 | quick-equip the first one-hander, two-hander, staff, round shield or kite shield in the bag |
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
+>>>>>>> origin/main
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
 You set out with a plain sword and round shield in hand and a staff in the bag (with a

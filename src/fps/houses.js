@@ -125,24 +125,46 @@ export function house(ctx, h) {
     });
   }
   // ---------------------------------------------------------------- floors and the stair
+<<<<<<< HEAD
+  // the stair runs up the long side away from a side door (one beside the door would come down
+  // right into the doorway); sx is the side it's on
+  const sx = doorSide === 'x+' ? -1 : 1;
+  const stair = S > 1 && h.d >= 3 ? { x: sx * (W / 2 - 1.25), z0: D / 2 - 0.9, len: 4.6 } : null;
+  const floorId = (st) => (st === 0 ? (h.floor || (brick ? 'Floor_UnevenBrick' : 'Floor_WoodDark')) : (R() < 0.5 ? 'Floor_WoodDark' : 'Floor_WoodLight'));
+  physics.add(...F.box(-W / 2, -0.25, -D / 2, W / 2, 0, D / 2), 'floor'); // the ground floor (a house on stilts has no ground under it)
+  for (let st = 0; st < S; st++) {
+    for (let i = 0; i < h.w; i++) for (let k = 0; k < h.d; k++) {
+      const fx = -W / 2 + 1 + i * 2, fz = -D / 2 + 1 + k * 2;
+      if (st > 0 && stair && sx * fx > W / 2 - 2.1 && fz > stair.z0 - stair.len - 0.9) continue; // the stairwell
+=======
   const stair = S > 1 && h.d >= 3 ? { x: W / 2 - 1.25, z0: D / 2 - 0.9, len: 4.6 } : null;
   const floorId = (st) => (st === 0 ? (h.floor || (brick ? 'Floor_UnevenBrick' : 'Floor_WoodDark')) : (R() < 0.5 ? 'Floor_WoodDark' : 'Floor_WoodLight'));
   for (let st = 0; st < S; st++) {
     for (let i = 0; i < h.w; i++) for (let k = 0; k < h.d; k++) {
       const fx = -W / 2 + 1 + i * 2, fz = -D / 2 + 1 + k * 2;
       if (st > 0 && stair && fx > W / 2 - 2.1 && fz > stair.z0 - stair.len - 0.9) continue; // the stairwell
+>>>>>>> origin/main
       if (st > 0 && ruin && R() < 0.4) continue;
       put(floorId(st), fx, st * H + 0.012, fz, 0);
     }
     if (st > 0) { // the upper floor's collider (round the stairwell) and the joists' trims
       const y = st * H;
       const cut = stair ? W / 2 - 2.1 : W / 2;
+<<<<<<< HEAD
+      let b = sx > 0 ? F.box(-W / 2, y - 0.25, -D / 2, cut, y, D / 2) : F.box(-cut, y - 0.25, -D / 2, W / 2, y, D / 2); physics.add(...b, 'floor');
+      if (stair) { b = sx > 0 ? F.box(cut, y - 0.25, -D / 2, W / 2, y, stair.z0 - stair.len - 0.9) : F.box(-W / 2, y - 0.25, -D / 2, -cut, y, stair.z0 - stair.len - 0.9); physics.add(...b, 'floor'); }
+      if (stair) {
+        put('HoleCover_Straight', sx * (W / 2 - 1), y, stair.z0 - stair.len + 0.3, 0);
+        put('HoleCover_90Stairs', sx * (W / 2 - 2.1), y, stair.z0 - stair.len / 2, sx > 0 ? Math.PI : 0);
+        put('HoleCover_StraightHalf', sx * (W / 2 - 0.5), y, stair.z0 + 0.4, Math.PI);
+=======
       let b = F.box(-W / 2, y - 0.25, -D / 2, cut, y, D / 2); physics.add(...b, 'floor');
       if (stair) { b = F.box(cut, y - 0.25, -D / 2, W / 2, y, stair.z0 - stair.len - 0.9); physics.add(...b, 'floor'); }
       if (stair) {
         put('HoleCover_Straight', W / 2 - 1, y, stair.z0 - stair.len + 0.3, 0);
         put('HoleCover_90Stairs', W / 2 - 2.1, y, stair.z0 - stair.len / 2, Math.PI);
         put('HoleCover_StraightHalf', W / 2 - 0.5, y, stair.z0 + 0.4, Math.PI);
+>>>>>>> origin/main
       }
     }
   }
@@ -213,10 +235,13 @@ export function house(ctx, h) {
   // ---------------------------------------------------------------- the interior
   const [mn, mx] = F.box(-W / 2 + 0.3, h.y - 0.5, -D / 2 + 0.3, W / 2 - 0.3, h.y + S * H + 2, D / 2 - 0.3);
   const zone = { x0: mn[0], z0: mn[2], x1: mx[0], z1: mx[2], y0: h.y - 1, y1: h.y + S * H + 3, floor: h.y, storeys: S, name: h.title || h.name || 'A house', kind: h.name };
+<<<<<<< HEAD
+=======
   // the step outside the front door (where those who live here come and go)
   const [dx, dz] = doorSide === 'x+' ? [W / 2 + 1.6, D / 2 - 1 - doorAt * 2] : [-W / 2 + 1 + doorAt * 2, D / 2 + 1.6];
   const dp = F.p(dx, 0, dz);
   zone.door = { x: dp[0], z: dp[2] };
+>>>>>>> origin/main
   if (h.furnish) furnish(ctx, h, F, W, D, S, stair, doorSide, R);
   return zone;
 }
@@ -246,6 +271,44 @@ const SETS = {
   shrine: [['bellmourn/shrine', 1], ['props/CandleStick_Stand', 2], ['props/Candle_1', 4], ['props/Chalice', 1], ['props/Banner_2', 1, 'wall']],
 };
 
+<<<<<<< HEAD
+/** Furniture along the inside walls, big pieces down the middle, small things on tables; each
+ * piece only where it fits. Kept clear: an apron inside the door, the stair and the way onto it,
+ * and a walkway (from the door across the house, and down its length), so every part of the
+ * floor can be got to; pieces down the middle keep room to walk round them. */
+function furnish(ctx, h, F, W, D, S, stair, doorSide, R) {
+  const { kit } = ctx;
+  const list = (Array.isArray(h.furnish) ? h.furnish : SETS[h.furnish] || SETS.home).flatMap(([id, n, where]) => Array.from({ length: n }, () => [id, where]));
+  const doorAt = Math.floor((doorSide === 'x+' ? h.d : h.w) / 2);
+  const dx = -W / 2 + 1 + doorAt * 2, dz = D / 2 - 1 - doorAt * 2; // the door, on z+ or x+
+  // local rects [x0, z0, x1, z1]: `taken` stops everything solid, `lane` only what stands at the walls
+  const taken = [doorSide === 'x+' ? [W / 2 - 2.2, dz - 0.9, W / 2, dz + 0.9] : [dx - 0.9, D / 2 - 2.2, dx + 0.9, D / 2]];
+  if (stair) taken.push([stair.x - (stair.x > 0 ? 1.85 : 0.85), stair.z0 - stair.len - 0.3, stair.x + (stair.x > 0 ? 0.85 : 1.85), D / 2]);
+  const lane = doorSide === 'x+' ? [[-W / 2, dz - 0.55, W / 2, dz + 0.55], [-0.55, -D / 2, 0.55, D / 2]] : [[dx - 0.55, -D / 2, dx + 0.55, D / 2]];
+  const room = [-W / 2 + 0.3, -D / 2 + 0.3, W / 2 - 0.3, D / 2 - 0.3];
+  const hit = (f, rs, pad) => rs.some((t) => f[0] < t[2] + pad && f[2] > t[0] - pad && f[1] < t[3] + pad && f[3] > t[1] - pad);
+  /** Room for id at (x, z) turned a (pushed off the walls if it pokes through one)? Returns the
+   * spot it settles at, and takes its floor. */
+  const fit = (id, x, z, a, mid) => {
+    let f = kit.footprint(id, x, z, a, 1);
+    if (!f) return [x, z];
+    const sx = Math.max(0, room[0] - f[0]) - Math.max(0, f[2] - room[2]), sz = Math.max(0, room[1] - f[1]) - Math.max(0, f[3] - room[3]);
+    x += sx; z += sz; f = [f[0] + sx, f[1] + sz, f[2] + sx, f[3] + sz];
+    if (f[0] < room[0] - 0.01 || f[1] < room[1] - 0.01 || f[2] > room[2] + 0.01 || f[3] > room[3] + 0.01) return null; // too big for the room
+    if (mid ? hit(f, taken, 0.8) || f[0] < room[0] + 0.7 || f[2] > room[2] - 0.7 || f[1] < room[1] + 0.7 || f[3] > room[3] - 0.7 : hit(f, taken, 0.15) || hit(f, lane, 0)) return null;
+    taken.push(f);
+    return [x, z];
+  };
+  const spots = [];
+  const inset = 0.95;
+  for (let x = -W / 2 + 1.4; x <= W / 2 - 1.4; x += 1.6) { spots.push([x, -D / 2 + inset, 0]); spots.push([x, D / 2 - inset, Math.PI]); }
+  for (let z = -D / 2 + 1.6; z <= D / 2 - 1.6; z += 1.6) { spots.push([-W / 2 + inset, z, Math.PI / 2]); spots.push([W / 2 - inset, z, -Math.PI / 2]); }
+  const mid = [];
+  for (let x = -W / 2 + 2.5; x <= W / 2 - 2.5; x += 2.4) for (let z = -D / 2 + 2.5; z <= D / 2 - 2.5; z += 2.6) mid.push([x, z]);
+  for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+  let si = 0, mi = 0;
+  const used = new Set();
+=======
 /** Furniture along the inside walls (clear of the door and the stair), small things on tables. */
 function furnish(ctx, h, F, W, D, S, stair, doorSide, R) {
   const { kit } = ctx;
@@ -258,14 +321,43 @@ function furnish(ctx, h, F, W, D, S, stair, doorSide, R) {
   for (let x = -W / 2 + 2.5; x <= W / 2 - 2.5; x += 2.4) for (let z = -D / 2 + 2.5; z <= D / 2 - 2.5; z += 2.6) if (!(stair && x > W / 2 - 3)) mid.push([x, z]);
   for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
   let si = 0, mi = 0;
+>>>>>>> origin/main
   for (const [id, where] of list) {
     if (!kit.has(id)) continue;
     const big = /Table_Large|Bench|Bed|Workbench|Anvil|haystack|Cauldron|Dummy/.test(id);
     if (where === 'ceiling') { const [x, z] = mid[mi % Math.max(1, mid.length)] || [0, 0]; mi++; kit.place(id, ...F.p(x, S * H - 1.7, z), F.r(0), 1, { solid: false }); continue; }
+<<<<<<< HEAD
+    if (where === 'wall') { // hung on a wall: nothing to walk into
+      const k = spots.findIndex((s, n) => !used.has(n));
+      if (k < 0) continue;
+      used.add(k);
+      kit.place(id, ...F.p(spots[k][0], 1.2, spots[k][1]), F.r(spots[k][2]), 1, { solid: false });
+      continue;
+    }
+    if (big && mi < mid.length) {
+      const [x, z] = mid[mi++], a = R() < 0.5 ? 0 : Math.PI / 2;
+      const at = fit(id, x, z, a, true) ? [x, z, a] : fit(id, x, z, a + Math.PI / 2, true) ? [x, z, a + Math.PI / 2] : null;
+      if (at) { kit.place(id, ...F.p(at[0], 0.02, at[1]), F.r(at[2]), 1); continue; }
+    }
+    const small = /Mug|Bottle|Potion|Candle|Book|Scroll|Plate|Knife|Chalice/.test(id);
+    // the next wall spot where it fits (turned along the wall if it won't fit facing out)
+    for (let n = si; n < spots.length; n++) {
+      if (used.has(n)) continue;
+      const [x, z, a0] = spots[n];
+      let a = a0 + (R() - 0.5) * 0.3, at = small ? [x, z] : fit(id, x, z, a, false);
+      if (!at) { a += Math.PI / 2; at = fit(id, x, z, a, false); }
+      if (!at) continue;
+      used.add(n);
+      kit.place(id, ...F.p(at[0], 0.02, at[1]), F.r(a), 1, { solid: !small });
+      break;
+    }
+    while (used.has(si)) si++;
+=======
     if (big && mi < mid.length) { const [x, z] = mid[mi++]; kit.place(id, ...F.p(x, 0.02, z), F.r(R() < 0.5 ? 0 : Math.PI / 2), 1); continue; }
     if (si >= spots.length) break;
     const [x, z, a] = spots[si++];
     const y = where === 'wall' ? 1.2 : 0.02;
     kit.place(id, ...F.p(x, y, z), F.r(a + (R() - 0.5) * 0.3), 1, { solid: !/Mug|Bottle|Potion|Candle|Book|Scroll|Plate|Knife|Chalice/.test(id) && where !== 'wall' });
+>>>>>>> origin/main
   }
 }

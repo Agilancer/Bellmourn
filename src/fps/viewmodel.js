@@ -191,6 +191,21 @@ export class ViewModel {
     await this.applyEquip();
   }
 
+  /** The models `kind` can be ([{id, name}]; none for kinds without a choice). */
+  models(kind) {
+    return MODEL_TYPE[kind] ? (this.manifest.items[kind] || []).map((e) => ({ id: e.id, name: e.name })) : [];
+  }
+
+  /** Make `kind` that model (dropping a loot drop's power) and re-arm the hands. */
+  async setModel(kind, id) {
+    const e = this.models(kind).find((m) => m.id === id);
+    if (!e) return;
+    Object.assign(ITEMS[kind], { id, name: e.name, type: MODEL_TYPE[kind], power: undefined });
+    if (ITEMS[kind].both) ITEMS[kind].roll = ROLLED.has(id) ? ROLL_2H : undefined;
+    this.itemCache.delete(kind);
+    await this.applyEquip();
+  }
+
   /** A retro-filtered, lit material for a model's skin: steel and gilt catch the light. */
   skin(o, item) {
     o.frustumCulled = false;

@@ -15,8 +15,11 @@ import * as THREE from 'three';
 
 const G = 0.5;                                    // grid step (metres)
 const DEEP = -9;                                  // the cavern floor (well under the 'under' line)
+<<<<<<< HEAD
+=======
 const MIN_H = 3.4;                                // the least headroom anywhere you can walk
 const CURL = -0.3;                                // the roof stays full height to this far from the wall
+>>>>>>> origin/main
 
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
 function vnoise(x, z) {
@@ -41,7 +44,11 @@ function layout() {
   room(22, -47, 9, 8, DEEP - 1.6, 4.0, 'nest');
   pass([[37, 14], [35, 26], [30, 39]], 2.1, DEEP - 0.4, DEEP - 0.2, 3.6, 'south');
   room(28, 49, 10, 9, DEEP - 0.2, 5.0, 'warren');
+<<<<<<< HEAD
+  pass([[12, -1], [11, -11], [8, -21]], 1.5, null, DEEP - 2.6, 3.0, 'stair');      // down from the tunnel to the shrine
+=======
   pass([[12, -1], [11, -11], [8, -21], [7, -24]], 1.5, null, DEEP - 2.6, 3.0, 'stair');      // down from the tunnel to the shrine
+>>>>>>> origin/main
   room(6, -27, 5.5, 5, DEEP - 2.6, 3.2, 'shrine');
   pass([[30, -47], [41, -38], [46, -22], [47, -4]], 1.6, DEEP - 1.6, DEEP - 0.6, 3.0, 'loop');
   pass([[47, -4], [47, 14], [44, 27]], 1.6, DEEP - 0.6, DEEP - 0.4, 3.0, 'loop');
@@ -50,6 +57,8 @@ function layout() {
   return F;
 }
 
+<<<<<<< HEAD
+=======
 /** The Drowned Grotto, beside Brightwater Falls: a tunnel that turns south under the cliff to a
  * flooded chamber round a pool, a gallery on to a cistern, a drain down to a drowned shrine, and a
  * passage round between them. */
@@ -97,6 +106,7 @@ export const TROLL_DECOR = {
   bones: [['lair', 8], ['larder', 8], ['gnaw', 2]],
 };
 
+>>>>>>> origin/main
 /** Signed distance (negative inside), floor and height of one feature at (a, b). */
 function feature(f, a, b, entryFloor = () => 0) {
   if (f.type === 'room') {
@@ -182,6 +192,12 @@ function mushroomGeometry() {
   return g;
 }
 
+<<<<<<< HEAD
+export class Cave {
+  constructor(ctx, { z = -14 } = {}) {
+    this.ctx = ctx;
+    this.name = 'The Gloamhollow';
+=======
 /** How the Gloamhollow is furnished: stalagmites, fungus, its two lights, torches, bones. Any
  * cave can bring its own (tags are its features'). */
 const DECOR = {
@@ -200,6 +216,7 @@ export class Cave {
     this.name = name;
     this.decor = decor;
     this.seed = seed;
+>>>>>>> origin/main
     const phys = this.phys = ctx.physics;
     const H = (x, z2) => phys.groundAt(x, z2);
     // the mouth: at the foot of the cliff, where the ground starts climbing steeper than 45 degrees
@@ -210,6 +227,11 @@ export class Cave {
     this.px = px; this.pz = z;
     const gMouth = H(xf, z);
     this.mouth = new THREE.Vector3(px - 5, H(px - 5, z), z);
+<<<<<<< HEAD
+    const F = this.features = layout();
+    // the grid, in the cave's frame: a = x - px, b = z - pz
+    const a0 = -6, a1 = 54, b0 = -60, b1 = 62;
+=======
     const F = this.features = plan();
     // the grid, in the cave's frame: a = x - px, b = z - pz, round whatever the layout reaches
     let a1 = 10, b0 = 0, b1 = 0;
@@ -219,12 +241,23 @@ export class Cave {
     }
     const a0 = -6;
     a1 = Math.ceil(a1 + 4); b0 = Math.floor(b0 - 4); b1 = Math.ceil(b1 + 4);
+>>>>>>> origin/main
     this.a0 = a0; this.b0 = b0;
     const nx = this.nx = Math.round((a1 - a0) / G) + 1, nz = this.nz = Math.round((b1 - b0) / G) + 1;
     const N = nx * nz;
     const S = this.s = new Float32Array(N), FL = this.floor = new Float32Array(N), HT = this.height = new Float32Array(N);
     // the entrance runs down from the ground at the mouth; the shrine stair leaves it 12 m in
     F[0].f0 = gMouth;
+<<<<<<< HEAD
+    F.find((f) => f.tag === 'stair').f0 = feature(F[0], 12, -1).floor;
+    const entry = () => gMouth;
+    for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+      const a = a0 + i * G, b = b0 + k * G, x = px + a, zz = z + b;
+      let ws = 0, wf = 0, wh = 0, smin = Infinity, sEntry = Infinity;
+      for (const f of F) {
+        const r = feature(f, a, b, entry);
+        if (f === F[0]) sEntry = r.s;
+=======
     const stair = F.find((f) => f.tag === 'stair');
     if (stair) stair.f0 = feature(F[0], 12, -1).floor;
     const entry = () => gMouth;
@@ -233,11 +266,22 @@ export class Cave {
       let ws = 0, wf = 0, wh = 0, smin = Infinity;
       for (const f of F) {
         const r = feature(f, a, b, entry);
+>>>>>>> origin/main
         if (r.s < smin) smin = r.s;
         const w = Math.exp(-2.2 * Math.max(r.s, -3));
         ws += w; wf += w * r.floor; wh += w * r.h;
       }
       let floor = wf / ws, h = wh / ws;
+<<<<<<< HEAD
+      // a rough edge, a bowl for the pool in the cavern
+      let s = smin + (fbm(x * 0.35, zz * 0.35) - 0.5) * 1.6 * (0.15 + 0.85 * smooth(3, 9, a));
+      const dp = Math.hypot(a - 36, b - 6);
+      floor -= 1.1 * Math.max(0, 1 - (dp / 6.5) ** 2);
+      floor += (fbm(x * 0.6 + 7, zz * 0.6) - 0.5) * 0.35 * smooth(2, 10, a);
+      h += (fbm(x * 0.3 + 3, zz * 0.3 + 9) - 0.5) * 1.2 * smooth(4, 10, a);
+      if (a < 0) { floor = H(x, zz); h = 3.8; }                     // outside: the ground itself
+      else if (a < 4 && sEntry < 2) floor = lerp(gMouth, floor, smooth(0, 4, a)); // (the tunnel's, not the shrine's under the cliff)
+=======
       // a rough edge, a bowl for the pool
       let s = smin + (fbm(x * 0.35, zz * 0.35) - 0.5) * 1.6 * (0.15 + 0.85 * smooth(3, 9, a));
       if (water) floor -= 1.1 * Math.max(0, 1 - (Math.hypot(a - water.a, b - water.b) / (water.r + 0.3)) ** 2);
@@ -246,11 +290,25 @@ export class Cave {
       h = Math.max(h, MIN_H);                                       // never a low roof to stoop under
       if (a < 0) { floor = H(x, zz); h = 3.8; }                     // outside: the ground itself
       else if (a < 4) floor = lerp(gMouth, floor, smooth(0, 4, a));
+>>>>>>> origin/main
       // never closer than 1.5 m to the land above (away from the mouth)
       if (a > 3 && H(x, zz) < floor + h + 1.5) s = Math.max(s, 0.5);
       const j = k * nx + i;
       S[j] = s; FL[j] = floor; HT[j] = h;
     }
+<<<<<<< HEAD
+    // the tunnel down from the mouth no steeper than a step (0.4 m each half metre), so it can be
+    // walked back up: any floor too far below the one before it is raised (the roof stays put)
+    for (let i = 1; i < nx; i++) for (let k = 0; k < nz; k++) {
+      const j = k * nx + i;
+      if (a0 + i * G < 0 || S[j] > 0.3 || feature(F[0], a0 + i * G, b0 + k * G, entry).s > 1.5) continue;
+      let lim = -Infinity;
+      for (let dk = -1; dk <= 1; dk++) { const q = (k + dk) * nx + i - 1; if (k + dk >= 0 && k + dk < nz && S[q] < 0.3) lim = Math.max(lim, FL[q] - 0.4); }
+      if (FL[j] < lim) { HT[j] -= lim - FL[j]; FL[j] = lim; }
+    }
+    this.water ={ x: px + 36, z: z + 6, r: 6.2, y: DEEP - 0.4 - 0.45 };
+    this.build();
+=======
     if (water) {      // the surface sits a little under the floor round the bowl
       const ring = feature(F.reduce((m, f) => (feature(f, water.a, water.b).s < feature(m, water.a, water.b).s ? f : m)), water.a, water.b);
       this.water = { x: px + water.a, z: z + water.b, r: water.r, y: ring.floor - 0.45 };
@@ -315,6 +373,7 @@ export class Cave {
       if (pts.some(([a, b]) => { const j = this.idx(this.px + a, this.pz + b); return j < 0 || !seen[j]; })) out.push(f.tag);
     }
     return [...new Set(out)];
+>>>>>>> origin/main
   }
 
   idx(x, z) {
@@ -339,9 +398,13 @@ export class Cave {
     // ------------------------------------------------ the rock: floor and roof curling into walls
     const pos = [], col = [], idxF = [], idxC = [];
     const vid = new Int32Array(nx * nz * 2).fill(-1);
+<<<<<<< HEAD
+    const lift = (j) => smooth(-1.2, 0.9, S[j]) * (HT[j] * 0.5 + 0.35);
+=======
     // the roof keeps its height over all the floor you can stand on and curls down into the walls
     // only past it (the player keeps 0.32 m off them)
     const lift = (j) => smooth(CURL, 0.9, S[j]) * (HT[j] * 0.5 + 0.35);
+>>>>>>> origin/main
     const vert = (j, roof) => {
       const key = j * 2 + (roof ? 1 : 0);
       if (vid[key] >= 0) return vid[key];
@@ -387,7 +450,11 @@ export class Cave {
     // ------------------------------------------------ the mouth: the cliff opened, the ground dropped
     const HW = 1.9;                                     // the cut's half width
     const hx0 = px - 1.0, hx1 = px + 2.5, hz0 = pz - HW, hz1 = pz + HW;
+<<<<<<< HEAD
+    const yTop = this.floorAt(px + 0.5, pz) + 3.0;
+=======
     const yTop = this.floorAt(px + 0.5, pz) + MIN_H + 0.6;          // (the ground is cut up to 0.6 under this)
+>>>>>>> origin/main
     if (ctx.land?.hole) ctx.land.hole(hx0, hz0, hx1, hz1, yTop, this.phys);
     else this.phys.groundHoles.push([hx0, hz0, hx1, hz1]);
     (this.phys.belowGround ||= []).push((p) => this.contains(p));    // you may be under the land in here
@@ -451,6 +518,17 @@ export class Cave {
     }
 
     // ------------------------------------------------ the pool, the fungus, the spikes of rock
+<<<<<<< HEAD
+    const w = this.water;
+    const wm = new THREE.Mesh(new THREE.CircleGeometry(w.r, 32).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({
+      color: 0x041014, emissive: 0x03181c, specular: 0x5ab8c0, shininess: 120, transparent: true, opacity: 0.82 }));
+    wm.position.set(w.x, w.y, w.z);
+    ctx.scene.add(wm);
+    this.waterMesh = wm;
+    const R = (() => { let q = 9001; return () => { q = (q * 16807) % 2147483647; return q / 2147483647; }; })();
+    const spot = (tag, inset = 1.5) => {          // a random open point in a chamber, `inset` from its walls
+      const f = this.features.find((ff) => ff.tag === tag);
+=======
     const w = this.water || { x: 1e9, z: 1e9, r: 0 };
     if (this.water) {
       const wm = new THREE.Mesh(new THREE.CircleGeometry(w.r, 32).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({
@@ -463,6 +541,7 @@ export class Cave {
     const spot = (tag, inset = 1.5) => {          // a random open point in a chamber, `inset` from its walls
       const f = this.features.find((ff) => ff.tag === tag);
       if (!f) return null;
+>>>>>>> origin/main
       for (let t = 0; t < 60; t++) {
         let a, b;
         if (f.type === 'room') { const ang = R() * 6.283, r = Math.sqrt(R()); a = f.a + Math.cos(ang) * f.ra * r; b = f.b + Math.sin(ang) * f.rb * r; }
@@ -475,11 +554,23 @@ export class Cave {
     this.spot = spot;
     // stalagmites and stalactites
     const spikes = [];
+<<<<<<< HEAD
+    for (const [tag, n] of [['cavern', 26], ['nest', 10], ['warren', 12], ['bones', 4], ['shrine', 4]]) {
+=======
     for (const [tag, n] of this.decor.spikes) {
+>>>>>>> origin/main
       for (let q = 0; q < n; q++) {
         const p = spot(tag, 1.6);
         if (!p) continue;
         const j = this.idx(p.x, p.z), roof = FL[j] + HT[j];
+<<<<<<< HEAD
+        if (R() < 0.45 && tag !== 'shrine') {               // up from the floor (not in the little shrine)
+          const r = 0.18 + R() * 0.35, h = 0.6 + R() * 2.2;
+          spikes.push(new THREE.ConeGeometry(r, h, 7).translate(p.x, p.y + h / 2 - 0.05, p.z));
+          if (r > 0.22) this.phys.add([p.x - r * 0.7, p.y - 0.2, p.z - r * 0.7], [p.x + r * 0.7, p.y + h * 0.8, p.z + r * 0.7], 'cave');
+        } else {                                             // down from the roof
+          const r = 0.12 + R() * 0.3, h = 0.5 + R() * Math.min(2.4, HT[j] * 0.35);
+=======
         if (R() < 0.45) {                                   // up from the floor
           const r = 0.18 + R() * 0.35, h = 0.6 + R() * 2.2;
           spikes.push(new THREE.ConeGeometry(r, h, 7).translate(p.x, p.y + h / 2 - 0.05, p.z));
@@ -487,6 +578,7 @@ export class Cave {
         } else {                                             // down from the roof, never below 2.6 m
           const r = 0.12 + R() * 0.3, h = Math.min(0.5 + R() * Math.min(2.4, HT[j] * 0.35), HT[j] - 2.6);
           if (h < 0.3) continue;
+>>>>>>> origin/main
           spikes.push(new THREE.ConeGeometry(r, h, 6).rotateX(Math.PI).translate(p.x, roof - h / 2 + 0.1, p.z));
         }
       }
@@ -509,7 +601,11 @@ export class Cave {
     }
     // glowing fungus in clusters, and the few lights in the dark
     const mg = mushroomGeometry();
+<<<<<<< HEAD
+    const clusters = [['cavern', 0x40d8e8, 7], ['warren', 0x7cff5a, 9], ['warren', 0xb8ff70, 6], ['shrine', 0xb070ff, 3], ['nest', 0x4060ff, 2], ['bones', 0x9cf0ff, 2]];
+=======
     const clusters = this.decor.fungus;
+>>>>>>> origin/main
     const fungus = [];
     for (const [tag, color, n] of clusters) for (let q = 0; q < n; q++) {
       const p = spot(tag, 0.6);
@@ -540,6 +636,50 @@ export class Cave {
       ctx.scene.add(l);
       this.lights.push({ l, power });
     };
+<<<<<<< HEAD
+    glow(new THREE.Vector3(w.x, w.y + 1.2, w.z), 0x2fc8d8, 5, 16);              // two lights only: lights are dear
+    const wf = this.features.find((f) => f.tag === 'warren');
+    glow(new THREE.Vector3(px + wf.a, DEEP + 2.2, pz + wf.b), 0x6aff4a, 4, 14);
+
+    // ------------------------------------------------ the kit: torches, bones, a fire, old stone
+    const kit = ctx.kit;
+    if (kit?.place) {
+      const P = (id, p, rot = 0, s = 1, solid = false) => kit.place(id, p.x, p.y, p.z, rot, s, { layer: 'under', solid, cull: 60 });
+      // torches on the walls of the lower tunnel and the cavern (none in the nest)
+      for (const [tag, n2] of [['entrance', 3], ['cavern', 5], ['warren', 2], ['shrine', 2]]) {
+        for (let q = 0, made = 0; q < 40 && made < n2; q++) {
+          const p = this.wallSpot(tag, R);
+          if (!p || p.y > -1.5) continue;
+          P('dungeon/Torch', p, p.rot);
+          made++;
+        }
+      }
+      for (let q = 0; q < 7; q++) { const p = spot('nest', 1.2); if (p) P(q % 3 ? 'dungeon/Skull' : 'bellmourn/bone_heap', p, R() * 6.28, 0.8 + R() * 0.5); }
+      for (let q = 0; q < 4; q++) { const p = spot('bones', 1.0); if (p) P(q % 2 ? 'bellmourn/bone_heap' : 'dungeon/Skull', p, R() * 6.28, 0.9 + R() * 0.4); }
+      // solid things only in the chambers, clear of where the passages come in (they're narrow)
+      const inPass = (p) => this.features.some((f) => f.type === 'pass' && feature(f, p.x - px, p.z - pz).s < 1.2);
+      const roomSpot = (tag, inset) => { for (let t = 0; t < 10; t++) { const p = spot(tag, inset); if (p && !inPass(p)) return p; } return null; };
+      for (const tag of ['nest', 'bones']) { const p = roomSpot(tag, 1.6); if (p) P('bellmourn/skull_pike', p, R() * 6.28, 1, true); }
+      for (let q = 0; q < 6; q++) { const p = this.wallSpot(['nest', 'north', 'loop', 'bones'][q % 4], R); if (p) P(q % 2 ? 'dungeon/Cobweb' : 'dungeon/Cobweb2', p.clone().add(new THREE.Vector3(0, 0.6, 0)), p.rot); }
+      const fire = spot('warren', 2.5);
+      if (fire) P('dungeon/Woodfire', fire, R() * 6.28, 1, false);
+      { // the shrine: its pedestal at the far end from the stair, a broken column either side
+        const f = this.features.find((ff) => ff.tag === 'shrine'), at = (a, b) => new THREE.Vector3(px + a, FL[this.idx(px + a, pz + b)], pz + b);
+        P('dungeon/Pedestal', at(f.a, f.b - 2.4), 0, 1, true);
+        for (const s of [-1, 1]) P('dungeon/Column~broken', at(f.a + s * 3.4, f.b - 0.6), R() * 6.28, 1, true);
+      }
+      for (let q = 0; q < 10; q++) { const p = roomSpot(['cavern', 'warren', 'nest', 'cavern', 'warren'][q % 5], 1.6); if (p) P(`ultimate/Rock_${1 + (q % 7)}`, p.clone().add(new THREE.Vector3(0, -0.15, 0)), R() * 6.28, 0.5 + R() * 0.6, true); }
+    }
+    // rocks heaped round the mouth outside, to frame it: either side of the opening, never in it
+    if (kit?.place) {
+      for (let q = 0; q < 6; q++) {
+        const id = `ultimate/Rock_Moss_${1 + (q % 7)}`, rot = R() * 6.28, s = 1.2 + R() * 0.9;
+        const f = kit.footprint(id, 0, 0, rot, s) || [-1, -1, 1, 1];
+        const side = q % 2 ? 1 : -1, x = px - 0.5 - R() * 2.5, z = pz + side * (2.8 + (side > 0 ? -f[1] : f[3]) + R() * 1.0); // the tunnel is 2.3 m wide each way
+        kit.place(id, x, this.phys.groundAt(x, z) - 0.2, z, rot, s, { solid: true, cull: 160 });
+      }
+    }
+=======
     if (this.water) glow(new THREE.Vector3(w.x, w.y + 1.2, w.z), 0x2fc8d8, 5, 16);   // few lights: lights are dear
     for (const [tag, color, power, dist] of this.decor.lights) {
       const lf = this.features.find((f) => f.tag === tag);
@@ -562,6 +702,7 @@ export class Cave {
       if (p && ctx.bill) ctx.bill.add(BONES[q % BONES.length], p.x, p.y, p.z, 1, 0.85);
     }
 
+>>>>>>> origin/main
     // the flow field's walkable cells (a margin off the walls)
     this.walk = new Uint8Array(nx * nz);
     for (let j = 0; j < nx * nz; j++) this.walk[j] = S[j] < -0.2 ? 1 : 0;
@@ -579,7 +720,10 @@ export class Cave {
   /** A point on the wall of a feature at torch height, facing in: Vector3 with .rot. */
   wallSpot(tag, R) {
     const f = this.features.find((ff) => ff.tag === tag);
+<<<<<<< HEAD
+=======
     if (!f) return null;
+>>>>>>> origin/main
     for (let t = 0; t < 30; t++) {
       let a, b;
       if (f.type === 'room') { const ang = R() * 6.283; a = f.a + Math.cos(ang) * f.ra * 0.8; b = f.b + Math.sin(ang) * f.rb * 0.8; }
@@ -660,6 +804,8 @@ export class Cave {
 }
 
 export function buildCave(ctx, opts) { return new Cave(ctx, opts); }
+<<<<<<< HEAD
+=======
 
 /** The cave as zombies.js sees an underground place: a 1 m grid of the cells that can be walked
  * (a margin off the walls), its floor, whether you are in it, and spots in its chambers. */
@@ -681,3 +827,4 @@ export function caveNav(cave) {
     mouth: cave.mouth,
   };
 }
+>>>>>>> origin/main

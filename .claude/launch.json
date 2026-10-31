@@ -21,6 +21,19 @@
       "autoPort": false
     },
     {
+<<<<<<< HEAD
+      "name": "bellmourn-kit",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/serve.py",
+        "8131"
+      ],
+      "port": 8131,
+      "autoPort": false
+    },
+    {
+=======
+>>>>>>> origin/main
       "name": "bellmourn-foes",
       "runtimeExecutable": "python",
       "runtimeArgs": [
@@ -29,6 +42,49 @@
       ],
       "port": 8135,
       "autoPort": false
+<<<<<<< HEAD
+    },
+    {
+      "name": "bellmourn-weapons",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tools/serve.py",
+        "8139"
+      ],
+      "port": 8139,
+      "autoPort": false
+    },
+    {
+      "name": "bellmourn-mobile",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-c",
+        "import os, runpy, sys; os.chdir('../Bellmourn-mobile'); sys.argv = ['serve.py', '8143']; runpy.run_path('tools/serve.py', run_name='__main__')"
+      ],
+      "port": 8143,
+      "autoPort": false
+    },
+    {
+      "name": "bellmourn-armor",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-c",
+        "import os, runpy, sys; os.chdir('../Bellmourn-armor'); sys.argv = ['serve.py', '8151']; runpy.run_path('tools/serve.py', run_name='__main__')"
+      ],
+      "port": 8151,
+      "autoPort": false
+    },
+    {
+      "name": "bellmourn-textures",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-c",
+        "import os, runpy, sys; os.chdir('../Bellmourn-textures'); sys.argv = ['serve.py', '8147']; runpy.run_path('tools/serve.py', run_name='__main__')"
+      ],
+      "port": 8147,
+      "autoPort": false
+=======
+>>>>>>> origin/main
     }
   ]
 }
