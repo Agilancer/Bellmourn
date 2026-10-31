@@ -21,6 +21,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Zombie, goreMaterial, wrap } from './zombies.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
+import { ualSource, UAL_URL } from './ual.js';
 import { TOUCH } from './input.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
@@ -88,25 +89,29 @@ const GAIT = { walk: 1.3, run: 3.5 };
 // sets): the helm's ram's horns and the cloth of the cape and loincloth. A colour multiplies the
 // piece's own texture (gilt horns average (0.31, 0.21, 0.07), the crimson cloth (0.39, 0.09,
 // 0.10)); null takes the piece off.
-const FITTINGS = [
+export const FITTINGS = [
   {},                                                                                     // gilt horns, crimson cloth
   { tarnished_gold_dark: [2.8, 3.8, 9.5], cloth_01: [0.1, 0.35, 0.35] },                  // bone horns, black cloth
   { tarnished_gold_dark: [0.3, 0.38, 1.0] },                                              // blackened horns
   { tarnished_gold_dark: [2.0, 0.4, 0.6], cloth_01: [0.57, 0.7, 3.0] },                   // blood-red horns, violet cloth
   { tarnished_gold_dark: null, cloth_01: [0.77, 3.2, 2.7] },                              // no horns, ash-grey cloth
 ];
-const STATS = {
+export const STATS = {
   sworn: { hp: 320, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
-    dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7 }, cool: [0.3, 0.85] },
+    dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7, lunge: 16 }, cool: [0.3, 0.85] },
   adept: { hp: 220, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
-    dmg: { attack1: 12, attack2: 15, attack3: 11 }, cool: [0.5, 1.1] },
+    dmg: { attack1: 12, attack2: 15, attack3: 11, lunge: 13 }, cool: [0.5, 1.1] },
   lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
-    dmg: { attack1: 24, attack2: 30, attack3: 22, bash: 14 }, cool: [0.6, 1.3] },
+    dmg: { attack1: 24, attack2: 30, attack3: 22, bash: 14, lunge: 26, heavy: 20 }, cool: [0.6, 1.3] },
 };
 const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
   upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 'cast2', 'blink', 'hit', 'shriek', 'death',
-  'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup']);
+  'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup',
+  'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy']);
+// the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
+// [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
+export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5] };
 const SPELL = { // bolt colour, its glow, damage
   arcane: { core: 0xe6b8ff, glow: 0x9a4cff, dmg: 10, speed: 14 },
   blood: { core: 0xffb0a0, glow: 0xff2a1a, dmg: 12, speed: 13 },
@@ -184,9 +189,12 @@ export function shieldPoses(skel, bones, sworn = false) {
 
 /** How the shield arm is posed in clip c: drawn into the carry by w (0: the clip's own), and (the
  * Sworn) how far into the guard (blocking, bashing, charging) or the swing (the wide third cut), and
- * whether the sword arm is cocked (the bash). */
-export function shieldArm(c, state, standing, sworn) {
-  if (!standing || ['collapse', 'getup', 'death', 'dead'].includes(c)) return { w: 0, guard: 0, swing: 0, cock: 0 };
+ * whether the sword arm is cocked (the bash). On the library's clips (`ual`) the arm holds the shield
+ * as a shield is held already, but for the bash, whose dash would turn its face aside: there it's
+ * held in the guard, its face to the front. */
+export function shieldArm(c, state, standing, sworn, ual = false) {
+  if (!standing || ['collapse', 'getup', 'death', 'dead', 'knockdown'].includes(c)) return { w: 0, guard: 0, swing: 0, cock: 0 };
+  if (ual) { const g = c === 'bash' ? 1 : 0; return { w: g, guard: g, swing: 0, cock: 0 }; }
   if (!sworn) return { w: state === 'block' || ['block', 'bash', 'fall', 'jump'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1, guard: 0, swing: 0, cock: 0 };
   const guard = state === 'block' || state === 'charge' || c === 'block' || c === 'bash' ? 1 : 0;
   return { w: c === 'hit' && !guard ? 0.55 : 1, guard, swing: !guard && c === 'attack3' ? 1 : 0, cock: c === 'bash' ? 1 : 0 };
@@ -203,6 +211,9 @@ class Foe extends Zombie {
     this.kindName = this.def.kind;
     this.kind = this.def.stats ? { ...KIND[this.kindName], ...STATS[this.def.stats] } : KIND[this.kindName];
     const meta = gltf.userData.foe;
+    // on the animation library's clips (the Sworn): its gaits go at the paces they were measured at
+    this.ual = !!meta.ual;
+    if (this.ual && meta.gait) this.kind = { ...this.kind, gait: { ...this.kind.gait, ...meta.gait } };
     // a body built bigger (the Sworn's lord): its hit shapes and its footprint grow with it
     const size = this.size = this.def.scale || 1;
     const grow = (o) => (o && size !== 1 ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v * size])) : o);
@@ -289,7 +300,7 @@ class Foe extends Zombie {
    * jump and fall (see shieldArm). Blended in and out over the clip (dt 0: at once). */
   carryShield(dt = 0) {
     if (!this.shield || !this.arm('L')) return;
-    const { w, guard, swing, cock } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body);
+    const { w, guard, swing, cock } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body, this.ual);
     const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1;
     this.carryW = (this.carryW ?? w) + (w - (this.carryW ?? w)) * k;
     this.guardW = (this.guardW ?? guard) + (guard - (this.guardW ?? guard)) * k2;
@@ -330,7 +341,7 @@ class Foe extends Zombie {
 
   // -------------------------------------------------------------- being hit
   hit(h, opts) {
-    if (!this.dead && this.state === 'block' && this.shield && this.arm('L') && this.has('handL')) {
+    if (!this.dead && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
       const f = this.forward(_t);
       if (f.dot(opts.dir) < -0.3) return this.deflect(h, opts);
     }
@@ -338,6 +349,12 @@ class Foe extends Zombie {
     super.hit(h, { ...opts, dmg: opts.dmg * this.kind.armor });
     if (this.dead || this.mode !== 'stand' || this.state === 'collapse') return;
     if (this.state === 'ambush') { this.state = 'move'; }
+    // a heavy blow can throw one of the Sworn off his feet (not their lord); he gets up again
+    if (this.ual && opts.heavy && !this.def.boss && this.feet && ['move', 'block', 'attack', 'hit'].includes(wasState) && Math.random() < 0.35) {
+      this.state = 'down'; this.play('knockdown', 0.08); this.comboQ = null; this.parrying = false;
+      this.foes.voice(this, 'hurt');
+      return;
+    }
     if ((wasState === 'move' || wasState === 'block' || wasState === 'ambush') && (opts.heavy || Math.random() < this.kind.flinch)) {
       this.state = 'hit'; this.play('hit', 0.06);
     }
@@ -350,7 +367,8 @@ class Foe extends Zombie {
   /** A blow rings off the shield: sparks, a clang, and the knight shoves back. */
   deflect(h, opts) {
     const g = this.owner.gore, sfx = this.owner.sfx;
-    const p = this.shield.g.getWorldPosition(new THREE.Vector3());
+    const by = this.parrying ? this.items.find((i) => i.socket === 'gripR') || this.shield : this.shield;
+    const p = by ? by.g.getWorldPosition(new THREE.Vector3()) : this.bones.handR.getWorldPosition(new THREE.Vector3());
     const sp = [new THREE.Color(1, 0.9, 0.5), new THREE.Color(1, 0.6, 0.2), new THREE.Color(0.9, 0.9, 0.9)];
     for (let i = 0; i < 26; i++) {
       _v.set(Math.random() - 0.5, Math.random() * 0.8, Math.random() - 0.5).multiplyScalar(5).addScaledVector(opts.dir, -2);
@@ -360,8 +378,8 @@ class Foe extends Zombie {
     this.foes.flash(p, 0xffd080, 0.25);
     this.blockT = Math.min(this.blockT, 0.25);
     this.hunt(this.owner.player?.pos, true);
-    if (opts.heavy) { this.state = 'hit'; this.play('hit', 0.06); }
-    else if (this.def.body) this.counter = ['attack1', 'attack2', 'bash'][Math.floor(Math.random() * 3)];   // the Sworn always answer it
+    if (opts.heavy) { this.state = 'hit'; this.play(this.ual && !this.parrying ? 'guardbreak' : 'hit', 0.06); this.parrying = false; }
+    else if (this.def.body) this.counter = (this.ual ? ['attack1', 'attack1', 'bash'] : ['attack1', 'attack2', 'bash'])[Math.floor(Math.random() * 3)];   // the Sworn always answer it
     else if (Math.random() < 0.45) this.counter = 'bash';
   }
 
@@ -373,7 +391,9 @@ class Foe extends Zombie {
   }
 
   die() {
+    const lying = this.cur === 'knockdown';
     super.die();
+    if (lying && this.actions.dead) this.play('dead', 0.4);
     this.drop();
     for (const g of this.eyes || []) g.visible = false;
     this.foes.voice(this, 'die');
@@ -435,6 +455,7 @@ class Foe extends Zombie {
     else if (st === 'hit' || st === 'shriek') { if (this.done()) this.state = 'move'; }
     else if (st === 'blink') this.blinking(dt, player);
     else if (st === 'charge') this.charging(dt, player, dist, facingErr);
+    else if (st === 'down') { if (this.done()) { this.state = 'getup'; this.play('getup', 0.12); } }
     else if (st === 'jump') {
       this.pos.addScaledVector(this.forward(), 2.3 * dt);
       if (this.done()) { this.state = 'move'; owner.physics.slide(this.pos, 0, 0, this.r, 1.6, 0.45); }
@@ -561,23 +582,27 @@ class Foe extends Zombie {
   /** Start a melee move (it lands at the clip's hit frame). */
   strike(name, lunge = 0) {
     this.state = 'attack';
-    this.lungeT = lunge;
+    this.lungeT = this.ual ? 0 : lunge;
+    this.dash = this.ual ? DASH[name] || null : null;
+    this.hitI = 0; this.recovering = false;
     this.play(name, 0.1, this.kind.swing || 1);
     this.foes.voice(this, 'attack');
   }
 
   attacking(dt, player, active, dist, facingErr) {
     const a = this.actions[this.cur];
-    if (this.lungeT > 0) {
-      const f = this.forward();
-      this.owner.physics.slide(this.pos, f.x * 4.6 * dt, f.z * 4.6 * dt, this.r, 1.6, 0.45);
-    } else if (this.goal === 'chase' && active) {             // keep turning onto you through the wind-up
+    const dash = this.dash && a && a.time >= this.dash[0] && a.time <= this.dash[1] ? this.dash[2] : 0;
+    if (this.lungeT > 0 || dash) {
+      const f = this.forward(), sp = dash || 4.6;
+      this.owner.physics.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
+    } else if (this.goal === 'chase' && active && !this.recovering) {             // keep turning onto you through the wind-up
       const turn = this.kind.turn * 0.5 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
-    const at = this.hits[this.cur] ?? 14;
-    if (!this.fired && a && a.time * FPS >= at) {
-      this.fired = true;
+    const at = [this.hits[this.cur] ?? 14].flat();      // (a move may land more than one blow)
+    if (!this.fired && a && a.time * FPS >= at[this.hitI || 0]) {
+      this.hitI = (this.hitI || 0) + 1;
+      this.fired = this.hitI >= at.length;
       const reach = this.kind.reach + (this.cur === 'attack3' && this.kindName === 'ghast' ? 0.4 : 0.2);
       this.foes.sound('swing', this.pos, this.kindName);
       if (active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3) {
@@ -590,16 +615,31 @@ class Foe extends Zombie {
     }
     if (this.done()) {
       this.state = 'move';
-      const next = this.comboQ?.shift();     // the next cut of a combination, while you're still there
+      const was = this.cur, rec = this.recovering;
+      this.recovering = false;
+      const next = !rec && this.comboQ?.shift();     // the next cut of a combination, while you're still there
       if (next && active && this.goal === 'chase' && dist < this.kind.reach + 0.5 && facingErr < 1.0 && (next !== 'bash' || this.shield)) { this.strike(next); return; }
       this.comboQ = null;
-      this.cool = this.kind.cool[0] + Math.random() * (this.kind.cool[1] - this.kind.cool[0]);
+      if (!rec) this.cool = this.kind.cool[0] + Math.random() * (this.kind.cool[1] - this.kind.cool[0]);
+      // a cut that ends with the blade up or out comes back to the guard (no blow in it)
+      if (!rec && this.actions[was + '_rec']) {
+        this.state = 'attack'; this.recovering = true; this.dash = null;
+        this.play(was + '_rec', 0.06, this.kind.swing || 1);
+        this.fired = true;
+      }
     }
   }
 
   // ---- knights
   raiseShield(t) {
-    if (!this.shield || !this.arm('L')) return;
+    this.parrying = false;
+    if (!this.shield || !this.arm('L')) {
+      // the Sworn on the library's clips parry with the blade instead, while they've an arm to
+      if (!this.ual || !this.arm('R') || !this.has('handR') || !this.actions.parry) return;
+      this.parrying = true;
+      this.state = 'block'; this.blockT = Math.min(t, 0.9); this.play('parry', 0.1);
+      return;
+    }
     this.state = 'block'; this.blockT = t; this.play('block', 0.12);
   }
 
@@ -610,10 +650,14 @@ class Foe extends Zombie {
     const advance = dist > 1.3 && dist < 4;
     if (advance) this.owner.physics.slide(this.pos, Math.sin(this.yaw) * 0.5 * dt, Math.cos(this.yaw) * 0.5 * dt, this.r, 1.6, 0.45);
     // the Sworn step in behind the shield (it stays up: see shieldArm), the others edge in on the block
-    if (this.def.body) this.play(advance ? 'walk' : 'block', 0.2, advance ? 0.5 / (this.kind.gait?.walk || this.kind.walk) : 1);
-    if (this.blockT <= 0 || !this.shield) {
-      this.state = 'move'; this.blockCool = 1.2 + Math.random() * 1.5;
-      if (this.counter && dist < this.kind.reach + 0.3) { this.strike(this.counter); if (this.def.body) this.comboQ = ['attack2']; this.counter = null; }
+    if (this.def.body && !this.parrying) this.play(advance ? 'walk' : 'block', 0.2, advance ? 0.5 / (this.kind.gait?.walk || this.kind.walk) : 1);
+    if (this.blockT <= 0 || (!this.shield && !this.parrying)) {
+      this.state = 'move'; this.blockCool = 1.2 + Math.random() * 1.5; this.parrying = false;
+      if (this.counter && dist < this.kind.reach + 0.3) {
+        this.strike(this.counter);
+        if (this.def.body) this.comboQ = !this.ual ? ['attack2'] : this.counter === 'attack1' ? ['attack2'] : ['attack1', 'attack2'];
+        this.counter = null;
+      }
     }
   }
 
@@ -630,7 +674,7 @@ class Foe extends Zombie {
   invoke(player) {
     this.foes.hex(this, player);
     this.bigCool = (this.enraged ? 5 : 8) + Math.random() * 4;
-    this.strike('attack2');
+    this.strike(this.ual ? 'attack1' : 'attack2');
   }
 
   /** Brought to half his life, the lord's fire comes up: he's quicker, and strikes sooner. */
@@ -675,16 +719,17 @@ class Foe extends Zombie {
       if (this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }
     }
     const shield = this.shield && this.arm('L'), armed = this.arm('R') && this.has('handR');
-    if (shield && !this.blockCool && dist < K.reach + 1.2 && fe < 0.9 && now - (player.swingAt ?? -9) < 0.2 && Math.random() < (this.def.boss ? 0.3 : 0.45)) { this.raiseShield(0.45 + Math.random() * 0.35); return; }
+    const guard = shield || (this.ual && armed);      // (on the library's clips they parry with the blade when the shield's gone)
+    if (guard && !this.blockCool && dist < K.reach + 1.2 && fe < 0.9 && now - (player.swingAt ?? -9) < 0.2 && Math.random() < (this.def.boss ? 0.3 : shield ? 0.45 : 0.3)) { this.raiseShield(0.45 + Math.random() * 0.35); return; }
     const turn = this.def.boss || this.foes.engage(this, player);
-    if (dist < K.reach && fe < 0.5 && !this.cool && (turn || dist < K.reach * 0.8)) {
-      if (player.blocking && shield && Math.random() < 0.6) { this.strike('bash'); this.comboQ = armed ? ['attack2'] : null; return; }   // through your guard
+    if (dist < K.reach * 1.1 && fe < 0.5 && !this.cool && (turn || dist < K.reach * 0.8)) {   // (they stop at 1.05 reach: see below)
+      if (player.blocking && shield && Math.random() < 0.6) { this.strike('bash'); this.comboQ = armed ? (this.ual ? ['attack1', 'attack2'] : ['attack2']) : null; return; }   // through your guard
       if (armed) { this.combo(shield); return; }
       if (shield) { this.strike('bash'); return; }
     }
     if (turn && this.feet && armed && fe < 0.35 && dist > 2.6 && dist < 5.2 && this.lungeCool < 0) {   // a lunging cut
       this.lungeCool = 3.5 + Math.random() * 3;
-      this.strike('attack3', 0.42);
+      this.strike(this.ual ? 'lunge' : 'attack3', 0.42);
       return;
     }
     if (turn && this.feet && shield && this.canSee && !this.rushCool && dist > 5.5 && dist < 11 && fe < 0.4) {   // the shield charge
@@ -709,6 +754,17 @@ class Foe extends Zombie {
 
   /** Two or three cuts one after another (attacking() strikes the rest while you're still there). */
   combo(shield) {
+    if (this.ual) {
+      if (this.def.boss && this.actions.heavy && Math.random() < 0.3) { this.strike('heavy'); return; }   // the lord's four great blows
+      // the three cuts flow one into the next: the first ends with the blade up, where the second
+      // starts, and the third ends back in the guard (so a combination always opens with the first)
+      const U = [['attack1'], ['attack1', 'attack2'], ['attack1', 'attack2'], ['attack1', 'attack2', 'attack3'], ['attack1', 'attack2', 'attack3']];
+      if (shield) U.push(['bash', 'attack1', 'attack2'], ['attack1', 'attack2', 'bash']);
+      const c = U[Math.floor(Math.random() * U.length)];
+      this.strike(c[0]);
+      this.comboQ = c.slice(1);
+      return;
+    }
     const C = [['attack1', 'attack2'], ['attack2', 'attack1', 'attack3'], ['attack1', 'attack3'], ['attack2', 'attack3'], ['attack3', 'attack1']];
     if (shield) C.push(['attack1', 'attack2', 'bash'], ['bash', 'attack2']);
     const c = C[Math.floor(Math.random() * C.length)];
@@ -999,11 +1055,14 @@ export class Foes {
   }
 
   /** The Sworn (sworn.js): each body (a villager and its armour set, helmed or bareheaded, with
-   * the sorcerers' casting if it casts) put together once on knight_a's clips, then their weapons.
+   * the sorcerers' casting if it casts) put together once on the animation library's clips (ual.js;
+   * `ual` false: knight_a's alone, and `legacy` as they first were), then their weapons.
    * Each villager and set is loaded once, and built from copies. A phone loads the villagers' phone
    * copies, one body at a time. */
-  async loadSworn(variants = SWORN) {
+  async loadSworn(variants = SWORN, { ual = true, legacy = false } = {}) {
     const knight = this.gltf.knight_a || (await this.load(['knight_a']), this.gltf.knight_a);
+    // the animation library (ual.js), read once
+    if (ual && !this.ual) this.ual = ualSource(await this.loader.loadAsync(UAL_URL));
     const files = new Map(), bodies = new Map();
     const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(url)); return files.get(url); };
     const body = (b) => {
@@ -1012,7 +1071,7 @@ export class Foes {
         const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`)]);
         if (b.casts && !this.gltf[b.casts]) await this.load([b.casts]);
         return swornBody(knight, { scene: cloneSkinned(villager.scene) }, { scene: cloneSkinned(armor.scene) },
-          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null });
+          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null, ual: ual ? this.ual : null, legacy });
       })());
       return bodies.get(key);
     };
