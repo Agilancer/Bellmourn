@@ -239,9 +239,13 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
     const made = ualClips(ual, scene, bound, { mesh: body });
     const have = new Set(made.clips.map((c) => c.name));
     animations = [...made.clips, ...retarget(knight, scene, bound, knight.animations.map((c) => c.name).filter((n) => !have.has(n) && n !== 'dead'))];
-    // lying where the knockback threw it
-    const death = made.clips.find((c) => c.name === 'death'), last = Math.round(death.duration * FPS);
-    animations.push(THREE.AnimationUtils.subclip(death, 'dead', last - 1, last, FPS));
+    // lying where each death left it
+    for (const [d, lie] of [['death', 'dead'], ['death2', 'dead2']]) {
+      const c = made.clips.find((x) => x.name === d);
+      if (!c) continue;
+      const last = Math.round(c.duration * FPS);
+      animations.push(THREE.AnimationUtils.subclip(c, lie, last - 1, last, FPS));
+    }
     ualHits = made.hits; gait = made.gaits;
   } else animations = retarget(knight, scene, bound, null, legacy);
   if (casts) animations.push(...retarget(casts, scene, bound, CASTS, legacy));

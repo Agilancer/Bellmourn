@@ -127,12 +127,27 @@ export class ViewModel {
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
   }
 
+  /** Fetch a gauntlet's two arm models ahead of time: load() then has them at once (the opening
+   * brings in the gauntlets the village gives you). */
+  prefetch(gauntlet) {
+    const entry = this.manifest.arms.find((a) => a.id === gauntlet);
+    if (!entry) return Promise.resolve();
+    this.fetched ||= new Map();
+    return Promise.all(['R', 'L'].map((side) => {
+      const url = ROOT + entry[side];
+      if (!this.fetched.has(url)) this.fetched.set(url, new THREE.FileLoader().setResponseType('arraybuffer').loadAsync(url).catch((e) => { this.fetched.delete(url); throw e; }));
+      return this.fetched.get(url);
+    }));
+  }
+
   async load(gauntlet = this.gauntlet) {
     this.gauntlet = gauntlet;
     const entry = this.manifest.arms.find((a) => a.id === gauntlet) || this.manifest.arms[0];
     for (const side of ['R', 'L']) {
       const old = this.arms[side];
-      const g = await this.loader.loadAsync(ROOT + entry[side]);
+      const url = ROOT + entry[side], ahead = this.fetched?.get(url);
+      if (ahead) this.fetched.delete(url);   // (used once: not kept about)
+      const g = ahead ? await this.loader.parseAsync(await ahead, THREE.LoaderUtils.extractUrlBase(url)) : await this.loader.loadAsync(url);
       g.scene.traverse((o) => { if (o.isMesh) o.material = this.skin(o, false); });
       if (old) this.scene.remove(old.scene);
       this.scene.add(g.scene);
