@@ -63,12 +63,8 @@ export class Sfx {
   cast(kind = 'fire') {
     if (!this.ok) return;
     const t = this.ctx.currentTime;
-<<<<<<< HEAD
     const base = { fire: 220, frost: 660, lightning: 140, heal: 520, wisp: 880, staff: 330, arcane: 520, drain: 110, bone: 300,
       void: 90, poison: 180, blade: 760, stone: 70 }[kind] || 400;
-=======
-    const base = { fire: 220, frost: 660, lightning: 140, heal: 520, wisp: 880, staff: 330 }[kind] || 400;
->>>>>>> origin/main
     this._tone(t, 0.35, { type: kind === 'lightning' ? 'sawtooth' : 'triangle', f0: base, f1: base * 2.2, gain: 0.12, attack: 0.02 });
     this._noise(t, 0.3, { f0: base * 2, f1: base * 6, q: 2, gain: 0.25, attack: 0.03 });
     if (kind === 'heal' || kind === 'wisp') for (const k of [1, 1.25, 1.5]) this._tone(t + 0.05 * k, 0.7, { f0: base * k, f1: base * k, gain: 0.06 });
@@ -97,40 +93,6 @@ export class Sfx {
     const t = this.ctx.currentTime;
     this._noise(t, 0.5, { type: 'bandpass', f0: open ? 300 : 500, f1: open ? 700 : 220, q: 4, gain: 0.18, attack: 0.05 }); // the hinge
     this._noise(t + (open ? 0.42 : 0.4), 0.18, { type: 'lowpass', f0: 600, f1: 120, gain: open ? 0.12 : 0.4 });   // and the thump
-  }
-
-  /** A chest's lid: a long creak up, and the clunk as it falls back on its hinges. */
-  chest() {
-    if (!this.ok) return;
-    const t = this.ctx.currentTime;
-    this._noise(t, 0.75, { type: 'bandpass', f0: 240, f1: 620, q: 7, gain: 0.2, attack: 0.1 });
-    this._noise(t + 0.82, 0.16, { type: 'lowpass', f0: 500, f1: 110, gain: 0.3 });
-  }
-
-  /** A pot, crate or barrel breaking: clay cracks high and bright, wood splinters lower. */
-  shatter(kind = 'pot') {
-    if (!this.ok) return;
-    const t = this.ctx.currentTime;
-    if (kind === 'pot') {
-      this._noise(t, 0.35, { type: 'highpass', f0: 2600, f1: 1400, gain: 0.35, attack: 0.002 });
-      for (let i = 0; i < 4; i++) this._tone(t + 0.04 + i * 0.05 + Math.random() * 0.03, 0.1, { type: 'triangle', f0: 1800 + Math.random() * 1600, f1: 1400, gain: 0.05 });
-    } else {
-      this._noise(t, 0.3, { type: 'bandpass', f0: 900, f1: 300, q: 1.5, gain: 0.5, attack: 0.003 });
-      this._noise(t + 0.06, 0.4, { type: 'lowpass', f0: 700, f1: 120, gain: 0.3 });
-    }
-    this._noise(t + 0.25, 0.5, { type: 'bandpass', f0: 1500, f1: 600, q: 2, gain: 0.08 }); // the bits landing
-  }
-
-  coins() {
-    if (!this.ok) return;
-    const t = this.ctx.currentTime;
-    for (let i = 0; i < 5; i++) this._tone(t + i * 0.045 + Math.random() * 0.02, 0.14, { type: 'triangle', f0: 2400 + Math.random() * 1500, f1: 2300, gain: 0.04 });
-  }
-
-  drink() {
-    if (!this.ok) return;
-    const t = this.ctx.currentTime;
-    for (let i = 0; i < 3; i++) this._noise(t + i * 0.22, 0.16, { type: 'bandpass', f0: 420, f1: 260, q: 5, gain: 0.25, attack: 0.03 });
   }
 
   /** A rising roar while a spell gathers for `secs` seconds. */

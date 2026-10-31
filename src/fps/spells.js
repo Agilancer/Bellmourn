@@ -29,7 +29,7 @@ export const SPELLS = {
     volley: 5, every: 0.2, interval: 0.5, max: 24, dmg: 14, size: 0.12,
     colors: ['#ffffff', '#ffb0f0', '#d050ff', '#5a1a8a'], light: 0xe070ff, power: 10,
     desc: 'Hold: spinning missiles fan out and hang in the air before you, more the longer you hold (it drinks mana fast). One every half second darts off to seek one of the dead.' },
-  arcaneblast: { name: 'Arcane Blast', kind: 'arcane', cast: 'cone', hands: 2, mana: 24, range: 9, angle: 0.6, dmg: 50, force: 17, size: 0.6,
+  arcaneblast: { name: 'Arcane Blast', kind: 'arcane', cast: 'cone', hands: 2, mana: 24, range: 9, angle: 0.6, dmg: 42, force: 11, size: 0.6,
     colors: ARCANE, light: 0xb070ff, power: 30, desc: 'A thunderclap of raw force from both hands: everything in a cone before you is torn at and hurled back.' },
   firebeam: { name: 'Fire Beam', kind: 'fire', cast: 'beam', channel: true, hands: 2, mana: 6, drain: 18, minHold: 0.3, range: 18, dmg: 8,
     colors: FIRE, light: 0xff7a30, power: 26, desc: 'Hold: a roaring jet of flame pours from your hands, searing and setting alight whatever it plays across.' },
@@ -371,7 +371,6 @@ export class Magic {
     this.chargeOrb = null;
   }
 
-<<<<<<< HEAD
   /** A spell leaving the hand: a projectile, a spell on yourself, or one of arcana.js's. */
   cast(def, origin, dir, player, camera) {
     if (def.self) this.selfCast(def, player, camera);
@@ -379,8 +378,6 @@ export class Magic {
     else this.launch(def, origin, dir);
   }
 
-=======
->>>>>>> origin/main
   /** Launch a projectile spell (or staff bolt) from origin along dir. */
   launch(def, origin, dir) {
     const shots = def.shards || 1;
