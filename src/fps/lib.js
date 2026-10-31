@@ -39,7 +39,7 @@ function feathered(m, f) {
   m.depthWrite = false;
   m.userData.feather = f;
   m.userData.noCast = true;
-  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '') + (m.userData.tracks ? '-tracks' + m.userData.tracks : '');
+  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '') + (m.userData.tracks ? `-tracks${m.userData.tracks}-${m.userData.tileU}-${m.userData.tileV}` : '');
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float edge; varying float vEdge; varying vec2 vFeatherP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvEdge = edge; vFeatherP = (modelMatrix * vec4(transformed, 1.0)).xz;');

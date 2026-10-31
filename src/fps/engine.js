@@ -353,7 +353,7 @@ export class Resolution {
     this.level = 0; this.floor = this.LEVELS.length - 1;
     this.w = 2; this.h = 2;
     this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 }; this.slow = 0; this.quick = 0; this.tried = null;
-    this.timer = null; this.lockedAt = 0; this.lockFor = 60000; this.fails = {};
+    this.timer = null; this.lockedAt = 0; this.lockFor = 30000; this.fails = {};   // (doubled before each use: 1, 2, 4 minutes)
   }
 
   get rs() { return this.LEVELS[this.level]; }
@@ -408,10 +408,9 @@ export class Resolution {
     }
     this.tried = null;
     if (this.floor < this.LEVELS.length - 1 && performance.now() - this.lockedAt > this.lockFor) this.floor = this.LEVELS.length - 1;
-    // slow: frames missing 60 a second, and (where the GPU can be timed) the GPU the reason; with no
-    // timer, frames held steady at 30 a second are a screen's cap (low power), not the GPU
-    const capped = gpu == null && Math.abs(g - 33.3) < 1.6;
-    const gpuBound = g > 18.5 && !capped && (gpu != null ? gpu > 14 : wk < g * 0.55);
+    // slow: frames missing 60 a second, and (where the GPU can be timed) the GPU the reason (a screen
+    // capped at 30 is found out by the trial step and the lock above)
+    const gpuBound = g > 18.5 && (gpu != null ? gpu > 14 : wk < g * 0.55);
     const roomy = gpu != null ? gpu < 9.5 && g < 18 : g < 17.6;
     this.slow = gpuBound ? this.slow + 1 : 0;
     this.quick = roomy ? this.quick + 1 : 0;

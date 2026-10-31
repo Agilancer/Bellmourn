@@ -141,6 +141,13 @@ export class Intro {
       return p;
     };
     this.spawnKnight();
+    // the knight as he comes apart: a cut piece is drawn without skinning (other shaders, other shadow
+    // shaders), so each of his materials on a plain mesh too, under the crater where the sun's shadow
+    // (which follows you there) takes it in for these frames
+    const limbs = new THREE.Group();
+    this.knight.root.traverse((c) => { if (c.isSkinnedMesh) { const p = new THREE.Mesh(c.geometry, c.material); p.castShadow = true; p.frustumCulled = false; limbs.add(p); } });
+    limbs.position.set(STRIKE.x, -25, STRIKE.z);
+    o.scene.add(limbs);
     // the crater as it will be (its arms laid out, their models hung on), the knight out, every
     // villager out of doors: compiled, in the world and in the deep sky, with the comet in each
     formCrater(1);
@@ -194,6 +201,7 @@ export class Intro {
       o.calibrate(ms, gpu);
     }
     // and back as it was before it all
+    o.scene.remove(limbs);
     o.layArms?.([]);
     formCrater(0);
     this.knight.root.visible = false;
