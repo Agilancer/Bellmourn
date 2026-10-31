@@ -34,6 +34,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
+import { cullable, shareSkeletons, refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -184,8 +185,10 @@ float gore(inout vec4 col) {
 export function goreMaterial(src, lib, u = null) {
   const normals = goreMaterial.normals || (goreMaterial.normals = new Map());
   const map = src.map;
-  if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
-  const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, specular: 0x2c1e1c, shininess: 30 });
+  refineTexture(map);   // (crisp texels, anti-aliased: engine.js)
+  // alpha to coverage on its cut-outs, as on every body made before play (engine.js refineScene), so a
+  // body that claws out of a grave mid-game draws with the shaders already made
+  const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true, specular: 0x2c1e1c, shininess: 30 });
   mat.name = src.name || '';   // (the Sworn's fittings find their pieces by it)
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
@@ -193,7 +196,7 @@ export function goreMaterial(src, lib, u = null) {
   }
   if (src.emissiveMap) {     // what glows: embers in the cracks, eyes
     const e = src.emissiveMap;
-    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
+    refineTexture(e);
     mat.emissiveMap = e;
     mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
   }
@@ -212,6 +215,7 @@ export function goreMaterial(src, lib, u = null) {
       .replace('#include <specularmap_fragment>', '#include <specularmap_fragment>\nspecularStrength = mix(0.15, 2.6, goreWet);');
   };
   mat.customProgramCacheKey = () => 'zombie-gore';
+  crisp(mat);
   return mat;
 }
 
@@ -443,7 +447,6 @@ export class Zombie {
     this.shared = Object.keys(geo.attributes);
     mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
     this.u = [mesh.material].flat()[0].userData.u;
     // a body of several materials (the sworn's armour): which group each triangle draws in, so
     // the groups can be laid out again as limbs come off
@@ -465,6 +468,9 @@ export class Zombie {
     }
     this.index = geo.index.array.slice();
     this.alive = new Uint8Array(this.index.length / 3).fill(1);
+    // one skeleton for all its parts, and culled to what the camera and the sun can see (engine.js)
+    shareSkeletons(model);
+    cullable(model);
 
     this.mixer = new THREE.AnimationMixer(model);
     this.actions = {};
@@ -1544,6 +1550,7 @@ export class Zombies {
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
     const own = (src) => {
       const mat = src.clone();
+      mat.defines = { ...(src.defines || {}) };   // (clone() leaves them behind: the shader would differ, and be made mid-fight)
       mat.userData.u = z.u;
       mat.onBeforeCompile = src.onBeforeCompile;
       mat.customProgramCacheKey = src.customProgramCacheKey;

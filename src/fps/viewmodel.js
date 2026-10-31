@@ -5,7 +5,7 @@
 // manifest.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { refineTexture } from './engine.js';
+import { refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/';
 // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
@@ -233,7 +233,7 @@ export class ViewModel {
     const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide,
       specular: item ? 0x6a625a : 0x1c1a18, shininess: item ? 48 : 16 });
     if (m.map && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.map, item ? 1.0 : 1.3);
-    return out;
+    return crisp(out);
   }
 
   /** Put the equipped items in the hands and start the matching walk loops. */

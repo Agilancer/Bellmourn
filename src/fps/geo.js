@@ -486,14 +486,20 @@ export class Builder {
     for (const [mat, chunks] of this.batches) {
       mat.vertexColors = true;
       for (const geos of chunks.values()) {
-        const g = mergeGeometries(geos, false);
+        let g = mergeGeometries(geos, false);
+        if (mat.userData.feather) {   // a feathered overlay: its solid middle drawn without blending
+          const [band, solid] = splitFeather(g);
+          if (solid) meshes.push(this.addMesh(scene, solid, solidTwin(mat), 1 + layerOf(solid)));
+          if (!band) continue;
+          g = band;
+        }
         g.computeBoundingSphere();
         const mesh = new THREE.Mesh(g, mat);
         mesh.matrixAutoUpdate = false;
         mesh.castShadow = !mat.userData.noCast;
         mesh.receiveShadow = true;
         // feathered overlays blend over the ground (and over each other, the higher laid last)
-        if (mat.userData.feather) { g.computeBoundingBox(); mesh.renderOrder = -1000 + Math.round((g.boundingBox.min.y % 1 + 1) % 1 * 1000); }
+        if (mat.userData.feather) mesh.renderOrder = -1000 + layerOf(g);
         scene.add(mesh);
         meshes.push(mesh);
       }
@@ -501,4 +507,54 @@ export class Builder {
     this.batches.clear();
     return meshes;
   }
+
+  addMesh(scene, g, mat, renderOrder = 0) {
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.matrixAutoUpdate = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.renderOrder = renderOrder;
+    scene.add(mesh);
+    return mesh;
+  }
+}
+
+/** Where a feathered overlay was laid, as an order: how far above its ground (the builders lay the
+ * higher overlays a few millimetres up), in thousandths. */
+function layerOf(g) {
+  g.computeBoundingBox();
+  return Math.round(((g.boundingBox.min.y % 1) + 1) % 1 * 1000);
+}
+
+/** A feathered overlay's triangles split into its band (where its edge frays: blended) and its solid
+ * middle (all edge 1: drawn whole). Returns [band, solid] (either may be null). */
+function splitFeather(g) {
+  const e = g.attributes.edge.array, n = e.length / 3;
+  const keep = [[], []];
+  for (let t = 0; t < n; t++) keep[e[t * 3] > 0.999 && e[t * 3 + 1] > 0.999 && e[t * 3 + 2] > 0.999 ? 1 : 0].push(t);
+  return keep.map((tris) => {
+    if (!tris.length) return null;
+    const out = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(g.attributes)) {
+      const w = a.itemSize, src = a.array, dst = new src.constructor(tris.length * 3 * w);
+      tris.forEach((t, i) => dst.set(src.subarray(t * 3 * w, (t + 1) * 3 * w), i * 3 * w));
+      out.setAttribute(k, new THREE.BufferAttribute(dst, w));
+    }
+    return out;
+  });
+}
+
+/** The solid middle's material: the overlay's own, unblended and writing no depth, drawn just after
+ * the ground (renderOrder 1+): the higher-laid after the lower, the frayed bands blended over all. */
+function solidTwin(m) {
+  if (!m.userData.solid) {
+    const s = m.clone();
+    s.defines = { ...(m.defines || {}) };   // (clone() leaves them behind)
+    s.transparent = false; s.depthWrite = false;
+    s.onBeforeCompile = m.onBeforeCompile; s.customProgramCacheKey = m.customProgramCacheKey;
+    s.userData = { ...m.userData, solid: null };
+    m.userData.solid = s;
+  }
+  return m.userData.solid;
 }

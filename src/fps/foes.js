@@ -98,20 +98,21 @@ export const FITTINGS = [
 ];
 export const STATS = {
   sworn: { hp: 320, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
-    dmg: { attack1: 14, attack2: 18, attack3: 13, bash: 7, lunge: 16 }, cool: [0.3, 0.85] },
+    dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
   adept: { hp: 220, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
-    dmg: { attack1: 12, attack2: 15, attack3: 11, lunge: 13 }, cool: [0.5, 1.1] },
+    dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
   lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
-    dmg: { attack1: 24, attack2: 30, attack3: 22, bash: 14, lunge: 26, heavy: 20 }, cool: [0.6, 1.3] },
+    dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
 const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
   upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 'cast2', 'blink', 'hit', 'shriek', 'death',
   'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup',
-  'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy']);
+  'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
+  'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup']);
 // the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
 // [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
-export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5] };
+export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3] };
 const SPELL = { // bolt colour, its glow, damage
   arcane: { core: 0xe6b8ff, glow: 0x9a4cff, dmg: 10, speed: 14 },
   blood: { core: 0xffb0a0, glow: 0xff2a1a, dmg: 12, speed: 13 },
@@ -191,10 +192,12 @@ export function shieldPoses(skel, bones, sworn = false) {
  * Sworn) how far into the guard (blocking, bashing, charging) or the swing (the wide third cut), and
  * whether the sword arm is cocked (the bash). On the library's clips (`ual`) the arm holds the shield
  * as a shield is held already, but for the bash, whose dash would turn its face aside: there it's
- * held in the guard, its face to the front. */
+ * held in the guard, its face to the front; and at ease, its arm hanging, the shield on the forearm
+ * would stick out flat before him: there it's carried upright beside the leg. */
+const AT_EASE = new Set(['idle_calm', 'idle_talk', 'patrol', 'torch', 'sit', 'sit_idle', 'sit_talk', 'stand', 'interact', 'pickup', 'kneel', 'push', 'dance', 'crouch', 'crouch_walk']);
 export function shieldArm(c, state, standing, sworn, ual = false) {
   if (!standing || ['collapse', 'getup', 'death', 'dead', 'knockdown'].includes(c)) return { w: 0, guard: 0, swing: 0, cock: 0 };
-  if (ual) { const g = c === 'bash' ? 1 : 0; return { w: g, guard: g, swing: 0, cock: 0 }; }
+  if (ual) { const g = c === 'bash' ? 1 : 0; return { w: g || (AT_EASE.has(c) ? 1 : 0), guard: g, swing: 0, cock: 0 }; }
   if (!sworn) return { w: state === 'block' || ['block', 'bash', 'fall', 'jump'].includes(c) ? 0 : c === 'hit' ? 0.55 : 1, guard: 0, swing: 0, cock: 0 };
   const guard = state === 'block' || state === 'charge' || c === 'block' || c === 'bash' ? 1 : 0;
   return { w: c === 'hit' && !guard ? 0.55 : 1, guard, swing: !guard && c === 'attack3' ? 1 : 0, cock: c === 'bash' ? 1 : 0 };
@@ -254,11 +257,28 @@ class Foe extends Zombie {
       });
     }
     if (this.def.body && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
+    if (this.ual && this.state === 'move') { this.play('idle', 0); this.mixer.update(Math.random() * 2); }   // (at ease, now it knows it can be)
     // a lord of the Sworn burns: his armour glows from within (brightest where it's gilded)
     if (this.def.glow) {
       this.glowMats = [this.mesh.material].flat().filter((m) => !m.userData.eyes && m.map);
       for (const m of this.glowMats) { m.emissiveMap = m.map; m.emissive = new THREE.Color(this.def.glow); m.needsUpdate = true; }
     }
+  }
+
+  /** On the library's clips the Sworn have more than one of some moves: at ease when nobody's after
+   * them (talking, the ones given to it), the formal walk of a round, the sword guard once the shield
+   * is gone, a flinch at the head or the chest. */
+  play(name, fade, speed = 1) {
+    if (this.ual) {
+      if (this.holdT > 0 && (name === 'walk' || name === 'run' || name === 'idle')) return;   // (let a flinch finish)
+      const A = this.actions, calm = !this.aggro && this.goal === 'wander' && this.state === 'move';
+      if (name === 'idle' && calm) name = this.chat && A.idle_talk ? 'idle_talk' : 'idle_calm';
+      else if (name === 'idle' && !this.shield && A.idle_sword) name = 'idle_sword';
+      else if (name === 'walk' && calm && A.patrol) { speed *= (this.kind.gait.walk || 1) / (this.kind.gait.patrol || 1); name = 'patrol'; }
+      else if (name === 'hit' && this.cur !== 'hit' && this.cur !== 'hit_head' && this.cur !== 'hit_chest') name = ['hit', 'hit_head', 'hit_chest'][Math.floor(Math.random() * 3)];
+      if (!A[name]) name = { idle_calm: 'idle', idle_talk: 'idle', patrol: 'walk', hit_head: 'hit', hit_chest: 'hit' }[name] || name;
+    }
+    return super.play(name, fade, speed);
   }
 
   material(src, lib) {
@@ -394,6 +414,7 @@ class Foe extends Zombie {
     const lying = this.cur === 'knockdown';
     super.die();
     if (lying && this.actions.dead) this.play('dead', 0.4);
+    else if (this.ual && this.mode === 'stand' && this.cur === 'death' && this.actions.death2 && Math.random() < 0.5) this.play('death2', 0.15);
     this.drop();
     for (const g of this.eyes || []) g.visible = false;
     this.foes.voice(this, 'die');
@@ -420,6 +441,7 @@ class Foe extends Zombie {
   update(dt, player, active, far, mid) {
     if (this.def.boss) this.burn(dt, player);
     if (this.gone) return;
+    if (this.dead && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
     if (this.dead || this.mode === 'crawl' || ['collapse', 'buried', 'rise', 'playdead', 'getup'].includes(this.state)) {
       super.update(dt, player, active, far, mid);
       return;
@@ -720,12 +742,20 @@ class Foe extends Zombie {
     }
     const shield = this.shield && this.arm('L'), armed = this.arm('R') && this.has('handR');
     const guard = shield || (this.ual && armed);      // (on the library's clips they parry with the blade when the shield's gone)
-    if (guard && !this.blockCool && dist < K.reach + 1.2 && fe < 0.9 && now - (player.swingAt ?? -9) < 0.2 && Math.random() < (this.def.boss ? 0.3 : shield ? 0.45 : 0.3)) { this.raiseShield(0.45 + Math.random() * 0.35); return; }
+    if (guard && !this.blockCool && dist < K.reach + 1.2 && fe < 0.9 && now - (player.swingAt ?? -9) < 0.2 && Math.random() < (this.def.boss ? 0.3 : shield ? 0.45 : 0.3)) {
+      if (!shield && this.feet && this.actions.roll && Math.random() < 0.5) this.dodge(); else this.raiseShield(0.45 + Math.random() * 0.35);
+      return;
+    }
     const turn = this.def.boss || this.foes.engage(this, player);
     if (dist < K.reach * 1.1 && fe < 0.5 && !this.cool && (turn || dist < K.reach * 0.8)) {   // (they stop at 1.05 reach: see below)
       if (player.blocking && shield && Math.random() < 0.6) { this.strike('bash'); this.comboQ = armed ? (this.ual ? ['attack1', 'attack2'] : ['attack2']) : null; return; }   // through your guard
       if (armed) { this.combo(shield); return; }
       if (shield) { this.strike('bash'); return; }
+      if (this.ual && this.actions.punch1 && (this.arm('L') || this.arm('R'))) {      // bare-handed: a jab, a cross
+        this.strike(this.arm('L') ? 'punch1' : 'punch2');
+        this.comboQ = this.arm('L') && this.arm('R') ? ['punch2'] : null;
+        return;
+      }
     }
     if (turn && this.feet && armed && fe < 0.35 && dist > 2.6 && dist < 5.2 && this.lungeCool < 0) {   // a lunging cut
       this.lungeCool = 3.5 + Math.random() * 3;
@@ -752,6 +782,16 @@ class Foe extends Zombie {
     else this.go(dt, player.pos, K.walk * 0.75, { face: player.pos, side: this.circleDir });
   }
 
+  /** Out of the way of your swing: a roll to one side (no blow in it; the cut ends it). */
+  dodge() {
+    this.state = 'attack'; this.comboQ = null; this.recovering = true; this.hitI = 0;
+    this.yaw += (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+    this.lungeT = 0; this.dash = DASH.roll;
+    this.play('roll', 0.08);
+    this.fired = true;
+    this.blockCool = 1.5 + Math.random();
+  }
+
   /** Two or three cuts one after another (attacking() strikes the rest while you're still there). */
   combo(shield) {
     if (this.ual) {
@@ -759,6 +799,7 @@ class Foe extends Zombie {
       // the three cuts flow one into the next: the first ends with the blade up, where the second
       // starts, and the third ends back in the guard (so a combination always opens with the first)
       const U = [['attack1'], ['attack1', 'attack2'], ['attack1', 'attack2'], ['attack1', 'attack2', 'attack3'], ['attack1', 'attack2', 'attack3']];
+      if (this.actions.attack4) U.push(['attack4'], ['attack4', 'attack1']);     // the overhead cut
       if (shield) U.push(['bash', 'attack1', 'attack2'], ['attack1', 'attack2', 'bash']);
       const c = U[Math.floor(Math.random() * U.length)];
       this.strike(c[0]);
@@ -778,9 +819,10 @@ class Foe extends Zombie {
     this.rushT -= dt;
     const K = this.kind, turn = K.turn * 0.8 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
     this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
-    const f = this.forward(_u), sp = K.run * 1.1 * this.pace * this.slow, x0 = this.pos.x, z0 = this.pos.z;
+    const gait = this.ual && this.actions.sprint ? 'sprint' : 'run';     // (on the library's clips, flat out)
+    const f = this.forward(_u), sp = K.run * (gait === 'sprint' ? 1.4 : 1.1) * this.pace * this.slow, x0 = this.pos.x, z0 = this.pos.z;
     this.owner.physics.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
-    this.play('run', 0.2, sp / (K.gait?.run || K.run));
+    this.play(gait, 0.2, sp / (K.gait?.[gait] || K.run));
     if (dist < K.reach + 0.4 && fe < 0.6) { this.strike('bash', 0.2); this.comboQ = this.arm('R') ? ['attack1'] : null; return; }
     if (this.rushT <= 0 || !this.shield || Math.hypot(this.pos.x - x0, this.pos.z - z0) < sp * dt * 0.3) this.state = 'move';
   }
@@ -797,7 +839,7 @@ class Foe extends Zombie {
       if (ally) { this.state = 'cast'; this.spell = 'ward'; this.wardOn = ally; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
     }
     if (this.canSee && hands && !this.bigCool && dist > 4 && dist < 18) { this.state = 'cast'; this.spell = 'cast2'; this.play('cast2', 0.12); F.voice(this, 'chant'); return; }
-    if (this.canSee && hands && !this.spellCool && dist < 26 && fe < 0.9) { this.state = 'cast'; this.spell = 'cast1'; this.play('cast1', 0.1, 1.15); return; }
+    if (this.canSee && hands && !this.spellCool && dist < 26 && fe < 0.9) { this.state = 'cast'; this.spell = 'cast1'; this.play(this.ual && this.actions.cast ? 'cast' : 'cast1', 0.1, 1.15); return; }
     if (!this.canSee || dist > 12) { this.go(dt, this.route(player.pos), dist > 9 && this.feet ? K.run : K.walk); return; }
     if (dist < 5) { this.go(dt, player.pos, K.walk, { face: player.pos, back: true }); return; }
     this.circleT = (this.circleT ?? 0) - dt;
@@ -1336,7 +1378,10 @@ export class Foes {
     const put = ([v, x, z, o]) => {
       if (!this.gltf[v]) v = 'sworn_m';
       if (!this.gltf[v]) return null;
-      return this.spawn(v, x, z, { y: 0, zone: 'keep', fitting: (this.fittings = (this.fittings ?? -1) + 1), ...o });   // (each fitting in turn)
+      const f = this.spawn(v, x, z, { y: 0, zone: 'keep', fitting: (this.fittings = (this.fittings ?? -1) + 1), ...o });   // (each fitting in turn)
+      f.chat = !!o?.room && Math.random() < 0.6;      // (in the hall and the barracks, at ease, some talk)
+      if (f.chat) f.play('idle', 0);
+      return f;
     };
     let n = 0;
     for (const p of TOUCH ? keep.posts.filter((_, i) => i % 2 === 0) : keep.posts) n += put(p) ? 1 : 0;

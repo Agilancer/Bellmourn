@@ -107,21 +107,30 @@ export function buildWorld(ctx) {
     }
     return pts;
   };
-  b.ribbon(road, street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, w]) => [x, z, w]), 4);   // north-south high street
-  b.ribbon(road, street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4), 4);                        // east-west road
-  b.patch(cobble, 0, 0, 0.03, roundRect(0, 0, 20.5, 20.5, 5, 0.9, 1, 72));                     // the plaza
-  b.patch(paving, 0, -47.5, 0.03, roundRect(0, -47.5, 16.3, 7.8, 6, 0.35, 2, 56));             // the cathedral forecourt (on under its front)
+  const NS = street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, w]) => [x, z, w]), EW = street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4);
+  const plaza = roundRect(0, 0, 20.5, 20.5, 5, 0.9, 1, 72), forecourt = roundRect(0, -47.5, 16.3, 7.8, 6, 0.35, 2, 56);
+  b.ribbon(road, NS, 4);                        // north-south high street
+  b.ribbon(road, EW, 4);                        // east-west road
+  b.patch(cobble, 0, 0, 0.03, plaza);           // the plaza
+  b.patch(paving, 0, -47.5, 0.03, forecourt);   // the cathedral forecourt (on under its front)
+  // grass growing onto them at their edges (grass.js), not on the plaza, nor where the roads meet it
+  const T = ctx.tufts, open = (x, z) => !(Math.abs(x) < 22 && Math.abs(z) < 22) && !(Math.abs(x) < 18 && z < -38 && z > -56);
+  T?.verge(NS, 4, 2.0, { clear: open }); T?.verge(EW, 4, 2.0, { clear: open });
+  T?.ring(plaza, 1.3, { clear: (x, z) => Math.abs(x) > 7 && Math.abs(z) > 7 });
+  T?.ring(forecourt, 0.9, { clear: (x, z) => z > -51.5 && Math.abs(x) > 6 && !(x > 12 && z > -51 && z < -43) });
   // the lane to the graveyard: off the forecourt's east side, round the bell tower (it stands
   // at the cathedral's south-east corner), up past the chancel and across to the gate
   const lane = [[13.5, -46.5, 3.2], [18, -46.8, 3.2], [21.5, -48.6, 3.1], [23, -52, 3]];
   for (let z = -56; z >= -108; z -= 4) lane.push([23.3 + 0.55 * Math.sin(z * 0.09) + 0.25 * Math.sin(z * 0.23), z, 2.9 + 0.25 * Math.sin(z * 0.13)]);
   lane.push([22.6, -112, 3.1], [20.8, -116.5, 3.3], [18.6, -120, 3.5], [17.2, -124.5, 3.2]);
   b.ribbon(dirt, lane, 3, 0.021);
+  T?.verge(lane, 3, 1.4, { clear: (x, z) => z < -51 });
   // footpaths to the back doors, and the trodden lots beside the alchemist's and the store
   for (const [x0, x1, z] of [[-61, -47, 31.5], [43, 59, 31.5]]) {
     const pts = [];
     for (let x = x0; x <= x1 + 1e-6; x += 2) pts.push([x, z + 0.35 * Math.sin(x * 0.4), 1.5 + 0.15 * Math.sin(x * 0.7)]);
     b.ribbon(dirt, pts, 1.5, 0.02);
+    T?.verge(pts, 1.5, 1.0);
   }
   for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(dirt, x, -18, 0.02, roundRect(x, -18, 6.3, 14.3, 4, 0.6, k, 40));
   props.add('well', 0, 0.03, 0, 0, 1.2);
@@ -219,7 +228,9 @@ function groundPatches(ctx, M, R, houses) {
     const cx = h.x + out[0] * (h.w / 2 + 2.2), cz = h.z + out[1] * (h.d / 2 + 2.2);
     const hw = out[0] ? 1.8 : 3, hd = out[0] ? 3 : 1.8;
     const m = M(take(yard, i), 2, { overlay: true, feather: 1.0 });
-    b.patch(m, cx, cz, 0.025, roundRect(cx, cz, hw + 0.4, hd + 0.4, 3, 0.3, i + 5, 28));
+    const outline = roundRect(cx, cz, hw + 0.4, hd + 0.4, 3, 0.3, i + 5, 28);
+    b.patch(m, cx, cz, 0.025, outline);
+    ctx.tufts?.ring(outline, 0.8, { clear: (x, z) => !houses.some((q) => Math.abs(x - q.x) < q.w / 2 + 0.4 && Math.abs(z - q.z) < q.d / 2 + 0.4) });
   });
   const grass = /^town_(dry_grass|sparse_grass|rough_field|moss_cover|trampled_verge|leaf_litter_grass|damp_grass|straw_grass|clover_grass)$/;
   const earth = /^town_(damp_mud|cracked_clay|cart_rut_earth|red_earth|dusty_earth|mud_puddles|churned_clay|sandy_earth|twig_earth|dark_grit|muddy_gravel|dusty_gravel)$/;
@@ -245,10 +256,13 @@ function groundPatches(ctx, M, R, houses) {
   const gp = [];
   for (let z = G.z1 + 1; z >= G.z0 + 20; z -= 2) gp.push([17 + 0.3 * Math.sin(z * 0.3), z, 1.5 + 0.12 * Math.sin(z * 0.5)]);
   b.ribbon(pathMat, gp, 1.5, 0.025);
+  const dead = [1.05, 0.88, 0.7];   // (the graveyard's tufts: dry and pale)
+  ctx.tufts?.verge(gp, 1.5, 0.9, { tint: dead, clear: (x, z) => z < G.z1 - 1 });
   const ring = M(take(gy, 1), 2, { overlay: true, feather: 0.9 });
   const rp = [];
   for (let x = 18.5; x >= -8; x -= 2) rp.push([x, G.z0 + 18.5 + 0.3 * Math.sin(x * 0.35), 1.5]);
   b.ribbon(ring, rp, 1.5, 0.026);
+  ctx.tufts?.verge(rp, 1.5, 0.9, { tint: dead, clear: (x) => x < 15 });
   for (let i = 0; i < 5; i++) blob(take(gy, i + 2), G.x0 + 8 + i * 18, G.z0 + 30 + (i % 2) * 14, 2.4, 0.024, 8, 1.0);
   // trodden clearings and paths out in the forest
   const wood = /^dark_forest_(black_loam|gravel_path|packed_mud|dark_turf|peat|shale_chips|root_soil|pine_needles|damp_moss|dead_leaves)$/;
@@ -685,6 +699,7 @@ function trail(ctx, M, R) {
   for (let x = 116; x <= REGION.x0 + 4; x += 2) line.push([x, zAt(x)]);
   b.ribbon(verge, line, 2.6, 0.018);   // (one continuous ribbon each, frayed along its sides)
   b.ribbon(dirt, line, 1.6, 0.024);
+  ctx.tufts?.verge(line, 2.6, 1.4, { tint: [0.9, 0.95, 0.85] });
   const S = (id, x, z, s = 1, rot) => ctx.scatter.place(id, x, 0, z, s, rot);
   S('dark_forest_trail_sign', 118, 4.2, 1, Math.PI / 2);
   S('town_scatter_40_arrow_milestone', REGION.x0 - 4, 4.5, 1, Math.PI / 2);

@@ -82,6 +82,15 @@
   #loading.done { opacity: 0; pointer-events: none; }
   #busy { position: absolute; right: 18px; top: 16px; color: var(--gold-dim); font: 12px Cinzel, serif; letter-spacing: .14em; }
   #menu { display: none; }
+  /* the new animations: a banner in the menu, never over the knight */
+  .news { display: block; width: calc(100% - 36px); margin: 12px 18px 4px; padding: 12px 12px 10px; border: 2px solid #ff3b30; border-radius: 6px;
+          background: linear-gradient(#b3120c, #6e0905); color: #fff; text-align: center; cursor: pointer; box-shadow: 0 0 18px rgba(255, 40, 30, .45);
+          animation: pulse 1.6s ease-in-out infinite; }
+  .news b { display: block; font: 700 19px Cinzel, Georgia, serif; letter-spacing: .06em; line-height: 1.15; }
+  .news span { display: block; margin-top: 4px; font-size: 12px; color: #ffd8d0; }
+  .news[aria-pressed="true"] { outline: 2px solid #fff; }
+  @keyframes pulse { 50% { box-shadow: 0 0 30px rgba(255, 40, 30, .85); } }
+  .clips .tag.new { color: #fff; background: #d2160e; padding: 1px 5px 0; border-radius: 3px; }
 
   /* ---------------- a phone: the panel is a drawer over the bottom of the scene */
   @media (max-width: 760px) {
@@ -92,8 +101,10 @@
     #now h3 { font-size: 18px; }
     #now p { font-size: 13px; }
     #transport { left: 16px; right: 16px; }
-    #menu { display: block; position: absolute; right: 16px; top: 12px; pointer-events: auto; background: var(--panel); border: 1px solid var(--edge);
-            border-radius: 4px; padding: 6px 12px; color: var(--gold); font: 700 12px Cinzel, serif; letter-spacing: .1em; cursor: pointer; }
+    #menu { display: block; position: absolute; right: 16px; top: 12px; pointer-events: auto; background: #b3120c; border: 2px solid #ff3b30;
+            border-radius: 4px; padding: 6px 10px; color: #fff; font: 700 11px Cinzel, serif; letter-spacing: .06em; cursor: pointer; max-width: 150px; line-height: 1.2;
+            box-shadow: 0 0 14px rgba(255, 40, 30, .6); }
+    #now { max-width: calc(100% - 190px); }
     #busy { top: 50px; }
     .speed input[type=range] { width: 80px; }
   }
@@ -105,8 +116,9 @@
 <aside id="panel" aria-label="Choose a knight and a move">
   <header>
     <h1>The Sworn</h1>
-    <p>Velscour's knights of Blackvigil Keep, moving on Quaternius' Universal Animation Library 2.</p>
+    <p>Velscour's knights of Blackvigil Keep, moving on Quaternius' Universal Animation Libraries 1 and 2.</p>
   </header>
+  <button class="news" id="news" type="button" aria-pressed="false"><b>NEW ANIMATIONS ARE HERE</b><span id="newsCount">From the first library: tap to see only them</span></button>
   <div class="scroll">
     <h2>Knight</h2>
     <div class="row"><label for="who">Body</label><select id="who"></select></div>
@@ -130,7 +142,7 @@
   <div id="now"><h3 id="title">&nbsp;</h3><p id="desc"></p><small id="meta"></small></div>
   <div id="names"></div>
   <div id="busy"></div>
-  <button id="menu" type="button">Moves</button>
+  <button id="menu" type="button">NEW ANIMATIONS ARE HERE · Moves</button>
   <div id="transport">
     <div class="bar">
       <button id="play" type="button">Pause</button>
@@ -162,8 +174,35 @@ const NAMES = { sworn_m: 'Sworn of the Vigil (man)', sworn_f: 'Sworn of the Vigi
   sworn_adept_f: 'Adept of the Vigil (woman)', sworn_lord: 'Ser Malgrave, the Red Hand' };
 const MOVES = {
   idle: ['Guard', 'Stands in the shield guard: shield before his chest, blade ready.'],
-  walk: ['Walk', 'The carrying walk below the waist (strides lengthened a third), the shield guard above it.'],
-  run: ['Run', 'The same walk at double time, strides nearly doubled, pitched forward into them. Also the shield charge.'],
+  walk: ['Walk', 'The first library\u2019s walk below the waist, the shield guard above it (it was the carrying walk, stretched).'],
+  run: ['Run', 'The jog below the waist, the shield guard above, leaning in (it was the walk at double time).'],
+  sprint: ['Sprint', 'Flat out behind the shield: his charge, with the bash when he gets there.'],
+  idle_calm: ['At ease', 'Nobody\u2019s after him: he stands easy at his post.'],
+  idle_talk: ['Talking', 'At ease in the hall or the barracks, some of them talk.'],
+  idle_sword: ['Sword guard', 'His shield gone, he stands his guard with the blade.'],
+  patrol: ['Patrol', 'The formal walk of his rounds, while nobody\u2019s after him.'],
+  leap: ['Jump (first library)', 'Its jump: a crouch, a spring and the landing. (The hop over obstacles still uses the leap above.)'],
+  attack4: ['Overhead cut', 'Straight down from over the head: on its own, or before the rising cut.'],
+  punch1: ['Jab', 'Disarmed, he fights on with his fists.'],
+  punch2: ['Cross', 'The jab\u2019s follow-through.'],
+  roll: ['Dodge roll', 'His shield gone, he may roll aside from your swing instead of parrying.'],
+  hit_head: ['Flinch: head', 'Struck on the helm.'],
+  hit_chest: ['Flinch: chest', 'Struck on the breastplate.'],
+  death2: ['Death: crumples', 'The other death: he falls where he stands.'],
+  dead2: ['Dead (crumpled)', 'Where he lies.'],
+  cast: ['Spell', 'An adept gathers the blood bolt in both hands and throws it.'],
+  crouch: ['Crouch', 'Everyday, for the villagers next.'],
+  crouch_walk: ['Crouching walk', 'Everyday, for the villagers next.'],
+  torch: ['Torch held up', 'Everyday: a watchman with a torch.'],
+  sit: ['Sits down', 'Everyday: onto a bench or a chair.'],
+  sit_idle: ['Seated', 'Everyday.'],
+  sit_talk: ['Seated, talking', 'Everyday.'],
+  stand: ['Stands up', 'Everyday: up from the seat.'],
+  interact: ['Reaches out', 'Everyday: a door, a lever, a shelf.'],
+  pickup: ['Picks up', 'Everyday: something off a table.'],
+  kneel: ['Kneels to work', 'Everyday: mending something on the ground.'],
+  push: ['Pushes', 'Everyday: a cart, a crate, a door.'],
+  dance: ['Dances', 'Everyday: the tavern on a feast night.'],
   jump: ['Leap', 'Over a low obstacle in his way: the ninja jump’s spring and landing.'],
   attack1: ['Rising cut', 'Low to high, ending with the blade up, where the falling cut begins.'],
   attack1_rec: ['Rising cut: recover', 'Back to the guard when the chain stops after the rising cut.'],
@@ -187,16 +226,21 @@ const MOVES = {
   crawl_attack: ['Crawling strike', 'Claws at you from the ground (his old clip, kept).'],
   crawl_death: ['Crawling death', 'His old clip, kept.'],
   crawl_dead: ['Dead, crawling', 'His old clip, kept.'],
-  cast1: ['Blood bolt', 'An adept casts at you (the sorcerers’ clip).'],
+  cast1: ['Blood bolt (old)', 'The sorcerers\u2019 cast, kept for the adepts\u2019 bodies on the old clips.'],
   cast2: ['Great spell', 'Calls Velscour’s fire up under you, or mends a brother.'],
   blink: ['Blink', 'Gone in a puff, and back some way off.'],
 };
+// what came from the first library (marked NEW)
+const NEW = new Set(['walk', 'run', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'leap', 'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest',
+  'death2', 'dead2', 'cast', 'crouch', 'crouch_walk', 'torch', 'sit', 'sit_idle', 'sit_talk', 'stand', 'interact', 'pickup', 'kneel', 'push', 'dance']);
 const GROUPS = [
-  ['Moving', ['idle', 'walk', 'run', 'jump']],
-  ['Cuts', ['attack1', 'attack2', 'attack3', 'lunge', 'heavy', 'attack1_rec', 'attack2_rec']],
-  ['Shield and guard', ['bash', 'block', 'parry', 'guardbreak', 'hit']],
-  ['Down', ['knockdown', 'getup', 'death', 'dead']],
-  ['Casting (adepts)', ['cast1', 'cast2', 'blink']],
+  ['Moving', ['idle', 'idle_calm', 'idle_talk', 'idle_sword', 'walk', 'patrol', 'run', 'sprint', 'jump', 'leap']],
+  ['Cuts', ['attack1', 'attack2', 'attack3', 'attack4', 'lunge', 'heavy', 'attack1_rec', 'attack2_rec']],
+  ['Shield and guard', ['bash', 'block', 'parry', 'roll', 'guardbreak', 'hit', 'hit_head', 'hit_chest']],
+  ['Bare-handed', ['punch1', 'punch2']],
+  ['Down', ['knockdown', 'getup', 'death', 'dead', 'death2', 'dead2']],
+  ['Casting (adepts)', ['cast', 'cast1', 'cast2', 'blink']],
+  ['Everyday (for the villagers next)', ['crouch', 'crouch_walk', 'torch', 'sit', 'sit_idle', 'sit_talk', 'stand', 'interact', 'pickup', 'kneel', 'push', 'dance']],
   ['Kept from his old clips', ['fall', 'collapse', 'crawl', 'crawl_attack', 'crawl_death', 'crawl_dead']],
 ];
 // how the game strings moves together (foes.js: combo, attacking, hit)
@@ -207,10 +251,18 @@ const COMBOS = [
   ['Bash, then two cuts', 'Through your guard with the shield, then the blade.', ['bash', 'attack1', 'attack2', 'attack2_rec']],
   ['Shield up, guard broken, bash', 'A heavy blow on his raised shield, and his answer.', [['block', 1.2], 'guardbreak', 'bash']],
   ['Knocked down and up', 'A heavy blow throws him down; he rises.', ['knockdown', ['dead', 0.5], 'getup', ['idle', 1]]],
-  ['Charge', 'At a run behind the shield, and the bash when he gets there.', [['run', 1.6], 'bash', 'attack1', 'attack1_rec']],
+  ['Charge', 'Flat out behind the shield, and the bash when he gets there.', [['sprint', 1.4], 'bash', 'attack1', 'attack1_rec']],
+  ['At ease, then on guard', 'Nobody about; then he sees you and takes his guard.', [['idle_calm', 2], ['idle', 1.5]]],
+  ['Overhead, then the chain', 'The overhead cut, then the rising cut and its recovery.', ['attack4', 'attack1', 'attack1_rec']],
+  ['Disarmed', 'Jab and cross with his fists.', ['punch1', 'punch2', ['idle_sword', 0.8]]],
+  ['Rolls aside', 'Shieldless: he rolls out of your swing and comes back on guard.', [['idle_sword', 0.8], 'roll', ['idle_sword', 0.8]]],
+  ['Sits a while', 'Down onto a seat, talks, and up again.', ['sit', ['sit_idle', 1.5], ['sit_talk', 2], 'stand']],
 ];
+const NEW_COMBOS = new Set([6, 7, 8, 9, 10, 11]);
 // the old clip shown for a new one it has no namesake of
-const OLD_FOR = { lunge: 'attack3', attack1_rec: 'idle', attack2_rec: 'idle', guardbreak: 'hit', knockdown: 'death', parry: 'block', heavy: 'attack2' };
+const OLD_FOR = { lunge: 'attack3', attack1_rec: 'idle', attack2_rec: 'idle', guardbreak: 'hit', knockdown: 'death', parry: 'block', heavy: 'attack2',
+  sprint: 'run', idle_calm: 'idle', idle_talk: 'idle', idle_sword: 'idle', patrol: 'walk', leap: 'jump', attack4: 'attack2', punch1: 'attack1', punch2: 'attack1',
+  roll: 'jump', hit_head: 'hit', hit_chest: 'hit', death2: 'death', dead2: 'dead', cast: 'cast1' };
 
 // ------------------------------------------------------------------ the scene
 const canvas = $('view');
@@ -362,7 +414,8 @@ class Figure {
     }
   }
 }
-const LOOPS = new Set(['idle', 'walk', 'run', 'block', 'crawl', 'dead', 'crawl_dead']);
+const LOOPS = new Set(['idle', 'walk', 'run', 'block', 'crawl', 'dead', 'crawl_dead', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'dead2',
+  'crouch', 'crouch_walk', 'torch', 'sit_idle', 'sit_talk', 'push', 'dance']);
 
 /** The library's mannequin, with a plain sword and round shield where the knight has his. */
 function mannequin() {
@@ -453,15 +506,19 @@ function dress() {
 // ------------------------------------------------------------------ the lists
 function moveButton(name, extra = '') {
   const [title, text] = MOVES[name] || [name, ''];
-  const r = RECIPES[name];
-  const from = r ? 'UAL2' : main?.meta.ual ? 'old' : '';
-  return `<li><button type="button" data-clip="${name}" aria-pressed="false"><b>${title}<span class="tag">${from}</span></b><span>${text}${extra}</span></button></li>`;
+  const r = RECIPES[name] || (name === 'dead2' && RECIPES.death2);
+  const fresh = NEW.has(name), from = fresh ? 'NEW' : r ? 'UAL2' : main?.meta.ual ? 'old' : '';
+  return `<li><button type="button" data-clip="${name}" aria-pressed="false"><b>${title}<span class="tag${fresh ? ' new' : ''}">${from}</span></b><span>${text}${extra}</span></button></li>`;
 }
 function buildLists() {
-  $('combos').innerHTML = COMBOS.filter(([, , q]) => q.every((x) => main.clips[[x].flat()[0]]))
-    .map(([t, d], i) => `<li><button type="button" data-combo="${i}" aria-pressed="false"><b>${t}</b><span>${d}</span></button></li>`).join('');
+  const only = S.onlyNew;
+  $('combos').innerHTML = COMBOS.map((c, i) => [c, i]).filter(([[, , q], i]) => q.every((x) => main.clips[[x].flat()[0]]) && (!only || NEW_COMBOS.has(i)))
+    .map(([[t, d], i]) => `<li><button type="button" data-combo="${i}" aria-pressed="false"><b>${t}${NEW_COMBOS.has(i) ? '<span class="tag new">NEW</span>' : ''}</b><span>${d}</span></button></li>`).join('');
+  const n = [...NEW].filter((k) => main.clips[k]).length;
+  $('newsCount').textContent = only ? `Showing the ${n} new ones: tap to see them all` : `${n} from the first library: tap to see only them`;
+  $('news').setAttribute('aria-pressed', String(!!only));
   $('lists').innerHTML = GROUPS.map(([g, names]) => {
-    const have = names.filter((n) => main.clips[n] && !(n === 'heavy' && !FOES[S.v].boss));
+    const have = names.filter((n) => main.clips[n] && !(n === 'heavy' && !FOES[S.v].boss) && (!only || NEW.has(n)));
     return have.length ? `<h2>${g}</h2><ul class="clips">${have.map((n) => moveButton(n)).join('')}</ul>` : '';
   }).join('');
   mark();
@@ -499,7 +556,7 @@ function syncSource() {
 
 function describe() {
   const [title, text] = MOVES[S.clip] || [S.clip, ''];
-  const r = RECIPES[S.clip];
+  const r = RECIPES[S.clip] || RECIPES[{ dead: 'death', dead2: 'death2' }[S.clip]];
   const c = main.clips[S.clip];
   const combo = S.queue ? `${COMBOS[S.combo][0]}: ` : '';
   $('title').textContent = combo + title;
@@ -511,7 +568,8 @@ function describe() {
   } else bits.push(main.meta.ual ? 'His old clip, kept (the library has none like it)' : 'His old clip');
   if (c) bits.push(`${c.duration.toFixed(2)} s, ${Math.round(c.duration * FPS)} frames`);
   const gait = main.meta.gait?.[S.clip];
-  if (gait) bits.push(`covers ${gait} m/s (the game plays it at ${(STATS[FOES[S.v].stats][S.clip] / gait).toFixed(1)}× for his ${STATS[FOES[S.v].stats][S.clip]} m/s)`);
+  const st = STATS[FOES[S.v].stats], game = { walk: st.walk, run: st.run, sprint: st.run * 1.4, patrol: st.walk * 0.8 }[S.clip];   // (foes.js: go, roam, charging)
+  if (gait) bits.push(`covers ${gait} m/s` + (game ? ` (the game plays it at ${(game / gait).toFixed(1)}× for his ${+game.toFixed(2)} m/s)` : ''));
   const sw = STATS[FOES[S.v].stats]?.swing;
   if (r?.hit != null && sw) bits.push(`cuts play ${sw}× in the game`);
   $('meta').textContent = bits.join(' · ');
@@ -623,6 +681,7 @@ $('showSrc').onchange = () => { S.src = $('showSrc').checked; syncSource(); };
 $('floor').onchange = () => { S.floor = $('floor').checked; };
 const closeDrawer = () => $('panel').classList.remove('open');
 $('menu').onclick = () => $('panel').classList.toggle('open');
+$('news').onclick = () => { S.onlyNew = !S.onlyNew; buildLists(); };
 addEventListener('keydown', (e) => {
   if (e.target.closest('select, input')) return;
   if (e.code === 'Space') { e.preventDefault(); $('play').click(); }

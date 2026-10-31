@@ -39,8 +39,9 @@ python tools/serve.py 8124
 
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 `/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
-Universal Animation Library 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page can
-set each move beside their old clips and the library's mannequin it came from.
+Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page
+can set each move beside their old clips and the library's mannequin it came from. On Windows,
+double-click `knight-player.bat` to serve the folder and open it (`tools/knight_player.py`).
 
 | Key | Action |
 |---|---|
@@ -65,13 +66,23 @@ below with its rim of air, the sun) a green star crosses over the world, and clo
 man in black smallclothes, curled up in a ball, spins inside the fire (`hero.js`: villager_m09
 stripped at load, his clothes turned to skin and the briefs drawn on in the bind pose, posed by
 turning each bone so its child lies along the curl). It streaks across the sunset over the
-Darkwood; one of Velscour's Sworn walks out of the wood behind the town, stops and looks up; the
-camera dives behind the star onto him; white. Out of the white: a smoking crater with nothing left
+Darkwood; one of Velscour's Sworn walks out of the wood behind the town on his round (on the
+animation library's clips, `ual.js`), stops as the green light grows behind him, turns, looks up,
+flinches with a yell and cowers under his shield; the camera dives behind the star as he turns and
+runs for the town, falls back behind him, and the star goes past it into him; white. Out of the
+white: a smoking crater with nothing left
 of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
 bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
 staff, which can. The whole village screams at once (a synthesized crowd: `audio.js` `scream`).
 Black; then your own eyes, standing in the crater with nothing in your hands or your bag. The
 Canticle's verses run under it as captions. Esc (or the skip button) skips it.
+
+Nothing is fetched, built or compiled while it plays (`Intro.prepare`, behind the loading screen):
+it waits for the Sworn (retargeted onto their clips), the whole village, the knight's armour, his
+sword, shield and staff and the gauntlets you're given; compiles every shader both scenes draw
+(as the game draws them, into its own picture) and puts the textures on the GPU; draws a frame of
+every shot, and the village gathered as you'll find it; then times its heaviest shot and, if the
+GPU is what holds it up, draws it smaller. The frame-time easing is held while it plays.
 
 The crater (`crater.js`) is one height function added to the village's flat ground (so the
 physics, the map and everything else find the bowl), its own smooth mesh in the ground's material,
@@ -80,11 +91,14 @@ whose shader chars it out past the lip and fuses its floor to green glass with g
 flames, embers and smoke stay in it, and the village has left candles, wreaths and flowers just past
 its char (`polish.js`).
 
-Then the village comes running: Sister Odile (the keeper of the holy texts, new to the roster),
-the Reeve, Mother Hesk, Garrow, Tobias, Wren and Elsie stand round you in the crater and tell you
-who you are: **Tessariel, the Sacred Flame**, whose coming their texts describe to the
-smallclothes, sent to kill the Demon Lord Velscour; and that his sycophants kill anyone who speaks
-the name. They give you armour, gauntlets, gold and draughts (whatever's free goes straight on).
+The village has gathered on the meadow at the edge of town, well back from the hole: Sister Odile
+(the keeper of the holy texts, new to the roster), the Reeve, Mother Hesk, Garrow, Tobias, Wren and
+Elsie, talking among themselves about the man who fell out of the sky, and calling out when you
+climb over the rim (`villagers.gather`). Walk over and they tell you who you are: **Tessariel, the
+Sacred Flame**, whose coming their texts describe to the smallclothes, sent to kill the Demon Lord
+Velscour; and that his sycophants kill anyone who speaks the name. They give you armour, gauntlets,
+gold and draughts (whatever's free goes straight on), and Odile has a task for you first: the dead
+beneath the cathedral. (Leave mid-talk and Continue gives you whatever they hadn't yet.)
 Since then the village talks of little else: `tessariel.js` holds 187 conversations between
 townsfolk (and 18 for Velscour's garrison, who never say the name; nobody says it with the garrison
 in earshot, and someone who does gets hushed), plus greetings, muttering, and what each calling

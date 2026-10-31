@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { crisp } from './engine.js';
 
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
@@ -208,6 +209,7 @@ export class Kit {
     m.userData.kind = kind;
     m.name = atlas + (variant ? '@' + variant : '');
     this.weather(m, WEATHER[kind], !!opts.tile);
+    crisp(m);
     if (atlas === 'village_glass') { m.emissive = new THREE.Color(0xffa040); m.emissiveMap = map; m.emissiveIntensity = 0.2; this.glass = m; }
     this.mats.set(key, m);
     return m;

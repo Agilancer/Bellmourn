@@ -33,8 +33,25 @@ ${TEXELS === 'crisp' ? `  vec2 size = vec2( textureSize( t, 0 ) );
 }
 #endif
 `;
+// three's own materials take it where a material asks (SHARP_MAP, set by crisp()): a painted
+// picture, never a soft glow drawn on a canvas, which would come out in squares
 THREE.ShaderChunk.map_pars_fragment = SHARP_GLSL + THREE.ShaderChunk.map_pars_fragment;
-THREE.ShaderChunk.map_fragment = THREE.ShaderChunk.map_fragment.replace('texture2D( map, vMapUv )', 'sharpTexel( map, vMapUv )');
+THREE.ShaderChunk.map_fragment = THREE.ShaderChunk.map_fragment.replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+  '#ifdef SHARP_MAP\n\tvec4 sampledDiffuseColor = sharpTexel( map, vMapUv );\n#else\n\tvec4 sampledDiffuseColor = texture2D( map, vMapUv );\n#endif');
+
+const IMAGE = (t) => t && t.isTexture && !t.isDataTexture && !t.isDataArrayTexture && !t.isData3DTexture && !t.isCompressedTexture
+  && !t.isRenderTargetTexture && !t.isCubeTexture && !t.isVideoTexture && !t.isDepthTexture && !t.isFramebufferTexture;
+
+/** A material whose map is a painted picture (not a canvas-drawn glow, not added on as light) gets
+ * crisp texels. Returns the material. */
+export function crisp(m) {
+  const t = m?.map;
+  if (TEXELS === 'crisp' && IMAGE(t) && !t.isCanvasTexture && m.blending !== THREE.AdditiveBlending && !('SHARP_MAP' in (m.defines || {}))) {
+    m.defines = { ...(m.defines || {}), SHARP_MAP: '' };
+    m.needsUpdate = true;
+  }
+  return m;
+}
 
 // ------------------------------------------------------------------ ground mist
 /** Mist lying on the ground in `box` [x0, z0, x1, z1] (the graveyard): a height fog in three's own
@@ -92,16 +109,23 @@ export function makeRenderer(canvas, { touch }) {
 
 /** The composer's buffers: the one the world is drawn into is multisampled (EffectComposer draws its
  * scene passes into readBuffer, renderTarget2); the other only ever takes full-screen passes. */
-export function multisample(composer, samples) {
-  if (!samples) return;
-  composer.renderTarget2.samples = samples;
-  composer.renderTarget2.dispose();   // (re-made, multisampled, on its next use)
+export function multisample(composer, renderer, samples) {
+  const gl = renderer.getContext();
+  // half-float multisampled buffers need a float colour buffer (some phone GPUs have none)
+  if (!renderer.extensions.has('EXT_color_buffer_float') && !renderer.extensions.has('EXT_color_buffer_half_float')) samples = 0;
+  samples = Math.min(samples, gl.getParameter(gl.MAX_SAMPLES) || 0);
+  if (!samples) return 0;
+  const ms = composer.renderTarget2;
+  ms.samples = samples;
+  ms.dispose();   // (re-made, multisampled, on its next use)
+  // the scene passes draw into readBuffer: a pass that swaps buffers an odd number of times a frame
+  // would leave the world drawn without multisampling every other frame, so it's always put back
+  const render = composer.render.bind(composer);
+  composer.render = (dt) => { if (composer.readBuffer !== ms) composer.swapBuffers(); render(dt); };
+  return samples;
 }
 
 // ------------------------------------------------------------------ textures and materials
-const IMAGE = (t) => t && t.isTexture && !t.isDataTexture && !t.isDataArrayTexture && !t.isData3DTexture && !t.isCompressedTexture
-  && !t.isRenderTargetTexture && !t.isCubeTexture && !t.isVideoTexture && !t.isDepthTexture && !t.isFramebufferTexture;
-
 /** A picture texture made ready for the new look: linear filtering (sharpTexel keeps it crisp),
  * mipmaps and anisotropy. Data, depth and render-target textures are left alone. */
 export function refineTexture(t) {
@@ -129,6 +153,7 @@ export function refineScene(root, { a2c = true } = {}) {
       seen.add(m);
       for (const k of MAPS) refineTexture(m[k]);
       if (m.isShaderMaterial && m.uniforms?.map?.value) refineTexture(m.uniforms.map.value);
+      if (!m.isShaderMaterial) crisp(m);
       if (a2c && m.alphaTest > 0 && !m.transparent && !m.alphaToCoverage && !m.isShaderMaterial) { m.alphaToCoverage = true; n++; }
     }
   });
@@ -285,17 +310,30 @@ export async function compile(renderer, pairs, target) {
 
 // ------------------------------------------------------------------ the picture's size
 /** The picture's size in device pixels: the window's, times the device's pixels (capped), times the
- * player's resolution choice, times the easing scale `rs` (0.6 .. 1) the frame time sets; and no
- * more than `maxPixels` in all. */
+ * player's resolution choice, times one of a few fixed steps (LEVELS) that the frames choose; and no
+ * more than `maxPixels` in all.
+ *
+ * A step down only when the GPU is what holds a frame up (timed by the GPU's own timer where it has
+ * one; otherwise, a long frame whose own work was short), two slow spells in a row; and if a step down
+ * didn't help (a screen held to 30 a second, a frame the CPU holds up), it goes back and stays. Each
+ * step re-makes the buffers, so they're few. */
 export class Resolution {
   constructor({ touch }) {
     this.touch = touch;
     this.dpr = Math.min(devicePixelRatio || 1, touch ? 1.5 : 2);
     this.choice = Number(store('bm.res', '1')) || 1;   // 1, 0.75, 0.5
     this.maxPixels = touch ? 1.3e6 : 4.2e6;
-    this.rs = 1; this.frameMs = 16; this.t = 0; this.held = false;
+    this.LEVELS = [1, 0.8, 0.65];
+    this.level = 0; this.floor = this.LEVELS.length - 1;
     this.w = 2; this.h = 2;
+    this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 }; this.slow = 0; this.quick = 0; this.tried = null;
+    this.timer = null;
   }
+
+  get rs() { return this.LEVELS[this.level]; }
+  set(level) { this.level = Math.max(0, Math.min(this.LEVELS.length - 1, level)); }
+  /** The step nearest a scale k of the full size. */
+  fit(k) { let best = 0; this.LEVELS.forEach((v, i) => { if (Math.abs(v - k) < Math.abs(this.LEVELS[best] - k)) best = i; }); return best; }
 
   size() {
     const cw = Math.max(1, innerWidth), ch = Math.max(1, innerHeight);
@@ -306,16 +344,43 @@ export class Resolution {
     return [this.w, this.h];
   }
 
-  /** A frame took `ms` (from one to the next): every second and a half or so, the scale eases down
-   * when 60 a second isn't being kept, and back up when it is. Returns true when the size should
-   * change. */
-  frame(ms, playing) {
-    this.frameMs += (Math.min(100, ms) - this.frameMs) * 0.05;
-    if (!playing || this.held || ++this.t < 90) return false;
-    this.t = 0;
-    const want = this.frameMs > 21 ? Math.max(0.6, this.rs * 0.9) : this.frameMs < 17.8 ? Math.min(1, this.rs * 1.05) : this.rs;
-    if (Math.abs(want - this.rs) < 0.01) return false;
-    this.rs = want;
-    return true;
+  /** The GPU's own timer round each frame's drawing, where there is one: begin() before, end() after. */
+  gpuTimer(renderer) {
+    const gl = renderer.getContext(), ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    const T = this.timer = { begin() {}, end() {} };
+    if (!ext) return T;
+    let q = null;
+    const wait = [];
+    T.begin = () => { if (q || wait.length > 2) return; q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q); };
+    T.end = () => {
+      if (q) { gl.endQuery(ext.TIME_ELAPSED_EXT); wait.push(q); q = null; }
+      while (wait.length && gl.getQueryParameter(wait[0], gl.QUERY_RESULT_AVAILABLE)) {
+        const done = wait.shift();
+        if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) { this.win.gpu += gl.getQueryParameter(done, gl.QUERY_RESULT) / 1e6; this.win.gpuN++; }
+        gl.deleteQuery(done);
+      }
+    };
+    return T;
+  }
+
+  /** A frame: `gap` ms since the last, `work` ms of it spent in the game's own code. Every second and
+   * a half or so of play the step may change; true when the size should change. */
+  frame(gap, work, playing) {
+    if (!playing) { this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 }; return false; }
+    const W = this.win;
+    W.n++; W.gap += Math.min(100, gap); W.work += work;
+    if (W.n < 90) return false;
+    const g = W.gap / W.n, wk = W.work / W.n, gpu = W.gpuN ? W.gpu / W.gpuN : null;
+    this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 };
+    // a step down that didn't make frames quicker: back up, and no lower again
+    if (this.tried && this.tried.level === this.level && g > this.tried.gap * 0.92) { this.floor = this.level - 1; this.level--; this.tried = null; return true; }
+    this.tried = null;
+    const gpuBound = gpu != null ? gpu > 15 : g > 21 && wk < g * 0.55;
+    const roomy = gpu != null ? gpu < 9.5 && g < 18 : g < 17.6;
+    this.slow = gpuBound ? this.slow + 1 : 0;
+    this.quick = roomy ? this.quick + 1 : 0;
+    if (this.slow >= 2 && this.level < this.floor) { this.slow = 0; this.tried = { level: this.level + 1, gap: g }; this.level++; return true; }
+    if (this.quick >= 3 && this.level > 0) { this.quick = 0; this.level--; return true; }
+    return false;
   }
 }

@@ -4,7 +4,7 @@
 // It also keeps track of which surfaces the world has used, so builders can ask for ones
 // that haven't been used yet (every Velscour texture ends up somewhere).
 import * as THREE from 'three';
-import { SHARP_GLSL } from './engine.js';
+import { SHARP_GLSL, crisp } from './engine.js';
 
 const ROOT = 'assets/textures/';
 const SHINY = /iron|met_|gold|marble|slate|wet|sewer|ice|glass|polish|lacquer|obsidian|basalt|tile|inlay|salt/;
@@ -63,12 +63,15 @@ function feathered(m, f) {
         float fn = fNoise(vFeatherP * 0.16 + 3.1) * 0.42 + fNoise(vFeatherP * 0.55) * 0.3 + fNoise(vFeatherP * 1.9 + 7.3) * 0.18 + fNoise(vFeatherP * 5.3 + 2.1) * 0.1;
         float frel = 0.0;
         #ifdef USE_MAP
-          frel = dot(sampledDiffuseColor.rgb - textureLod(map, vMapUv, 16.0).rgb, vec3(0.3333));   // (against its average: the last mip)
+          // light against dark a few mips down (whole stones, not single texels), against the
+          // picture's average (its last mip)
+          frel = dot(textureLod(map, vMapUv, 2.2).rgb - textureLod(map, vMapUv, 16.0).rgb, vec3(0.3333));
         #endif
         // the fray: strongest mid-band, none at its two ends (so it never shows the band's own lines)
         float fe = vEdge + ((fn - 0.5) * 1.25 + clamp(frel, -0.3, 0.3) * 1.5) * 4.0 * vEdge * (1.0 - vEdge);
         diffuseColor.a *= smoothstep(0.42, 0.58, fe);
         diffuseColor.rgb *= mix(0.9, 1.0, smoothstep(0.5, 0.9, fe));
+        diffuseColor.rgb *= 0.92 + 0.16 * fNoise(vFeatherP * 0.09 + 23.0);   // (a slow drift of tone: no grid of tiles)
       }`);
   };
 }
@@ -228,6 +231,7 @@ export class Library {
     m.userData.tileV = tile;
     m.userData.tileU = tile * (s.size[0] / s.size[1]);
     m.userData.id = id;
+    crisp(m);
     this.mats.set(k, m);
     return m;
   }

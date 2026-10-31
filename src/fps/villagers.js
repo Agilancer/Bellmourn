@@ -26,6 +26,7 @@ import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './
 import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS, HUSH } from './tessariel.js';
 import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
+import { cullable, shareSkeletons } from './engine.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
 // image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
@@ -143,7 +144,7 @@ export class Villagers {
       if (skel.bones.some((b) => !b)) { console.warn('armour: a bone it needs is missing', m.name); continue; }
       host.add(m);
       m.bind(skel, m.bindMatrix);
-      m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+      m.castShadow = true; m.receiveShadow = true;
     }
   }
 
@@ -161,9 +162,12 @@ export class Villagers {
     if (armor) this.wear(model, armor);
     let head = null;
     model.traverse((c) => {
-      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; }
+      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
       if (c.isBone && c.name === 'Head') head = c;
     });
+    // one skeleton for all thirteen-odd parts of them, culled to what can be seen (engine.js)
+    shareSkeletons(model);
+    cullable(model);
     const mixer = new THREE.AnimationMixer(model), actions = {};
     for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
     for (const once of ['wave', 'interact']) if (actions[once]) { actions[once].setLoop(THREE.LoopOnce); actions[once].clampWhenFinished = true; }
@@ -306,7 +310,12 @@ export class Villagers {
   }
 
   stopScenes(a) {
-    for (const s of this.scenes) if (s.people.includes(a)) { s.dead = true; for (const q of s.people) { q.busy = false; q.goal = null; q.path = []; } }
+    for (const s of this.scenes) {
+      if (s.dead || !s.people.includes(a)) continue;
+      s.dead = true;
+      for (const q of s.people) { q.busy = false; q.goal = null; q.path = []; }
+      try { s.gen.return(); } catch { /* (it was the one running) */ }   // its `finally` runs: what it must still do
+    }
   }
 
   stepScenes(dt) {
@@ -530,6 +539,7 @@ export class Villagers {
 
   /** You speak to someone with nothing to give you: they turn, and say something about who you are. */
   talkTo(a, player) {
+    if (a.gathered) return;   // (at the edge of town after the green star: they're already talking to you)
     this.stopScenes(a);
     a.busy = true; a.greeted = this.time;
     const self = this;
@@ -544,42 +554,91 @@ export class Villagers {
     })(), [a]);
   }
 
-  /** The village comes to the crater after the green star: `cast` [{name, from: [x, z], at: [x, z]}]
-   * are put a little way off (main does it during the black, so they've come running) and walk up
-   * round you; then `script` [{name, text, gift, wave}] is said in turn, each to you; onGift(gift)
-   * as each gives theirs (whether or not they've come in yet: a phone may still be bringing them). */
-  welcome(player, cast, script, onGift, onDone) {
+  /** After the green star: the village gathered on the meadow at the edge of town, well back from the
+   * crater (nobody goes near the hole). `cast` [{name, at: [x, z]}] are put where they stand (main
+   * does it in the black, so they've been there a while), facing `look` [x, z], the crater. Till you
+   * come to them they talk among themselves about the man who fell out of the sky (`chatter`
+   * [{name, text}], in turn and round again), and call out when you climb out of it (`sight`, once
+   * out(player)); once you're within `near` m of them they turn to you, and `script` [{name, text,
+   * gift, wave}] is said in turn, each to you (they wait whenever you walk off), onGift(gift, who)
+   * as each gives theirs; onDone() after the last line. False if none of them is here. */
+  gather(player, cast, { look, chatter, sight, script, out, near = 9, onGift, onDone }) {
     const people = cast.map((c) => ({ ...c, a: this.list.find((v) => v.name === c.name) })).filter((c) => c.a);
-    const self = this;
+    if (!people.length) return false;
+    const self = this, id = (this.gatherId = (this.gatherId || 0) + 1);   // (a new game's gathering ends the last one: it gives nothing then)
+    const mid = [people.reduce((s, c) => s + c.at[0], 0) / people.length, people.reduce((s, c) => s + c.at[1], 0) / people.length];
+    const far = () => Math.hypot(player.pos.x - mid[0], player.pos.z - mid[1]);
     for (const c of people) {
       this.stopScenes(c.a);
-      c.a.inside = false; c.a.root.visible = true; c.a.flee = 0; c.a.headingHome = false;
-      c.a.pos.set(c.from[0], 0, c.from[1]);
-      c.a.pos.y = this.physics.floorAt(c.a.pos.x, c.a.pos.z, 5, 0.25, 9);
+      Object.assign(c.a, { inside: false, flee: 0, headingHome: false, hurry: false, path: [], goal: null, talk: null, gesture: 0 });
+      c.a.root.visible = true;
+      c.a.pos.set(c.at[0], 0, c.at[1]);
+      c.a.pos.y = this.physics.floorAt(c.at[0], c.at[1], 5, 0.25, 9);
+      this.face(c.a, look[0] + rand(-4, 4), look[1] + rand(-4, 4));
+      c.a.yaw = c.a.faceTo;
     }
-    this.run((function* () {
-      // straight across the meadow to you, running (no streets out here)
-      for (const c of people) Object.assign(c.a, { path: [], goal: [c.at[0], c.at[1]], faceTo: null, stuck: 0, hurry: true });
-      let waited = 0;
-      while (people.some((c) => c.a.goal) && waited < 12) { waited += 0.25; yield 0.25; }
-      for (const c of people) { c.a.hurry = false; c.a.goal = null; self.face(c.a, player); }
-      yield 0.6;
-      for (const ln of script) {
-        const c = people.find((q) => q.name === ln.name);
-        if (c) {
-          for (const q of people) self.face(q.a, q === c ? player : c.a);
-          if (ln.wave) self.gesture(c.a, 'wave');
-          if (ln.gift) self.gesture(c.a, 'interact');
-          c.a.talk = null;
-          const d = self.say(c.a, ln.text, true);
-          if (ln.gift) onGift(ln.gift, c.a);
-          yield d + 0.35;
-        } else if (ln.gift) onGift(ln.gift, null);
+    // a line: the speaker turns to `to` (you, or the crater), the rest to the speaker (or, once
+    // they've seen you, to you)
+    let seen = false;
+    const speak = (ln, toYou) => {
+      const c = people.find((q) => q.name === ln.name);
+      if (!c) return 0;
+      for (const q of people) {
+        if (q === c) { if (toYou || seen) self.face(q.a, player); else self.face(q.a, look[0], look[1]); } else self.face(q.a, seen ? player : c.a);
       }
-      onDone?.();
-      yield 1;
+      if (ln.wave) self.gesture(c.a, 'wave');
+      c.a.talk = null;
+      return self.say(c.a, ln.text, toYou);
+    };
+    for (const c of people) c.a.gathered = true;   // (E on one of them doesn't break it up: talkTo)
+    let given = 0, finished = false;
+    this.run((function* () {
+      try {
+        // among themselves, watching the hole, till you come
+        let i = 0;
+        yield 1.5;
+        while (far() > near) {
+          if (!seen && out(player)) {
+            seen = true;
+            for (const ln of sight) { const d = speak(ln, false); yield d * 0.75 + 0.15; if (far() <= near) break; }
+            continue;
+          }
+          const d = speak(chatter[i++ % chatter.length], false);
+          yield d * 0.8 + rand(0.3, 0.9);
+        }
+        // you've come: they turn to you, and say it all in turn (waiting if you walk off)
+        seen = true;
+        for (const c of people) self.face(c.a, player);
+        yield 0.5;
+        for (const ln of script) {
+          while (far() > near + 7) yield 0.25;
+          const c = people.find((q) => q.name === ln.name);
+          if (ln.gift) { given++; if (c) self.gesture(c.a, 'interact'); }
+          if (!c) { if (ln.gift) onGift?.(ln.gift, null); continue; }
+          const d = speak(ln, true);
+          if (ln.gift) onGift?.(ln.gift, c.a);
+          yield d + 0.35;
+        }
+        finished = true;
+        onDone?.();
+        yield 1;
+      } finally {
+        if (id === self.gatherId) for (const c of people) c.a.gathered = false;
+        // broken up before the end (something dead came at them): you still get what they'd have given
+        if (!finished && id === self.gatherId) {
+          for (const ln of script.filter((l) => l.gift).slice(given)) onGift?.(ln.gift, null);
+          onDone?.();
+        }
+      }
     })(), people.map((c) => c.a));
-    return people.length > 0;
+    return true;
+  }
+
+  /** Call off the gathering after the green star (a new game, or a save loaded): they go about their
+   * day, and give nothing more. */
+  endGather() {
+    this.gatherId = (this.gatherId || 0) + 1;
+    for (const a of this.list) if (a.gathered) { a.gathered = false; this.stopScenes(a); }
   }
 
   /** Someone you come up to: they stop, turn to you, wave and say good day. */
