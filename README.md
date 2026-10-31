@@ -38,7 +38,9 @@ python tools/serve.py 8124
 ```
 
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
-`/velscour.html`).
+`/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
+Universal Animation Library 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page can
+set each move beside their old clips and the library's mannequin it came from.
 
 | Key | Action |
 |---|---|

@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07060a">
+<title>Sworn Animation Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700&family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<!-- The knights of Blackvigil Keep (src/fps/sworn.js), built by the game's own loader (foes.js) on
+     the Universal Animation Library 2 clips (src/fps/ual.js), to watch every move they make: beside
+     them, optionally, the same knight on his old clips and the library's mannequin it came from. -->
+<style>
+  :root {
+    --gold: #d8b870; --gold-dim: #8a7448; --ink: #07060a; --panel: rgba(16, 12, 18, .94); --edge: #4a3c30;
+    --text: #e8dcc0; --muted: #a8987c; --hit: #ff5a3c; --dash: #5aa8ff; --sel: rgba(216, 184, 112, .16);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); overflow: hidden;
+               font: 500 14px 'Alegreya Sans', system-ui, sans-serif; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  button, select, input { font: inherit; color: inherit; }
+
+  /* ---------------- the panel */
+  #panel { position: fixed; left: 0; top: 0; bottom: 0; width: 320px; background: var(--panel); border-right: 1px solid var(--edge);
+           display: flex; flex-direction: column; z-index: 3; }
+  #panel header { padding: 16px 18px 10px; border-bottom: 1px solid var(--edge); }
+  #panel h1 { margin: 0; font: 700 20px Cinzel, Georgia, serif; color: var(--gold); letter-spacing: .06em; }
+  #panel header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+  #panel .scroll { overflow-y: auto; padding: 4px 0 18px; flex: 1; }
+  #panel h2 { margin: 14px 18px 6px; font: 700 11px Cinzel, serif; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-dim); }
+  .row { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; padding: 3px 18px; }
+  .row label { color: var(--muted); font-size: 13px; }
+  select { width: 100%; background: #1a1418; border: 1px solid var(--edge); border-radius: 3px; padding: 5px 6px; }
+  .toggles { display: grid; gap: 6px; padding: 4px 18px; }
+  .toggles label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--gold); width: 16px; height: 16px; }
+  .clips { list-style: none; margin: 0; padding: 0; }
+  .clips li button { width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent; padding: 6px 15px; cursor: pointer;
+                     display: grid; gap: 1px; }
+  .clips li button:hover { background: rgba(255, 255, 255, .04); }
+  .clips li button[aria-pressed="true"] { background: var(--sel); border-left-color: var(--gold); }
+  .clips b { font-weight: 700; font-size: 14px; }
+  .clips span { color: var(--muted); font-size: 12px; line-height: 1.3; }
+  .clips .tag { display: inline-block; margin-left: 6px; font: 700 9px Cinzel, serif; letter-spacing: .12em; color: var(--gold-dim); vertical-align: 1px; }
+
+  /* ---------------- over the scene */
+  #stage { position: fixed; left: 320px; right: 0; top: 0; bottom: 0; pointer-events: none; z-index: 2; }
+  #now { position: absolute; left: 18px; top: 14px; max-width: min(560px, calc(100% - 36px)); text-shadow: 0 1px 3px #000; }
+  #now h3 { margin: 0; font: 700 22px Cinzel, Georgia, serif; color: var(--gold); }
+  #now p { margin: 3px 0 0; color: #d0c4a8; line-height: 1.35; }
+  #now small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  #names { position: absolute; inset: 0; }
+  #names div { position: absolute; transform: translate(-50%, 0); font: 700 11px Cinzel, serif; letter-spacing: .14em; color: var(--muted);
+               text-transform: uppercase; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+  #transport { position: absolute; left: 18px; right: 18px; bottom: max(16px, env(safe-area-inset-bottom)); pointer-events: auto;
+               background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 10px 12px; display: grid; gap: 8px; }
+  .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .bar button { background: #241c20; border: 1px solid var(--edge); border-radius: 4px; padding: 5px 12px; cursor: pointer; min-width: 40px; }
+  .bar button:hover { border-color: var(--gold-dim); }
+  #play { min-width: 76px; color: var(--gold); font-weight: 700; }
+  .speed { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .speed input { accent-color: var(--gold); }
+  .speed input[type=range] { width: 110px; }
+  #clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; margin-left: auto; }
+  #track { position: relative; height: 26px; }
+  #track input { position: absolute; inset: 0; width: 100%; margin: 0; accent-color: var(--gold); background: none; z-index: 2; }
+  #marks { position: absolute; left: 8px; right: 8px; top: 0; bottom: 0; pointer-events: none; z-index: 3; }
+  #marks i { position: absolute; top: 3px; bottom: 3px; width: 3px; margin-left: -1px; background: var(--hit); border-radius: 1px; box-shadow: 0 0 0 1px #000; }
+  #marks em { position: absolute; top: 9px; bottom: 9px; background: rgba(90, 168, 255, .55); border-radius: 2px; }
+  .legend { display: flex; gap: 14px; color: var(--muted); font-size: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--ink); z-index: 9; color: var(--gold-dim);
+             font: 16px Cinzel, serif; letter-spacing: .2em; transition: opacity .4s; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #busy { position: absolute; right: 18px; top: 16px; color: var(--gold-dim); font: 12px Cinzel, serif; letter-spacing: .14em; }
+  #menu { display: none; }
+
+  /* ---------------- a phone: the panel is a drawer over the bottom of the scene */
+  @media (max-width: 760px) {
+    #panel { top: auto; right: 0; width: auto; height: 56vh; border-right: 0; border-top: 1px solid var(--edge); transform: translateY(100%); transition: transform .25s; }
+    #panel.open { transform: none; }
+    #stage { left: 0; }
+    #now { left: 16px; top: 12px; }
+    #now h3 { font-size: 18px; }
+    #now p { font-size: 13px; }
+    #transport { left: 16px; right: 16px; }
+    #menu { display: block; position: absolute; right: 16px; top: 12px; pointer-events: auto; background: var(--panel); border: 1px solid var(--edge);
+            border-radius: 4px; padding: 6px 12px; color: var(--gold); font: 700 12px Cinzel, serif; letter-spacing: .1em; cursor: pointer; }
+    #busy { top: 50px; }
+    .speed input[type=range] { width: 80px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<aside id="panel" aria-label="Choose a knight and a move">
+  <header>
+    <h1>The Sworn</h1>
+    <p>Velscour's knights of Blackvigil Keep, moving on Quaternius' Universal Animation Library 2.</p>
+  </header>
+  <div class="scroll">
+    <h2>Knight</h2>
+    <div class="row"><label for="who">Body</label><select id="who"></select></div>
+    <div class="row"><label for="weapon">Right hand</label><select id="weapon"></select></div>
+    <div class="row"><label for="left">Left hand</label><select id="left"></select></div>
+    <div class="row"><label for="finish">Finish</label><select id="finish"></select></div>
+    <div class="row"><label for="fitting">Fitting</label><select id="fitting"></select></div>
+    <h2>Beside him</h2>
+    <div class="toggles">
+      <label><input type="checkbox" id="showOld"> Before: his old clips</label>
+      <label><input type="checkbox" id="showSrc"> The library's mannequin</label>
+      <label><input type="checkbox" id="floor" checked> Floor moves as the game moves him</label>
+    </div>
+    <h2>Sequences, as he fights</h2>
+    <ul class="clips" id="combos"></ul>
+    <div id="lists"></div>
+  </div>
+</aside>
+
+<div id="stage">
+  <div id="now"><h3 id="title">&nbsp;</h3><p id="desc"></p><small id="meta"></small></div>
+  <div id="names"></div>
+  <div id="busy"></div>
+  <button id="menu" type="button">Moves</button>
+  <div id="transport">
+    <div class="bar">
+      <button id="play" type="button">Pause</button>
+      <button id="prev" type="button" title="Back a frame">&#9664;</button>
+      <button id="next" type="button" title="On a frame">&#9654;</button>
+      <label class="speed">Speed <input id="speed" type="range" min="0.05" max="2" step="0.05" value="1"> <span id="speedv">1.00×</span></label>
+      <label class="speed"><input id="loop" type="checkbox" checked> Repeat</label>
+      <span id="clock">0.00 s</span>
+    </div>
+    <div id="track"><div id="marks"></div><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Time in the move"></div>
+    <div class="legend"><span><i style="background:var(--hit)"></i>blow lands</span><span><i style="background:rgba(90,168,255,.6)"></i>game drives him forward</span></div>
+  </div>
+</div>
+<div id="loading">Raising the Sworn…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { Foes, FOES, SWORN, FITTINGS, STATS, DASH, shieldArm, shieldPoses } from './src/fps/foes.js';
+import { RECIPES, UAL_URL } from './src/fps/ual.js';
+
+const $ = (id) => document.getElementById(id);
+const FPS = 30;
+
+// ------------------------------------------------------------------ what each move is
+const NAMES = { sworn_m: 'Sworn of the Vigil (man)', sworn_f: 'Sworn of the Vigil (woman)', sworn_adept_m: 'Adept of the Vigil (man)',
+  sworn_adept_f: 'Adept of the Vigil (woman)', sworn_lord: 'Ser Malgrave, the Red Hand' };
+const MOVES = {
+  idle: ['Guard', 'Stands in the shield guard: shield before his chest, blade ready.'],
+  walk: ['Walk', 'The carrying walk below the waist (strides lengthened a third), the shield guard above it.'],
+  run: ['Run', 'The same walk at double time, strides nearly doubled, pitched forward into them. Also the shield charge.'],
+  jump: ['Leap', 'Over a low obstacle in his way: the ninja jump’s spring and landing.'],
+  attack1: ['Rising cut', 'Low to high, ending with the blade up, where the falling cut begins.'],
+  attack1_rec: ['Rising cut: recover', 'Back to the guard when the chain stops after the rising cut.'],
+  attack2: ['Falling cut', 'High to low across the body, ending with the blade out to the side.'],
+  attack2_rec: ['Falling cut: recover', 'Back to the guard when the chain stops after the falling cut.'],
+  attack3: ['Spinning cut', 'Turns right round into a wide cut and settles back into the guard.'],
+  lunge: ['Lunging cut', 'From three to five strides off, he dashes in with the cut; the game carries him forward.'],
+  heavy: ['Four great blows', 'Ser Malgrave alone: four huge strikes, one after another.'],
+  bash: ['Shield bash', 'The shield dash, shield held face-first in the guard. Ends a charge, or breaks your guard.'],
+  block: ['Shield up', 'Raised when he sees you swing; a blow from the front rings off it.'],
+  parry: ['Blade parry', 'With his shield arm gone, he catches your blow on the blade instead.'],
+  guardbreak: ['Guard broken', 'A heavy blow on his shield knocks it aside; he gathers himself.'],
+  hit: ['Flinch', 'A blow gets through: he reels back a step.'],
+  knockdown: ['Knocked down', 'A heavy blow can throw him flat on his back…'],
+  getup: ['Gets up', '…and he gets back up and comes on again.'],
+  death: ['Death', 'Thrown down by the killing blow.'],
+  dead: ['Dead', 'Where he lies.'],
+  fall: ['Falling', 'Off a ledge (his old clip, kept).'],
+  collapse: ['Legs cut away', 'Drops onto his hands (his old clip, kept).'],
+  crawl: ['Crawl', 'Drags himself after you on his hands (his old clip, kept).'],
+  crawl_attack: ['Crawling strike', 'Claws at you from the ground (his old clip, kept).'],
+  crawl_death: ['Crawling death', 'His old clip, kept.'],
+  crawl_dead: ['Dead, crawling', 'His old clip, kept.'],
+  cast1: ['Blood bolt', 'An adept casts at you (the sorcerers’ clip).'],
+  cast2: ['Great spell', 'Calls Velscour’s fire up under you, or mends a brother.'],
+  blink: ['Blink', 'Gone in a puff, and back some way off.'],
+};
+const GROUPS = [
+  ['Moving', ['idle', 'walk', 'run', 'jump']],
+  ['Cuts', ['attack1', 'attack2', 'attack3', 'lunge', 'heavy', 'attack1_rec', 'attack2_rec']],
+  ['Shield and guard', ['bash', 'block', 'parry', 'guardbreak', 'hit']],
+  ['Down', ['knockdown', 'getup', 'death', 'dead']],
+  ['Casting (adepts)', ['cast1', 'cast2', 'blink']],
+  ['Kept from his old clips', ['fall', 'collapse', 'crawl', 'crawl_attack', 'crawl_death', 'crawl_dead']],
+];
+// how the game strings moves together (foes.js: combo, attacking, hit)
+const COMBOS = [
+  ['Three cuts', 'Rising, falling, spinning: the flow of his full chain.', ['attack1', 'attack2', 'attack3']],
+  ['Two cuts and recover', 'The chain cut short: back to the guard.', ['attack1', 'attack2', 'attack2_rec']],
+  ['One cut and recover', 'A single rising cut.', ['attack1', 'attack1_rec']],
+  ['Bash, then two cuts', 'Through your guard with the shield, then the blade.', ['bash', 'attack1', 'attack2', 'attack2_rec']],
+  ['Shield up, guard broken, bash', 'A heavy blow on his raised shield, and his answer.', [['block', 1.2], 'guardbreak', 'bash']],
+  ['Knocked down and up', 'A heavy blow throws him down; he rises.', ['knockdown', ['dead', 0.5], 'getup', ['idle', 1]]],
+  ['Charge', 'At a run behind the shield, and the bash when he gets there.', [['run', 1.6], 'bash', 'attack1', 'attack1_rec']],
+];
+// the old clip shown for a new one it has no namesake of
+const OLD_FOR = { lunge: 'attack3', attack1_rec: 'idle', attack2_rec: 'idle', guardbreak: 'hit', knockdown: 'death', parry: 'block', heavy: 'attack2' };
+
+// ------------------------------------------------------------------ the scene
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0b10);
+scene.fog = new THREE.Fog(0x0d0b10, 9, 22);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 80);
+camera.position.set(2.6, 1.7, 4.6);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true;
+controls.minDistance = 1.2; controls.maxDistance = 14; controls.maxPolarAngle = Math.PI * 0.53;
+scene.add(new THREE.HemisphereLight(0xcfc4b8, 0x2a2018, 1.6));
+const key = new THREE.DirectionalLight(0xffe2b8, 2.6);
+key.position.set(3, 6, 4); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -2, near: 0.5, far: 20 });
+key.shadow.bias = -0.0004;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xff6a40, 1.1);
+rim.position.set(-4, 3, -5); scene.add(rim);
+
+// the floor: flagstones that slide back under him as fast as the game would carry him
+const floorTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2a2420'; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+    const v = 34 + ((x * 7 + y * 13) % 5) * 4;
+    g.fillStyle = `rgb(${v + 6},${v + 2},${v - 2})`;
+    g.fillRect(x * 64 + 2, y * 64 + 2, 60, 60);
+  }
+  g.fillStyle = 'rgba(216,184,112,.5)'; g.fillRect(0, 0, 256, 2);   // a line each metre
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(24, 24); t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+})();
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+scene.add(floor);
+
+// ------------------------------------------------------------------ the knights, as the game builds them
+const manifest = await fetch('templates/models/manifest.json').then((r) => r.json());
+const stub = () => ({ scene: new THREE.Scene() });           // (what the foes want of the horde)
+const NOW = new Foes(stub(), manifest, {}), OLD = new Foes(stub(), manifest, {});
+const ualGltf = await new GLTFLoader().loadAsync(UAL_URL);
+const srcClips = Object.fromEntries(ualGltf.animations.map((c) => [c.name, c]));
+const ready = { now: new Map(), old: new Map() };
+const loadBody = (which, v) => {
+  const m = ready[which];
+  if (!m.has(v)) m.set(v, which === 'now' ? NOW.loadSworn([v]) : OLD.loadSworn([v], { ual: false, legacy: true }));
+  return m.get(v);
+};
+
+/** One figure: a sworn body (or the mannequin), its own copy of the materials, items in its hands. */
+class Figure {
+  constructor(F, v, ual) {
+    this.F = F; this.v = v; this.ual = ual; this.def = FOES[v];
+    const g = F.gltf[v];
+    this.meta = g.userData.foe;
+    this.root = new THREE.Group();
+    this.model = cloneSkinned(g.scene);
+    this.root.add(this.model);
+    this.root.scale.setScalar(this.def.scale || 1);
+    this.model.traverse((o) => {
+      if (!o.isSkinnedMesh) return;
+      this.mesh = o; o.castShadow = true; o.frustumCulled = false;
+      o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
+    });
+    this.mats = [this.mesh.material].flat();
+    this.base = this.mats.map((m) => ({ color: m.color.clone(), visible: m.visible }));
+    if (this.def.glow) for (const m of this.mats) if (m.map && !m.userData.glow) { m.emissiveMap = m.map; m.emissive = new THREE.Color(this.def.glow).multiplyScalar(0.55); }
+    this.bones = Object.fromEntries(this.mesh.skeleton.bones.map((b) => [b.name, b]));
+    this.P = shieldPoses(this.mesh.skeleton, this.bones, true);
+    this.mixer = new THREE.AnimationMixer(this.model);
+    this.clips = Object.fromEntries(g.animations.map((c) => [c.name, c]));
+    this.items = [];
+    this.cur = null; this.action = null;
+    this.w = { carry: null, guard: 0, swing: 0, cock: 0 };
+  }
+
+  /** Dress it: the weapon and the shield (or staff) by id, in a finish; fitting i. */
+  dress(right, left, finish, fitting) {
+    for (const it of this.items) it.g.parent.remove(it.g);
+    this.items = [];
+    const hold = (sock, id) => {
+      const s = this.F.sockets(this.v, sock), item = this.F.items[`${id}|${finish}`];
+      if (!s || !item) return;
+      const g = new THREE.Group();
+      s.m.decompose(g.position, g.quaternion, g.scale);
+      const obj = item.clone();
+      obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+      if (sock === 'shieldL') obj.position.z = this.F.lift(this.v, id, item);
+      g.add(obj); this.bones[s.bone].add(g);
+      this.items.push({ g, sock });
+    };
+    if (right) hold('gripR', right);
+    if (left) hold(this.def.Lsock || 'shieldL', left);
+    this.mats.forEach((m, i) => { m.color.copy(this.base[i].color); m.visible = this.base[i].visible; });
+    if (!this.def.boss && fitting != null) for (const m of this.mats) for (const [piece, tint] of Object.entries(FITTINGS[fitting])) {
+      if (!m.name.includes(piece)) continue;
+      if (tint) m.color.setRGB(...tint); else m.visible = false;
+    }
+  }
+
+  get shield() { return this.items.some((i) => i.sock === 'shieldL'); }
+
+  play(name, fade = 0, loop = true) {
+    const c = this.clips[name];
+    if (!c) { this.cur = null; this.action = null; this.mixer.stopAllAction(); return false; }
+    const a = this.mixer.clipAction(c);
+    const once = !LOOPS.has(name);
+    a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = true;
+    a.reset().setEffectiveWeight(1).play();
+    if (fade && this.action && this.action !== a) { a.fadeIn(fade); this.action.fadeOut(fade); }
+    else this.mixer.stopAllAction(), a.play();
+    this.cur = name; this.action = a;
+    return true;
+  }
+
+  /** The shield arm as the game poses it on top of the clip (foes.js carryShield). */
+  carry(dt) {
+    if (!this.shield) return;
+    const { w, guard, swing, cock } = shieldArm(this.cur, 'move', true, true, this.ual);
+    const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1, W = this.w;
+    W.carry = (W.carry ?? w) + (w - (W.carry ?? w)) * k;
+    W.guard += (guard - W.guard) * k2; W.swing += (swing - W.swing) * k2; W.cock += (cock - W.cock) * k2;
+    if (W.carry < 0.01) return;
+    this.root.updateMatrixWorld(true);
+    const qm = this.model.getWorldQuaternion(new THREE.Quaternion()), q1 = new THREE.Quaternion(), q2 = new THREE.Quaternion(), q3 = new THREE.Quaternion();
+    for (const part of ['up', 'fore']) {
+      const bone = part === 'up' ? this.bones.upper_armL : this.bones.forearmL;
+      q3.copy(this.P.carry[part]).slerp(this.P.guard[part], W.guard).slerp(this.P.swing[part], W.swing);
+      q2.copy(qm).multiply(q3).premultiply(bone.parent.getWorldQuaternion(q1).invert());
+      bone.quaternion.slerp(q2, W.carry);
+      bone.updateMatrixWorld(true);
+    }
+    if (W.cock > 0.01) for (const part of ['up', 'fore']) {
+      const bone = part === 'up' ? this.bones.upper_armR : this.bones.forearmR;
+      q2.copy(qm).multiply(this.P.cock[part]).premultiply(bone.parent.getWorldQuaternion(q1).invert());
+      bone.quaternion.slerp(q2, W.cock);
+      bone.updateMatrixWorld(true);
+    }
+  }
+}
+const LOOPS = new Set(['idle', 'walk', 'run', 'block', 'crawl', 'dead', 'crawl_dead']);
+
+/** The library's mannequin, with a plain sword and round shield where the knight has his. */
+function mannequin() {
+  const model = cloneSkinned(ualGltf.scene);
+  let mesh; model.traverse((o) => { if (o.isSkinnedMesh) { mesh = o; o.castShadow = true; o.frustumCulled = false; } });
+  mesh.material = new THREE.MeshStandardMaterial({ color: 0x9c8a70, roughness: 0.7 });
+  const sk = mesh.skeleton;
+  const bind = (n) => { const m = sk.boneInverses[sk.bones.findIndex((b) => b.name === n)].clone().invert(); const p = new THREE.Vector3(), q = new THREE.Quaternion(); m.decompose(p, q, new THREE.Vector3()); return { p, q }; };
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc8c8cc, metalness: 0.7, roughness: 0.35 });
+  const at = (bone, pos, q, obj) => {
+    const b = bind(bone), g = new THREE.Group();
+    g.position.copy(pos).applyMatrix4(new THREE.Matrix4().compose(b.p, b.q, new THREE.Vector3(1, 1, 1)).invert());
+    g.quaternion.copy(b.q.clone().invert().multiply(q));
+    g.add(obj); model.getObjectByName(bone).add(g);
+  };
+  const sword = new THREE.Group();
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.045, 0.82), steel); blade.position.z = 0.48; sword.add(blade);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), steel); guard.position.z = 0.07; sword.add(guard);
+  at('hand_r', bind('middle_01_r').p.lerp(bind('hand_r').p, 0.3).add(new THREE.Vector3(0, -0.03, 0)), new THREE.Quaternion(), sword);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 24), new THREE.MeshStandardMaterial({ color: 0x6a2a22, roughness: 0.6 }));
+  disc.position.y = 0.07; disc.castShadow = true;
+  const sg = new THREE.Group(); sg.add(disc);
+  at('lowerarm_l', bind('lowerarm_l').p.lerp(bind('hand_l').p, 0.55), new THREE.Quaternion(), sg);
+  const root = new THREE.Group(); root.add(model);
+  return { root, model, mixer: new THREE.AnimationMixer(model), action: null, name: null };
+}
+
+// ------------------------------------------------------------------ the state of the page
+const S = { v: 'sworn_m', clip: 'idle', speed: 1, playing: true, loop: true, old: false, src: false, floor: true,
+  queue: null, qi: 0, hold: 0, rest: 0 };
+let main = null, old = null, man = null;
+
+function recipeLen(r) {
+  if (r.seq) return r.seq.reduce((s, x) => s + recipeLen(x), 0);
+  const c = srcClips[r.src];
+  return ((r.to ?? c.duration) - (r.from ?? 0)) / (r.speed ?? 1);
+}
+/** Where the mannequin is in its own clip when the knight is t into recipe r. */
+function srcAt(r, t) {
+  if (r.seq) {
+    for (const x of r.seq) { const n = recipeLen(x); if (t <= n || x === r.seq.at(-1)) return srcAt(x, Math.min(t, n)); t -= n; }
+  }
+  const c = srcClips[r.src];
+  return { clip: r.src, t: Math.min(c.duration, (r.from ?? 0) + t * (r.speed ?? 1)) };
+}
+
+function layout() {
+  const figs = [old, main, man].filter(Boolean);
+  const gap = 1.7;
+  figs.forEach((f, i) => { f.root.position.x = (i - (figs.length - 1) / 2) * gap; });
+  // back far enough to see them all
+  const want = (4.6 + (figs.length - 1) * 1.9 + (FOES[S.v].scale ? 1 : 0)) * Math.min(2, Math.max(1, 0.85 / camera.aspect));   // (further on a tall screen)
+  const d = camera.position.clone().sub(controls.target);
+  camera.position.copy(controls.target).addScaledVector(d.normalize(), want);
+}
+
+async function setBody(v) {
+  S.v = v;
+  $('busy').textContent = 'Building ' + NAMES[v] + '…';
+  await loadBody('now', v);
+  if (S.old) await loadBody('old', v);
+  for (const f of [main, old]) if (f) scene.remove(f.root);
+  main = new Figure(NOW, v, true); scene.add(main.root);
+  old = S.old ? new Figure(OLD, v, false) : null; if (old) scene.add(old.root);
+  fillItems();
+  dress();
+  layout();
+  buildLists();
+  select(main.clips[S.clip] ? S.clip : 'idle');
+  $('busy').textContent = '';
+}
+
+function fillItems() {
+  const d = FOES[S.v], opt = (sel, list, none) => { sel.innerHTML = (none ? `<option value="">${none}</option>` : '') + list.map((id) => `<option value="${id}">${id.replace(/_/g, ' ')}</option>`).join(''); };
+  opt($('weapon'), d.R || [], 'Nothing');
+  opt($('left'), d.L || [], 'Nothing');
+  $('weapon').value = (d.R || [])[0] || ''; $('left').value = (d.L || [])[0] || '';
+  $('finish').innerHTML = [d.finish].flat().map((f) => `<option>${f}</option>`).join('');
+  $('fitting').innerHTML = d.boss ? '<option value="">His own</option>' : FITTINGS.map((_, i) => `<option value="${i}">${['Gilt horns, crimson', 'Bone horns, black', 'Blackened horns', 'Blood horns, violet', 'No horns, ash grey'][i]}</option>`).join('');
+  $('fitting').disabled = !!d.boss;
+}
+
+function dress() {
+  const fit = $('fitting').value === '' ? null : +$('fitting').value;
+  for (const f of [main, old]) if (f) f.dress($('weapon').value, $('left').value, $('finish').value, fit);
+}
+
+// ------------------------------------------------------------------ the lists
+function moveButton(name, extra = '') {
+  const [title, text] = MOVES[name] || [name, ''];
+  const r = RECIPES[name];
+  const from = r ? 'UAL2' : main?.meta.ual ? 'old' : '';
+  return `<li><button type="button" data-clip="${name}" aria-pressed="false"><b>${title}<span class="tag">${from}</span></b><span>${text}${extra}</span></button></li>`;
+}
+function buildLists() {
+  $('combos').innerHTML = COMBOS.filter(([, , q]) => q.every((x) => main.clips[[x].flat()[0]]))
+    .map(([t, d], i) => `<li><button type="button" data-combo="${i}" aria-pressed="false"><b>${t}</b><span>${d}</span></button></li>`).join('');
+  $('lists').innerHTML = GROUPS.map(([g, names]) => {
+    const have = names.filter((n) => main.clips[n] && !(n === 'heavy' && !FOES[S.v].boss));
+    return have.length ? `<h2>${g}</h2><ul class="clips">${have.map((n) => moveButton(n)).join('')}</ul>` : '';
+  }).join('');
+  mark();
+}
+function mark() {
+  for (const b of document.querySelectorAll('[data-clip]')) b.setAttribute('aria-pressed', String(!S.queue && b.dataset.clip === S.clip));
+  for (const b of document.querySelectorAll('[data-combo]')) b.setAttribute('aria-pressed', String(S.queue && +b.dataset.combo === S.combo));
+}
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-clip]'), q = e.target.closest('[data-combo]');
+  if (c) { S.queue = null; select(c.dataset.clip); closeDrawer(); }
+  if (q) { startCombo(+q.dataset.combo); closeDrawer(); }
+});
+
+// ------------------------------------------------------------------ playing
+function show(name, fade = 0) {
+  S.clip = name; S.rest = 0;
+  main.play(name, fade);
+  if (old) old.play(old.clips[name] ? name : OLD_FOR[name] || name, fade);
+  syncSource();
+  describe();
+  mark();
+}
+function select(name) { S.queue = null; S.combo = null; show(name); S.playing = true; $('play').textContent = 'Pause'; }
+function startCombo(i) {
+  S.combo = i; S.queue = COMBOS[i][2].map((x) => [x].flat()); S.qi = 0;
+  show(S.queue[0][0]); S.hold = S.queue[0][1] || 0;
+  S.playing = true; $('play').textContent = 'Pause';
+  describe();
+}
+function syncSource() {
+  if (!S.src) { if (man) { scene.remove(man.root); man = null; layout(); } return; }
+  if (!man) { man = mannequin(); scene.add(man.root); layout(); }
+}
+
+function describe() {
+  const [title, text] = MOVES[S.clip] || [S.clip, ''];
+  const r = RECIPES[S.clip];
+  const c = main.clips[S.clip];
+  const combo = S.queue ? `${COMBOS[S.combo][0]}: ` : '';
+  $('title').textContent = combo + title;
+  $('desc').textContent = text;
+  const bits = [];
+  if (r) {
+    const parts = r.seq ? r.seq.map((x) => x.src).join(' + ') : r.src;
+    bits.push(`From ${parts}${r.upper && r.upper !== r.src ? ` (above the waist: ${r.upper})` : ''}`);
+  } else bits.push(main.meta.ual ? 'His old clip, kept (the library has none like it)' : 'His old clip');
+  if (c) bits.push(`${c.duration.toFixed(2)} s, ${Math.round(c.duration * FPS)} frames`);
+  const gait = main.meta.gait?.[S.clip];
+  if (gait) bits.push(`covers ${gait} m/s (the game plays it at ${(STATS[FOES[S.v].stats][S.clip] / gait).toFixed(1)}× for his ${STATS[FOES[S.v].stats][S.clip]} m/s)`);
+  const sw = STATS[FOES[S.v].stats]?.swing;
+  if (r?.hit != null && sw) bits.push(`cuts play ${sw}× in the game`);
+  $('meta').textContent = bits.join(' · ');
+  // the blows and the dashes on the timeline
+  const hits = [main.meta.hits?.[S.clip] ?? []].flat(), dash = DASH[S.clip];
+  $('marks').innerHTML = (c ? hits.map((h) => `<i style="left:${Math.min(100, h / FPS / c.duration * 100)}%"></i>`).join('') : '')
+    + (c && dash ? `<em style="left:${dash[0] / c.duration * 100}%;width:${(dash[1] - dash[0]) / c.duration * 100}%"></em>` : '');
+}
+
+/** Where the floor goes: back under him at the pace the game moves him in this move. */
+function floorSpeed() {
+  if (!S.floor || !main?.action) return 0;
+  const g = main.meta.gait?.[main.cur];
+  if (g) return g;
+  const d = DASH[main.cur], t = main.action.time;
+  if (d && t >= d[0] && t <= d[1]) return d[2] / (STATS[FOES[S.v].stats]?.swing || 1);
+  return 0;
+}
+
+const clock = new THREE.Clock();
+let scrubbing = false;
+function tick() {
+  const dt = Math.min(0.05, clock.getDelta());
+  if (main?.action) {
+    const a = main.action, c = a.getClip(), once = !LOOPS.has(main.cur);
+    let step = S.playing && !scrubbing ? dt * S.speed : 0;
+    // the queue (a sequence): the next move when this one's done (a looping one after its hold)
+    if (S.queue && S.playing) {
+      const done = once ? a.time >= c.duration - 1e-3 : (S.hold -= step) <= 0;
+      if (done) {
+        S.qi++;
+        if (S.qi >= S.queue.length) { S.rest += step; if (S.rest > 0.8 && S.loop) startCombo(S.combo); step = 0; }
+        else { const [n, h] = S.queue[S.qi]; show(n, 0.1); S.hold = h || 0; }
+      }
+    } else if (once && S.playing && a.time >= c.duration - 1e-3) {   // a one-off: a breath, and again
+      S.rest += step;
+      if (S.rest > 0.6 && S.loop) { show(main.cur); }
+      step = 0;
+    }
+    main.mixer.update(step);
+    if (old?.action) {
+      const oc = old.action.getClip();
+      old.action.time = once ? Math.min(oc.duration, a.time / c.duration * oc.duration) : (a.time / c.duration * oc.duration) % oc.duration;
+      old.mixer.update(0);
+    }
+    if (man) {
+      const r = RECIPES[main.cur];
+      if (r) {
+        const { clip, t } = srcAt(r, a.time);
+        if (man.name !== clip) { man.mixer.stopAllAction(); man.action = man.mixer.clipAction(srcClips[clip]); man.action.play(); man.name = clip; }
+        man.action.time = t; man.mixer.update(0); man.root.visible = true;
+      } else man.root.visible = false;
+    }
+    main.carry(step ? dt : 0); old?.carry(step ? dt : 0);
+    floorTex.offset.y -= floorSpeed() * step;     // (each repeat of the texture is a metre)
+    const frac = c.duration ? a.time / c.duration : 0;
+    if (!scrubbing) $('scrub').value = String(Math.round(Math.min(1, frac) * 1000));
+    $('clock').textContent = `${a.time.toFixed(2)} / ${c.duration.toFixed(2)} s · frame ${Math.round(a.time * FPS)}`;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  placeNames();
+  requestAnimationFrame(tick);
+}
+
+function placeNames() {
+  const list = [[old, 'Before'], [main, old || man ? 'Now' : ''], [man, 'UAL2 source']].filter(([f, n]) => f && n);
+  const rect = canvas.getBoundingClientRect(), stage = $('stage').getBoundingClientRect();
+  $('names').innerHTML = list.map(([f, n]) => {
+    const p = f.root.position.clone(); p.y = -0.12;
+    p.project(camera);
+    if (p.z > 1) return '';
+    const x = (p.x + 1) / 2 * rect.width - stage.left, y = (1 - p.y) / 2 * rect.height;
+    return `<div style="left:${x}px;top:${y + 6}px">${n}</div>`;
+  }).join('');
+}
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  // (the panel covers the left of a wide screen: aim past it)
+  const side = w > 760 ? 320 : 0;
+  camera.setViewOffset(w, h, -side / 2, 0, w, h);
+  camera.updateProjectionMatrix();
+  if (main) layout();
+}
+addEventListener('resize', resize);
+
+// ------------------------------------------------------------------ the controls
+$('who').innerHTML = SWORN.map((v) => `<option value="${v}">${NAMES[v] || v}</option>`).join('');
+$('who').onchange = () => setBody($('who').value);
+for (const id of ['weapon', 'left', 'finish', 'fitting']) $(id).onchange = dress;
+$('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? 'Pause' : 'Play'; };
+const nudge = (d) => { S.playing = false; $('play').textContent = 'Play'; const a = main.action; if (!a) return; a.time = Math.max(0, Math.min(a.getClip().duration, a.time + d / FPS)); main.mixer.update(0); };
+$('prev').onclick = () => nudge(-1); $('next').onclick = () => nudge(1);
+$('speed').oninput = () => { S.speed = +$('speed').value; $('speedv').textContent = S.speed.toFixed(2) + '×'; };
+$('loop').onchange = () => { S.loop = $('loop').checked; };
+$('scrub').addEventListener('pointerdown', () => { scrubbing = true; });
+addEventListener('pointerup', () => { scrubbing = false; });
+$('scrub').oninput = () => {
+  const a = main?.action; if (!a) return;
+  S.playing = false; $('play').textContent = 'Play';
+  a.time = +$('scrub').value / 1000 * a.getClip().duration; S.rest = 0;
+  main.mixer.update(0);
+};
+$('showOld').onchange = async () => { S.old = $('showOld').checked; await setBody(S.v); };
+$('showSrc').onchange = () => { S.src = $('showSrc').checked; syncSource(); };
+$('floor').onchange = () => { S.floor = $('floor').checked; };
+const closeDrawer = () => $('panel').classList.remove('open');
+$('menu').onclick = () => $('panel').classList.toggle('open');
+addEventListener('keydown', (e) => {
+  if (e.target.closest('select, input')) return;
+  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  if (e.code === 'ArrowLeft') nudge(-1);
+  if (e.code === 'ArrowRight') nudge(1);
+});
+
+resize();
+await setBody(new URLSearchParams(location.search).get('v') || 'sworn_m');
+const c0 = new URLSearchParams(location.search).get('clip');
+if (c0 && main.clips[c0]) select(c0); else startCombo(0);
+$('loading').classList.add('done');
+window.viewer = { S, get main() { return main; }, select, startCombo, setBody, tick, renderer };   // (for poking at from the console)
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

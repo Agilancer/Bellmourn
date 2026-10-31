@@ -5,11 +5,15 @@
 //   - the armour, its helm and the villager's head (face, eyes, lashes) merged into one skinned mesh,
 //     a material per swatch (the armour's textures tile, so they can't share one image). The set was
 //     built on the same skeleton as every villager of its sex, so they bind to it as they are;
-//   - the knights' own clips (knight_a's: walk, run, three cuts, the shield bash and block, the
-//     falls, deaths and crawls) carried over bone by bone. Both bodies stand in the same T-pose
-//     facing +z, so each bone takes the knight bone's turn away from that pose, in the world: its
-//     swing is the knight's swing whatever way its own bones were built. The hips also take the
-//     knight's rise and fall (scaled to the leg);
+//   - Quaternius' Universal Animation Library 2 carried over bone by bone (ual.js: the guard, walk
+//     and run, three cuts that flow into one another, the lunge, shield bash and block, the parry,
+//     the knockdown and getting up, the death); for what the library hasn't (the falls and the
+//     crawls), the dark knights' own clips (knight_a's), carried over the same way. Every body here
+//     stands in the same T-pose facing +z, so each bone takes the source bone's turn away from that
+//     pose, in the world: its swing is the source's swing whatever way its own bones were built.
+//     The hips also take the source's rise and fall (scaled to the leg), and the thighs and feet,
+//     which the villager's skeleton hangs from its Body and root bones, are put back on the hips and
+//     knees;
 //   - fists closed (for a hilt), and the knight's sockets, hit shapes and hit frames moved onto it.
 // Sword, axe or mace in the right fist, shield on the left forearm, as the dark knights carry them;
 // the shield rides as far out from the forearm as its dish needs to clear the plate (shieldLift).
@@ -17,6 +21,7 @@
 // left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { ualClips, legJoints, attach } from './ual.js';
 
 // the villager's bones under the zombie body's names (the rest keep their own: Body, Torso, the
 // fingers, the ends and the pole targets)
@@ -83,7 +88,7 @@ function merge(parts, skel) {
 
 /** The knight's clips on the sworn body: each named bone turned as the knight's turns away from its
  * bind, in the world (both bind in a T-pose facing +z), the hips carried as the knight's are. */
-function retarget(knight, dst, dstSkel, only = null) {
+function retarget(knight, dst, dstSkel, only = null, legacy = false) {
   const src = cloneSkinned(knight.scene);
   let srcSkel = null;
   src.traverse((o) => { if (o.isSkinnedMesh && !srcSkel) srcSkel = o.skeleton; });
@@ -101,6 +106,7 @@ function retarget(knight, dst, dstSkel, only = null) {
   const order = [];
   dstSkel.bones[0].parent.traverse((o) => { if (o.isBone && names.includes(o.name)) order.push(db[o.name]); });
   const rest = new Map(dstSkel.bones.map((b) => [b, [b.position.clone(), b.quaternion.clone()]]));
+  const joints = legacy ? [] : legJoints(dstSkel);    // (the thighs and feet put back on the hips and knees)
   const mixer = new THREE.AnimationMixer(src);
   const clips = [];
   for (const clip of knight.animations) {
@@ -110,7 +116,7 @@ function retarget(knight, dst, dstSkel, only = null) {
     const n = Math.max(2, Math.round(clip.duration * FPS) + 1);
     const times = new Float32Array(n);
     const q = Object.fromEntries(names.map((k) => [k, new Float32Array(n * 4)]));
-    const hp = new Float32Array(n * 3);
+    const hp = new Float32Array(n * 3), jp = joints.map(() => new Float32Array(n * 3));
     for (let f = 0; f < n; f++) {
       const t = Math.min(clip.duration, f / FPS);
       times[f] = t;
@@ -132,10 +138,13 @@ function retarget(knight, dst, dstSkel, only = null) {
           hp.set([_p.x, _p.y, _p.z], f * 3);
         }
       }
+      attach(joints);
+      joints.forEach((j, i) => jp[i].set(j.bone.position.toArray(), f * 3));
     }
     act.stop(); mixer.uncacheAction(clip);
     const tracks = names.map((k) => new THREE.QuaternionKeyframeTrack(`${k}.quaternion`, times, q[k]));
     tracks.push(new THREE.VectorKeyframeTrack('hips.position', times, hp));
+    joints.forEach((j, i) => tracks.push(new THREE.VectorKeyframeTrack(`${j.bone.name}.position`, times, jp[i])));
     clips.push(new THREE.AnimationClip(clip.name, clip.duration, tracks));
   }
   for (const [b, [p, r]] of rest) { b.position.copy(p); b.quaternion.copy(r); }
@@ -187,8 +196,11 @@ function sockets(meta, sSkel, dSkel) {
 }
 
 /** Build a sworn body: `knight` is knight_a's loaded glTF, `villager` and `armor` the loaded body and
- * set. Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
-export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null } = {}) {
+ * set; `ual` the animation library's source (ual.js's ualSource), whose clips it moves by where it
+ * has them (the knight's are kept for the rest: the fall and everything on the ground). `legacy`: the
+ * knight's clips alone, as they were first carried over (the thighs and feet left where they hang).
+ * Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
+export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null, ual = null, legacy = false } = {}) {
   const scene = villager.scene;
   // what the villager keeps (its head, and its hair if bareheaded) and what it wears (every piece
   // of the set, but the helm if it goes without)
@@ -221,9 +233,18 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
   host.add(body);
   body.bind(bound, new THREE.Matrix4());
   scene.updateMatrixWorld(true);
-  const animations = retarget(knight, scene, bound);
-  if (casts) animations.push(...retarget(casts, scene, bound, CASTS));
   fists(bound);
+  let animations, ualHits = {}, gait = null;
+  if (ual) {
+    const made = ualClips(ual, scene, bound, { mesh: body });
+    const have = new Set(made.clips.map((c) => c.name));
+    animations = [...made.clips, ...retarget(knight, scene, bound, knight.animations.map((c) => c.name).filter((n) => !have.has(n) && n !== 'dead'))];
+    // lying where the knockback threw it
+    const death = made.clips.find((c) => c.name === 'death'), last = Math.round(death.duration * FPS);
+    animations.push(THREE.AnimationUtils.subclip(death, 'dead', last - 1, last, FPS));
+    ualHits = made.hits; gait = made.gaits;
+  } else animations = retarget(knight, scene, bound, null, legacy);
+  if (casts) animations.push(...retarget(casts, scene, bound, CASTS, legacy));
   // the knight's hit shapes (a little fuller for the plate, and one for the torso between the
   // spine and chest bones that the knight hasn't), its hit frames, and its sockets
   const km = knight.userData.foe;
@@ -231,8 +252,8 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
   knight.scene.traverse((o) => { if (o.isSkinnedMesh && !kSkel) kSkel = o.skeleton; });
   const radius = Object.fromEntries(Object.entries(km.radius).map(([k, r]) => [k, r * 1.12]));
   radius.Torso = (radius.spine + radius.chest) / 2 * 1.1;
-  const hits = { ...km.hits, ...Object.fromEntries(CASTS.map((c) => [c, casts?.userData.foe.hits?.[c]]).filter(([, v]) => v != null)) };
-  const foe = { radius, tip: km.tip, hits, kind: 'knight', height: 1.85, sockets: sockets(km, kSkel, bound), eyes: eyesOf(parts) };
+  const hits = { ...km.hits, ...ualHits, ...Object.fromEntries(CASTS.map((c) => [c, casts?.userData.foe.hits?.[c]]).filter(([, v]) => v != null)) };
+  const foe = { radius, tip: km.tip, hits, kind: 'knight', height: 1.85, sockets: sockets(km, kSkel, bound), eyes: eyesOf(parts), ual: !!ual, gait };
   return { scene, animations, userData: { foe } };
 }
 
