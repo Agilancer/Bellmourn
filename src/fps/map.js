@@ -4,7 +4,7 @@
 // you're the arrow. A small round map in the corner shows what's about you, north up. Below
 // ground the chart is of what you've walked: the undercroft's passages and rooms come out of
 // the dark as you pass through them.
-import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL } from './world.js';
+import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL, STREETS, LANES } from './world.js';
 import { REGION, POOL, STREAM, RIVER, terrainHeight } from './terrain.js';
 import { SPOTS } from './region.js';
 import { DELVES } from './delves.js';
@@ -95,8 +95,8 @@ export class WorldMap {
     // downs' paths
     const rect = (x0, z0, x1, z1, fill, stroke) => { const [a, b] = this.px(x0, z0), [c2, d2] = this.px(x1, z1); g.fillStyle = fill; g.fillRect(a, b, c2 - a, d2 - b); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(a, b, c2 - a, d2 - b); } };
     const ROAD = '#c8b088', DIRT = '#9a7a52';
-    rect(-4, -48, 4, VILLAGE_R + 20, ROAD); rect(-VILLAGE_R - 20, -4, VILLAGE_R + 20, 4, ROAD);
-    rect(16, -50, 26, -44, DIRT); rect(20, -116, 26, -50, DIRT); rect(14, -126, 26, -116, DIRT);
+    for (const s of STREETS) rect(...s, ROAD);
+    for (const s of LANES) rect(...s, DIRT);
     rect(VILLAGE_R + 20, -3, REGION.x0 + 6, 3, DIRT);
     g.strokeStyle = DIRT; g.lineWidth = 1.6;
     for (const pts of ctx.region?.paths || []) { g.beginPath(); pts.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }

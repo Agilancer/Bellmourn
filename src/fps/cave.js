@@ -71,7 +71,7 @@ export const GROTTO_DECOR = {
   fungus: [['pool', 0x40d8e8, 6], ['drowned', 0x3fa0ff, 4], ['cistern', 0x60e0c0, 3]],
   lights: [['drowned', 0x3a80ff, 3, 12]],
   torches: [['entrance', 2], ['pool', 3], ['cistern', 1], ['drowned', 2]],
-  bones: [['drowned', 5], ['cistern', 2], ['loop', 1]],
+  bones: [['drowned', 6], ['cistern', 2]],
 };
 
 /** The Trollhole, up the cliff to the north: a wide mouth to a great lair heaped with bones, the
@@ -94,7 +94,7 @@ export const TROLL_DECOR = {
   fungus: [['grove', 0x7cff5a, 10], ['grove', 0xb8ff70, 8], ['lair', 0x9cf0ff, 3], ['larder', 0x4060ff, 2]],
   lights: [['grove', 0x6aff4a, 4, 14], ['lair', 0xffa050, 3, 16]],
   torches: [['entrance', 2], ['lair', 4], ['larder', 1]],
-  bones: [['lair', 8], ['larder', 8], ['gnaw', 2]],
+  bones: [['lair', 8], ['larder', 10]],
 };
 
 /** Signed distance (negative inside), floor and height of one feature at (a, b). */
@@ -189,7 +189,7 @@ const DECOR = {
   fungus: [['cavern', 0x40d8e8, 7], ['warren', 0x7cff5a, 9], ['warren', 0xb8ff70, 6], ['shrine', 0xb070ff, 3], ['nest', 0x4060ff, 2], ['bones', 0x9cf0ff, 2]],
   lights: [['warren', 0x6aff4a, 4, 14]],                 // (and one over the water)
   torches: [['entrance', 3], ['cavern', 5], ['warren', 2], ['shrine', 2]],
-  bones: [['nest', 7], ['bones', 4], ['north', 1], ['loop', 1]],
+  bones: [['nest', 8], ['bones', 5]],                    // (chambers only: see the bones below)
 };
 
 export class Cave {
@@ -473,6 +473,8 @@ export class Cave {
       return null;
     };
     this.spot = spot;
+    // (the passages are narrow: nothing solid stands in one, nor in a chamber where one comes in)
+    const inPass = (p) => this.features.some((f) => f.type === 'pass' && feature(f, p.x - px, p.z - pz).s < 1.2);
     // stalagmites and stalactites
     const spikes = [];
     for (const [tag, n] of this.decor.spikes) {
@@ -482,6 +484,7 @@ export class Cave {
         const j = this.idx(p.x, p.z), roof = FL[j] + HT[j];
         if (R() < 0.45) {                                   // up from the floor
           const r = 0.18 + R() * 0.35, h = 0.6 + R() * 2.2;
+          if (inPass(p)) continue;
           spikes.push(new THREE.ConeGeometry(r, h, 7).translate(p.x, p.y + h / 2 - 0.05, p.z));
           if (r > 0.22) this.phys.add([p.x - r * 0.7, p.y - 0.2, p.z - r * 0.7], [p.x + r * 0.7, p.y + h * 0.8, p.z + r * 0.7], 'cave');
         } else {                                             // down from the roof, never below 2.6 m
@@ -557,9 +560,12 @@ export class Cave {
       }
     }
     const BONES = ['catacombs_skull_pyramid', 'catacombs_long_bone_heap', 'catacombs_supine_skeleton', 'catacombs_burial_urn_cluster'];
+    // (the bones are built in 3D, solid: in the chambers only, clear of where the passages come in)
     for (const [tag, n2] of this.decor.bones) for (let q = 0; q < n2; q++) {
-      const p = spot(tag, 1.0);
-      if (p && ctx.bill) ctx.bill.add(BONES[q % BONES.length], p.x, p.y, p.z, 1, 0.85);
+      if (this.features.find((f) => f.tag === tag)?.type !== 'room') continue;
+      let p = null;
+      for (let t = 0; t < 6 && (!p || inPass(p)); t++) p = spot(tag, 1.0);
+      if (p && !inPass(p) && ctx.bill) ctx.bill.add(BONES[q % BONES.length], p.x, p.y, p.z, 1, 0.85);
     }
 
     // the flow field's walkable cells (a margin off the walls)

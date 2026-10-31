@@ -48,9 +48,11 @@ export class Cutouts {
   /**
    * Stand arch `id` with the middle of its foot at (x, y, z) and its front facing `facing`
    * (radians about y; 0 faces +z), sized so its opening is `open` metres wide; `thick` deep.
+   * `tag` is its colliders' ('wall' for an arch or gateway in a wall or fence: its piers stand
+   * beside the way through it, and are the building's, not things in the way).
    * Returns its size: {width, height, opening: [width, height]} in metres.
    */
-  place(id, x, y, z, facing, open, thick = 0.6) {
+  place(id, x, y, z, facing, open, thick = 0.6, tag = 'solid') {
     const a = this.ctx.lib.biome.arches.get(id), mk = this.masks.get(id);
     if (!a || !mk) { console.warn('no arch', id); return null; }
     const { w: W, h: H, m } = mk;
@@ -130,7 +132,7 @@ export class Cutouts {
         top--;
       }
       const box = new THREE.Box3(new THREE.Vector3(X(c), 0, -T), new THREE.Vector3(X(e + 1), Y(top), T)).applyMatrix4(g.matrixWorld);
-      this.ctx.physics.add(box.min.toArray(), box.max.toArray());
+      this.ctx.physics.add(box.min.toArray(), box.max.toArray(), tag);
       c = e + 1;
     }
     const size = { width: W * s, height: foot * s, opening: [open, a.opening_px[2] * s], group: g };

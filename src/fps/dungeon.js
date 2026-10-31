@@ -125,8 +125,12 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
   const WELL_STEP = 0.25, WELL_RUN = 0.34, WELL_N = 48;
   if (stairRoom > 0) {
     // (centred on its three cells, so the flight fills them)
-    // (its head on a cell's edge, so the hall's floor ends where the first step begins)
-    const r = rooms[stairRoom], wx = X0 + r.i + Math.floor(r.w / 2) + 0.5, top = Z0 + r.k + r.d - 2;
+    // (its head on a cell's edge, so the hall's floor ends where the first step begins: 2 m in
+    // from the south wall, or 3 m where a hallway comes in through it in line with the flight,
+    // which hallways from the hall's middle do, so the floor before that mouth is kept clear)
+    const r = rooms[stairRoom], wi = r.i + Math.floor(r.w / 2), wx = X0 + wi + 0.5;
+    const inLine = [-3, -2, -1, 0, 1, 2, 3].some((u) => { const v = at(wi + u, r.k + r.d); return v >= 1000 && v !== TUNNEL; });
+    const top = Z0 + r.k + r.d - (inLine ? 3 : 2);
     well = { x: wx, top, bot: top - WELL_N * WELL_RUN, room: stairRoom };
     for (let k = gk(well.bot); k < gk(top); k++) for (let u = -1; u <= 1; u++) cell[k * NX + gi(wx) + u] = WELL;
   }
@@ -254,12 +258,144 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
         for (let k = Math.floor(c - half); k < Math.ceil(c + half); k++) if (k >= 0 && k < n && outside(k) >= 0 && (k < c - 1.5 || k >= c + 1.5)) clear = false;
         if (!clear) continue;
         const [x, z] = where(c);
-        ctx.cutouts.place(aid, x, Y, z, facing, s * (art.opening_px[1] - art.opening_px[0]), 0.5);
+        ctx.cutouts.place(aid, x, Y, z, facing, s * (art.opening_px[1] - art.opening_px[0]), 0.5, 'wall');
         covered[id][key].push([c - half - 0.4, c + half + 0.4]);
       }
     });
   });
   const hidden = (id, key, a) => covered[id][key].some(([p, q]) => a > p && a < q);
+
+  // the ways kept clear: every hallway mouth keeps an apron of floor 3 m into its room (and a
+  // cell wider either side), and the hallways and the stairwell stay empty. Nothing solid (a
+  // prop, a sprite built in 3D, a block of masonry) is set down on any of it: it goes somewhere
+  // else in the room, or not at all
+  const isHall = (v) => v >= 1000 && v !== TUNNEL && v !== WELL;
+  const keep = new Uint8Array(NX * NZ);
+  for (let k = 0; k < NZ; k++) for (let i = 0; i < NX; i++) {
+    const v = at(i, k);
+    if (isHall(v) || v === WELL) { keep[k * NX + i] = 1; continue; }
+    if (v < 0) continue;
+    for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (!isHall(at(i + di, k + dk))) continue;
+      for (let t = 0; t < 3; t++) for (let s = -1; s <= 1; s++) {
+        const ai = i - di * t + dk * s, ak = k - dk * t + di * s;
+        if (at(ai, ak) === v) keep[ak * NX + ai] = 1;
+      }
+    }
+  }
+  /** Is the floor [x0, z0, x1, z1] clear of the ways (not over any of it at all)? (null takes no floor.) */
+  const clear = (f) => {
+    if (!f) return true;
+    for (let k = gk(f[1]); k < Math.ceil(f[3] - Z0); k++) for (let i = gi(f[0]); i < Math.ceil(f[2] - X0); i++)
+      if (at(i, k) >= 0 && keep[k * NX + i]) return false;
+    return true;
+  };
+  // and how much of each room's floor is still open to walk on, counted as tools/pathcheck.js
+  // counts it: quarter-metre cells of its floor (not the stairwell), less those within a body's
+  // width (0.32 m) of its walls or of anything solid set down in it
+  const BODY = 0.32, Q = 0.25;
+  const open = rooms.map((r) => {
+    const nx = r.w * 4, nz = r.d * 4, g = new Uint8Array(nx * nz);
+    let n = 0, all = 0;
+    for (let c = 0; c < nz; c++) for (let a = 0; a < nx; a++) {
+      const u = (a + 0.5) * Q, v = (c + 0.5) * Q;
+      if (at(r.i + Math.floor(u), r.k + Math.floor(v)) === WELL) continue;
+      all++;
+      if (u > BODY && r.w - u > BODY && v > BODY && r.d - v > BODY) { g[c * nx + a] = 1; n++; }
+    }
+    return { nx, nz, g, n, all };
+  });
+  const roomAt = (f) => { const v = at(gi((f[0] + f[2]) / 2), gk((f[1] + f[3]) / 2)); return v >= 0 && v < 1000 ? v : -1; };
+  /** The open cells of its room a footprint would cover (the room's id, and them). */
+  const covers = (f) => {
+    const id = roomAt(f), out = [];
+    if (id < 0) return { id, out };
+    const r = rooms[id], o = open[id], rx = X(r.i), rz = Z(r.k);
+    const a0 = Math.max(0, Math.floor((f[0] - BODY - rx) / Q)), a1 = Math.min(o.nx - 1, Math.floor((f[2] + BODY - rx) / Q));
+    const c0 = Math.max(0, Math.floor((f[1] - BODY - rz) / Q)), c1 = Math.min(o.nz - 1, Math.floor((f[3] + BODY - rz) / Q));
+    for (let c = c0; c <= c1; c++) for (let a = a0; a <= a1; a++) {
+      if (!o.g[c * o.nx + a]) continue;
+      const x = rx + (a + 0.5) * Q, z = rz + (c + 0.5) * Q;
+      const dx = Math.max(f[0] - x, 0, x - f[2]), dz = Math.max(f[1] - z, 0, z - f[3]);
+      if (dx * dx + dz * dz < BODY * BODY) out.push(c * o.nx + a);
+    }
+    return { id, out };
+  };
+  const occupy = (f) => { const { id, out } = covers(f); if (id < 0) return; for (const j of out) open[id].g[j] = 0; open[id].n -= out.length; };
+  /** Would room `id` keep `share` of its floor open with f set down in it too? */
+  const roomy = (f, share) => { const { id, out } = covers(f); return id < 0 || (open[id].n - out.length) / open[id].all >= share; };
+  /** Prop `id` on the floor at (x, z) if it stands clear of the ways (and, given a `share`, if its
+   * room keeps that much of its floor open with it there too); whether it was set down. */
+  const put = (id, x, z, rot = 0, s = 1, fit = null, share = 0) => {
+    const f = props.footprint(id, x, z, rot, s, fit);
+    if (!clear(f) || (share && f && !roomy(f, share))) return false;
+    props.add(id, x, Y, z, rot, s, fit);
+    if (f) occupy(f);
+    return true;
+  };
+  // a sprite is built in 3D (scatter3d.js), solid, at about its picture's width, turned any way
+  const spriteFoot = (id, x, z, sc = 1) => {
+    const s = lib.spr.get(id), w = s?.size ? s.height_m * s.size[0] / s.size[1] : 1, h = Math.max(0.5, 0.75 * w) * sc;
+    return [x - h, z - h, x + h, z + h];
+  };
+  const sprite = (id, x, z, sc = 1, shade = 1, y = Y) => {
+    const f = spriteFoot(id, x, z, sc);
+    if (!clear(f)) return false;
+    bill.add(id, x, y, z, sc, shade);
+    occupy(f);
+    return true;
+  };
+  /** A solid block of masonry, if it stands clear of the ways. */
+  const block = (min, max, m, o = {}) => {
+    const f = [min[0], min[2], max[0], max[2]];
+    if (!clear(f)) return false;
+    b.box(min, max, m, o);
+    if (max[1] > Y + 0.42) occupy(f); // (anything lower is stepped up onto)
+    return true;
+  };
+  // which walls of a room have openings in them (cells, n s w e), and a frame on each wall for
+  // whatever is arranged against one (an altar, chests, books, a hearth, a throne): at(u, v) is u
+  // along it from its middle and v out into the room, `face` the way into the room, a(u) how far
+  // along the wall from its west or north end. walls(r) lists them fewest openings first (the
+  // north, all else equal); backWall(r) is the first
+  const openings = (r) => [
+    Array.from({ length: r.w }, (_, a) => at(r.i + a, r.k - 1)), Array.from({ length: r.w }, (_, a) => at(r.i + a, r.k + r.d)),
+    Array.from({ length: r.d }, (_, a) => at(r.i - 1, r.k + a)), Array.from({ length: r.d }, (_, a) => at(r.i + r.w, r.k + a)),
+  ].map((cells) => cells.filter((v) => v >= 0 && v !== TUNNEL).length);
+  const frame = (r, si) => {
+    const x0 = X(r.i), z0 = Z(r.k), x1 = X(r.i + r.w), z1 = Z(r.k + r.d), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const [bx, bz, dx, dz, along, deep, key] = [[cx, z0, 0, 1, r.w, r.d, 'n'], [cx, z1, 0, -1, r.w, r.d, 's'], [x0, cz, 1, 0, r.d, r.w, 'w'], [x1, cz, -1, 0, r.d, r.w, 'e']][si];
+    const at2 = (u, v) => [bx + dz * u + dx * v, bz - dx * u + dz * v];
+    const rect = (u0, v0, u1, v1) => { const [ax, az] = at2(u0, v0), [ex, ez] = at2(u1, v1); return [Math.min(ax, ex), Math.min(az, ez), Math.max(ax, ex), Math.max(az, ez)]; };
+    // the first u (from the middle outward, half a metre at a time) where fn(u) holds and
+    // something `half` wide still fits on the wall, or null
+    const slide = (half, fn) => {
+      for (let n = 0; n * 0.5 + half < along / 2 - 0.2; n++) for (const u of n ? [-n * 0.5, n * 0.5] : [0]) if (fn(u)) return u;
+      return null;
+    };
+    return { at: at2, rect, slide, face: Math.atan2(dx, dz), along, deep, key, a: (u) => (dx ? at2(u, 0)[1] - z0 : at2(u, 0)[0] - x0) };
+  };
+  const walls = (r) => { const o = openings(r); return [0, 1, 2, 3].sort((a, c) => o[a] - o[c]).map((si) => frame(r, si)); };
+  const backWall = (r) => walls(r)[0];
+  /** The first wall of room r (fewest openings first) with a place along it, `half` wide, where
+   * fits(B, u) holds: { B, u }, or null. */
+  const against = (r, half, fits) => {
+    for (const B of walls(r)) { const u = B.slide(half, (u) => fits(B, u)); if (u !== null) return { B, u }; }
+    return null;
+  };
+  /** Try fn(x, z) at random points of room r (`inset` in from its walls) until it takes. */
+  const somewhere = (r, fn, inset = 1, tries = 6) => {
+    for (let t = 0; t < tries; t++) if (fn(X(r.i) + inset + R() * (r.w - 2 * inset), Z(r.k) + inset + R() * (r.d - 2 * inset))) return true;
+    return false;
+  };
+  /** The nearest point to (x, z), out to `reach` metres, half a metre at a time, where fn takes. */
+  const nearest = (x, z, fn, reach = 4) => {
+    for (let n = 0; n <= reach * 2; n++) for (let a = -n; a <= n; a++) for (let c = -n; c <= n; c++) {
+      if (Math.max(Math.abs(a), Math.abs(c)) !== n) continue;
+      if (fn(x + a * 0.5, z + c * 0.5)) return [x + a * 0.5, z + c * 0.5];
+    }
+    return null;
+  };
 
   // furnishing, torches and lights
   const cat = (n) => 'catacombs_' + n;
@@ -275,39 +411,54 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
       if (at(r.i - 1, gk(z)) < 0 && !hidden(id, 'w', z - z0)) props.add('wall_torch', x0 + 0.02, fy, z, Math.PI / 2);
       if (at(r.i + r.w, gk(z)) < 0 && !hidden(id, 'e', z - z0)) props.add('wall_torch', x1 - 0.02, fy, z, -Math.PI / 2);
     }
-    const kind = r.kind;
+    // (everything solid set down clear of the ways, see put(); what stands against a wall stands
+    // against the one with fewest openings)
+    const kind = r.kind, B = backWall(r);
     if (kind === 'pillared hall' || kind === 'entry hall') {
       const pil = ['pillar_round', 'pillar_fluted', 'pillar_square', 'pillar_twisted'][id % 4];
       for (let x = x0 + 3; x < x1 - 2; x += 4) for (const z of [z0 + 2.5, z1 - 2.5]) {
         if (kind === 'entry hall' && Math.abs(x - entry.x) < 2.2) continue;     // not before the stairs
-        props.add(pil, x, fy, z, 0, 1.2);
+        put(pil, x, z, 0, 1.2);
       }
     } else if (kind === 'crypt') {
-      for (let x = x0 + 2.5; x < x1 - 2; x += 3) props.add('sarcophagus', x, fy, cz, Math.PI / 2);
-      props.add('candelabrum', x0 + 1.2, fy, z0 + 1.2); props.add('candelabrum', x1 - 1.2, fy, z1 - 1.2);
+      for (let x = x0 + 2.5; x < x1 - 2; x += 3) put('sarcophagus', x, cz, Math.PI / 2);
+      put('candelabrum', x0 + 1.2, z0 + 1.2); put('candelabrum', x1 - 1.2, z1 - 1.2);
     } else if (kind === 'library') {
-      for (let x = x0 + 1.5; x < x1 - 1; x += 1.4) if (!hidden(id, 'n', x - x0)) props.add('bookshelf', x, fy, z0 + 0.3, 0);
-      props.add('table', cx, fy, cz, 0); props.add('stool', cx, fy, cz + 1.2); props.add('candelabrum', cx + 1.6, fy, cz);
+      // the shelves along the back wall, the reading table in the middle
+      for (let u = -B.along / 2 + 1.5; u < B.along / 2 - 1; u += 1.4) if (!hidden(id, B.key, B.a(u))) put('bookshelf', ...B.at(u, 0.3), B.face);
+      put('table', cx, cz, 0); put('stool', cx, cz + 1.2); put('candelabrum', cx + 1.6, cz);
     } else if (kind === 'shrine') {
-      props.add('altar', cx, fy, z0 + 1.6, 0);
-      props.add('candelabrum', cx - 2.4, fy, z0 + 1.6); props.add('candelabrum', cx + 2.4, fy, z0 + 1.6);
-      for (let z = z0 + 4; z < z1 - 1.5; z += 1.8) props.add('pew', cx, fy, z, Math.PI, 0.8);
+      // the altar against a wall with candles either side, the pews facing it
+      const p = against(r, 3, (W, u) => clear(props.footprint('altar', ...W.at(u, 1.6), W.face)));
+      if (p) {
+        const { B: W, u } = p;
+        put('altar', ...W.at(u, 1.6), W.face);
+        put('candelabrum', ...W.at(u - 2.4, 1.6)); put('candelabrum', ...W.at(u + 2.4, 1.6));
+        for (let v = 4; v < W.deep - 1.5; v += 1.8) put('pew', ...W.at(u, v), W.face + Math.PI, 0.8);
+      }
     } else if (kind === 'storeroom') {
-      for (let n = 0; n < 9; n++) props.add(n % 3 ? 'crate' : 'barrel', x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), R() * 3);
+      for (let n = 0; n < 9; n++) somewhere(r, (x, z) => put(n % 3 ? 'crate' : 'barrel', x, z, R() * 3));
     } else if (kind === 'vault') {
-      for (let n = 0; n < 3; n++) props.add('treasure_chest', x0 + 1.5 + n * 1.6, fy, z0 + 0.8, 0);
-      props.add('pillar_broken', cx, fy, cz, R() * 6);
+      // the chests against the back wall, a broken column in the middle
+      for (let u = -B.along / 2 + 1.5, made = 0; u < B.along / 2 - 1 && made < 3; u += 0.4) if (put('treasure_chest', ...B.at(u, 0.8), B.face)) { made++; u += 1.2; }
+      const turn = R() * 6, mid = nearest(cx, cz, (x, z) => clear(props.footprint('pillar_broken', x, z, turn)), 2);
+      if (mid) put('pillar_broken', ...mid, turn);
     } else if (kind === 'ossuary') {
       for (let n = 0; n < 10; n++) {
         const s = [cat('skull_pyramid'), cat('long_bone_heap'), cat('supine_skeleton'), cat('ossuary_urn'), cat('burial_urn_cluster')][n % 5];
-        bill.add(s, x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), 1, 0.9);
+        somewhere(r, (x, z) => sprite(s, x, z, 1, 0.9));
       }
-    } else furnish(r, id, x0, z0, x1, z1, cx, cz, fy);
+    } else furnish(r, id, x0, z0, x1, z1, cx, cz, B);
     if (R() < 0.7) {
+      // a stand, a brazier or a candelabrum in the far corner (or another, clear of the ways),
+      // unless the room is full enough already
       const id = [cat('torch_stand'), cat('incense_brazier'), cat('iron_candelabrum'), cat('effigy_sarcophagus')][Math.floor(R() * 4)];
-      bill.add(id, x1 - 1.5, fy, z1 - 1.5, 1);
-      const s = lib.sprite(id); // stands and braziers burn
-      if (s && !/sarcophagus/.test(id)) ctx.flames?.push([x1 - 1.5, fy + s.height_m * 0.95, z1 - 1.5, /brazier/.test(id) ? 0.45 : 0.3]);
+      const c = [[x1 - 1.5, z1 - 1.5], [x0 + 1.5, z1 - 1.5], [x1 - 1.5, z0 + 1.5], [x0 + 1.5, z0 + 1.5]].find(([x, z]) => clear(spriteFoot(id, x, z)) && roomy(spriteFoot(id, x, z), 0.62));
+      if (c) {
+        sprite(id, ...c);
+        const s = lib.sprite(id); // stands and braziers burn
+        if (s && !/sarcophagus/.test(id)) ctx.flames?.push([c[0], fy + s.height_m * 0.95, c[1], /brazier/.test(id) ? 0.45 : 0.3]);
+      }
     }
   });
   // the stair hall: a flight down the stairwell, the shaft's walls below the floor, a parapet
@@ -371,22 +522,25 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
     if (t < 2 * (r.w - 2) + r.d - 2) return [X(r.i + r.w) - 1 - (t - (r.w - 2) - (r.d - 2)), Z(r.k + r.d) - 1.1];
     return [X(r.i) + 1.1, Z(r.k + r.d) - 1 - (t - 2 * (r.w - 2) - (r.d - 2))];
   };
-  // (never in front of a doorway or by the stairwell: within 2 m of a hallway or the well)
-  const blocks = (x, z) => {
-    for (let dk = -2; dk <= 2; dk++) for (let di = -2; di <= 2; di++) {
-      const v = at(gi(x) + di, gk(z) + dk);
-      if (v >= 1000 || v === WELL) return true;
-    }
-    return false;
+  // (never in front of a doorway or by the stairwell: clear of the ways, and 2 m from the well)
+  const blocks = (id, x, z) => {
+    for (let dk = -2; dk <= 2; dk++) for (let di = -2; di <= 2; di++) if (at(gi(x) + di, gk(z) + dk) === WELL) return true;
+    return !clear(spriteFoot(id, x, z));
   };
+  // (and never crowding a room: each keeps two-thirds of its floor open, or the next room has it)
   const left = [...lib.spr.values()].filter((s) => s.category === 'scatter' && !lib.usedSprites.has(s.id));
   left.forEach((s, j) => {
-    const r = rooms[1 + (j % (rooms.length - 1))];
-    let [x, z] = spot(r, Math.floor(j / (rooms.length - 1)), j);
-    for (let q = 1; q < 8 && blocks(x, z); q++) [x, z] = spot(r, Math.floor(j / (rooms.length - 1)) + q * 3, j);
-    if (blocks(x, z)) return;
-    bill.add(s.id, x, Y, z, 1, 0.95);
-    if (/brazier|candle|lantern|torch|chandelier|fire/.test(s.id)) ctx.flames?.push([x, Y + s.height_m * 0.9, z, 0.22]);
+    const n0 = Math.floor(j / (rooms.length - 1));
+    for (let t = 0; t < rooms.length - 1; t++) {
+      const r = rooms[1 + ((j + t) % (rooms.length - 1))];
+      for (let q = 0; q < 8; q++) {
+        const [x, z] = spot(r, n0 + q * 3, j);
+        if (blocks(s.id, x, z) || !roomy(spriteFoot(s.id, x, z), 0.66)) continue;
+        sprite(s.id, x, z, 1, 0.95);
+        if (/brazier|candle|lantern|torch|chandelier|fire/.test(s.id)) ctx.flames?.push([x, Y + s.height_m * 0.9, z, 0.22]);
+        return;
+      }
+    }
   });
   // (not the old banners: the world's banners are the banner sheets' now, Velscour's only where his people are)
   const hang = [...lib.spr.values()].filter((s) => s.category === 'hanging' && !/_banner$/.test(s.id) && !lib.usedSprites.has(s.id));
@@ -418,53 +572,81 @@ export function buildDungeon(ctx, entry, opts = UNDERCROFT) {
 
   /** The newer kinds of room: a flooded crypt, a forge, a hall round a throne of bones, barracks, a
    * collapsed hall, a well chamber, a great hall of tall columns. */
-  function furnish(r, id, x0, z0, x1, z1, cx, cz, fy) {
-    const kind = r.kind, stone = mat(r.theme.band, 1.5);
+  function furnish(r, id, x0, z0, x1, z1, cx, cz, B) {
+    const kind = r.kind, stone = mat(r.theme.band, 1.5), fy = Y;
     if (kind === 'flooded crypt') {
       // black water a hand deep over the floor, sarcophagi standing in it, drowned urns
       const wm = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), FLOOD_MAT());
       wm.position.set(cx, fy + 0.22, cz);
       ctx.scene.add(wm);
-      for (let x = x0 + 2.5; x < x1 - 2; x += 3.2) props.add('sarcophagus', x, fy, cz + (R() - 0.5) * 2, Math.PI / 2 + (R() - 0.5) * 0.3);
-      for (let n = 0; n < 4; n++) bill.add(cat(['burial_urn_cluster', 'ossuary_urn', 'long_bone_heap', 'supine_skeleton'][n]), x0 + 1 + R() * (r.w - 2), fy, z0 + 1 + R() * (r.d - 2), 1, 0.9);
+      for (let x = x0 + 2.5; x < x1 - 2; x += 3.2) put('sarcophagus', x, cz + (R() - 0.5) * 2, Math.PI / 2 + (R() - 0.5) * 0.3);
+      for (let n = 0; n < 4; n++) somewhere(r, (x, z) => sprite(cat(['burial_urn_cluster', 'ossuary_urn', 'long_bone_heap', 'supine_skeleton'][n]), x, z, 1, 0.9));
     } else if (kind === 'forge') {
-      // an anvil before a hearth of stone, coal and fire; barrels of quench water, crates of ore
-      b.box([cx - 1.6, fy, z0 + 0.4], [cx + 1.6, fy + 1.1, z0 + 2.0], stone, { shade: 0.7 });
-      ctx.flames?.push([cx, fy + 1.35, z0 + 1.2, 0.55], [cx - 0.8, fy + 1.3, z0 + 1.1, 0.35], [cx + 0.8, fy + 1.3, z0 + 1.3, 0.35]);
-      props.add('anvil', cx, fy, z0 + 3.4, R() * 0.6);
-      props.add('anvil', cx + 2.5, fy, cz + 1, R() * 6);
-      for (let n = 0; n < 5; n++) props.add(n % 2 ? 'barrel' : 'crate', x1 - 1.2, fy, z0 + 1.5 + n * 1.3, R() * 3);
-      props.add('table', x0 + 1.8, fy, cz, Math.PI / 2);
-    } else if (kind === 'bone throne') {
-      // a dais at the far end with a high seat on it, heaped round with skulls, candles either side
-      const dz0 = z0 + 0.5, dz1 = z0 + 3.5;
-      b.box([cx - 3, fy, dz0], [cx + 3, fy + 0.5, dz1], stone, { shade: 0.85 });
-      b.box([cx - 0.8, fy + 0.5, dz0 + 0.6], [cx + 0.8, fy + 1.0, dz0 + 1.8], stone, { shade: 0.8 });       // the seat
-      b.box([cx - 0.9, fy + 0.5, dz0 + 0.2], [cx + 0.9, fy + 3.2, dz0 + 0.6], stone, { shade: 0.7 });       // its back
-      for (let n = 0; n < 7; n++) bill.add(cat(n % 2 ? 'skull_pyramid' : 'long_bone_heap'), cx - 2.6 + n * 0.85, fy + 0.5, dz1 - 0.4, 1, 0.8);
-      props.add('candelabrum', cx - 3.6, fy, dz0 + 1); props.add('candelabrum', cx + 3.6, fy, dz0 + 1);
-      for (let z = dz1 + 2; z < z1 - 1.5; z += 2.5) for (const sx of [-1, 1]) bill.add(cat('skull_pyramid'), cx + sx * 2.4, fy, z, 1, 0.7);
-    } else if (kind === 'barracks') {
-      for (let x = x0 + 1.5; x < x1 - 1.2; x += 2.0) { props.add('bed', x, fy, z0 + 1.3, 0); if (r.d > 9) props.add('bed', x, fy, z1 - 1.3, Math.PI); }
-      props.add('table', cx, fy, cz, 0); props.add('stool', cx - 1, fy, cz + 1); props.add('stool', cx + 1, fy, cz - 1);
-      props.add('crate', x0 + 1, fy, cz, 0); props.add('barrel', x1 - 1, fy, cz, 0);
-    } else if (kind === 'collapsed hall') {
-      // the roof came in: broken columns and a slope of fallen blocks across one corner
-      for (let n = 0; n < 4; n++) props.add('pillar_broken', x0 + 2 + R() * (r.w - 4), fy, z0 + 2 + R() * (r.d - 4), R() * 6);
-      for (let n = 0; n < 14; n++) {
-        const s = 0.4 + R() * 0.8, x = x1 - 1 - R() * r.w * 0.4, z = z1 - 1 - R() * r.d * 0.4;
-        b.box([x - s / 2, fy, z - s / 2], [x + s / 2, fy + s * (0.5 + R() * 0.6), z + s / 2], stone, { shade: 0.65 + R() * 0.2 });
+      // a hearth of stone, coal and fire against a wall and an anvil before it; barrels of quench
+      // water and crates of ore down the wall to its right, a table on its left
+      const p = against(r, 1.6, (W, u) => clear(W.rect(u - 1.6, 0.4, u + 1.6, 2.0)));
+      const W = p ? p.B : B, u = p ? p.u : 0;
+      if (p) {
+        const [h0x, h0z, h1x, h1z] = W.rect(u - 1.6, 0.4, u + 1.6, 2.0);
+        block([h0x, fy, h0z], [h1x, fy + 1.1, h1z], stone, { shade: 0.7 });
+        for (const [du, dv, y, f] of [[0, 1.2, 1.35, 0.55], [-0.8, 1.1, 1.3, 0.35], [0.8, 1.3, 1.3, 0.35]]) { const [x, z] = W.at(u + du, dv); ctx.flames?.push([x, fy + y, z, f]); }
       }
-      for (let n = 0; n < 3; n++) bill.add(cat(['supine_skeleton', 'long_bone_heap', 'skull_pyramid'][n]), x0 + 1.5 + R() * (r.w - 3), fy, z0 + 1.5 + R() * (r.d - 3), 1, 0.9);
+      put('anvil', ...W.at(u, 3.4), W.face + R() * 0.6);
+      put('table', ...W.at(-W.along / 2 + 1.8, W.deep / 2), W.face + Math.PI / 2);
+      // (the rest as the room has space for)
+      put('anvil', ...W.at(2.5, W.deep / 2 + 1), R() * 6, 1, null, 0.62);
+      for (let n = 0; n < 5; n++) put(n % 2 ? 'barrel' : 'crate', ...W.at(W.along / 2 - 1.2, 1.5 + n * 1.3), R() * 3, 1, null, 0.62);
+    } else if (kind === 'bone throne') {
+      // a dais against a wall, a step up (0.4 m), with a high seat on it, heaped round with
+      // skulls, candles either side, and skulls down the hall before it
+      const p = against(r, 3, (W, u) => clear(W.rect(u - 3, 0.5, u + 3, 3.5)));
+      const W = p ? p.B : B, u = p ? p.u : 0, D = 0.4;
+      if (p) {
+        const box = (u0, y0, v0, u1, y1, v1, shade) => { const [ax, az, ex, ez] = W.rect(u0, v0, u1, v1); block([ax, fy + y0, az], [ex, fy + y1, ez], stone, { shade }); };
+        box(u - 3, 0, 0.5, u + 3, D, 3.5, 0.85);
+        box(u - 0.8, D, 1.1, u + 0.8, D + 0.5, 2.3, 0.8);      // the seat
+        box(u - 0.9, D, 0.7, u + 0.9, D + 2.7, 1.1, 0.7);      // its back
+        for (let n = 0; n < 7; n++) sprite(cat(n % 2 ? 'skull_pyramid' : 'long_bone_heap'), ...W.at(u - 2.6 + n * 0.85, 3.1), 1, 0.8, fy + D);
+        const side = Math.min(3.6, W.along / 2 - 0.6);
+        put('candelabrum', ...W.at(u - side, 1.5)); put('candelabrum', ...W.at(u + side, 1.5));
+      }
+      for (let v = 5.5; v < W.deep - 1.5; v += 2.5) for (const sx of [-1, 1]) sprite(cat('skull_pyramid'), ...W.at(u + sx * 2.4, v), 1, 0.7);
+    } else if (kind === 'barracks') {
+      for (let x = x0 + 1.5; x < x1 - 1.2; x += 2.0) { put('bed', x, z0 + 1.3, 0); if (r.d > 9) put('bed', x, z1 - 1.3, Math.PI); }
+      put('table', cx, cz, 0); put('stool', cx - 1, cz + 1); put('stool', cx + 1, cz - 1);
+      put('crate', x0 + 1, cz, 0); put('barrel', x1 - 1, cz, 0);
+    } else if (kind === 'collapsed hall') {
+      // the roof came in: broken columns and a slope of fallen blocks across one corner (the far
+      // one, unless a hallway comes in by it)
+      for (let n = 0; n < 4; n++) somewhere(r, (x, z) => put('pillar_broken', x, z, R() * 6), 2);
+      const ways = (sx, sz) => { // how much of the corner's floor is kept clear
+        let n = 0;
+        for (let a = 0; a < r.w * 0.45; a++) for (let c = 0; c < r.d * 0.45; c++) {
+          const i = sx > 0 ? r.i + r.w - 1 - a : r.i + a, k = sz > 0 ? r.k + r.d - 1 - c : r.k + c;
+          n += keep[k * NX + i];
+        }
+        return n;
+      };
+      const [sx, sz] = [[1, 1], [-1, 1], [1, -1], [-1, -1]].reduce((best, c) => (ways(...c) < ways(...best) ? c : best));
+      for (let n = 0; n < 14; n++) {
+        const s = 0.4 + R() * 0.8, x = sx > 0 ? x1 - 1 - R() * r.w * 0.4 : x0 + 1 + R() * r.w * 0.4, z = sz > 0 ? z1 - 1 - R() * r.d * 0.4 : z0 + 1 + R() * r.d * 0.4;
+        block([x - s / 2, fy, z - s / 2], [x + s / 2, fy + s * (0.5 + R() * 0.6), z + s / 2], stone, { shade: 0.65 + R() * 0.2 });
+      }
+      for (let n = 0; n < 3; n++) somewhere(r, (x, z) => sprite(cat(['supine_skeleton', 'long_bone_heap', 'skull_pyramid'][n]), x, z, 1, 0.9), 1.5);
     } else if (kind === 'well chamber') {
-      props.add('well', cx, fy, cz, R() * 6);
-      props.add('barrel', cx + 2.2, fy, cz - 1.5); props.add('barrel', cx - 2.2, fy, cz + 1.5); props.add('crate', x0 + 1.2, fy, z0 + 1.2);
+      // the well as near the middle as the ways allow, barrels by it, a crate in a corner
+      const turn = R() * 6, w = nearest(cx, cz, (x, z) => clear(props.footprint('well', x, z, turn)), Math.max(r.w, r.d) / 2);
+      if (w) {
+        put('well', ...w, turn);
+        put('barrel', w[0] + 2.2, w[1] - 1.5); put('barrel', w[0] - 2.2, w[1] + 1.5);
+      }
+      put('crate', x0 + 1.2, z0 + 1.2);
     } else if (kind === 'great hall') {
       // two rows of tall columns, candelabra down the middle
-      for (let x = x0 + 2.5; x < x1 - 2; x += 3.5) for (const z of [z0 + 2.2, z1 - 2.2]) props.add('pillar_gothic', x, fy, z, 0, 1, r.h);
-      for (let x = x0 + 4; x < x1 - 3; x += 7) props.add('candelabrum', x, fy, cz);
+      for (let x = x0 + 2.5; x < x1 - 2; x += 3.5) for (const z of [z0 + 2.2, z1 - 2.2]) put('pillar_gothic', x, z, 0, 1, r.h);
+      for (let x = x0 + 4; x < x1 - 3; x += 7) put('candelabrum', x, cz);
     } else if (kind === 'stair hall') {
-      props.add('candelabrum', x0 + 1.2, fy, z1 - 1.2); props.add('candelabrum', x1 - 1.2, fy, z1 - 1.2);
+      put('candelabrum', x0 + 1.2, z1 - 1.2); put('candelabrum', x1 - 1.2, z1 - 1.2);
     }
   }
 }

@@ -1,9 +1,10 @@
 // Path check: walks the built world's colliders the way the player does (the same radius, step
 // and height) and reports what stands in a doorway, a hallway mouth, a hallway or a road, and
-// any room, chamber or doorway the player can't get to. Run it in the browser once the game has
-// loaded:
+// any room, chamber or doorway the player can't get to: in every dungeon (ctx.unders), every
+// cave (ctx.caves), every door and house, and along the roads (ctx.paths: [{ pts, w }], when the
+// world gives them). Run it in the browser once the game has loaded:
 //   (await import('/tools/pathcheck.js')).check()
-// Each problem names the models in the way (kit colliders carry their model id as `src`).
+// Each problem names the models in the way (props and kit pieces carry their model id as `src`).
 const R = 0.32, STEP = 0.42, H = 1.7;
 const IGNORE = new Set(['wall', 'door', 'floor']); // the building itself, not things in it
 
@@ -58,9 +59,15 @@ function walk(physics, start, bounds, { g = 0.25, inside = () => true, flat = nu
   return { reached: (x, z) => { const c = ci(x, z); return c >= 0 && !Number.isNaN(Y[c]); }, top: () => Y.reduce((a, v) => (v > a ? v : a), -Infinity), count };
 }
 
-// ------------------------------------------------------------------ the undercroft
+// ------------------------------------------------------------------ the dungeons
+// (the Undercroft, the Deep Undercroft below it and the Darkwood's delves: every dungeon there is)
 function undercroft(bm, out) {
-  const { physics, ctx } = bm, D = ctx.dungeon, { x0, z0, nx, nz, cell } = D.nav, Y = D.y;
+  const { ctx } = bm;
+  for (const D of ctx.unders ? ctx.unders.map((u) => u.dg).filter((d) => d.nav && d.roomList) : [ctx.dungeon]) dungeon(bm, D, out);
+}
+
+function dungeon(bm, D, out) {
+  const { physics, ctx } = bm, { x0, z0, nx, nz, cell } = D.nav, Y = D.y, area = D.name || 'undercroft';
   const at = (i, k) => (i < 0 || k < 0 || i >= nx || k >= nz ? -1 : cell[k * nx + i]);
   const TUNNEL = 2999, isHall = (v) => v >= 1000 && v !== TUNNEL;
   // hallway mouths: room cells beside a hallway; their aprons run 3 m into the room, a cell either side
@@ -84,7 +91,7 @@ function undercroft(bm, out) {
     for (const b of inRect(physics, x0 + i, z0 + k, x0 + i + 1, z0 + k + 1, Y)) {
       if (seen.has(b)) continue;
       seen.add(b);
-      out.push({ area: 'undercroft', kind: 'mouth', room: `${room} ${D.roomList[room].kind}`, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+      out.push({ area, kind: 'mouth', room: `${room} ${D.roomList[room].kind}`, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
     }
   }
   // anything standing in a hallway (not the foot of the stairs, where the flight itself comes down)
@@ -93,19 +100,25 @@ function undercroft(bm, out) {
     for (const b of inRect(physics, x0 + i, z0 + k, x0 + i + 1, z0 + k + 1, Y)) {
       if (seen.has(b)) continue;
       seen.add(b);
-      out.push({ area: 'undercroft', kind: 'hallway', what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+      out.push({ area, kind: 'hallway', what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
     }
   }
   // can every room be walked into from the foot of the stairs, through every one of its mouths?
-  const sb = ctx.stairBottom;
-  const w = walk(physics, { x: sb.x, z: sb.z - 1, y: Y }, [x0, z0, x0 + nx, z0 + nz], { flat: Y, inside: (x, z) => at(Math.floor(x - x0), Math.floor(z - z0)) >= 0 });
+  // (from the middle of the passage's northmost row, clear of the flight's last steps)
+  const f = cell.indexOf(1999), start = f < 0 ? { x: ctx.stairBottom.x, z: ctx.stairBottom.z - 1 } : { x: x0 + (f % nx) + 1.5, z: z0 + Math.floor(f / nx) + 0.5 };
+  const w = walk(physics, { ...start, y: Y }, [x0, z0, x0 + nx, z0 + nz], { flat: Y, inside: (x, z) => at(Math.floor(x - x0), Math.floor(z - z0)) >= 0 });
   const byRoom = new Map();
   for (const m of mouths) if (!w.reached(m.x, m.z)) { const r = byRoom.get(m.room) || []; r.push([round(m.x), round(m.z)]); byRoom.set(m.room, r); }
-  for (const [room, cells] of byRoom) out.push({ area: 'undercroft', kind: 'unreachable mouth', room: `${room} ${D.roomList[room].kind}`, cells: cells.length, at: cells[0] });
+  for (const [room, cells] of byRoom) out.push({ area, kind: 'unreachable mouth', room: `${room} ${D.roomList[room].kind}`, cells: cells.length, at: cells[0] });
+  // how much of each room's floor is walked: the walk's own quarter-metre cells, read at their
+  // middles (dungeon.js keeps its rooms open by the same count)
   D.roomList.forEach((r, id) => {
     let n = 0, ok = 0;
-    for (let x = r.x0 + 0.25; x < r.x1; x += 0.5) for (let z = r.z0 + 0.25; z < r.z1; z += 0.5) { n++; if (w.reached(x, z)) ok++; }
-    if (ok / n < 0.6) out.push({ area: 'undercroft', kind: 'cramped room', room: `${id} ${r.kind}`, walkable: round(ok / n) });
+    for (let x = r.x0 + 0.125; x < r.x1; x += 0.25) for (let z = r.z0 + 0.125; z < r.z1; z += 0.25) {
+      if (at(Math.floor(x - x0), Math.floor(z - z0)) < 0) continue; // (a stairwell has no floor to walk)
+      n++; if (w.reached(x, z)) ok++;
+    }
+    if (ok / n < 0.6) out.push({ area, kind: 'cramped room', room: `${id} ${r.kind}`, walkable: round(ok / n) });
   });
 }
 
@@ -204,10 +217,14 @@ function roads(bm, out) {
   const { physics, ctx } = bm, seen = new Set();
   for (const p of ctx.paths || []) {
     const lane = Math.min(p.w * 0.5, 1.4); // the middle of the road, wide enough to walk unhindered
+    // the floor underfoot, carried along the road as the player walks it: up onto a bridge's deck
+    // and over (not down on the stream bed, where the deck would be in the way)
+    let y = physics.groundAt(...p.pts[0]);
     for (let i = 0; i + 1 < p.pts.length; i++) {
       const [ax, az] = p.pts[i], [bx, bz] = p.pts[i + 1], len = Math.hypot(bx - ax, bz - az);
       for (let t = 0; t <= len; t += 0.8) {
-        const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len, y = physics.groundAt(x, z);
+        const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len, f = physics.floorAt(x, z, y, R, STEP);
+        y = Number.isFinite(f) ? f : physics.groundAt(x, z);
         for (const b of physics.near(x - lane, z - lane, x + lane, z + lane)) {
           if (seen.has(b) || b.tag === 'door' || !standing(b, y)) continue;
           const cx = Math.max(b.min[0], Math.min(x, b.max[0])), cz = Math.max(b.min[2], Math.min(z, b.max[2]));
@@ -220,16 +237,27 @@ function roads(bm, out) {
   }
 }
 
-// ------------------------------------------------------------------ the Gloamhollow
+// ------------------------------------------------------------------ the caves
+// (the Gloamhollow, the Drowned Grotto and the Trollhole)
 function cave(bm, out) {
-  const { physics, ctx } = bm, C = ctx.cave;
-  if (!C) return;
+  const { ctx } = bm;
+  for (const C of ctx.caves || (ctx.cave ? [ctx.cave] : [])) oneCave(bm, C, out);
+}
+
+function oneCave(bm, C, out) {
+  const { physics } = bm, area = C.name || 'cave';
   const x0 = C.px + C.a0, z0 = C.pz + C.b0, x1 = x0 + C.nx * 0.5, z1 = z0 + C.nz * 0.5;
-  // in from the mouth, and back out again from the cavern (climbing is harder than dropping)
-  const cav = C.features.find((f) => f.tag === 'cavern'), back = { x: C.px + cav.a - 6, z: C.pz + cav.b };
-  back.y = C.floor[C.idx(back.x, back.z)];
+  // in from the mouth, and back out again from its greatest chamber (climbing is harder than
+  // dropping), from the dry floor nearest the chamber's middle
+  const cav = C.features.filter((f) => f.type === 'room').reduce((a, f) => (f.ra * f.rb > a.ra * a.rb ? f : a));
+  let back = null;
+  for (let d = 0; d < Math.min(cav.ra, cav.rb) && !back; d += 0.5) for (let t = 0; t < 8 && !back; t++) {
+    const x = C.px + cav.a + Math.cos(t * Math.PI / 4) * d, z = C.pz + cav.b + Math.sin(t * Math.PI / 4) * d, j = C.idx(x, z);
+    if (j >= 0 && C.s[j] < -1 && !(C.water && Math.hypot(x - C.water.x, z - C.water.z) < C.water.r + 1)) back = { x, z, y: C.floor[j] };
+  }
+  if (!back) { out.push({ area, kind: 'error', what: `no dry floor in the ${cav.tag}` }); return; }
   const wIn = walk(physics, C.mouth, [x0 - 8, z0, x1, z1], { g: 0.25 }), wOut = walk(physics, back, [x0 - 8, z0, x1, z1], { g: 0.25 });
-  if (!wOut.reached(C.mouth.x, C.mouth.z)) out.push({ area: 'cave', kind: 'no way out', from: 'cavern' });
+  if (!wOut.reached(C.mouth.x, C.mouth.z)) out.push({ area, kind: 'no way out', from: cav.tag });
   const tally = new Map();
   for (let j = 0; j < C.nx * C.nz; j++) {
     if (C.s[j] > -0.6) continue;
@@ -238,7 +266,7 @@ function cave(bm, out) {
     t[0]++; if (wIn.reached(x, z)) t[1]++; if (wOut.reached(x, z)) t[2]++;
     tally.set(tag, t);
   }
-  for (const [tag, [n, a, b]] of tally) if (a / n < 0.8 || b / n < 0.8) out.push({ area: 'cave', kind: 'hard to reach', where: tag, fromMouth: round(a / n), fromCavern: round(b / n) });
+  for (const [tag, [n, a, b]] of tally) if (a / n < 0.8 || b / n < 0.8) out.push({ area, kind: 'hard to reach', where: tag, fromMouth: round(a / n), fromChamber: round(b / n) });
   // anything solid in the passages themselves
   for (const f of C.features) {
     if (f.type !== 'pass') continue;
@@ -248,7 +276,7 @@ function cave(bm, out) {
         const x = C.px + a0 + (a1 - a0) * t / len, z = C.pz + b0 + (b1 - b0) * t / len, j = C.idx(x, z);
         if (j < 0) continue;
         for (const b of inRect(physics, x - f.r * 0.6, z - f.r * 0.6, x + f.r * 0.6, z + f.r * 0.6, C.floor[j], new Set(['wall', 'door', 'floor', 'solid', 'cave'])))
-          out.push({ area: 'cave', kind: 'in a passage', where: f.tag, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+          out.push({ area, kind: 'in a passage', where: f.tag, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
       }
     }
   }
@@ -256,6 +284,7 @@ function cave(bm, out) {
 
 export function check(bm = window.bellmourn, parts = ['undercroft', 'doors', 'access', 'upstairs', 'interiors', 'roads', 'cave']) {
   const out = [], fns = { undercroft, doors, access, upstairs, interiors, roads, cave };
+  if (!bm.ctx.paths && (parts.includes('roads') || parts.includes('access'))) console.warn('pathcheck: the world gives no ctx.paths, so the roads and the ways from them to the doors are not checked');
   for (const p of parts) { try { fns[p](bm, out); } catch (e) { out.push({ area: p, kind: 'error', what: String(e) }); } }
   // the same box reported twice from overlapping samples counts once
   const seen = new Set();
