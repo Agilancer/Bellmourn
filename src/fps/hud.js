@@ -141,7 +141,8 @@ export class Hud {
         <tr><td>Esc</td><td>pause (save, load)</td><td></td><td></td></tr>
       </table>
       <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, use, drink, map, bag</div>
-      <div class="opts"><label>Pixels <select id="optPix"><option value="1">sharp</option><option value="2" selected>chunky</option><option value="3">very chunky</option></select></label>
+      <div class="opts"><label>Resolution <select id="optRes"><option value="1" selected>full</option><option value="0.75">75%</option><option value="0.5">half</option></select></label>
+      <label>Texels <select id="optTex"><option value="crisp" selected>crisp</option><option value="smooth">smooth</option></select></label>
       <label>Look speed <input id="optSens" type="range" min="0.5" max="2.5" step="0.1" value="1"></label>
       <label>Graphics <select id="optGfx"><option value="high">high (shadows)</option><option value="low">low</option></select></label>
       <label>Time <select id="optTime"><option value="cycle">day &amp; night</option><option value="golden">golden hour</option><option value="noon">noon</option><option value="night">night</option></select></label></div>`;

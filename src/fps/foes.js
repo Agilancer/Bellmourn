@@ -21,7 +21,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Zombie, goreMaterial, wrap } from './zombies.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
-import { ualSource, UAL_URL } from './ual.js';
+import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
@@ -109,7 +109,9 @@ const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62,
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 'cast2', 'blink', 'hit', 'shriek', 'death',
   'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup',
   'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
-  'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup']);
+  'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup',
+  'sword_combo', 'shield_hit', 'punch3', 'punch3_rec', 'throw', 'climb', 'slide_start', 'slide_exit', 'nod_yes', 'rail_call', 'open_chest',
+  'consume', 'harvest', 'plant', 'water', 'zombie_scratch']);
 // the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
 // [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
 export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3] };
@@ -265,6 +267,26 @@ class Foe extends Zombie {
     }
   }
 
+  /** New clips for a foe already out in the world (the open country's, once the library's are made:
+   * Foes.upgrade). Taken up where it stands; one already fighting, down or dead keeps what it has. */
+  adopt(g) {
+    if (this.ual || this.dead || this.mode !== 'stand' || this.state !== 'move') return false;
+    const meta = g.userData.foe, cur = this.cur;
+    this.mixer.stopAllAction();
+    this.actions = {};
+    for (const clip of g.animations) {
+      const a = this.mixer.clipAction(clip);
+      if (ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+      this.actions[clip.name] = a;
+    }
+    this.ual = true; this.hits = meta.hits || {};
+    if (meta.gait) this.kind = { ...this.kind, gait: { ...this.kind.gait, ...meta.gait } };
+    this.cur = null;
+    this.play(cur === 'walk' || cur === 'run' ? cur : 'idle', 0.2);
+    this.mixer.update(Math.random() * 2);
+    return true;
+  }
+
   /** On the library's clips the Sworn have more than one of some moves: at ease when nobody's after
    * them (talking, the ones given to it), the formal walk of a round, the sword guard once the shield
    * is gone, a flinch at the head or the chest. */
@@ -273,7 +295,7 @@ class Foe extends Zombie {
       if (this.holdT > 0 && (name === 'walk' || name === 'run' || name === 'idle')) return;   // (let a flinch finish)
       const A = this.actions, calm = !this.aggro && this.goal === 'wander' && this.state === 'move';
       if (name === 'idle' && calm) name = this.chat && A.idle_talk ? 'idle_talk' : 'idle_calm';
-      else if (name === 'idle' && !this.shield && A.idle_sword) name = 'idle_sword';
+      else if (name === 'idle' && !this.shield && this.kindName === 'knight' && A.idle_sword) name = 'idle_sword';
       else if (name === 'walk' && calm && A.patrol) { speed *= (this.kind.gait.walk || 1) / (this.kind.gait.patrol || 1); name = 'patrol'; }
       else if (name === 'hit' && this.cur !== 'hit' && this.cur !== 'hit_head' && this.cur !== 'hit_chest') name = ['hit', 'hit_head', 'hit_chest'][Math.floor(Math.random() * 3)];
       if (!A[name]) name = { idle_calm: 'idle', idle_talk: 'idle', patrol: 'walk', hit_head: 'hit', hit_chest: 'hit' }[name] || name;
@@ -857,6 +879,7 @@ class Foe extends Zombie {
       this.raiseShield(0.7 + Math.random() * 1.1);
       return;
     }
+    if (this.ual && dist < K.reach * 1.1 && fe < 0.5 && !this.cool && this.arm('R') && this.has('handR')) { this.combo(this.shield && this.arm('L')); return; }
     if (dist < K.reach && fe < 0.5 && !this.cool) {
       const moves = [];
       if (this.arm('R') && this.has('handR')) moves.push('attack1', 'attack2', 'attack3', 'attack1');
@@ -885,7 +908,7 @@ class Foe extends Zombie {
     if (dist < 1.8 && fe < 0.6 && !this.cool && this.arm('R')) { this.strike('attack1'); return; }
     const hands = this.arm('L') || this.arm('R');
     if (this.canSee && hands && !this.bigCool && dist < 22 && dist > 4) { this.state = 'cast'; this.spell = 'cast2'; this.play('cast2', 0.12); this.foes.voice(this, 'chant'); return; }
-    if (this.canSee && hands && !this.spellCool && dist < 30 && fe < 0.3) { this.state = 'cast'; this.spell = 'cast1'; this.play('cast1', 0.1); return; }
+    if (this.canSee && hands && !this.spellCool && dist < 30 && fe < 0.3) { this.state = 'cast'; this.spell = 'cast1'; this.play(this.ual && this.actions.cast ? 'cast' : 'cast1', 0.1); return; }
     // keep its distance: back off when you're close, close in when it can't see you, else circle
     if (!this.canSee || dist > 17) { this.go(dt, this.route(player.pos), dist > 12 ? K.run * 0.8 : K.walk); return; }
     if (dist < 7) { this.go(dt, player.pos, K.walk * 1.1, { face: player.pos, back: true }); return; }
@@ -1096,6 +1119,37 @@ export class Foes {
     await this.loadItems(variants);
   }
 
+  /** The open country's knights and sorcerers on the knight's clips (ual.js), made once the world is
+   * up so the start doesn't wait on them: once for each skeleton (two between the six of them), a
+   * few milliseconds at a time. A sorcerer (no shield) takes the library's own stance, walk, jog and
+   * sprint, the knight's guard kept as `guard`; each keeps its own clips where the library has none
+   * (the crawls, the spells). Those already out take them up where they stand. */
+  async upgrade(variants = VARIANTS.filter((v) => FOES[v].kind === 'knight' || FOES[v].kind === 'sorcerer')) {
+    const src = await loadUal(this.loader), sets = new Map();
+    const both = { ...RECIPES, ...Object.fromEntries(['idle', 'walk', 'run', 'sprint'].map((k) => ['calm_' + k, CALM[k]])) };
+    for (const v of variants) {
+      const g = this.gltf[v];
+      if (!g || g.userData.foe.ual) continue;
+      let skel = null;
+      g.scene.traverse((o) => { if (o.isSkinnedMesh && !skel) skel = o.skeleton; });
+      const key = skel.boneInverses.map((m) => m.elements.map((x) => x.toFixed(3)).join()).join();
+      if (!sets.has(key)) sets.set(key, await ualBody(src, g, { recipes: both }));
+      const made = sets.get(key), calm = FOES[v].kind === 'sorcerer', G = made.gaits;
+      const clips = made.clips.flatMap((c) => {
+        const m = /^calm_(.*)/.exec(c.name);
+        if (m) return calm ? [Object.assign(c.clone(), { name: m[1] })] : [];
+        if (calm && c.name === 'idle') return [Object.assign(c.clone(), { name: 'guard' })];
+        return calm && CALM[c.name] ? [] : [c];
+      });
+      const have = new Set(clips.map((c) => c.name));
+      g.old = g.animations;
+      g.animations = [...clips, ...g.old.filter((c) => !have.has(c.name))];
+      const gait = calm ? { ...G, walk: G.calm_walk, run: G.calm_run, sprint: G.calm_sprint } : G;
+      Object.assign(g.userData.foe, { ual: true, calm, gait, hits: { ...g.userData.foe.hits, ...made.hits } });
+      for (const f of this.zombies.list || []) if (f instanceof Foe && f.variant === v) f.adopt(g);
+    }
+  }
+
   /** The Sworn (sworn.js): each body (a villager and its armour set, helmed or bareheaded, with
    * the sorcerers' casting if it casts) put together once on the animation library's clips (ual.js;
    * `ual` false: knight_a's alone, and `legacy` as they first were), then their weapons.
@@ -1104,7 +1158,7 @@ export class Foes {
   async loadSworn(variants = SWORN, { ual = true, legacy = false } = {}) {
     const knight = this.gltf.knight_a || (await this.load(['knight_a']), this.gltf.knight_a);
     // the animation library (ual.js), read once
-    if (ual && !this.ual) this.ual = ualSource(await this.loader.loadAsync(UAL_URL));
+    if (ual && !this.ual) this.ual = await loadUal(this.loader);
     const files = new Map(), bodies = new Map();
     const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(url)); return files.get(url); };
     const body = (b) => {
