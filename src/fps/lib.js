@@ -192,10 +192,13 @@ export class Library {
   /** The outdoor ground: one material that blends meadow, forest floor and graveyard soil
    * with noise in the shader, so there are no tile seams or squares across the whole map.
    * `layers` are [id, metres per repeat, tint?] (a tint as a material's). */
-  ground({ village, yard, layers }) {
+  ground({ village, yard, layers, crater = null }) {
     const tex = layers.map(([id]) => { this.used.add(id); return this.texture(this.surf.get(id).file); });
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x0a0a0a, shininess: 6 });
     m.userData.tileU = m.userData.tileV = 1;
+    // the crater (crater.js): where it is, and how brightly its floor's cracks burn
+    m.userData.crater = { value: new THREE.Vector4(crater?.x ?? 1e5, crater?.z ?? 1e5, crater?.R ?? 1, crater?.reach ?? 1) };
+    m.userData.glow = { value: 1 };
     m.userData.noGlass = true; // out of doors, and its samplers are spoken for
     // one layer, sampled at its own scale and turn, in its tint
     const L = (i, rot) => {
@@ -205,12 +208,15 @@ export class Library {
     m.onBeforeCompile = (sh) => {
       tex.forEach((t, i) => { sh.uniforms['gT' + i] = { value: t }; });
       sh.uniforms.gYard = { value: new THREE.Vector4(...yard) };
+      sh.uniforms.gCrater = m.userData.crater;
+      sh.uniforms.gGlow = m.userData.glow;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGround;')
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
         varying vec3 vGround;
         ${tex.map((_, i) => `uniform sampler2D gT${i};`).join('\n')}
-        uniform vec4 gYard;
+        uniform vec4 gYard, gCrater;
+        uniform float gGlow;
         float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float gNoise(vec2 p) {
           vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -236,7 +242,23 @@ export class Library {
         vec3 gc = mix(forest, grass, village);
         gc = mix(gc, soil, yard);
         gc *= 0.82 + 0.36 * gNoise(gp * 0.012 + 3.0);
-        diffuseColor.rgb *= gc;`);
+        // where Tessariel came down: charred out past the lip, streaked with what was thrown, the
+        // floor fused to dark green glass whose cracks still glow
+        vec2 cq = gp - gCrater.xy;
+        float cr = length(cq), cn = gFbm(gp * 0.31 + 7.0);
+        float scorch = 1.0 - smoothstep(gCrater.z * 0.85, gCrater.w + 4.0, cr + (cn - 0.5) * 9.0);
+        float rays = smoothstep(0.62, 0.9, gNoise(vec2(atan(cq.y, cq.x) * 7.0, cr * 0.06)) * 0.7 + cn * 0.5);
+        scorch = max(scorch, rays * (1.0 - smoothstep(gCrater.z, gCrater.w + 14.0, cr)));
+        vec3 ash = mix(vec3(0.07, 0.065, 0.06), vec3(0.24, 0.22, 0.2), gNoise(gp * 1.9) * 0.6 + cn * 0.4);
+        gc = mix(gc, gc * 0.18 + ash, scorch * 0.94);
+        float core = 1.0 - smoothstep(gCrater.z * 0.25, gCrater.z * 0.62, cr + (cn - 0.5) * 3.0);
+        gc = mix(gc, vec3(0.04, 0.1, 0.06) + 0.06 * gNoise(gp * 4.0), core * 0.85);
+        float crack = 1.0 - smoothstep(0.002, 0.013, abs(gNoise(gp * 1.15 + 2.0) - 0.5));
+        crack = max(crack, 0.5 * (1.0 - smoothstep(0.001, 0.007, abs(gNoise(gp * 2.7 + 9.0) - 0.5))));
+        float vGlow = crack * core * core * gGlow * (0.55 + 0.45 * gNoise(gp * 0.6 + 1.0));
+        diffuseColor.rgb *= gc;`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance += vec3(0.12, 0.7, 0.26) * vGlow;`);
     };
     return m;
   }

@@ -9,6 +9,8 @@ import { buildRegion, SPOTS } from './region.js';
 import { REGION } from './terrain.js';
 import { DELVES, delveFootprint } from './delves.js';
 import { keepClear } from './keep.js';
+import { CRATER, buildCraterGround, nearCrater } from './crater.js';
+import { craterOfferings } from './polish.js';
 
 export const VILLAGE_R = 100;   // the village clearing
 export const WORLD_R = 300;     // the forest goes on to here; the player stays inside
@@ -16,7 +18,8 @@ export const CATHEDRAL = { x0: -12, x1: 12, z0: -98, z1: -52, floor: 0.6 };
 export const GRAVEYARD = { x0: -48, x1: 48, z0: -182, z1: -122 };
 export const STAIRS = { x: 5.0, z: -93.6 }; // top of the stairs, in the stair-house in the cathedral office
 // where the outdoor ground is left out: under the cathedral and the delves' stair-houses
-const GROUND_CUTS = [[CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1], ...DELVES.map(delveFootprint)];
+const GROUND_CUTS = [[CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1], ...DELVES.map(delveFootprint),
+  [CRATER.x - CRATER.reach, CRATER.z - CRATER.reach, CRATER.x + CRATER.reach, CRATER.z + CRATER.reach]];   // (the crater builds its own)
 const OFFICE_DOOR_X = -6.5;                   // the office door in the chancel wall, behind the pulpit
 // graveyard-pack sprites that belong inside the church
 const CHURCH = /pipe_organ|confessional|baptismal_font|oak_pew|prayer_lectern|cathedral_altar|iron_candelabrum|votive_candles|resting_censer|church_bell|saint_statue|reliquary_chest/;
@@ -45,7 +48,7 @@ export function buildWorld(ctx) {
   const ground = lib.ground({ village: VILLAGE_R, yard: [GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], layers: [
     ['ground_grass_02', 1.7, 0xd4b0e4], ['town_olive_meadow', 3.4], ['town_wildflower_grass', 2.6],
     ['ground_forest_floor_03', 2.4, 0xe0dcd8], ['dark_forest_damp_moss', 3.2], ['ground_forest_floor_08', 2.2, 0xe0d6c8],
-    ['cathedral_graveyard_dead_grass', 3], ['cathedral_graveyard_grave_soil', 2.6]] });
+    ['cathedral_graveyard_dead_grass', 3], ['cathedral_graveyard_grave_soil', 2.6]], crater: CRATER });
   ground.userData.noCast = true;
   ground.userData.chunk = 96;
   const CELL = 12;
@@ -67,6 +70,13 @@ export function buildWorld(ctx) {
       }
     }
   }
+  buildCraterGround(scene, ground);   // the bowl where Tessariel came down
+  // nothing stands or grows in the crater: whatever the village would have put there is drawn for
+  // (so the rest of the world comes out as it always has) and left out
+  const keepOut = (o, name, at, skip = () => undefined) => { const f = o[name].bind(o); o[name] = (...a) => (nearCrater(...at(a)) ? skip(a) : f(...a)); return () => { o[name] = f; }; };
+  const restore = [keepOut(bill, 'add', (a) => [a[1], a[3]]), keepOut(props, 'add', (a) => [a[1], a[3]]),
+    keepOut(physics, 'add', (a) => (a[2] === 'tree' || a[2] === 'prop' ? [(a[0][0] + a[1][0]) / 2, (a[0][2] + a[1][2]) / 2] : [1e9, 1e9]), (a) => ({ min: a[0], max: a[1], tag: a[2], off: true })),
+    ...(ctx.scatter ? [keepOut(ctx.scatter, 'place', (a) => [a[1], a[3]])] : []), ...(ctx.trees3d ? [keepOut(ctx.trees3d, 'add', (a) => [a[1], a[3]])] : [])];
   // roads and the plaza: overlay strips (drawn over the ground, see main.js polygon offset)
   const road = M('town_wheel_worn_gravel', 3, { overlay: true });
   const dirt = M('town_packed_dirt', 3, { overlay: true });
@@ -152,6 +162,8 @@ export function buildWorld(ctx) {
   const lair = (k, dx = 0, dz = 0, r = 40) => ({ x: SPOTS[k][0] + dx, z: SPOTS[k][1] + dz, r: Math.min(r, SPOTS[k][2]), name: SPOTS[k][3] });
   ctx.biomes = { downs: { lairs: [lair('farm'), lair('mill'), lair('hamlet'), lair('falls', -40, 30, 14)] } };
   // where the player may go: the village and forest, the trail, the downs
+  for (const r of restore) r();
+  craterOfferings(ctx);   // candles, wreaths and flowers the village has left by the crater
   ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
     || (x >= REGION.x0 + 4 && x <= REGION.x1 - 4 && Math.abs(z) <= REGION.z1 - 6);
   return { houses };

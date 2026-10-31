@@ -23,6 +23,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
+import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS, HUSH } from './tessariel.js';
+import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
@@ -55,6 +57,8 @@ const ROSTER = [
   { m: 'villager_f08', name: 'Joan', tags: ['worker'], home: /Chandler|Cooper/ },
   { m: 'villager_m05', name: 'Sigurd', tags: ['traveller'], home: /Tolling Bell/, armor: 'wayfarer' },
   { m: 'villager_m11', name: 'Corin', tags: ['traveller'], home: /Tolling Bell/ },
+  // the keeper of the cathedral's holy texts (Hild's body: under her armour it's never seen otherwise)
+  { m: 'villager_f09', name: 'Odile', call: 'Sister Odile', tags: ['priest'], home: /Mending/ },
   // Lord Velscour's garrison, on the watch (their bodies are other villagers', shared with them)
   { m: 'villager_m03', name: 'Aldric', call: 'Ser Aldric', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'templar' },
   { m: 'villager_f08', name: 'Morwen', call: 'Black Morwen', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'fiend' },
@@ -97,7 +101,8 @@ export class Villagers {
     // a phone gets the watch, a few of the garrison and a cross-section of the rest
     if (n < ROSTER.length) {
       const garrison = ROSTER.filter((p) => p.garrison).slice(0, GARRISON_ON_PHONE);
-      who = [...ROSTER.filter((p) => p.watch && !p.garrison), ...garrison, ...ROSTER.filter((p) => !p.watch)].slice(0, n);
+      const givers = ROSTER.filter((p) => GIVERS[p.name] && !p.garrison);   // those with work for you, always
+      who = [...new Set([...givers, ...ROSTER.filter((p) => p.watch && !p.garrison), ...garrison, ...ROSTER.filter((p) => !p.watch)])].slice(0, Math.max(n, givers.length + 2));
     }
     let k = 0;
     const bring = (p) => {
@@ -316,7 +321,13 @@ export class Villagers {
   }
 
   // ------------------------------------------------------------------ routines
+  /** Where a quest giver waits while they've work for you (main can move it: postAt). */
+  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || null; }
+  /** Does this one stay at their post (they've something for you)? */
+  stays(a) { return !!(GIVERS[a.name] && this.quests?.business(a.name) && !a.garrison); }
+
   pickRoutine(a) {
+    if (this.stays(a)) return this.run(this.keepPost(a), [a]);
     const free = (q) => q !== a && !q.busy && !q.inside && q.flee <= 0;
     const near = this.list.filter((q) => free(q) && Math.hypot(q.pos.x - a.pos.x, q.pos.z - a.pos.z) < 18);
     const partner = a.couple && chance(0.4) ? near.find((q) => q.name === a.couple) || pick(near) : pick(near);
@@ -337,13 +348,35 @@ export class Villagers {
     return this.run(this.wander(a), [a]);
   }
 
-  /** The conversation two people have: one that suits who they are (Velscour's pickChat). */
+  /** What someone mutters to themselves: since the green star, mostly about him. */
+  barks(a) {
+    if (a.garrison) return [...BARKS.velscour, ...SACRED_BARKS.velscour];
+    const sacred = [...SACRED_BARKS.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_BARKS[t] || []))];
+    return chance(0.75) ? sacred : [...BARKS.any, ...a.tags.flatMap((t) => BARKS[t] || [])];
+  }
+
+  /** Is any of Velscour's garrison within earshot of a? (Nobody says the name then.) */
+  garrisonNear(a, r = 16) { return this.list.some((q) => q.garrison && !q.inside && Math.hypot(q.pos.x - a.pos.x, q.pos.z - a.pos.z) < r); }
+
+  /** The conversation two people have: one that suits who they are (Velscour's pickChat). Since the
+   * green star most of it is about him; the garrison have their own (and never his name), and nobody
+   * says "Tessariel" with the garrison in earshot. */
   pickChat(a, b) {
     const has = (q, t) => q.tags.includes(t);
     const couple = a.couple === b.name;
     const gossip = chance(0.35) && !has(a, 'guard') && !has(b, 'guard');
     const fits = (c) => c.tags.some((t) => t === 'any' || (t === 'gossip' && gossip) || (t === 'couple' && couple) || has(a, t) || has(b, t));
-    let list = CHATS.filter((c) => fits(c) && !(c.tags.includes('couple') && !couple));
+    const named = (c) => c.lines.some(([, x]) => /Tessariel/.test(x));
+    let source = CHATS;
+    if (a.garrison || b.garrison) {
+      // one of the garrison holds it: their own talk, them speaking first
+      if (chance(0.7)) { const c = pick(GARRISON_CHATS); return { c, order: a.garrison ? [a, b] : [b, a] }; }
+    } else if (chance(0.72)) {
+      source = SACRED_CHATS;
+      if (this.garrisonNear(a) || this.garrisonNear(b)) source = SACRED_CHATS.filter((c) => !named(c));
+    }
+    let list = source.filter((c) => fits(c) && !(c.tags.includes('couple') && !couple));
+    if (!list.length) list = CHATS.filter((c) => fits(c) && !(c.tags.includes('couple') && !couple));
     // favour the conversations of their callings over small talk
     const own = list.filter((c) => c.tags.some((t) => t !== 'any' && t !== 'gossip'));
     if (own.length && chance(0.5)) list = own;
@@ -370,9 +403,25 @@ export class Villagers {
       const sp = order[who] || order[0], other = order[1 - who] || order[1];
       this.face(other, sp);
       yield* this.line(sp, this.fill(text, sp, other));
+      // the name said out loud: the other hushes them
+      if (/Tessariel/.test(text) && !other.garrison && chance(0.3)) { this.face(sp, other); yield* this.line(other, pick(HUSH)); }
     }
     if (chance(0.25)) this.gesture(pick(people), 'wave');
     yield rand(0.6, 1.6);
+  }
+
+  /** At their post, facing out, waiting for you: a word now and then, while there's work. */
+  * keepPost(a) {
+    const [x, z, yaw] = this.postOf(a);
+    yield this.go(a, x, z);
+    a.faceTo = yaw;
+    const until = this.time + rand(40, 70);
+    while (this.time < until && this.stays(a)) {
+      const [px, pz] = this.postOf(a);
+      if (Math.hypot(a.pos.x - px, a.pos.z - pz) > 1.5) { yield this.go(a, px, pz); a.faceTo = this.postOf(a)[2]; }
+      if (chance(0.12)) yield* this.line(a, pick([...SACRED_BARKS.any, ...a.tags.flatMap((t) => SACRED_BARKS[t] || [])]), 0, 2);
+      yield rand(2, 4);
+    }
   }
 
   * wander(a) {
@@ -380,7 +429,7 @@ export class Villagers {
     const [n] = pick(spots);
     yield this.go(a, n.x + rand(-1.2, 1.2), n.z + rand(-1.2, 1.2));
     const f = this.faceFor(a, n); if (f != null) a.faceTo = f;
-    if (chance(0.25)) yield* this.line(a, pick([...(BARKS.any), ...a.tags.flatMap((t) => BARKS[t] || [])]), 0, 2);
+    if (chance(0.25)) yield* this.line(a, pick(this.barks(a)), 0, 2);
     yield rand(3, 10);
   }
 
@@ -390,7 +439,7 @@ export class Villagers {
       const ang = a0 + i / n * 6.28;
       const nd = this.graph[this.nearestNode(Math.cos(ang) * r, Math.sin(ang) * r)];
       yield this.go(a, nd.x, nd.z);
-      if (chance(0.25)) yield* this.line(a, pick(BARKS.guard), 0, 2);
+      if (chance(0.25)) yield* this.line(a, pick(a.garrison ? [...BARKS.velscour, ...SACRED_BARKS.velscour] : [...BARKS.guard, ...(SACRED_BARKS.guard || [])]), 0, 2);
       yield rand(1.5, 4);
     }
   }
@@ -462,6 +511,76 @@ export class Villagers {
     a.inside = false; a.root.visible = true;
   }
 
+  /** The villager you're looking at, close enough to speak with (or null). */
+  aimed(camera, reach = 3.4) {
+    const o = camera.position, d = camera.getWorldDirection(_d);
+    let best = null, bs = 0;
+    for (const a of this.list) {
+      if (a.inside || !a.root.visible) continue;
+      const tx = a.pos.x - o.x, ty = a.pos.y + 1.2 - o.y, tz = a.pos.z - o.z, dist = Math.hypot(tx, ty, tz);
+      if (dist > reach) continue;
+      const dot = (tx * d.x + ty * d.y + tz * d.z) / dist;
+      if (dot < 0.82) continue;
+      const sc = dot - dist * 0.05;
+      if (sc > bs) { bs = sc; best = a; }
+    }
+    return best;
+  }
+
+  /** You speak to someone with nothing to give you: they turn, and say something about who you are. */
+  talkTo(a, player) {
+    this.stopScenes(a);
+    a.busy = true; a.greeted = this.time;
+    const self = this;
+    this.run((function* () {
+      self.face(a, player);
+      yield 0.2;
+      if (chance(0.4)) self.gesture(a, 'wave');
+      const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
+      a.talk = null;
+      const d = self.say(a, pick(lines), true);
+      yield d + 0.4;
+    })(), [a]);
+  }
+
+  /** The village comes to the crater after the green star: `cast` [{name, from: [x, z], at: [x, z]}]
+   * are put a little way off (main does it during the black, so they've come running) and walk up
+   * round you; then `script` [{name, text, gift, wave}] is said in turn, each to you; onGift(gift)
+   * as each gives theirs (whether or not they've come in yet: a phone may still be bringing them). */
+  welcome(player, cast, script, onGift, onDone) {
+    const people = cast.map((c) => ({ ...c, a: this.list.find((v) => v.name === c.name) })).filter((c) => c.a);
+    const self = this;
+    for (const c of people) {
+      this.stopScenes(c.a);
+      c.a.inside = false; c.a.root.visible = true; c.a.flee = 0; c.a.headingHome = false;
+      c.a.pos.set(c.from[0], 0, c.from[1]);
+      c.a.pos.y = this.physics.floorAt(c.a.pos.x, c.a.pos.z, 5, 0.25, 9);
+    }
+    this.run((function* () {
+      // straight across the meadow to you, running (no streets out here)
+      for (const c of people) Object.assign(c.a, { path: [], goal: [c.at[0], c.at[1]], faceTo: null, stuck: 0, hurry: true });
+      let waited = 0;
+      while (people.some((c) => c.a.goal) && waited < 12) { waited += 0.25; yield 0.25; }
+      for (const c of people) { c.a.hurry = false; c.a.goal = null; self.face(c.a, player); }
+      yield 0.6;
+      for (const ln of script) {
+        const c = people.find((q) => q.name === ln.name);
+        if (c) {
+          for (const q of people) self.face(q.a, q === c ? player : c.a);
+          if (ln.wave) self.gesture(c.a, 'wave');
+          if (ln.gift) self.gesture(c.a, 'interact');
+          c.a.talk = null;
+          const d = self.say(c.a, ln.text, true);
+          if (ln.gift) onGift(ln.gift, c.a);
+          yield d + 0.35;
+        } else if (ln.gift) onGift(ln.gift, null);
+      }
+      onDone?.();
+      yield 1;
+    })(), people.map((c) => c.a));
+    return people.length > 0;
+  }
+
   /** Someone you come up to: they stop, turn to you, wave and say good day. */
   greet(a, player) {
     this.stopScenes(a);
@@ -471,7 +590,8 @@ export class Villagers {
       self.face(a, player);
       yield 0.25;
       self.gesture(a, 'wave');
-      const lines = [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])];
+      const lines = a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
+        : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])];
       let waited = 0;
       while (!self.canSpeak(a, 1) && waited < 3) { waited += 0.25; yield 0.25; }
       if (waited < 3) { a.talk = null; const d = self.say(a, pick(lines), true); yield d + 0.3; }
@@ -498,7 +618,7 @@ export class Villagers {
         }
       }
       // home at night (the watch stays out), out again by day
-      const goHome = (night && !a.watch) || a.flee > 0;
+      const goHome = (night && !a.watch && !this.stays(a)) || a.flee > 0;
       if (a.inside) {
         if (!goHome && !a.busy) { a.inside = false; a.root.visible = !far; a.nextT = rand(1, 25); }
         else continue;
@@ -516,7 +636,7 @@ export class Villagers {
       // a free villager picks something to do
       if (!a.busy && !goHome && (a.nextT -= dt) <= 0) { this.pickRoutine(a); a.nextT = rand(0.5, 2.5); }
       // you come up to them, and they greet you
-      if (!goHome && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !(a.talk && a.talk.t > 0)) {
+      if (!goHome && !this.hush && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !(a.talk && a.talk.t > 0) && !(a.busy && this.scenes.some((sc) => sc.people.includes(a) && sc.people.length > 2))) {
         // only if you're looking their way
         let looking = true;
         if (this.camera) { this.camera.getWorldDirection(_d); looking = -(dx * _d.x + dz * _d.z) / Math.max(dist, 1e-3) / Math.max(Math.hypot(_d.x, _d.z), 1e-3) > 0.6; }
@@ -533,7 +653,7 @@ export class Villagers {
           const want = Math.atan2(tx, tz);
           let e = want - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
           a.yaw += Math.max(-dt * 5, Math.min(dt * 5, e));
-          const run = a.flee > 0, sp = (run ? 3.4 : a.speed) * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(e))));
+          const run = a.flee > 0 || a.hurry, sp = (run ? 3.4 : a.speed) * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(e))));
           this.physics.slide(a.pos, Math.sin(a.yaw) * sp * dt, Math.cos(a.yaw) * sp * dt, 0.28, 1.6, 0.45);
           moving = true;
           a.stuck += dt;
@@ -549,7 +669,7 @@ export class Villagers {
       a.pos.y = this.physics.floorAt(a.pos.x, a.pos.z, a.pos.y + 0.5, 0.25, 0.6);
       if (!Number.isFinite(a.pos.y)) a.pos.y = 0;
       if (a.gesture > 0 && !moving) a.gesture -= dt;
-      else { if (moving) a.gesture = 0; this.play(a, moving ? (a.flee > 0 ? 'run' : 'walk') : 'idle', moving ? (a.flee > 0 ? 1 : a.speed / 1.05) : 1); }
+      else { if (moving) a.gesture = 0; const run = a.flee > 0 || a.hurry; this.play(a, moving ? (run ? 'run' : 'walk') : 'idle', moving ? (run ? 1 : a.speed / 1.05) : 1); }
       // speech ages
       if (a.talk) { a.talk.t -= dt; a.talk.age += dt; if (a.talk.t <= 0) a.talk = null; }
       // you can't walk through them
@@ -562,7 +682,7 @@ export class Villagers {
       a.root.position.copy(a.pos);
       a.root.rotation.y = a.yaw;
     }
-    if (this.camera) this.bubbles.draw(this, this.camera);
+    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) : null);
   }
 }
 
@@ -580,14 +700,16 @@ class Bubbles {
     this.shown = false;
   }
 
-  draw(vill, camera) {
+  draw(vill, camera, markOf = null) {
     const c = this.canvas, g = this.g, dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
-    const talking = vill.list.filter((a) => a.talk && !a.inside && a.root.visible && a.head);
-    if (!talking.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
+    const talking = this.hidden ? [] : vill.list.filter((a) => a.talk && !a.inside && a.root.visible && a.head);
+    const marked = markOf && !this.hidden ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
+    if (!talking.length && !marked.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
     g.clearRect(0, 0, W, H); this.shown = true;
     camera.getWorldPosition(_w);
+    for (const a of marked) this.mark(g, a, camera, vill, dpr, W, H);
     const items = [];
     for (const a of talking) {
       a.head.getWorldPosition(_v); _v.y += 0.36;
@@ -608,6 +730,37 @@ class Bubbles {
     items.sort((p, q) => p.dist - q.dist);
     const placed = [];
     for (const it of items) this.bubble(g, it, dpr, placed);
+  }
+
+  /** A quest mark over someone's head: a yellow ! (work for you), a yellow ? (come back, it's done)
+   * or a grey ? (under way), standing up off the head, bobbing a little, hidden behind walls. */
+  mark(g, a, camera, vill, dpr, W, H) {
+    a.head.getWorldPosition(_v); _v.y += 0.62 + Math.sin(vill.time * 2.4 + a.pos.x) * 0.04;
+    const dist = _v.distanceTo(_w);
+    if (dist > 70) return;
+    if ((a.markT = (a.markT ?? 0) - 1 / 60) <= 0) {
+      a.markT = 0.3;
+      _d.copy(_v).sub(_w).normalize();
+      const hit = vill.physics.ray ? vill.physics.ray([_w.x, _w.y, _w.z], [_d.x, _d.y, _d.z], dist) : null;
+      a.markHidden = !!(hit && hit.t < dist - 0.6);
+    }
+    if (a.markHidden) return;
+    const p = _v.clone().project(camera);
+    if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return;
+    const x = (p.x * 0.5 + 0.5) * W, y = (-p.y * 0.5 + 0.5) * H;
+    const s = dpr * Math.max(0.5, Math.min(1.6, 9 / Math.max(dist, 1)));
+    const glyph = a.mark === '!' ? '!' : '?', grey = a.mark === 'g';
+    g.save();
+    g.font = `900 ${Math.round(34 * s)}px "Cinzel Decorative", Cinzel, Georgia, serif`;
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    if (!grey) { g.shadowColor = 'rgba(255, 200, 40, 0.85)'; g.shadowBlur = 14 * s; }
+    g.lineWidth = 4 * s; g.strokeStyle = grey ? '#2a2620' : '#3a2204';
+    g.strokeText(glyph, x, y);
+    g.fillStyle = grey ? '#9a958c' : '#ffd21a';
+    g.fillText(glyph, x, y);
+    g.shadowBlur = 0;
+    if (!grey) { g.fillStyle = 'rgba(255, 250, 200, 0.55)'; g.fillText(glyph, x - 1.2 * s, y - 1.2 * s); }
+    g.restore();
   }
 
   bubble(g, { a, x, y, dist }, dpr, placed) {

@@ -117,7 +117,10 @@ export class Hud {
     this.toastEl = el('div', 'toast');
     this.promptEl = el('div', 'prompt');
     this.bossEl = el('div', 'bossbar off', '<b></b><div><i></i><u></u></div>');
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl);
+    // experience: a thin bar along the bottom, and the banner when a level comes
+    this.xpEl = el('div', 'xpbar', '<i></i><span></span>');
+    this.banner = el('div', 'banner');
+    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner);
     r.append(this.hud);
 
     // ---- start / pause
@@ -126,6 +129,7 @@ export class Hud {
       <div class="title">BELLMOURN</div>
       <div class="sub">Velscour's Throne</div>
       <div class="go"></div>
+      <div class="menu"></div>
       <table class="keys">
         <tr><td>W A S D</td><td>move</td><td>Mouse</td><td>look</td></tr>
         <tr><td>Shift</td><td>run</td><td>Space</td><td>jump</td></tr>
@@ -133,7 +137,8 @@ export class Hud {
         <tr><td>F &nbsp; R</td><td>cast the spells set to F and R</td><td>Tab / I</td><td>inventory &amp; spellbook</td></tr>
         <tr><td>E</td><td>open doors, search chests</td><td>1 – 6</td><td>quick-equip arms</td></tr>
         <tr><td>Q &nbsp; Z</td><td>drink healing / mana</td><td>M</td><td>map</td></tr>
-        <tr><td>Esc</td><td>pause</td><td></td><td></td></tr>
+        <tr><td>E</td><td>speak with someone</td><td>L &nbsp; T</td><td>quest log, quest tracker</td></tr>
+        <tr><td>Esc</td><td>pause (save, load)</td><td></td><td></td></tr>
       </table>
       <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, use, drink, map, bag</div>
       <div class="opts"><label>Pixels <select id="optPix"><option value="1">sharp</option><option value="2" selected>chunky</option><option value="3">very chunky</option></select></label>
@@ -159,6 +164,7 @@ export class Hud {
       <div class="tbtn use" data-code="KeyE">E</div>
       <div class="tbtn potion" data-code="KeyQ">&#x2764;</div>
       <div class="tbtn map" data-code="KeyM">&#x25A6;</div>
+      <div class="tbtn qlogb" data-code="KeyL">!</div>
       <div class="tbtn pause" data-code="Escape">&#x275A;&#x275A;</div>`;
     r.append(this.touch);
   }
@@ -257,14 +263,44 @@ export class Hud {
   }
 
 
-  /** 'start' | 'pause' | 'loading' | 'lost' | null */
-  showOverlay(mode, touch) {
+  /** 'start' | 'pause' | 'loading' | 'lost' | null. The start and pause screens carry the menu
+   * (o.canContinue: there's a game to pick up). onMenu(action) is called with the button's action. */
+  showOverlay(mode, touch, o = {}) {
+    this.mode = mode;
     this.overlay.classList.toggle('hidden', !mode);
     this.overlay.classList.toggle('is-touch', !!touch);
     const go = this.overlay.querySelector('.go');
-    go.textContent = mode === 'loading' ? 'Raising the village…'
-      : (touch ? 'Tap to ' : 'Click to ') + ({ pause: 'resume', lost: 'raise it again — the graphics were lost' }[mode] || 'enter');
+    go.textContent = mode === 'loading' ? 'Raising the village…' : mode === 'lost' ? (touch ? 'Tap' : 'Click') + ' to raise it again — the graphics were lost'
+      : mode === 'pause' ? 'Paused' : '';
     this.overlay.classList.toggle('loading', mode === 'loading');
+    const menu = this.overlay.querySelector('.menu');
+    const items = mode === 'start' ? [['new', 'New Game'], ...(o.canContinue ? [['continue', 'Continue']] : []), ['load', 'Load Game']]
+      : mode === 'pause' ? [['resume', 'Resume'], ['save', 'Save Game'], ['load', 'Load Game'], ['log', 'Quest Log'], ['new', 'New Game']] : [];
+    menu.innerHTML = '';
+    for (const [a, label] of items) {
+      const b = el('button', a === 'new' && mode === 'start' && !o.canContinue || a === 'continue' || a === 'resume' ? 'sel' : '', label);
+      b.dataset.action = a;
+      b.onclick = (e) => { e.stopPropagation(); this.onMenu?.(a); };
+      menu.append(b);
+    }
+  }
+
+  /** Experience along the bottom: level, and how far to the next. */
+  xp(level, have, need) {
+    const w = need ? Math.min(100, have / need * 100).toFixed(1) + '%' : '100%';
+    if (this.xpEl.dataset.w !== w + level) {
+      this.xpEl.dataset.w = w + level;
+      this.xpEl.querySelector('i').style.width = w;
+      this.xpEl.querySelector('span').textContent = need ? `Level ${level} · ${have} / ${need}` : `Level ${level}`;
+    }
+  }
+
+  /** The banner across the screen (a level gained). */
+  announce(title, sub = '') {
+    this.banner.innerHTML = `<b>${title}</b>${sub ? `<span>${sub}</span>` : ''}`;
+    this.banner.classList.remove('show');
+    void this.banner.offsetWidth;
+    this.banner.classList.add('show');
   }
 
   /** Where the last run stopped, if it never closed cleanly (see main.js's trace). */
