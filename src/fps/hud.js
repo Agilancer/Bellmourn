@@ -123,29 +123,12 @@ export class Hud {
     this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner);
     r.append(this.hud);
 
-    // ---- start / pause
-    this.overlay = el('div', 'overlay');
+    // ---- pause (the title screen, its settings and how to play are title.js's)
+    this.overlay = el('div', 'overlay hidden');
     this.overlay.innerHTML = `
-      <div class="title">BELLMOURN</div>
-      <div class="sub">Velscour's Throne</div>
+      <img class="logo" src="assets/title/bellmourn.webp" alt="Bellmourn: Velscour's Throne" draggable="false">
       <div class="go"></div>
-      <div class="menu"></div>
-      <table class="keys">
-        <tr><td>W A S D</td><td>move</td><td>Mouse</td><td>look</td></tr>
-        <tr><td>Shift</td><td>run</td><td>Space</td><td>jump</td></tr>
-        <tr><td>Left click</td><td>right hand: swing / shoot</td><td>Right click</td><td>left hand: block / swing / shoot</td></tr>
-        <tr><td>F &nbsp; R</td><td>cast the spells set to F and R</td><td>Tab / I</td><td>inventory &amp; spellbook</td></tr>
-        <tr><td>E</td><td>open doors, search chests</td><td>1 – 6</td><td>quick-equip arms</td></tr>
-        <tr><td>Q &nbsp; Z</td><td>drink healing / mana</td><td>M</td><td>map</td></tr>
-        <tr><td>E</td><td>speak with someone</td><td>L &nbsp; T</td><td>quest log, quest tracker</td></tr>
-        <tr><td>Esc</td><td>pause (save, load)</td><td></td><td></td></tr>
-      </table>
-      <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, use, drink, map, bag</div>
-      <div class="opts"><label>Resolution <select id="optRes"><option value="1" selected>full</option><option value="0.75">75%</option><option value="0.5">half</option></select></label>
-      <label>Texels <select id="optTex"><option value="crisp" selected>crisp</option><option value="smooth">smooth</option></select></label>
-      <label>Look speed <input id="optSens" type="range" min="0.5" max="2.5" step="0.1" value="1"></label>
-      <label>Graphics <select id="optGfx"><option value="high">high (shadows)</option><option value="low">low</option></select></label>
-      <label>Time <select id="optTime"><option value="cycle">day &amp; night</option><option value="golden">golden hour</option><option value="noon">noon</option><option value="night">night</option></select></label></div>`;
+      <div class="menu"></div>`;
     r.append(this.overlay);
 
     this.rotate = el('div', 'rotate', '<div>&#x21bb;</div><p>Turn your phone sideways to play</p>');
@@ -264,22 +247,19 @@ export class Hud {
   }
 
 
-  /** 'start' | 'pause' | 'loading' | 'lost' | null. The start and pause screens carry the menu
-   * (o.canContinue: there's a game to pick up). onMenu(action) is called with the button's action. */
-  showOverlay(mode, touch, o = {}) {
+  /** 'pause' | 'lost' | null (the title screen is title.js's). The pause screen carries the menu;
+   * onMenu(action) is called with the button's action. */
+  showOverlay(mode, touch) {
     this.mode = mode;
     this.overlay.classList.toggle('hidden', !mode);
     this.overlay.classList.toggle('is-touch', !!touch);
     const go = this.overlay.querySelector('.go');
-    go.textContent = mode === 'loading' ? 'Raising the village…' : mode === 'lost' ? (touch ? 'Tap' : 'Click') + ' to raise it again — the graphics were lost'
-      : mode === 'pause' ? 'Paused' : '';
-    this.overlay.classList.toggle('loading', mode === 'loading');
+    go.textContent = mode === 'lost' ? (touch ? 'Tap' : 'Click') + ' to raise it again — the graphics were lost' : mode === 'pause' ? 'Paused' : '';
     const menu = this.overlay.querySelector('.menu');
-    const items = mode === 'start' ? [['new', 'New Game'], ...(o.canContinue ? [['continue', 'Continue']] : []), ['load', 'Load Game']]
-      : mode === 'pause' ? [['resume', 'Resume'], ['save', 'Save Game'], ['load', 'Load Game'], ['log', 'Quest Log'], ['new', 'New Game']] : [];
+    const items = mode === 'pause' ? [['resume', 'Resume'], ['save', 'Save Game'], ['load', 'Load Game'], ['log', 'Quest Log'], ['settings', 'Settings'], ['howto', 'How to Play'], ['new', 'New Game']] : [];
     menu.innerHTML = '';
     for (const [a, label] of items) {
-      const b = el('button', a === 'new' && mode === 'start' && !o.canContinue || a === 'continue' || a === 'resume' ? 'sel' : '', label);
+      const b = el('button', a === 'resume' ? 'sel' : '', label);
       b.dataset.action = a;
       b.onclick = (e) => { e.stopPropagation(); this.onMenu?.(a); };
       menu.append(b);
@@ -303,16 +283,6 @@ export class Hud {
     void this.banner.offsetWidth;
     this.banner.classList.add('show');
   }
-
-  /** Where the last run stopped, if it never closed cleanly (see main.js's trace). */
-  lastRun(text) {
-    const d = el('div', 'lastrun');
-    d.textContent = 'Last time it stopped: ' + text;
-    this.overlay.append(d);
-  }
-
-  /** The loading line, `pct` per cent of the way. */
-  loading(pct) { this.overlay.querySelector('.go').textContent = `Raising the village… ${pct}%`; }
 
   showTouch(on) { this.touch.classList.toggle('hidden', !on); }
 }

@@ -67,12 +67,35 @@ sheets of them headless.
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
 | L, T | the quest log; show or hide the quest tracker |
-| Esc | pause (save, load, the quest log, a new game; resolution, texels, look speed, graphics, time of day) |
+| Esc | pause (save, load, the quest log, settings, how to play, a new game) |
+
+### The title screen
+
+`title.js`, up from the first paint, before the game has loaded a byte of itself: Blastorama
+Gaming's card fades in and out, then Jamie Herrington's, each with four-pointed glints flaring on
+the edges of its letters (found from the logo's own alpha), a sheen of light across them, gold dust
+rising, and a tinkle of little glass bells for every glint (synthesized, E major pentatonic, each
+panned to where its glint is). Then Bellmourn's logo, with a bell far off and a couple of tinkles,
+over a black cover while the whole game loads behind it ("Raising the village…" and a line of
+gold); once it's in, the logo rises, the menu comes up under it, and the black lifts to the
+village drifting by through a dark veil. The cards and their glints are CSS animations of opacity
+and transform, all started at one moment, and every bell is booked on the audio clock at that
+moment, so they keep time however hard the loading holds the main thread. A click or a key skips
+the cards. A browser plays no sound until it's been clicked, so where it won't, the title first
+asks you to click (or tap) to begin; a phone goes full screen on that tap.
+
+**New Game**, **Continue**, **Load**, **Settings**, **How to Play**. Continue picks up the newest
+game there is, the one kept as you played (`bm.char` and `bm.progress`, which now notes when) or a
+save slot made after it; with neither it can't be pressed, nor Load with no slots. Starting a new
+game over one asks first, in the game's own box on the screen. Settings (volume, look speed,
+resolution, graphics, texels, time of day) and How to Play open from the pause screen too; the two
+that restart the game come back straight to the title. The mouse pointer is a little gilded sword
+(`tools/title/make_cursor.py` draws it), its blade glinting over anything that can be clicked.
+The logos are `assets/title/*.webp`.
 
 ### The coming of Tessariel
 
-The title offers **New Game**, **Continue** (the game you were playing, as it was kept as you
-played: `bm.char` and `bm.progress`) and **Load Game**. A new game opens with a cinematic played in
+A new game opens with a cinematic played in
 the engine (`intro.js`): in the deep sky (`comet.js`'s `Space`: stars, a nebula band, the world
 below with its rim of air, the sun) a green star crosses over the world, and close alongside it a
 man in black smallclothes, curled up in a ball, spins inside the fire (`hero.js`: villager_m09
