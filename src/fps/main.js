@@ -330,6 +330,9 @@ async function build() {
   // Velscour's Sworn come in behind, while you're on the road (a phone starts once the village is up)
   foes.swornReady = new Promise((done) => setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep))
     .catch((e) => console.warn('the Sworn', e)).finally(done), touch ? 6000 : 0));
+  // the open country's knights and sorcerers onto the knight's clips (ual.js), behind the start (a
+  // phone once the Sworn are in); they take them up where they stand
+  foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
   // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
   // background and walk out of their doors as they arrive
   villagers = new Villagers(scene, ctx);
@@ -1080,6 +1083,8 @@ async function newGame() {
         count();
         const every = setInterval(count, 300);
         await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
+        line('The knights of the open country…');
+        await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
