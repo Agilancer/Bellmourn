@@ -117,6 +117,10 @@ export class Tufts {
           #endif
           float tsw = sin(uTuftTime * 1.6 + tw.x * 0.37 + tw.z * 0.29) + 0.4 * sin(uTuftTime * 3.1 + tw.x * 1.3);
           transformed.xz += vec2(1.0, 0.6) * tsw * 0.045 * position.y / 0.45;`);
+      // lit as the ground from both sides of the card (three turns a back face's normal down, which
+      // left every tuft seen from behind dark)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+          normal = normalize( vNormal ); nonPerturbedNormal = normal;`);
     };
     mat.customProgramCacheKey = () => 'tufts';
     const mesh = new THREE.InstancedMesh(geo, mat, this.at.length);
