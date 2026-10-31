@@ -143,7 +143,6 @@ export class Bag {
     // puts a two-hander away)
     if (to === 'weapon' && it.kind === 'twohand' && c.equip.offhand) this.stow('offhand');
     if (to === 'offhand' && c.equip.weapon?.kind === 'twohand') this.stow('weapon');
-    if (to === 'offhand' && it.kind === 'wand' && c.equip.weapon?.kind === 'wand') this.stow('weapon');
     this.sel = { where: 'equip', slot: to };
     this.changed();
     return true;

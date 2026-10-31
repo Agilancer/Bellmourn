@@ -13,7 +13,7 @@
 //   - fists closed (for a hilt), and the knight's sockets, hit shapes and hit frames moved onto it.
 // Sword, axe or mace in the right fist, shield on the left forearm, as the dark knights carry them;
 // the shield rides as far out from the forearm as its dish needs to clear the plate (shieldLift).
-// The Vigil's adepts go bareheaded (their hair shows, and their burning eyes), with a wand in the
+// The Vigil's adepts go bareheaded (their hair shows, and their burning eyes), with a staff in the
 // left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';

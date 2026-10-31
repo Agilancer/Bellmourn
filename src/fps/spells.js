@@ -18,10 +18,8 @@ export const SPELLS = {
   wisp: { name: 'Wisp Light', kind: 'wisp', hands: 1, mana: 15, self: 'wisp', duration: 90,
     colors: ['#ffffff', '#fff2c0', '#ffd070', '#a06a20'], light: 0xffe8b0, power: 16, desc: 'A spirit-light that follows you for 90 seconds.' },
 };
-// what wands and staves shoot (left mouse button)
+// what staves shoot (left mouse button)
 export const BOLTS = {
-  wand: { name: 'Arcane Missile', kind: 'arcane', mana: 3, speed: 44, size: 0.24, spiral: 1,
-    colors: ['#ffffff', '#ffc8ff', '#c050e8', '#4a1870'], light: 0xd070ff, power: 10, burst: 26 },
   staff: { name: 'Staff Bolt', kind: 'staff', mana: 5, speed: 30, size: 0.46, spiral: 2,
     colors: ['#ffffff', '#c0fff0', '#30c8b0', '#10504a'], light: 0x50ffd8, power: 18, burst: 50 },
 };
@@ -328,7 +326,7 @@ export class Magic {
     this.chargeOrb = null;
   }
 
-  /** Launch a projectile spell (or wand/staff bolt) from origin along dir. */
+  /** Launch a projectile spell (or staff bolt) from origin along dir. */
   launch(def, origin, dir) {
     const shots = def.shards || 1;
     for (let s = 0; s < shots; s++) {
@@ -447,7 +445,7 @@ export class Magic {
         continue;
       }
       p.addScaledVector(s.vel, dt);
-      // the visible orb wobbles about the true path; spirals for wand and staff bolts
+      // the visible orb wobbles about the true path; spirals for staff bolts
       const side = new THREE.Vector3(-d.z, 0, d.x).normalize(), up = side.clone().cross(d);
       const vis = p.clone();
       if (s.def.spiral) {
