@@ -34,6 +34,29 @@ ${TEXELS === 'crisp' ? `  vec2 size = vec2( textureSize( t, 0 ) );
   return textureGrad( t, q / size, dx, dy );` : '  return textureGrad( t, uv, dx, dy );'}
 }
 vec4 sharpTexel( sampler2D t, vec2 uv ) { return sharpTexelGrad( t, uv, dFdx( uv ), dFdy( uv ) ); }
+// a tiling texture with its repeat hidden: a second copy, turned a quarter (or, for one with a grain
+// such as wheel ruts, a half) and shifted half a tile, laid over the first in patches. k (0..1, a
+// slow noise) says where; within the blend the lighter of the two wins texel by texel (stones over
+// grout), so it reads as one ground, not a double exposure
+vec4 untiled( sampler2D t, vec2 uv, vec2 dx, vec2 dy, float k, bool grain ) {
+  vec2 uv2 = grain ? vec2( 0.5, 0.5 ) - uv : vec2( -uv.y, uv.x ) + vec2( 0.5, 0.5 );
+  vec2 dx2 = grain ? -dx : vec2( -dx.y, dx.x ), dy2 = grain ? -dy : vec2( -dy.y, dy.x );
+  vec4 a = k < 0.999 ? sharpTexelGrad( t, uv, dx, dy ) : vec4( 0.0 );
+  if ( k <= 0.001 ) return a;
+  vec4 b = sharpTexelGrad( t, uv2, dx2, dy2 );
+  if ( k >= 0.999 ) return b;
+  float h = ( k - 0.5 ) * 3.0 + dot( b.rgb - a.rgb, vec3( 0.333 ) ) * 4.0;
+  return mix( a, b, smoothstep( -0.35, 0.35, h ) );
+}
+// the patches k comes from: value noise on a turned, warped domain (no straight seams)
+float untileMask( vec2 p, float seed ) {
+  vec2 q = mat2( 0.8, -0.6, 0.6, 0.8 ) * p * 0.11 + seed;
+  q += vec2( sin( q.y * 1.7 + seed ), cos( q.x * 1.3 - seed ) ) * 0.6;
+  vec2 i = floor( q ), f = fract( q ); f = f * f * ( 3.0 - 2.0 * f );
+  vec4 h = fract( sin( vec4( dot( i, vec2( 127.1, 311.7 ) ), dot( i + vec2( 1.0, 0.0 ), vec2( 127.1, 311.7 ) ),
+    dot( i + vec2( 0.0, 1.0 ), vec2( 127.1, 311.7 ) ), dot( i + vec2( 1.0, 1.0 ), vec2( 127.1, 311.7 ) ) ) ) * 43758.5453 );
+  return smoothstep( 0.3, 0.7, mix( mix( h.x, h.y, f.x ), mix( h.z, h.w, f.x ), f.y ) );
+}
 #endif
 `;
 // three's own materials take it where a material asks (SHARP_MAP, set by crisp()): a painted
@@ -330,7 +353,7 @@ export class Resolution {
     this.level = 0; this.floor = this.LEVELS.length - 1;
     this.w = 2; this.h = 2;
     this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 }; this.slow = 0; this.quick = 0; this.tried = null;
-    this.timer = null;
+    this.timer = null; this.lockedAt = 0;
   }
 
   get rs() { return this.LEVELS[this.level]; }
@@ -375,10 +398,12 @@ export class Resolution {
     if (W.n < 90) return false;
     const g = W.gap / W.n, wk = W.work / W.n, gpu = W.gpuN ? W.gpu / W.gpuN : null;
     this.win = { n: 0, gap: 0, work: 0, gpu: 0, gpuN: 0 };
-    // a step down that didn't make frames quicker: back up, and no lower again
-    if (this.tried && this.tried.level === this.level && g > this.tried.gap * 0.92) { this.floor = this.level - 1; this.level--; this.tried = null; return true; }
+    // a step down that didn't make frames quicker: back up, and no lower again for a minute
+    if (this.tried && this.tried.level === this.level && g > this.tried.gap * 0.92) { this.floor = this.level - 1; this.level--; this.tried = null; this.lockedAt = performance.now(); return true; }
     this.tried = null;
-    const gpuBound = gpu != null ? gpu > 15 : g > 21 && wk < g * 0.55;
+    if (this.floor < this.LEVELS.length - 1 && performance.now() - this.lockedAt > 60000) this.floor = this.LEVELS.length - 1;
+    // slow: frames missing 60 a second, and (where the GPU can be timed) the GPU the reason
+    const gpuBound = g > 18.5 && (gpu != null ? gpu > 14 : wk < g * 0.55);
     const roomy = gpu != null ? gpu < 9.5 && g < 18 : g < 17.6;
     this.slow = gpuBound ? this.slow + 1 : 0;
     this.quick = roomy ? this.quick + 1 : 0;

@@ -271,6 +271,10 @@ class Gore {
     this.splats = new THREE.InstancedMesh(sg, new THREE.MeshPhongMaterial({ map: splatTexture(), alphaTest: 0.5, color: 0x8a8a8a,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, shininess: 60, specular: 0x401010 }), this.splatMax);
     this.splats.count = 0; this.splatNext = 0;
+    // drawn with the see-through things, after the roads and yards laid over the ground (which are
+    // drawn there too, and would cover blood drawn before them)
+    this.splats.material.transparent = true;
+    this.splats.renderOrder = 1;
     this.splats.receiveShadow = true;
     this.splats.frustumCulled = false;
     scene.add(this.splats);

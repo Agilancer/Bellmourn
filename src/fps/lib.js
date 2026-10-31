@@ -39,7 +39,7 @@ function feathered(m, f) {
   m.depthWrite = false;
   m.userData.feather = f;
   m.userData.noCast = true;
-  m.customProgramCacheKey = () => 'feather';
+  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '');
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float edge; varying float vEdge; varying vec2 vFeatherP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvEdge = edge; vFeatherP = (modelMatrix * vec4(transformed, 1.0)).xz;');
@@ -52,10 +52,8 @@ function feathered(m, f) {
       }`)
       .replace('#include <map_fragment>', `
       #ifdef USE_MAP
-        vec4 sampledDiffuseColor = sharpTexel( map, vMapUv );
-        // the same picture again, turned half round (ruts keep their way) and shifted, switched in
-        // by a slow noise: the tile's repeat doesn't show
-        sampledDiffuseColor = mix( sampledDiffuseColor, sharpTexel( map, vec2( 0.37, 0.61 ) - vMapUv ), smoothstep( 0.42, 0.58, fNoise( vFeatherP * 0.13 + 11.0 ) ) );
+        // its repeat hidden (engine.js untiled: a road's ruts keep their way)
+        vec4 sampledDiffuseColor = untiled( map, vMapUv, dFdx( vMapUv ), dFdy( vMapUv ), untileMask( vFeatherP, 11.0 ), ${m.userData.grain ? 'true' : 'false'} );
         diffuseColor *= sampledDiffuseColor;
       #endif
       {
@@ -225,7 +223,10 @@ export class Library {
     if (overlay || feather) { // roads and paving laid over the ground: always win the depth test
       m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4;
     }
-    if (feather) feathered(m, feather);
+    if (feather) {
+      if (/wheel_worn|cart_rut|paving|flagstone|setts|slab/.test(id)) m.userData.grain = true;   // (ruts, laid slabs: turned half round, never a quarter)
+      feathered(m, feather);
+    }
     // `tile` metres per repeat vertically; across, scaled by the texture's own aspect so
     // tall strip textures (the castle walls) keep their proportions
     m.userData.tileV = tile;
@@ -289,11 +290,7 @@ export class Library {
         // the world position's screen gradients, worked out once for every layer
         vec3 gTex(sampler2D t, vec2 p, vec2 dx, vec2 dy, float tile, float rot) {
           mat2 R = mat2(cos(rot), -sin(rot), sin(rot), cos(rot)) / tile;
-          vec2 uv = R * p, ux = R * dx, uy = R * dy;
-          float k = smoothstep(0.42, 0.58, gNoise(p * 0.12 + rot * 7.0));
-          vec3 a = k < 0.999 ? sharpTexelGrad(t, uv, ux, uy).rgb : vec3(0.0);
-          if (k > 0.001) a = mix(a, sharpTexelGrad(t, vec2(0.41, 0.73) - uv, -ux, -uy).rgb, k);
-          return a;
+          return untiled(t, R * p, R * dx, R * dy, untileMask(p, rot * 7.0), false).rgb;
         }`)
         .replace('#include <map_fragment>', `
         vec2 gp = vGround.xz, gdx = dFdx(gp), gdy = dFdy(gp);

@@ -244,11 +244,7 @@ function downsMaterial(lib) {
       // doesn't show, and the texture sampled inside the branch)
       vec3 dPX, dPY;
       vec3 dTex(sampler2D t, vec2 p, float tile) {   // (and again turned and shifted by a slow noise: no rows of tiles)
-        vec2 uv = p / tile, ux = dPX.xz / tile, uy = dPY.xz / tile;
-        float k = smoothstep(0.42, 0.58, dNoise(p * 0.12 + 3.0));
-        vec3 a = k < 0.999 ? sharpTexelGrad(t, uv, ux, uy).rgb : vec3(0.0);
-        if (k > 0.001) a = mix(a, sharpTexelGrad(t, vec2(0.41, 0.73) - uv, -ux, -uy).rgb, k);
-        return a;
+        return untiled(t, p / tile, dPX.xz / tile, dPY.xz / tile, untileMask(p, 3.0), false).rgb;
       }
       vec3 dTex2(sampler2D t, vec2 p, mat2 R, vec2 o, float tile) {   // (turned by R and shifted)
         vec2 uv = (R * p + o) / tile;

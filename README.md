@@ -55,7 +55,7 @@ double-click `knight-player.bat` to serve the folder and open it (`tools/knight_
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
 | L, T | the quest log; show or hide the quest tracker |
-| Esc | pause (save, load, the quest log, a new game; pixel size, look speed, graphics, time of day) |
+| Esc | pause (save, load, the quest log, a new game; resolution, texels, look speed, graphics, time of day) |
 
 ### The coming of Tessariel
 
@@ -175,13 +175,13 @@ you when they circle (they don't slide). They follow you through the keep's door
 by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
 waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
 grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
-draughts) opens only once he's dead. The Sworn load in the background after the world is up (a
-phone takes one body and half the garrison, without the adepts).
+draughts) opens only once he's dead. The Sworn load with the rest, before play (a phone takes one
+body and half the garrison, without the adepts, once the village is in).
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
-the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
-frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
+the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
+what holds frames up, and comes back when there's time; at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
 loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
 `templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
@@ -201,6 +201,19 @@ remarks, haggling and greetings) shows in Velscour's parchment bubbles over thei
 3D, rationed so the square never fills with text. `gear.js` and
 `bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
 `map.js` the map.
+
+How it's drawn (`src/fps/engine.js`): at the screen's own resolution (a phone's held to 1.5 device
+pixels to a CSS pixel) with 4x multisampling (a phone 2x); the textures stay low resolution with
+crisp, square texels, but the pixel where two texels meet is blended (`sharpTexel`), so nothing
+stair-steps or crawls; leaves, hair and plants are smoothed by alpha to coverage. Characters are
+culled to what can be seen and share one skeleton a body; hidden things skip their matrix updates;
+small pieces of the built world drop out far off. Before the Start button everything is loaded
+(every villager, the Sworn, every arm that can lie on the ground, the gauntlets), every texture
+uploaded, every shader compiled and the world drawn once with its shadows (`prepare`), and every
+spell cast and one of the dead cut apart off the map (`rehearse`), so nothing is built mid-fight.
+Roads, the plaza and yards fray into the grass (`lib.js` `feathered`, `geo.js` `ribbon`/`patch`),
+with grass tufts along their verges (`grass.js`); the graveyard's mist lies in the fog shader.
+Pause's **Resolution** (full, 75%, half) and **Texels** (crisp, smooth) set how it's drawn.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the

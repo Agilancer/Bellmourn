@@ -20,7 +20,7 @@ function tuftTexture() {
   const S = 32, c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d'), R = rng(77);
-  const root = ['#2c3818', '#3a4920', '#475a27', '#55682e'], tip = ['#6f7c38', '#858d45', '#9a9a52', '#7d8a3c'];
+  const root = ['#4b5a2b', '#556630', '#5f7135', '#687a3a'], tip = ['#86944a', '#94a052', '#a3a95c', '#8a9a46'];
   for (let i = 0; i < 30; i++) {
     let x = 3 + R() * 26;
     const lean = (R() - 0.5) * 0.9, h = 9 + R() * 21, a = root[Math.floor(R() * root.length)], b = tip[Math.floor(R() * tip.length)];
@@ -35,6 +35,13 @@ function tuftTexture() {
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   refineTexture(t);
   return t;
+}
+
+/** Smooth value noise in 0..1 (the ground shaders' kind of drift). */
+function noise2(x, z) {
+  const h = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const i = Math.floor(x), j = Math.floor(z), u = x - i, v = z - j, su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v);
+  return (h(i, j) * (1 - su) + h(i + 1, j) * su) * (1 - sv) + (h(i, j + 1) * (1 - su) + h(i + 1, j + 1) * su) * sv;
 }
 
 export class Tufts {
@@ -67,7 +74,9 @@ export class Tufts {
   }
 
   add(x, z, scale = 0.55 + this.R() * 0.5, tint = [1, 1, 1]) {
-    this.at.push([x, z, this.R() * Math.PI, scale, 0.62 + this.R() * 0.28, tint]);   // (darker than their paint: they sit in the grass, not on it)
+    // toned as the ground drifts (its slow light and dark), a little darker than their paint
+    const drift = 0.92 + 0.16 * noise2(x * 0.09 + 21, z * 0.09 + 21);
+    this.at.push([x, z, this.R() * Math.PI, scale, (0.68 + this.R() * 0.22) * drift, tint]);
   }
 
   /** All of them into the scene: one instanced mesh. */

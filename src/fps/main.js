@@ -115,7 +115,7 @@ const cometLight = new THREE.PointLight(0x50ff80, 0, 30, 1.4);
 scene.add(cometLight);
 // underground, a faint warm fill about you (no shadows), so the walls and floor a few steps off can
 // be made out between the torches: the dark stays dark
-const lantern = new THREE.PointLight(0xffd2a0, 0, 9, 2);
+const lantern = new THREE.PointLight(0xffd2a0, 0, 7, 2);
 scene.add(lantern);
 
 const sfx = new Sfx();
@@ -396,19 +396,19 @@ async function build() {
  * made now, in the loading, and not in your first fight. Everything is put back after. */
 async function rehearse() {
   const T0 = performance.now(), p0 = renderer.info.programs.length;
-  const was = { started, paused, introBusy, book: { ...book }, mana: player.mana, health: player.health };
+  const was = { started, paused, introBusy, book: { ...book }, mana: player.mana, health: player.health, pos: player.pos.clone(), yaw: player.yaw, pitch: player.pitch };
   const at = new THREE.Vector3(2600, 0, 2600);
   started = true; paused = false; introBusy = true;   // (the hands work; nothing walks, nothing hurts you)
   const quiet = { toast: hud.toast, zone: hud.zone };   // (and nothing is said on screen)
   hud.toast = () => {}; hud.zone = () => {};
   const look = () => { camera.position.set(at.x, physics.groundAt(at.x, at.z) + 1.58, at.z); camera.rotation.set(-0.3, 0, 0, 'YXZ'); camera.updateMatrixWorld(); };
-  const step = async (n, dt = 1 / 15) => { for (let i = 0; i < n; i++) { look(); player.pos.set(at.x, physics.groundAt(at.x, at.z), at.z); tick(dt); } await new Promise((r) => setTimeout(r)); };
+  const step = async (n, dt = 1 / 10) => { for (let i = 0; i < n; i++) { look(); player.pos.set(at.x, physics.groundAt(at.x, at.z), at.z); tick(dt); } await new Promise((r) => setTimeout(r)); };
   try {
     for (const id of Object.keys(SPELLS)) {
       book.F = id; player.mana = 9999;
-      for (let i = 0; i < 30 && (vm.busy('R') || vm.busy('L')); i++) await step(1);
+      for (let i = 0; i < 24 && (vm.busy('R') || vm.busy('L')); i++) await step(1);
       castSlot('F');
-      await step(10);
+      await step(8);
     }
     // one of the dead, cut and burnt and blasted at every part of it until it comes apart
     const z = zombies.spawn(null, at.x, at.z - 3.2, { zone: 'wild' });
@@ -431,7 +431,7 @@ async function rehearse() {
   for (const s of ['R', 'L']) pending[s] = null;
   magic.endCharge(); magic.arcana.endChannels();
   Object.assign(book, was.book);
-  player.mana = was.mana; player.health = was.health; player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
+  player.mana = was.mana; player.health = was.health; player.pos.copy(was.pos); player.yaw = was.yaw; player.pitch = was.pitch; player.vel.set(0, 0, 0);
   started = was.started; paused = was.paused; introBusy = was.introBusy;
   Object.assign(hud, quiet);
   hud.refresh(vm.equip, book);
@@ -931,7 +931,7 @@ function light(dt, t) {
   if (ctx.lantern) ctx.lantern.color.setRGB(0.9 + 1.8 * dusk, 0.6 + 1.1 * dusk, 0.3 + 0.55 * dusk);
   mist.update(t, 0.35 + 0.65 * day.day);
   lantern.position.set(camera.position.x, camera.position.y + 0.35, camera.position.z);
-  lantern.intensity = 1.3 * L.under;
+  lantern.intensity = 0.8 * L.under;
 
   // the nearest flames get the pool's lights; the closest few get the shadow-casting ones.
   // A light keeps its flame while that flame is still wanted, so shadows rarely re-render.

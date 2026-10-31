@@ -42,7 +42,7 @@ const wob = (a, k) => Math.sin(a * 3 + k) * 0.5 + Math.sin(a * 7 + k * 2.1) * 0.
 export function roundRect(cx, cz, hx, hz, n, jit, k, N = 48) {
   return Array.from({ length: N }, (_, i) => {
     const a = (i / N) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-    const r = 1 / ((Math.abs(c) / hx) ** n + (Math.abs(s) / hz) ** n) ** (1 / n) + jit * wob(a, k);
+    const r = 1 / ((Math.abs(c) / hx) ** n + (Math.abs(s) / hz) ** n) ** (1 / n) + jit * (wob(a, k) + 0.7 * Math.sin(a * 2 + k * 1.7));   // (and a long swell)
     return [cx + c * r, cz + s * r];
   });
 }
@@ -97,7 +97,7 @@ export function buildWorld(ctx) {
   const road = M('town_wheel_worn_gravel', 3, { overlay: true, feather: 2.6 });
   const dirt = M('town_packed_dirt', 3, { overlay: true, feather: 1.8 });
   const cobble = M('town_grey_cobbles', 2.5, { overlay: true, feather: 1.8 });
-  const paving = M('town_limestone_paving', 2.5, { overlay: true, feather: 1.1 });
+  const paving = M('town_limestone_paving', 2.5, { overlay: true, feather: 1.6 });
   const flare = (d) => (d < 0 ? 1 : d < 9 ? (1 - d / 9) ** 2 : 0);   // (a road opening out into the plaza)
   const street = (along, cross, at) => {   // a road along one axis: [along, across, w] points
     const pts = [];
@@ -108,7 +108,7 @@ export function buildWorld(ctx) {
     return pts;
   };
   const NS = street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, w]) => [x, z, w]), EW = street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4);
-  const plaza = roundRect(0, 0, 20.5, 20.5, 5, 0.9, 1, 72), forecourt = roundRect(0, -47.5, 16.3, 7.8, 6, 0.35, 2, 56);
+  const plaza = roundRect(0, 0, 20.5, 20.5, 4, 1.2, 1, 80), forecourt = roundRect(0, -47.5, 16.3, 7.8, 3.5, 1.0, 2, 64);
   b.ribbon(road, NS, 4);                        // north-south high street
   b.ribbon(road, EW, 4);                        // east-west road
   b.patch(cobble, 0, 0, 0.03, plaza);           // the plaza
@@ -217,7 +217,7 @@ function groundPatches(ctx, M, R, houses) {
   const blob = (id, x, z, r, y = 0.022, n = 10, feather = 1.4) => {
     const m = M(id, 2.5, { overlay: true, feather });
     const pts = Array.from({ length: n }, (_, k) => {
-      const a = k / n * Math.PI * 2, rr = r * (0.7 + 0.3 * R());
+      const a = k / n * Math.PI * 2, rr = r * (0.7 + 0.3 * R()) * (1 + 0.22 * wob(a, x * 0.37 + z * 0.11));   // (no stamped circles)
       return [x + Math.cos(a) * rr, z + Math.sin(a) * rr];
     });
     b.patch(m, x, z, y, pts);
