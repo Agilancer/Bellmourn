@@ -16,9 +16,15 @@ export class Player {
     this.pitch = 0;
     this.onGround = false;
     this.bob = 0;     // walk-cycle phase (radians)
+    // stairs: the feet's steps up and down added up (`stair`), and that sum eased through two
+    // smoothing stages in turn (`ease`): the eye follows the eased one, so a flight reads as a slope
+    this.stair = 0; this.ease = [0, 0];
     this.speed = 0;   // current ground speed (for the view model)
     this.health = 100; this.maxHealth = 100;
     this.mana = 100; this.maxMana = 100;
+    this.speedMul = 1;          // from what's worn
+    this.lifeRegen = 0.4; this.manaRegen = 6;
+    this.healing = 0;           // life still to come from a draught
   }
 
   update(dt, input) {
@@ -26,7 +32,7 @@ export class Player {
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
     const [ax, ay] = input.axes();
     const run = input.held('ShiftLeft') || input.held('ShiftRight') || input.stickRun;
-    const top = run ? RUN : WALK;
+    const top = (run ? RUN : WALK) * this.speedMul;
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw); // forward
     const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);  // right
     const wx = (fx * ay + rx * ax) * top, wz = (fz * ay + rz * ax) * top;
@@ -45,7 +51,7 @@ export class Player {
     if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; }
     this.vel.y -= GRAVITY * dt;
 
-    const p = this.pos, ox = p.x, oz = p.z;
+    const p = this.pos, ox = p.x, oz = p.z, oy = p.y, wasOn = this.onGround;
     this.physics.slide(p, this.vel.x * dt, this.vel.z * dt, R, HEIGHT, this.onGround ? STEP : 0.1);
     // keep to the walkable world when on the surface (slide along its edge)
     if (p.y > this.physics.groundAt(p.x, p.z) - 2 && this.bounds.contains && !this.bounds.contains(p.x, p.z)) {
@@ -71,11 +77,27 @@ export class Player {
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }
 
+    // stairs and kerbs: the feet go up and down a step at a time (a stair every three or four frames
+    // at a walk), but the eye glides. Steps taken on the ground (not jumps or falls, which the eye
+    // follows at once) are summed and the sum eased twice over (45 ms each): that smooths the train
+    // of steps into a slope with hardly a ripple, and the eye trails the feet by at most 0.8 m.
+    const dy = p.y - oy;
+    if (wasOn && this.onGround && Math.abs(dy) > 0.005 && Math.abs(dy) <= STEP + 0.1) this.stair += dy;
+    const k = 1 - Math.exp(-dt / 0.045), e = this.ease;
+    e[0] += (this.stair - e[0]) * k;
+    e[1] += (e[0] - e[1]) * k;
+    const over = e[1] - this.stair - Math.max(-0.8, Math.min(0.8, e[1] - this.stair));
+    if (over) { e[0] -= over; e[1] -= over; }
+    if (Math.abs(this.stair) > 1e4) { e[0] -= this.stair; e[1] -= this.stair; this.stair = 0; }   // (keep the numbers small)
+    const lag = e[1] - this.stair;
     this.speed = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround) this.bob += this.speed * dt * 1.7;
     const bobY = Math.sin(this.bob * 2) * 0.045 * Math.min(1, this.speed / WALK);
-    this.camera.position.set(p.x, p.y + EYE + bobY, p.z);
+    this.camera.position.set(p.x, p.y + EYE + lag + bobY, p.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
-    this.mana = Math.min(this.maxMana, this.mana + dt * 6);
+    this.mana = Math.min(this.maxMana, this.mana + dt * this.manaRegen);
+    const h = Math.min(this.healing, dt * 30);
+    this.healing -= h;
+    this.health = Math.min(this.maxHealth, this.health + h + dt * this.lifeRegen);
   }
 }

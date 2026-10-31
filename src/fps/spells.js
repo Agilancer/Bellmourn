@@ -371,6 +371,7 @@ export class Magic {
     this.chargeOrb = null;
   }
 
+<<<<<<< HEAD
   /** A spell leaving the hand: a projectile, a spell on yourself, or one of arcana.js's. */
   cast(def, origin, dir, player, camera) {
     if (def.self) this.selfCast(def, player, camera);
@@ -378,6 +379,8 @@ export class Magic {
     else this.launch(def, origin, dir);
   }
 
+=======
+>>>>>>> origin/main
   /** Launch a projectile spell (or staff bolt) from origin along dir. */
   launch(def, origin, dir) {
     const shots = def.shards || 1;

@@ -1,0 +1,20 @@
+{
+ "id": "boneward",
+ "name": "Bone-Ward Harness",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "boneward",
+ "description": "Dark hide bound with bone ribs and Lord Velscour's full sigil on an iron plate, tusked bone pauldrons, a fur mantle, hide strips, and an antlered great helm.",
+ "files": {
+  "male": "boneward_m.glb",
+  "female": "boneward_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

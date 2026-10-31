@@ -6,6 +6,7 @@
 // the light, on whatever the sun falls on: floor, pews, pillars, walls. The shadow map still
 // decides what is lit, so pillars and pews throw their shadows through the picture.
 import * as THREE from 'three';
+import { TOUCH } from './input.js';
 
 const MAX = 40, ROOMS = 4;
 
@@ -25,6 +26,12 @@ export class StainedGlass {
     this.byKind = {};
     for (const w of meta.windows) (this.byKind[w.kind] ??= []).push(w);
     const tex = await new THREE.TextureLoader().loadAsync('assets/textures/' + meta.atlas);
+    if (TOUCH) {   // a phone gets it, and the stone mask made from it, at half size: 2048 x 2240 twice was ~50 MB on its GPU
+      const half = document.createElement('canvas');
+      half.width = tex.image.width / 2; half.height = tex.image.height / 2;
+      half.getContext('2d').drawImage(tex.image, 0, 0, half.width, half.height);
+      tex.image = half;
+    }
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.LinearMipmapLinearFilter;

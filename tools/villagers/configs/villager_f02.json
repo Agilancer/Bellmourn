@@ -1,0 +1,71 @@
+{
+ "seed": 4402,
+ "face": "09_Witch",
+ "morph": {
+  "caucasian-female-young": 0.6,
+  "caucasian-female-old": 0.4,
+  "chin-prominent-more": 0.354,
+  "head-scale-horiz-less": 0.269,
+  "head-oval": 0.081,
+  "chin-jaw-drop-less": 0.002,
+  "l-ear-size-small": 0.096,
+  "r-ear-size-small": 0.096,
+  "nose-scale-horiz-decr": 0.159,
+  "forehead-scale-vert-more": 0.112,
+  "l-cheek-bones-out": 0.432,
+  "r-cheek-bones-out": 0.432
+ },
+ "eye": "grey",
+ "iris_tint": [
+  0.5,
+  0.68,
+  0.76
+ ],
+ "dress": {
+  "Purple": [
+   "damask_purple",
+   0.8,
+   0.4
+  ],
+  "Gold": [
+   "leather_strapwork",
+   0.8,
+   0.2
+  ],
+  "Brown2": [
+   "linen_brown",
+   0.7,
+   0.3
+  ],
+  "Witch_Legs:Brown": [
+   "burlap_dark",
+   0.6,
+   0.3
+  ],
+  "Witch_Feet:Brown2": [
+   "leather_tooled",
+   0.7,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.98,
+ "outfit": "Witch",
+ "skin_tile": "08_Nordic_Pale",
+ "hair": "long01",
+ "sleeves": "Purple",
+ "parts": [
+  "Witch_Body",
+  "Witch_Legs",
+  "Witch_Feet"
+ ],
+ "name": "villager_f02",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

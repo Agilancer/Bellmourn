@@ -8,7 +8,12 @@
 import * as THREE from 'three';
 import { house, H } from './houses.js';
 import { worldHeight, flatten, biomeAt, BIOMES, WORLD, CORE_R, fbm } from './land.js';
+<<<<<<< HEAD
 import { REGION, POOL, addPad, buildWater, streamAt } from './terrain.js';
+=======
+import { REGION, POOL, addPad, streamAt } from './terrain.js';
+import { buildWater } from './water.js';
+>>>>>>> origin/main
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -86,6 +91,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
   const homes = [{ x: 560, z: 70, title: 'Brookside Cottage' }, { x: 606, z: -10, title: "The Miller's House" }, { x: 540, z: -44, title: "The Shepherd's Lodge" }, { x: 498, z: -90, title: "The Weaver's House" }];
   for (const h of homes) h.y = addPad(h.x, h.z, 8);
   const fields = [[392, 118, 34, 22], [402, 156, 30, 22], [470, 150, 26, 18]].map(([x, z, w, d]) => ({ x, z, w, d, y: addPad(x, z, Math.max(w, d) * 0.62) }));
+<<<<<<< HEAD
   // (each to a door, or past a house, never through one)
   paths.push({ pts: [[REGION.x0 - 2, 0], [330, 6], [370, 26], [404, 52], [430, 68]], w: 1.8, layer: 'gravel' },
     { pts: [[430, 68], [470, 72], [520, 76], [556, 78], [560, 78]], w: 1.6, layer: 'mud' },
@@ -93,6 +99,14 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     { pts: [[560, 78], [586, 52], [592, 30], [596, 8], [598, -16]], w: 1.6, layer: 'mud' },           // to the miller's door
     { pts: [[592, 30], [572, 4], [548, -34], [552, -48], [520, -62], [504, -82], [498, -83]], w: 1.4, layer: 'mud' }, // round the lodge, to the weaver's door
     { pts: [[598, -16], [640, -24], [672, -34], [684, -36]], w: 1.4, layer: 'gravel' });
+=======
+  paths.push({ pts: [[REGION.x0 - 2, 0], [330, 6], [370, 26], [404, 52], [430, 68]], w: 1.8, layer: 'gravel' },
+    { pts: [[430, 68], [470, 72], [520, 76], [556, 78], [560, 76]], w: 1.6, layer: 'mud' },
+    { pts: [[440, 92], [470, 128], [500, 146], [516, 156]], w: 1.4, layer: 'mud' },
+    { pts: [[560, 76], [586, 52], [592, 30], [596, 8], [600, -10]], w: 1.6, layer: 'mud' },
+    { pts: [[592, 30], [572, 4], [548, -34], [520, -62], [504, -84]], w: 1.4, layer: 'mud' },
+    { pts: [[604, -10], [640, -24], [672, -34], [684, -36]], w: 1.4, layer: 'gravel' });
+>>>>>>> origin/main
   keepOut.push([farm.x, farm.z, 18], [barn.x, barn.z, 18], [mill.x, mill.z, 12], ...homes.map((h) => [h.x, h.z, 12]), ...fields.map((f) => [f.x, f.z, Math.max(f.w, f.d) * 0.62]),
     [POOL.x + 20, POOL.z, 60]);
   // the new countries' settlements
@@ -104,6 +118,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
   };
   const barrows = [[-700, 700], [-610, 790], [-540, 690], [-720, 850], [-600, 900]].map(([x, z]) => ({ x, z, y: flatten(x, z, 9) }));
   keepOut.push(...barrows.map((b) => [b.x, b.z, 14]));
+<<<<<<< HEAD
   // where a path leaves a site: by its gate or door (and round whatever is in the way), not out
   // of its middle, where the houses stand
   const EXIT = {
@@ -120,11 +135,16 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
   const exitOf = (a, b) => { const e = EXIT[a]; return (e && (Array.isArray(e) ? e : e[b])) || [[SPOTS[a][0], SPOTS[a][1]]]; };
   for (const [a, b] of [['sallow', 'chapel'], ['abbey', 'cutters'], ['khel', 'bones'], ['khel', 'obelisks'], ['frostwatch', 'shrine'], ['crossroads', 'witch'], ['crossroads', 'grove'], ['hermit', 'bones'], ['abbey', 'fungus']])
     paths.push({ pts: [...exitOf(a, b), [(SPOTS[a][0] + SPOTS[b][0]) / 2 + 30, (SPOTS[a][1] + SPOTS[b][1]) / 2 - 20], ...exitOf(b, a).slice().reverse()], w: 1.6, layer: 'mud' });
+=======
+  for (const [a, b] of [['sallow', 'chapel'], ['abbey', 'cutters'], ['khel', 'bones'], ['khel', 'obelisks'], ['frostwatch', 'shrine'], ['crossroads', 'witch'], ['crossroads', 'grove'], ['hermit', 'bones'], ['abbey', 'fungus']])
+    paths.push({ pts: [[SPOTS[a][0], SPOTS[a][1]], [(SPOTS[a][0] + SPOTS[b][0]) / 2 + 30, (SPOTS[a][1] + SPOTS[b][1]) / 2 - 20], [SPOTS[b][0], SPOTS[b][1]]], w: 1.6, layer: 'mud' });
+>>>>>>> origin/main
 
   const out = { paths, keepOut };
   out.build = () => {
     const { kit } = ctx;
     const Hh = (x, z) => worldHeight(x, z);
+<<<<<<< HEAD
     // nothing solid is set down in the middle of a road or path (unless it's `road`: a wall the
     // road comes in at a gate of)
     const onPath = pathDistance(ctx.paths || paths);
@@ -137,6 +157,13 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     const interior = (zone, biome) => { ctx.zones.push(zone); ctx.interiors.push({ ...zone, biome }); return zone; };
     // ---------------------------------------------------------------- the downs
     ctx.water = buildWater(ctx, ctx.kit);
+=======
+    const P = (id, x, z, rot = 0, s = 1, o = {}) => kit.place(id, x, o.y ?? Hh(x, z) + (o.dy || 0), z, rot, s, o);
+    const lair = (biome, x, z, r, kind, extra = {}) => { (ctx.biomes[biome] ||= { name: BIOMES[biome]?.name || biome, lairs: [] }).lairs.push({ x, z, y: Hh(x, z), r, kind, ...extra }); };
+    const interior = (zone, biome) => { ctx.zones.push(zone); ctx.interiors.push({ ...zone, biome }); return zone; };
+    // ---------------------------------------------------------------- the downs
+    ctx.water = buildWater(ctx);
+>>>>>>> origin/main
     interior(house(ctx, { name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 4, d: 6, rot: 0, storeys: 2, door: 'x', furnish: 'home', porch: true, dormers: 2, roofVariant: 'moss' }), 'downs');
     interior(house(ctx, { name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 4, d: 7, rot: 1, storeys: 1, open: true, door: 'z', furnish: 'stable', roofVariant: 'rust', plaster: 'ochre' }), 'downs');
     // the windmill: a round of brick, three storeys, its sails of crossed roof logs
@@ -156,8 +183,13 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       }
     });
     for (const [x, z] of [[452, 100], [453.5, 102], [462, 114], [463, 117]]) P('bellmourn/haystack', x, z, R() * 6);
+<<<<<<< HEAD
     P('village/Prop_Wagon', 436, 124, 1.2); P('bellmourn/well', 444, 88, 0, 1.0); P('bellmourn/woodpile', 420, 74, 1.4);
     P('props/Stall_Cart_Empty', 580, 68, 2.2); P('bellmourn/lamp_post', 556, 82, 0); P('bellmourn/lamp_post', 600, -4, 1.5);
+=======
+    P('village/Prop_Wagon', 446, 120, 1.2); P('bellmourn/well', 444, 88, 0, 1.0); P('bellmourn/woodpile', 420, 74, 1.4);
+    P('props/Stall_Cart_Empty', 576, 60, 2.2); P('bellmourn/lamp_post', 556, 82, 0); P('bellmourn/lamp_post', 600, -4, 1.5);
+>>>>>>> origin/main
     lair('downs', 470, 40, 40, 'field'); lair('downs', 620, 120, 50, 'hills'); lair('downs', 400, -120, 50, 'hills'); lair('downs', 660, -200, 40, 'cliffs');
     // ---------------------------------------------------------------- the Weeping Fen
     const fenWater = -0.45;
@@ -179,6 +211,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
         interior(house(ctx, { name: 'stilt', title: ['The Eelwife\'s House', 'The Reed-Cutter\'s', 'The Drowned Man\'s House', 'Sallowmere Hall'][i], x: hx, z: hz, y: deck, w: 2, d: 3, rot, storeys: 1, door: 'x', furnish: i === 3 ? 'hall' : 'home', roofVariant: 'moss', plaster: 'ash', vines: 3, ruin: i === 2 }), 'fen');
       });
       for (let k = -10; k <= 10; k++) { P('village/Floor_WoodDark', x + k * 2, z + 4, 0, 1, { y: deck - 0.02, solid: false }); ctx.physics.add([x + k * 2 - 1, deck - 0.3, z + 3], [x + k * 2 + 1, deck, z + 5], 'floor'); }
+<<<<<<< HEAD
       // plank walks from every door to the boardwalk (from the door out, then round to it)
       const plank = (pts) => {
         for (let n = 0; n + 1 < pts.length; n++) {
@@ -198,6 +231,19 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       // and a flight of steps down to the ground at either end
       const tread = kit.surface('village_woodtrim', 2);
       for (const [sx, dir] of [[-1, '-x'], [1, '+x']]) ctx.b.stairs(x + sx * 21, z + 4, deck, Math.min(-0.5, Hh(x + sx * 23, z + 4) - deck), 2, dir, tread, { step: 0.25, run: 0.36 });
+=======
+      // a flight down off each end of the boardwalk to the ground (real steps under the kit's)
+      for (const end of [-1, 1]) {
+        const ex = x + end * 21, g = Hh(ex + end * 2, z + 4), rise = deck - g;
+        if (rise < 0.3) continue;
+        P('village/Stairs_Exterior_Straight', ex + end * 1, z + 4, end < 0 ? Math.PI / 2 : -Math.PI / 2, [1, rise / 1.2, 1], { y: g - 0.05, solid: false });
+        const n = Math.max(1, Math.round(rise / 0.25));
+        for (let k = 0; k < n; k++) {
+          const top = deck - k * rise / n, a = ex + end * k * 2 / n, b2 = ex + end * (k + 1) * 2 / n;
+          ctx.physics.add([Math.min(a, b2), g - 0.5, z + 3], [Math.max(a, b2), top, z + 5], 'floor');
+        }
+      }
+>>>>>>> origin/main
       for (let k = 0; k < 8; k++) P(SET.willow[k % SET.willow.length], x + Math.cos(k) * 40, z + Math.sin(k) * 40, k, 1.1, { solid: 'trunk' });
       lair('fen', x, z + 30, 30, 'hamlet'); lair('fen', x - 120, z + 80, 60, 'marsh'); lair('fen', x + 180, z - 40, 60, 'marsh');
     }
@@ -213,7 +259,11 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       for (const [dx, dz, rot] of [[16, -4, 1], [16, 10, 1]]) interior(house(ctx, { name: 'cell', title: "The Monks' Cells", x: x + dx, z: z + dz, y, w: 2, d: 3, rot, storeys: 1, style: 'brick', door: 'x', ruin: R() < 0.5, furnish: 'home' }), 'rustwood');
       for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; P(k % 3 ? 'village/Wall_UnevenBrick_Straight~ruin' : 'village/Wall_UnevenBrick_Window_Thin_Round~ruin', x + 20 + Math.cos(a) * 14, z + 22 + Math.sin(a) * 10, -a + Math.PI / 2, 1, { solid: true }); }
       for (let k = 0; k < 8; k++) P(k % 2 ? 'dungeon/Column' : 'dungeon/Column2~broken', x + 20 + Math.cos(k * 0.8) * 7, z + 22 + Math.sin(k * 0.8) * 5, 0, 1);
+<<<<<<< HEAD
       P('dungeon/Statue_Horse', x + 20, z + 22, 1.2, 0.9);
+=======
+      P('bellmourn/well', x + 20, z + 22, 0.4, 1);   // the cloister's well in the middle of its garth
+>>>>>>> origin/main
       lair('rustwood', x, z, 30, 'ruin'); lair('rustwood', x + 20, z + 22, 16, 'cloister');
     }
     { const { x, z } = S.fungus; // a ring of giant fungus
@@ -229,11 +279,18 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     // ---------------------------------------------------------------- the Ashen Waste
     { const { x, z, y } = S.khel; // the caravanserai: a walled square, its houses fallen in
       for (let k = -9; k <= 9; k++) for (const [ax, az, rot] of [[k * 2, -20, Math.PI], [k * 2, 20, 0], [-20, k * 2, -Math.PI / 2], [20, k * 2, Math.PI / 2]]) {
+<<<<<<< HEAD
         if ((rot === 0 || rot === Math.PI / 2) && Math.abs(k) < 2) continue; // the gates, south and east (where the roads come in)
         P(R() < 0.4 ? 'village/Wall_UnevenBrick_Straight~ruin' : 'village/Wall_UnevenBrick_Straight', x + ax, z + az, rot, 1, { y, variant: 'bone', solid: true });
       }
       P('dungeon/Arch', x, z + 20.2, 0, [1, 1, 1], { y, solid: false });
       P('dungeon/Arch', x + 20.2, z, Math.PI / 2, [1, 1, 1], { y, solid: false });
+=======
+        if (rot === 0 && Math.abs(k) < 2) continue; // the gate
+        P(R() < 0.4 ? 'village/Wall_UnevenBrick_Straight~ruin' : 'village/Wall_UnevenBrick_Straight', x + ax, z + az, rot, 1, { y, variant: 'bone', solid: true });
+      }
+      P('dungeon/Arch', x, z + 20.2, 0, [1.45, 1.1, 1], { y, solid: false });   // spanning the gateway
+>>>>>>> origin/main
       [[-12, -12, 0], [12, -12, 0], [-12, 10, 2]].forEach(([dx, dz, rot], i) => interior(house(ctx, { name: 'serai', title: ['The Spice Hall', 'The Camel House', 'The Well-House'][i], x: x + dx, z: z + dz, y, w: 3, d: 3, rot, storeys: 1, style: 'brick', door: 'z', holed: true, plaster: 'ochre', furnish: i === 0 ? 'store' : 'ruin', roofVariant: 'rust' }), 'ashen'));
       P('bellmourn/well', x + 6, z + 6, 0, 1, { y });
       for (let k = 0; k < 6; k++) P(SET.palm[k % 4], x + Math.cos(k) * 9, z + Math.sin(k) * 9, k, 1, { y, solid: 'trunk' });
@@ -244,7 +301,11 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       lair('ashen', x, z, 45, 'bones');
     }
     { const { x, z, y } = S.obelisks;
+<<<<<<< HEAD
       for (let k = 0; k < 9; k++) { const a = (k + 0.5) / 9 * Math.PI * 2; P(k % 3 ? 'dungeon/Column2' : 'dungeon/Column~broken', x + Math.cos(a) * 14, z + Math.sin(a) * 14, a, [1.2, 2.2, 1.2], { y }); } // (the road comes in between two)
+=======
+      for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2; P(k % 3 ? 'dungeon/Column2' : 'dungeon/Column~broken', x + Math.cos(a) * 14, z + Math.sin(a) * 14, a, [1.2, 2.2, 1.2], { y }); }
+>>>>>>> origin/main
       P('dungeon/Pedestal', x, z, 0, 1.2, { y }); P('bellmourn/brazier', x, z, 0, 1.2, { y: y + 2.6 });
       lair('ashen', x, z, 20, 'altar');
     }
@@ -264,6 +325,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     }
     // ---------------------------------------------------------------- the Rimeholt Fells
     { const { x, z, y } = S.frostwatch; // the fort: a curtain wall, corner towers, the keep
+<<<<<<< HEAD
       // gates north (the road from Bellmourn) and south; the wall stops at the towers, whose doors
       // open on the courtyard
       for (let k = -8; k <= 8; k++) {
@@ -280,6 +342,19 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
       P('dungeon/Arch_bars', x, z - 18, Math.PI, [1.2, 1.4, 1], { y, solid: false });
       for (const [dx, dz, rot] of [[-18, -18, 0], [18, -18, 3], [-18, 18, 1], [18, 18, 2]]) {
         interior(house(ctx, { name: 'tower', title: 'A Frostwatch Tower', x: x + dx, z: z + dz, y, w: 2, d: 2, rot, storeys: 3, style: 'brick', door: 'z', chimney: false, furnish: 'barracks' }), 'rimeholt');
+=======
+      for (let k = -8; k <= 8; k++) for (const [ax, az, rot] of [[k * 2, -18, Math.PI], [k * 2, 18, 0], [-18, k * 2, -Math.PI / 2], [18, k * 2, Math.PI / 2]]) {
+        if (rot === 0 && Math.abs(k) < 2) continue;
+        for (let t = 0; t < 2; t++) P(t ? 'village/Wall_UnevenBrick_Window_Thin_Round' : 'village/Wall_UnevenBrick_Straight', x + ax, z + az, rot, 1, { y: y + t * H, solid: !t, variant: 'moss' });
+      }
+      ctx.physics.add([x - 18.4, y, z - 18.4], [x + 18.4, y + 2 * H, z - 17.6], 'wall'); ctx.physics.add([x - 18.4, y, z - 18.4], [x - 17.6, y + 2 * H, z + 18.4], 'wall');
+      ctx.physics.add([x + 17.6, y, z - 18.4], [x + 18.4, y + 2 * H, z + 18.4], 'wall');
+      // the gatehouse arch, its portcullis drawn up into it
+      P('dungeon/Arch', x, z + 18, 0, [1.45, 1.5, 1], { y, solid: false });
+      P('dungeon/Arch_bars', x, z + 18, 0, [2.3, 0.75, 1], { y: y + 3.4, solid: false });
+      for (const [dx, dz] of [[-18, -18], [18, -18], [-18, 18], [18, 18]]) {
+        interior(house(ctx, { name: 'tower', title: 'A Frostwatch Tower', x: x + dx, z: z + dz, y, w: 2, d: 2, rot: 0, storeys: 3, style: 'brick', door: 'z', chimney: false, furnish: 'barracks' }), 'rimeholt');
+>>>>>>> origin/main
         P('village/Roof_Tower_RoundTiles', x + dx, z + dz, 0, 1, { y: y + 3 * H, variant: 'lead' });
       }
       interior(house(ctx, { name: 'keep', title: 'The Keep of Frostwatch', x, z: z - 4, y, w: 4, d: 5, rot: 0, storeys: 2, style: 'brick', door: 'z', furnish: 'hall', roofVariant: 'lead', balcony: 'cross' }), 'rimeholt');
@@ -291,7 +366,11 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     }
     // ---------------------------------------------------------------- the Gallowswood
     { const { x, z, y } = S.crossroads;
+<<<<<<< HEAD
       for (const [dx, dz, a] of [[-12, -13, 0.4], [13, -12, -0.3], [-11, 13, 1.8], [13, 12, 2.6]]) P('bellmourn/gallows', x + dx, z + dz, a, 1, { y });
+=======
+      for (const [dx, dz, a] of [[-8, -8, 0.4], [8, -9, -0.3], [-6, 9, 1.8], [9, 8, 2.6]]) P('bellmourn/gallows', x + dx, z + dz, a, 1, { y });
+>>>>>>> origin/main
       for (let k = 0; k < 8; k++) P(k % 2 ? 'bellmourn/gibbet' : 'bellmourn/skull_pike', x + Math.cos(k) * 18, z + Math.sin(k) * 18, k, 1, { y });
       P('bellmourn/lamp_post', x + 3, z + 3, 0, 1, { y });
       lair('gallows', x, z, 20, 'crossroads'); lair('gallows', x - 160, z - 120, 70, 'deadwood'); lair('gallows', x + 120, z - 280, 60, 'deadwood');
@@ -324,6 +403,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
   return out;
 }
 
+<<<<<<< HEAD
 /** How far (x, z), with a radius r, stands clear of the roads and paths: the least, over every
  * path, of its distance from the line less r and frac of the path's half width (plus extra).
  * Below zero is in the way. */
@@ -350,11 +430,17 @@ function pathDistance(paths) {
 
 /** Trees, undergrowth, grass and stones over the whole world, by country, on a jittered grid
  * (none of the trees, rocks or logs on a road or path). */
+=======
+/** Trees, undergrowth, grass and stones over the whole world, by country, on a jittered grid. */
+>>>>>>> origin/main
 function scatter(ctx, keepOut, R) {
   const { kit, land } = ctx;
   const CELL = 7.5;
   const blocked = (x, z, pad = 0) => keepOut.some(([kx, kz, r]) => Math.hypot(x - kx, z - kz) < r + pad);
+<<<<<<< HEAD
   const road = pathDistance(ctx.paths || []);
+=======
+>>>>>>> origin/main
   const counts = { trees: 0, ground: 0 };
   // each 160 m patch of land grows only a few of a set's species (stands, not a catalogue)
   const pick = (list, px, pz) => {
@@ -384,7 +470,11 @@ function scatter(ctx, keepOut, R) {
     let dens = fl.density * (fbm(px * 0.02, pz * 0.02) * 0.8 + 0.6);
     if (bio === 'core') dens *= inVillage ? 0.03 : r < 116 ? 0.35 : 1;
     if (Math.abs(pz) < 9 && px > 100 && px < REGION.x0) dens = 0; // the trail
+<<<<<<< HEAD
     if (slope < 0.38 && R() < dens && !blocked(px, pz) && road(px, pz, 0, 1, 1.2) > 0) {
+=======
+    if (slope < 0.38 && R() < dens && !blocked(px, pz)) {
+>>>>>>> origin/main
       const [set, , sc, vars] = choose(fl.trees);
       const id = pick(SET[set], px, pz);
       const s = sc[0] + R() * (sc[1] - sc[0]);
@@ -397,9 +487,13 @@ function scatter(ctx, keepOut, R) {
       const [set] = choose(fl.ground);
       const id = pick(SET[set], px + 5000, pz);
       const big = /rock|log/.test(set);
+<<<<<<< HEAD
       const rot = R() * Math.PI * 2, s = big ? 0.6 + R() * 0.9 : 0.8 + R() * 0.5, f = big && kit.footprint(id, px, pz, rot, s);
       if (f && road((f[0] + f[2]) / 2, (f[1] + f[3]) / 2, Math.hypot(f[2] - f[0], f[3] - f[1]) / 2, 1, 0.5) < 0) continue;
       kit.place(id, px, y - (big ? 0.2 : 0.02), pz, rot, s,
+=======
+      kit.place(id, px, y - (big ? 0.2 : 0.02), pz, R() * Math.PI * 2, big ? 0.6 + R() * 0.9 : 0.8 + R() * 0.5,
+>>>>>>> origin/main
         { solid: big, variant: set === 'grass' && bio === 'rimeholt' ? 'frost' : set === 'grass' && (bio === 'ashen' || bio === 'barrow') ? 'dead' : '', cull: big ? 260 : 70, cast: big });
       counts.ground++;
     }

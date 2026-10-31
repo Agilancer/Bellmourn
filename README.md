@@ -3,10 +3,33 @@
 A first-person retro RPG in the spirit of Heretic, Hexen and Daggerfall, in three.js. This build
 is the first walkable piece of the world: the village of Bellmourn in its forest clearing, ten
 buildings you can walk into, the Cathedral of the Mourning Bell, the walled graveyard behind it,
-and the Undercroft, a 30-room dungeon: go through the door behind the pulpit into the office,
-then through the stair-house door and down. East of the village a trail runs through the forest
-to the Green Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with
-a bridge, Millhaven farm, a windmill, and a hamlet of homes to explore.
+and the Undercroft under it: go through the door behind the pulpit into the office, then through
+the stair-house door and down to its 24 rooms, and on down the stairwell in its stair hall to the
+15 rooms of the Deep Undercroft. East of the village a trail runs through the forest to the Green
+Downs: open grass hills with rock outcrops, a river over the plateau that falls into a pool, a stream with a bridge,
+Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil Road
+runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall with
+corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
+reliquary, with the Red Throne at the far end.
+
+Under the ground besides (`delves.js`): in the Darkwood two stone stair-houses stand over
+dungeons of their own, the Barrow of Saint Ivo to the north-west and the Old Watch Cellars to the
+south-east; and three caves open in the downs' eastern cliff, the Gloamhollow just north of
+Brightwater Falls, the Drowned Grotto beside them, and the Trollhole far to the north. All of them
+are marked on the map. `node tools/world/walkthrough.cjs <port>` walks the player down every
+stair and into and back out of every cave, has the dead of each place come for him, checks the
+headroom over every walkable metre below ground (nothing under 3 m), and how smoothly the eye rides
+the stairs (it glides: the feet's steps are eased out, so a flight reads as a slope). The dungeons' rooms are halls, crypts, libraries, shrines, storerooms,
+vaults and ossuaries, and now flooded crypts, great halls of tall columns, barracks, collapsed
+halls, well chambers, forges and halls round a throne of bones.
+
+The dead are the ten grotesques (`templates/models/creatures/grotesques/`, built by
+`tools/creatures/grotesques`): the rotting zombie, the bloated drowner, the plague-bearer, the tomb
+mummy, the ember husk, the pale ghoul, the chitin fiend, the deep maw, the fungal husk and the bog
+troll. Each place draws its own (`HAUNTS` in `zombies.js`): plague-bearers, ghouls and mummies
+claw out of the graveyard; mummies and ghouls keep the Barrow; drowners and deep maws the grotto,
+the falls' pool and the stream; trolls the Trollhole and the bridge; ember husks and chitin fiends
+the Deep Undercroft. The old zombies and monsters stay in the repo, unloaded.
 
 ## Run
 
@@ -23,25 +46,113 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Left click | right hand: swing, or shoot with a staff |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
+<<<<<<< HEAD
 | E | open and close doors (the interact key) |
 | Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
 | 1 to 5 | quick-equip sword, greatsword, staff, round shield, kite shield |
+=======
+| E | open and close doors, search chests, crates, barrels, sacks and pots |
+| Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
+| 1 to 5 | quick-equip the first one-hander, two-hander, staff, round shield or kite shield in the bag |
+| Q, Z | drink a healing draught, a mana draught |
+| M | the map (the corner map is always up; below ground it charts what you've walked) |
+>>>>>>> origin/main
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
+You set out with a plain sword and round shield in hand and a staff in the bag (with a
+greatsword, a kite shield and some draughts); a character saved before this is given the
+sword, shield and staff once, if it doesn't have them.
+
+Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
+it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
+nothing until it has come back; it refills quickly, but only while the shield is down. Better
+shields hold more Guard and stop more, and from Rare up they're enchanted (thorns, frost, fire,
+holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
+you find depends on where you are (the undercroft and the downs hold better). Dread knights and
+sorcerers march between the downs' places and hold its houses.
+
+**Blackvigil Keep** (`keep.js`) is garrisoned by Velscour's Sworn: villagers in the Fiend's
+Panoply, put together at load by `sworn.js` (the villager's skeleton under the zombie body's bone
+names, the armour, helm and head merged into one skinned mesh, and knight_a's clips carried over
+bone by bone), so they come apart like the dark knights, but fight harder and faster. They come in
+five fittings of the set (gilt, bone, blackened or blood-red ram's horns on the helm, or none, and
+crimson, black, violet or ash-grey cloaks). They take
+you two at a time while the rest circle a few strides off with their shields ready, waiting their
+turn. Up close they cut in combinations of two and three; from further off they lunge, or charge
+behind the shield and bash you off your feet. They raise the shield when they see you swing, bash
+through yours when you hide behind it, and answer any blow that rings off theirs. Their adepts
+go bareheaded with burning eyes, a blade in one hand and a staff in the other (the sorcerers'
+casting clips carried over too): they keep their distance, cast blood, call Velscour's fire up
+under you, mend their wounded brothers, and blink away when cornered. Their kite shields ride as
+far out from the forearm as each one's dish needs to clear the plate (`shieldLift`), and the
+shield arm is posed for the carry, the guard (the forearm across before the chest, the shield's
+face to the front, as it's held when blocking, bashing and charging) and the wide third cut, with
+the sword arm drawn back behind the shoulder in a bash, so no hand or body goes through a shield
+in any clip or in the blends between them. They step in behind a raised shield and walk round
+you when they circle (they don't slide). They follow you through the keep's doorways
+by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
+waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
+grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
+draughts) opens only once he's dead. The Sworn load in the background after the world is up (a
+phone takes one body and half the garrison, without the adepts).
+
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, use (E), jump, open the bag and pause.
+and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
+the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
+frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
+map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
+loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
+`templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
+at a time and the villagers one at a time once the village is up, half as many of the dead, and
+the stained glass at half size;
+re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. If a run
+dies (Safari's "A problem repeatedly occurred"), the next shows under the title how far it got.
+
+Bellmourn's twenty-two people (`villagers.js`: the men and women of
+`templates/models/creatures/villagers/`, built by `tools/villagers`) each have a name, a calling and
+a house, and live like Velscour's townsfolk: by day they wander to the well, the market stalls and
+the cathedral steps, keep a stall, buy at one, work at their door, pray, go home for a while, and
+walk over to each other to talk; the watch patrols. They go home at dusk, come out in the morning,
+run for their doors when the dead come near, and turn and greet you as you come up to them. What
+they say (`townscripts.js`: 261 conversations of two to five lines, chosen by who's talking, plus
+remarks, haggling and greetings) shows in Velscour's parchment bubbles over their heads, anchored in
+3D, rationed so the square never fills with text. `gear.js` and
+`bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
+`map.js` the map.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the
 lights (sun and moon shadows, torch shadows, day and night), `spells.js` and `effects.js` the
 magic and the sky, and `viewmodel.js` the approved first-person arms. Every surface texture and
-texture in `assets/textures/library.json` is used somewhere in the world. Scatter art that isn't a
+texture in `assets/textures/library.json` is used somewhere in the world, but for the masonry kit:
+90 seamless stone tiles in nine stones (`masonry_<stone>_<nn>`: grey ashlar, blackstone, fieldstone,
+honey and white limestone, slate, red and ochre sandstone, mossy ashlar) for building castles and
+towers with; the keep is laid in the blackstone and slate. The banners (`assets/textures/banners/`,
+sprites of category `banner`) each have an allegiance: `velscour` (his V) hang only where his people
+are, `holy` (the T) in the cathedral and holy places, `town` in the village and among good folk.
+Both come in with `python tools/world/import_banners_stone.py` (see its docstring). Scatter art that isn't a
 plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
 trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs.
+`water.js` is Brightwater's water: the river across the plateau, the falls (three sheets whose
+streaks speed up as they drop), spray, mist and foam at their foot, and the pool and stream,
+their ripples carried along by the current, tinted by depth, soft at the shore and mirroring
+the sky, with flecks of foam riding them. The
+Quaternius-kit world (`realm.js`, `wilds.js`, `land.js`, `houses.js`, `crypt.js`, `cave.js`,
+`kitdoors.js`) is kept but not built; `kit.js` loads only its props bundle, for what lies on the
+ground and the villagers' tools.
 
 VectorClad's bark, leaf and plank textures come in with
 `python tools/world/import_vectorclad.py` (it reads the sibling `vectorclad` repo's
 `origin/main`, so re-run it when that repo gets new textures).
+
+The ground sheets in `art/ground/` (snow, flagstones, forest floor, sand, concrete, cobbles,
+gravel, dirt and grass: ten seamless tiles on each, 5 across by 2 down) are cut apart by
+`python tools/world/import_ground.py` into `assets/textures/ground/`, made to wrap exactly, and
+listed in `assets/textures/ground.json` as `ground_<set>_NN` (01 to 10, in reading order); drop
+a new sheet in with the next number and re-run it. They're only ever used by name, toned down
+with a tint to sit with the Velscour floors: the village's meadow and forest floor, the downs'
+grass, paths, gravel and sand by the water and old snow on the plateau above the falls, the
+Vigil Road, and the keep's courtyard.
 
 ---
 

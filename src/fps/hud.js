@@ -1,8 +1,14 @@
+<<<<<<< HEAD
 // The HUD and menus, in HTML over the canvas: health and mana, the two spell slots (F and R),
 // the crosshair, place names, the inventory (the bag, one of each weapon type, the gauntlets,
 // the spellbook), the window of a container being searched beside the bag, the start/pause
 // screen, and the rotate-to-landscape screen for phones.
 import { describe } from './items.js';
+=======
+// The HUD and menus, in HTML over the canvas: health and mana, the shield's Guard, the two spell
+// slots (F and R), the crosshair, place names, the start/pause screen, and the rotate-to-landscape
+// screen for phones. (The inventory and spellbook are bag.js.)
+>>>>>>> origin/main
 
 // 12x12 pixel-art spell icons: one character per pixel
 const ICONS = {
@@ -106,7 +112,8 @@ export class Hud {
     const bars = el('div', 'bars');
     this.hp = el('div', 'bar hp', '<i></i><span></span>');
     this.mp = el('div', 'bar mp', '<i></i><span></span>');
-    bars.append(this.hp, this.mp);
+    this.gd = el('div', 'bar gd off', '<i></i><span></span><em>GUARD</em>');
+    bars.append(this.hp, this.mp, this.gd);
     this.slots = el('div', 'slots');
     this.slotEl = {};
     for (const k of ['F', 'R']) {
@@ -119,9 +126,11 @@ export class Hud {
     this.zoneEl = el('div', 'zone');
     this.toastEl = el('div', 'toast');
     this.promptEl = el('div', 'prompt');
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl);
+    this.bossEl = el('div', 'bossbar off', '<b></b><div><i></i><u></u></div>');
+    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl);
     r.append(this.hud);
 
+<<<<<<< HEAD
     // ---- inventory
     this.inv = el('div', 'panel inv hidden');
     this.inv.append(el('h2', null, 'Inventory'));
@@ -159,21 +168,28 @@ export class Hud {
     r.append(this.lootP);
     this.dragging();
 
+=======
+>>>>>>> origin/main
     // ---- start / pause
     this.overlay = el('div', 'overlay');
     this.overlay.innerHTML = `
       <div class="title">BELLMOURN</div>
-      <div class="sub">the village under the mourning bell</div>
+      <div class="sub">Velscour's Throne</div>
       <div class="go"></div>
       <table class="keys">
         <tr><td>W A S D</td><td>move</td><td>Mouse</td><td>look</td></tr>
         <tr><td>Shift</td><td>run</td><td>Space</td><td>jump</td></tr>
         <tr><td>Left click</td><td>right hand: swing / shoot</td><td>Right click</td><td>left hand: block / swing / shoot</td></tr>
         <tr><td>F &nbsp; R</td><td>cast the spells set to F and R</td><td>Tab / I</td><td>inventory &amp; spellbook</td></tr>
+<<<<<<< HEAD
         <tr><td>E</td><td>doors; search pots, crates &amp; chests</td><td>1 – 6</td><td>quick-equip arms</td></tr>
+=======
+        <tr><td>E</td><td>open doors, search chests</td><td>1 – 6</td><td>quick-equip arms</td></tr>
+        <tr><td>Q &nbsp; Z</td><td>drink healing / mana</td><td>M</td><td>map</td></tr>
+>>>>>>> origin/main
         <tr><td>Esc</td><td>pause</td><td></td><td></td></tr>
       </table>
-      <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, bag</div>
+      <div class="touchkeys">Left thumb: move (push far to run) · Right thumb: look · Buttons: attack, left hand, F, R, jump, use, drink, map, bag</div>
       <div class="opts"><label>Pixels <select id="optPix"><option value="1">sharp</option><option value="2" selected>chunky</option><option value="3">very chunky</option></select></label>
       <label>Look speed <input id="optSens" type="range" min="0.5" max="2.5" step="0.1" value="1"></label>
       <label>Graphics <select id="optGfx"><option value="high">high (shadows)</option><option value="low">low</option></select></label>
@@ -195,10 +211,13 @@ export class Hud {
       <div class="tbtn jump" data-code="Space">&#x2912;</div>
       <div class="tbtn bag" data-code="KeyI">&#x2630;</div>
       <div class="tbtn use" data-code="KeyE">E</div>
+      <div class="tbtn potion" data-code="KeyQ">&#x2764;</div>
+      <div class="tbtn map" data-code="KeyM">&#x25A6;</div>
       <div class="tbtn pause" data-code="Escape">&#x275A;&#x275A;</div>`;
     r.append(this.touch);
   }
 
+<<<<<<< HEAD
   setIcons(icons) { this.itemIcons = icons; }
 
   /** Rebuild the inventory panel's contents for the current equipment. */
@@ -249,9 +268,31 @@ export class Hud {
       card.append(row);
       this.spellGrid.append(card);
     }
+=======
+  /** The spell slots, and what's in each hand along the bottom. */
+  refresh(equip, book) {
+    const { items } = this.o;
+>>>>>>> origin/main
     this.updateSlots(book);
     this.hands.innerHTML = `<span>R</span> ${equip.R ? items[equip.R].name : 'bare hand'}`
       + (items[equip.R]?.both ? '' : ` &nbsp; <span>L</span> ${equip.L ? items[equip.L].name : 'bare hand'}`);
+  }
+
+  /** The Guard bar: shown while the shield is up or still filling, red while it's broken. */
+  guard(g, up) {
+    const show = g.max > 0 && (up || g.v < g.max - 0.5);
+    this.gd.classList.toggle('off', !show);
+    if (!show) return;
+    this.gd.classList.toggle('broken', g.broken);
+    this.gd.classList.toggle('up', up && !g.broken);
+    this.gd.querySelector('i').style.width = (g.v / g.max * 100).toFixed(1) + '%';
+    this.gd.querySelector('span').textContent = Math.round(g.v);
+  }
+
+  flashGuard() {
+    this.gd.classList.remove('flash');
+    void this.gd.offsetWidth;
+    this.gd.classList.add('flash');
   }
 
   updateSlots(book) {
@@ -286,6 +327,20 @@ export class Hud {
     this.zoneEl.classList.add('show');
   }
 
+  /** A boss's name and life across the top while you fight him: {name, frac} or null. The red
+   * shows what's left, the pale trail what was just lost. */
+  boss(b) {
+    this.bossEl.classList.toggle('off', !b);
+    if (!b) { this.bossShown = null; return; }
+    if (this.bossShown !== b.name) { this.bossShown = b.name; this.bossEl.querySelector('b').textContent = b.name; }
+    const w = (Math.max(0, b.frac) * 100).toFixed(1) + '%';
+    if (this.bossEl.dataset.w !== w) {
+      this.bossEl.dataset.w = w;
+      this.bossEl.querySelector('i').style.width = w;
+      this.bossEl.querySelector('u').style.width = w;
+    }
+  }
+
   toast(text) {
     this.toastEl.textContent = text;
     this.toastEl.classList.remove('show');
@@ -308,6 +363,7 @@ export class Hud {
     this.mp.classList.add('flash');
   }
 
+<<<<<<< HEAD
   get invOpen() { return !this.inv.classList.contains('hidden'); }
   showInventory(on) {
     this.inv.classList.toggle('hidden', !on);
@@ -414,16 +470,28 @@ export class Hud {
       down = null;
     });
   }
+=======
+>>>>>>> origin/main
 
-  /** 'start' | 'pause' | 'loading' | null */
+  /** 'start' | 'pause' | 'loading' | 'lost' | null */
   showOverlay(mode, touch) {
     this.overlay.classList.toggle('hidden', !mode);
     this.overlay.classList.toggle('is-touch', !!touch);
     const go = this.overlay.querySelector('.go');
     go.textContent = mode === 'loading' ? 'Raising the village…'
-      : (touch ? 'Tap to ' : 'Click to ') + (mode === 'pause' ? 'resume' : 'enter');
+      : (touch ? 'Tap to ' : 'Click to ') + ({ pause: 'resume', lost: 'raise it again — the graphics were lost' }[mode] || 'enter');
     this.overlay.classList.toggle('loading', mode === 'loading');
   }
+
+  /** Where the last run stopped, if it never closed cleanly (see main.js's trace). */
+  lastRun(text) {
+    const d = el('div', 'lastrun');
+    d.textContent = 'Last time it stopped: ' + text;
+    this.overlay.append(d);
+  }
+
+  /** The loading line, `pct` per cent of the way. */
+  loading(pct) { this.overlay.querySelector('.go').textContent = `Raising the village… ${pct}%`; }
 
   showTouch(on) { this.touch.classList.toggle('hidden', !on); }
 }

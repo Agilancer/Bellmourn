@@ -1,3 +1,4 @@
 art/raw/
 art/view/
 __pycache__/
+.harness/

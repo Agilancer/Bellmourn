@@ -1,0 +1,61 @@
+{
+ "seed": 4405,
+ "face": "06_Formal",
+ "morph": {
+  "caucasian-female-young": 1.0,
+  "l-ear-flap-out": 0.215,
+  "r-ear-flap-out": 0.215,
+  "chin-width-max": 0.129,
+  "eyebrows-trans-depth-less": 0.368,
+  "l-cheek-bones-out": 0.155,
+  "r-cheek-bones-out": 0.155,
+  "nose-scale-horiz-decr": 0.006,
+  "nose-scale-vert-incr": 0.446,
+  "l-ear-size-small": 0.254,
+  "r-ear-size-small": 0.254,
+  "forehead-scale-vert-less": 0.322
+ },
+ "eye": "bluegreen",
+ "iris_tint": [
+  0.5,
+  0.62,
+  0.71
+ ],
+ "dress": {
+  "LimeGreen": [
+   "damask_red",
+   0.75,
+   0.4
+  ],
+  "Gold": [
+   "metal_bronze",
+   1.0,
+   0.15
+  ],
+  "Formal_Feet:Red": [
+   "leather_tooled",
+   0.6,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.97,
+ "outfit": "Casual",
+ "skin_tile": "01_Fair_Skin",
+ "hair": "Wig_bun_blonde",
+ "sleeves": "LimeGreen",
+ "parts": [
+  "Formal_Body",
+  "Formal_Legs",
+  "Formal_Feet"
+ ],
+ "name": "villager_f05",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

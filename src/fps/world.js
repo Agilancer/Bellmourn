@@ -5,14 +5,18 @@
 import * as THREE from 'three';
 import { wallPanel } from './sprites.js';
 import { detailedHouse, houseMaterials, lampPost, marketStall, fence, cart, gothicDetail, belfry } from './buildings.js';
-import { buildRegion } from './region.js';
+import { buildRegion, SPOTS } from './region.js';
 import { REGION } from './terrain.js';
+import { DELVES, delveFootprint } from './delves.js';
+import { keepClear } from './keep.js';
 
 export const VILLAGE_R = 100;   // the village clearing
 export const WORLD_R = 300;     // the forest goes on to here; the player stays inside
 export const CATHEDRAL = { x0: -12, x1: 12, z0: -98, z1: -52, floor: 0.6 };
 export const GRAVEYARD = { x0: -48, x1: 48, z0: -182, z1: -122 };
 export const STAIRS = { x: 5.0, z: -93.6 }; // top of the stairs, in the stair-house in the cathedral office
+// where the outdoor ground is left out: under the cathedral and the delves' stair-houses
+const GROUND_CUTS = [[CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1], ...DELVES.map(delveFootprint)];
 const OFFICE_DOOR_X = -6.5;                   // the office door in the chancel wall, behind the pulpit
 // graveyard-pack sprites that belong inside the church
 const CHURCH = /pipe_organ|confessional|baptismal_font|oak_pew|prayer_lectern|cathedral_altar|iron_candelabrum|votive_candles|resting_censer|church_bell|saint_statue|reliquary_chest/;
@@ -30,15 +34,17 @@ export function buildWorld(ctx) {
   const { lib, b, props, bill, scene, physics } = ctx;
   const R = rng(1471);
   ctx.zones = []; // roofed interiors: {x0, z0, x1, z1, y0, y1, name}
+  ctx.interiors = []; // the houses' rooms: a zone with its floor, front door and country
   const M = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o });
   physics.groundHoles.push([CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1]);
 
   // ------------------------------------------------------------ ground
   // one blended material for all of it (see Library.ground): meadow in the village, forest
-  // floor beyond, grave soil in the graveyard
+  // floor beyond, grave soil in the graveyard. The clover lawn and the oak leaf litter are the
+  // ground sheets' (tools/world/import_ground.py), toned down to sit with the Velscour floors
   const ground = lib.ground({ village: VILLAGE_R, yard: [GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], layers: [
-    ['town_dense_meadow', 3], ['town_olive_meadow', 3.4], ['town_wildflower_grass', 2.6],
-    ['dark_forest_pine_needles', 3], ['dark_forest_damp_moss', 3.2], ['dark_forest_dead_leaves', 2.8],
+    ['ground_grass_02', 1.7, 0xd4b0e4], ['town_olive_meadow', 3.4], ['town_wildflower_grass', 2.6],
+    ['ground_forest_floor_03', 2.4, 0xe0dcd8], ['dark_forest_damp_moss', 3.2], ['ground_forest_floor_08', 2.2, 0xe0d6c8],
     ['cathedral_graveyard_dead_grass', 3], ['cathedral_graveyard_grave_soil', 2.6]] });
   ground.userData.noCast = true;
   ground.userData.chunk = 96;
@@ -47,12 +53,14 @@ export function buildWorld(ctx) {
     for (let z = -WORLD_R - 36; z < WORLD_R + 36; z += CELL) {
       const cx = x + CELL / 2, cz = z + CELL / 2;
       if (Math.hypot(cx, cz) > WORLD_R + 48 || x >= REGION.x0 - 2) continue; // the downs have their own ground
-      // the cathedral stands on its own floor (and its stairwell must stay open): cut its
-      // footprint out of the cells it overlaps
-      const C = CATHEDRAL, x1 = x + CELL, z1 = z + CELL;
-      const pieces = x1 <= C.x0 || x >= C.x1 || z1 <= C.z0 || z >= C.z1 ? [[x, z, x1, z1]] : [
-        [x, z, Math.min(x1, C.x0), z1], [Math.max(x, C.x1), z, x1, z1],
-        [Math.max(x, C.x0), z, Math.min(x1, C.x1), Math.min(z1, C.z0)], [Math.max(x, C.x0), Math.max(z, C.z1), Math.min(x1, C.x1), z1]];
+      // the cathedral and the delves' stair-houses stand on their own floors (and their
+      // stairwells must stay open): cut their footprints out of the cells they overlap
+      let pieces = [[x, z, x + CELL, z + CELL]];
+      for (const [h0, k0, h1, k1] of GROUND_CUTS) {
+        pieces = pieces.flatMap(([a0, b0, a1, b1]) => (a1 <= h0 || a0 >= h1 || b1 <= k0 || b0 >= k1 ? [[a0, b0, a1, b1]] : [
+          [a0, b0, Math.min(a1, h0), b1], [Math.max(a0, h1), b0, a1, b1],
+          [Math.max(a0, h0), b0, Math.min(a1, h1), Math.min(b1, k0)], [Math.max(a0, h0), Math.max(b0, k1), Math.min(a1, h1), b1]]));
+      }
       for (const [a0, b0, a1, b1] of pieces) {
         if (a1 - a0 < 0.01 || b1 - b0 < 0.01) continue;
         b.quad(ground, [a0, 0, b1], [a1, 0, b1], [a1, 0, b0], [a0, 0, b0], [[a0, -b1], [a1, -b1], [a1, -b0], [a0, -b0]]);
@@ -83,6 +91,20 @@ export function buildWorld(ctx) {
   ctx.cutouts?.place('town_fieldstone_round', VILLAGE_R - 8, 0, 0, Math.PI / 2, 6.4, 0.9);
   ctx.cutouts?.place('town_timber_market', -(VILLAGE_R - 8), 0, 0, -Math.PI / 2, 6.4, 0.7);
   ctx.cutouts?.place('town_limestone_guildhall', 0, 0, VILLAGE_R - 8, 0, 5.6, 0.9);
+  // and inside each gate the village's own banners (the town ones: never Velscour's V, nor the
+  // church's T) on a pole either side of the road, facing the way in and out
+  const town = lib.sprites('banner', (s) => s.allegiance === 'town').map((s) => s.id);
+  const post = M('castle_wood', 1.5), arm = M('met_02_riveted_black_iron', 1);
+  [[VILLAGE_R - 10.5, 0, 'x'], [-(VILLAGE_R - 10.5), 0, 'x'], [0, VILLAGE_R - 10.5, 'z']].forEach(([gx, gz, road], g) => {
+    for (const s of [-1, 1]) {
+      const across = road === 'x' ? [0, s] : [s, 0];              // from the road out to the pole
+      const px = gx + across[0] * 5.6, pz = gz + across[1] * 5.6, bx = gx + across[0] * 4.65, bz = gz + across[1] * 4.65;
+      b.cylinder([px, 0, pz], [px, 4.95, pz], 0.09, 8, post);
+      b.beam([px, 4.85, pz], [gx + across[0] * 3.9, 4.85, gz + across[1] * 3.9], 0.07, 0.07, arm);
+      physics.add([px - 0.12, 0, pz - 0.12], [px + 0.12, 4.95, pz + 0.12], 'prop');
+      wallPanel(lib, scene, town[(g * 2 + (s > 0 ? 1 : 0)) % town.length], bx, 3.5, bz, road === 'x' ? [1, 0, 0] : [0, 0, 1], 2.6);
+    }
+  });
 
   // ------------------------------------------------------------ buildings
   const houses = [
@@ -125,6 +147,10 @@ export function buildWorld(ctx) {
   forestRing(ctx, R, houses);
   trail(ctx, M, R);
   ctx.region = buildRegion(ctx, M, hm);
+  // where the knights and sorcerers march on the downs: between its named places
+  // (the falls' watch keeps back from the pool)
+  const lair = (k, dx = 0, dz = 0, r = 40) => ({ x: SPOTS[k][0] + dx, z: SPOTS[k][1] + dz, r: Math.min(r, SPOTS[k][2]), name: SPOTS[k][3] });
+  ctx.biomes = { downs: { lairs: [lair('farm'), lair('mill'), lair('hamlet'), lair('falls', -40, 30, 14)] } };
   // where the player may go: the village and forest, the trail, the downs
   ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
     || (x >= REGION.x0 + 4 && x <= REGION.x1 - 4 && Math.abs(z) <= REGION.z1 - 6);
@@ -484,8 +510,8 @@ function cathedral(ctx, M) {
     props.add('wall_torch', C.x0 + t / 2 + 0.06, F, z, Math.PI / 2);
     props.add('wall_torch', C.x1 - t / 2 - 0.06, F, z, -Math.PI / 2);
   }
-  // banners on the pillars, the icon over the altar, the map in the office
-  const banners = ['hanging_crimson_tower_banner', 'hanging_navy_crossed_lances_banner', 'hanging_ivory_lion_banner', 'hanging_black_keep_banner'];
+  // the holy banners (the ones bearing the T) down the nave, the icon over the altar, the map in the office
+  const banners = lib.sprites('banner', (s) => s.allegiance === 'holy').map((s) => s.id);
   banners.forEach((id, i) => wallPanel(lib, scene, id, -6 + (i % 2) * 12, F + 6.5, C.z1 - 9 - Math.floor(i / 2) * 10, [i % 2 ? -1 : 1, 0, 0], 3.4));
   wallPanel(lib, scene, 'hanging_chapel_icon_frame', 0, F + 6, chZ0 + 0.3, [0, 0, 1], 3);
   wallPanel(lib, scene, 'hanging_war_map_tapestry', 6, F + 2.6, C.z0 + 0.45, [0, 0, 1], 2.2);
@@ -502,9 +528,13 @@ function cathedral(ctx, M) {
   const run = b.stairs(STAIRS.x, STAIRS.z, F, -(F + 14), 2.4, '-z', steps, { step: 0.25, run: 0.34 });
   const zEnd = STAIRS.z - run, yEnd = F - Math.round((F + 14) / 0.25) * 0.25;
   for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z], stone);
-  const CLEAR = 2.8, slab = (z) => F - ((STAIRS.z - z) / 0.34) * 0.25 + CLEAR + 0.2;
+  // (3.4 m clear over the nosings all the way down. Just outside the north wall the vault still
+  // stands above the ground: a stone footing against the wall's foot covers it)
+  const CLEAR = 3.4, slab = (z) => F - ((STAIRS.z - z) / 0.34) * 0.25 + CLEAR + 0.2;
   b.beam([STAIRS.x, slab(STAIRS.z), STAIRS.z], [STAIRS.x, slab(zEnd), zEnd], 3.95, 0.4, stone, { up: [0, 1, 0] });
-  b.box([sh.x0 + 0.4, F + 2.8, STAIRS.z - 0.05], [sh.x1 - 0.4, F + 3.6, STAIRS.z + 0.1], shWall, { solid: false }); // over the vault's head
+  b.box([sh.x0 + 0.4, F + CLEAR, STAIRS.z - 0.05], [sh.x1 - 0.4, F + 3.6, STAIRS.z + 0.1], shWall, { solid: false }); // over the vault's head
+  const vTop = (z) => slab(z) + 0.45, zOut = C.z0 - t / 2, zSunk = STAIRS.z - ((F + CLEAR + 0.65) / 0.25) * 0.34;
+  if (vTop(zOut) > 0) b.box([STAIRS.x - 2.3, 0, zSunk - 0.2], [STAIRS.x + 2.3, vTop(zOut) + 0.15, zOut], M('castle_ashlar', 2));
   // torches down both walls of the flight, every few steps, alternating sides
   for (let z = STAIRS.z - 1.6, k = 0; z > zEnd + 0.5; z -= 3.2, k++) {
     const y = F - (Math.floor((STAIRS.z - z) / 0.34) + 1) * 0.25, sx = k % 2 ? 1 : -1;
@@ -635,6 +665,7 @@ function forestRing(ctx, R, houses) {
     if (x > GRAVEYARD.x0 - 6 && x < GRAVEYARD.x1 + 6 && z > GRAVEYARD.z0 - 6 && z < GRAVEYARD.z1 + 8) return false;
     if (x > 12 && x < 30 && z > -126 && z < -40) return false; // the graveyard lane
     if (Math.abs(x) < 7 || Math.abs(z) < 7) return false;      // the roads out of the village
+    if (DELVES.some((d) => Math.abs(x - d.x) < 13 && z > d.z - 10 && z < d.z + 14)) return false;   // a delve's clearing
     return true;
   };
   const nearHouse = (x, z) => houses.some((h) => Math.abs(x - h.x) < h.w / 2 + 6 && Math.abs(z - h.z) < h.d / 2 + 6)
@@ -649,17 +680,23 @@ function forestRing(ctx, R, houses) {
     if (!inVillage && r < VILLAGE_R + 14 && R() > 0.35) continue; // a ragged forest edge
     const t = (inVillage ? live : trees)[Math.floor(R() * (inVillage ? live : trees).length)];
     const sc = 0.8 + R() * 0.6;
+    // Blackvigil Keep's ground stays open: what would grow there is drawn for and not planted,
+    // so the rest of the forest stands as it always has
+    const open = keepClear(x, z);
     if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
-      ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, 0.9 + R() * 0.5);
+      const s3 = 0.9 + R() * 0.5;
+      if (!open) ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, s3);
       count++;
       continue;
     }
-    bill.add(t.id, x, 0, z, sc, 0.75 + R() * 0.35);
-    if (r < WORLD_R) physics.add([x - 0.4, 0, z - 0.4], [x + 0.4, 5, z + 0.4], 'tree');
+    const shade = 0.75 + R() * 0.35;
+    if (!open) bill.add(t.id, x, 0, z, sc, shade);
+    if (r < WORLD_R && !open) physics.add([x - 0.4, 0, z - 0.4], [x + 0.4, 5, z + 0.4], 'tree');
     count++;
     if (R() < 0.18 && scatter.length) {
       const s = scatter[Math.floor(R() * scatter.length)];
-      bill.add(s.id, x + (R() - 0.5) * 5, 0, z + (R() - 0.5) * 5, 1, 0.8);
+      const sx = x + (R() - 0.5) * 5, sz = z + (R() - 0.5) * 5;
+      if (!open) bill.add(s.id, sx, 0, sz, 1, 0.8);
     }
   }
 }

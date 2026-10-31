@@ -1,0 +1,20 @@
+{
+ "id": "templar",
+ "name": "Gilded Templar Plate",
+ "kind": "armour set for the villagers (skinned to their CharacterArmature)",
+ "gauntlet": "templar",
+ "description": "Holy plate for Lord Velscour: polished steel rimmed in gold, a blue-enamel breast panel under his gold V, blue enamel rondels at the shoulders and knees, a royal blue tabard and cape with gold embroidery and his V, and a great helm with a gilded fleury cross and keyhole breaths.",
+ "files": {
+  "male": "templar_m.glb",
+  "female": "templar_f.glb"
+ },
+ "meshes": {
+  "Armor": "body, arms, legs and the set's gauntlets",
+  "Helm": "the helm and its crest (optional)"
+ },
+ "hide_when_worn": [
+  "the villager's body meshes (every mesh not named V_*)",
+  "V_Hair* while the Helm shows"
+ ],
+ "built_by": "tools/armor/build.py"
+}

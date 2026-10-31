@@ -17,9 +17,17 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
 const CELL = 96;
+<<<<<<< HEAD
 // the growing things and stones are batched: every species in a cell drawn with one atlas is
 // one BatchedMesh (and its low-detail twin); one-off pieces (a house's walls, a room's
 // furniture) are merged per cell and atlas; anything placed many times in a cell is instanced
+=======
+// the growing things and stones are batched: every species drawn with one atlas shares one
+// BatchedMesh for the whole world (and a low-detail twin), each species' geometry stored once,
+// and every cell shows and hides its own instances in it; one-off pieces (a house's walls, a
+// room's furniture) are merged per cell and atlas; anything placed many times in a cell is
+// instanced
+>>>>>>> origin/main
 const BATCHED = /^(tree|plant|rock|log|cactus|path)$/;
 
 // how each atlas weathers: grime, damp at the foot, moss on top, snow sticks
@@ -50,8 +58,14 @@ const NM_FRAG = /* glsl */`
   }`;
 
 export class Kit {
+<<<<<<< HEAD
   constructor(renderer, scene, physics, { normals = true, shadows = true } = {}) {
     this.renderer = renderer;
+=======
+  constructor(renderer, scene, physics, { normals = true, shadows = true, packs = PACKS } = {}) {
+    this.renderer = renderer;
+    this.packs = packs;
+>>>>>>> origin/main
     this.scene = scene;
     this.physics = physics;
     this.normals = normals;
@@ -61,7 +75,11 @@ export class Kit {
     this.tex = new Map();
     this.nrm = new Map();
     this.placed = new Map();  // id|variant -> [{ m, cull }]
+<<<<<<< HEAD
     this.cells = [];          // { x, z, near: [meshes], far: [meshes], lodAt, cull }
+=======
+    this.cells = [];          // { x, z, groups: [{ near: [meshes or Slices], far, lodAt, cull }] }
+>>>>>>> origin/main
     this.used = new Set();    // model ids placed
     this.flames = [];         // [x, y, z, size]
     this.loader = new THREE.TextureLoader();
@@ -88,7 +106,11 @@ export class Kit {
     blank.needsUpdate = true;
     this.U.kBiome.value = blank;
     const loader = new GLTFLoader();
+<<<<<<< HEAD
     await Promise.all(PACKS.map(async (p) => {
+=======
+    await Promise.all(this.packs.map(async (p) => {
+>>>>>>> origin/main
       const gltf = await loader.loadAsync(ROOT + p + '.glb');
       for (const node of gltf.scene.children) this.ingest(node);
     }));
@@ -273,8 +295,11 @@ export class Kit {
    *   tilt     [x, z] small tilts in radians (rocks and trees settling on a slope)
    *   cull     view distance in metres (default from the model's size)
    *   layer    'over' (default) or 'under': the undercroft is only drawn from below ground
+<<<<<<< HEAD
    *   loose    false keeps a container (pot, crate, chest) a plain prop instead of handing it to
    *            this.loose (containers.js), which draws it itself and lets it be searched and broken
+=======
+>>>>>>> origin/main
    */
   place(id, x, y, z, rot = 0, s = 1, opts = {}) {
     const mdl = this.models.get(id);
@@ -286,6 +311,7 @@ export class Kit {
     const lo = info.min || [-0.5, 0, -0.5], hi = info.max || [0.5, 1, 0.5];
     const size = Math.max((hi[0] - lo[0]) * S[0], (hi[1] - lo[1]) * S[1], (hi[2] - lo[2]) * S[2]);
     const key = id + '|' + (opts.variant || '');
+<<<<<<< HEAD
     const loose = opts.loose !== false && this.loose?.wants(id);
     if (!loose && !this.placed.has(key)) this.placed.set(key, []);
     const cull = opts.cull ?? Math.min(900, Math.max(45, size * 55));
@@ -293,11 +319,22 @@ export class Kit {
     if (!loose) this.placed.get(key).push({ m, cull, cast, x, z, size, layer: opts.layer || 'over' });
     this.used.add(id);
     let box = null;
+=======
+    if (!this.placed.has(key)) this.placed.set(key, []);
+    const cull = opts.cull ?? Math.min(900, Math.max(45, size * 55));
+    const cast = opts.cast ?? (this.shadows && size > 0.6);
+    this.placed.get(key).push({ m, cull, cast, x, z, size, layer: opts.layer || 'over' });
+    this.used.add(id);
+>>>>>>> origin/main
     // the collider
     const solid = opts.solid ?? (!/tree|plant/.test(info.category || '') && !(info.tags || []).includes('plant'));
     if (solid === 'trunk') {
       const r = Math.max(0.18, Math.min(0.6, 0.12 * size / 4)) ;
+<<<<<<< HEAD
       this.physics.add([x - r, y, z - r], [x + r, y + Math.min(6, (hi[1]) * S[1]), z + r], opts.tag || 'tree').src = id;
+=======
+      this.physics.add([x - r, y, z - r], [x + r, y + Math.min(6, (hi[1]) * S[1]), z + r], opts.tag || 'tree');
+>>>>>>> origin/main
     } else if (solid) {
       const p = new THREE.Vector3(), mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
       for (const cx of [lo[0], hi[0]]) for (const cy of [lo[1], hi[1]]) for (const cz of [lo[2], hi[2]]) {
@@ -305,7 +342,11 @@ export class Kit {
         mn[0] = Math.min(mn[0], p.x); mn[1] = Math.min(mn[1], p.y); mn[2] = Math.min(mn[2], p.z);
         mx[0] = Math.max(mx[0], p.x); mx[1] = Math.max(mx[1], p.y); mx[2] = Math.max(mx[2], p.z);
       }
+<<<<<<< HEAD
       if (mx[1] - mn[1] > 0.12) (box = this.physics.add(mn, mx, opts.tag || 'prop')).src = id;
+=======
+      if (mx[1] - mn[1] > 0.12) this.physics.add(mn, mx, opts.tag || 'prop');
+>>>>>>> origin/main
     }
     // flames (near ones merged: a candle's wick is one flame)
     if (opts.flames !== false && info.flames?.length) {
@@ -317,6 +358,7 @@ export class Kit {
         this.flames.push([p.x, p.y, p.z, size0 * S[1]]);
       }
     }
+<<<<<<< HEAD
     if (loose) this.loose.take({ id, m, box, variant: opts.variant || '', layer: opts.layer || 'over', info });
     return { m, info, size };
   }
@@ -331,6 +373,11 @@ export class Kit {
     return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)];
   }
 
+=======
+    return { m, info, size };
+  }
+
+>>>>>>> origin/main
   /** A model as an ordinary mesh group (doors that swing, things picked up). */
   mesh(id, variant = '') {
     const mdl = this.models.get(id);
@@ -376,8 +423,17 @@ export class Kit {
         c.groups.push({ near: make(mdl), far: lod ? make(lod) : null, lodAt: lod ? Math.min(85, cull * 0.25) : Infinity, cull });
       }
     }
+<<<<<<< HEAD
     // the vegetation: per cell and material, one batch of every species near, one of their
     // low-detail copies further out
+=======
+    // the vegetation: per material, one world-wide batch of every species near (those that cast
+    // shadows apart from those that don't) and one of their low-detail copies further out. A
+    // cell's share of each is a Slice, shown and hidden like a mesh. (A batch per cell would
+    // copy every species into each of six hundred cells: well over a gigabyte, which phones
+    // can't hold.)
+    const worldBatch = new Map(); // material -> { cast: [], flat: [], far: [] } of [geo, matrix, slice]
+>>>>>>> origin/main
     for (const c of cells.values()) {
       if (!c.batch) continue;
       const byMat = new Map();
@@ -393,6 +449,7 @@ export class Kit {
           if (lod) e.lodAt = Math.min(e.lodAt, Math.min(55, p.cull * 0.2));
         }
       }
+<<<<<<< HEAD
       const batch = (m, items, cast) => {
         items = items.filter((i) => i[0]);
         if (!items.length) return null;
@@ -412,6 +469,46 @@ export class Kit {
       }
       c.batch = null;
     }
+=======
+      for (const [m, e] of byMat) {
+        if (!worldBatch.has(m)) worldBatch.set(m, { cast: [], flat: [], far: [] });
+        const w = worldBatch.get(m), near = new Slice(), far = e.lodAt < Infinity ? new Slice() : null;
+        for (const [g, mx] of e.near) w[e.cast ? 'cast' : 'flat'].push([g, mx, near]);
+        if (far) for (const [g, mx] of e.far) if (g) w.far.push([g, mx, far]);
+        c.groups.push({ near: [near], far: far ? [far] : null, lodAt: e.lodAt, cull: e.cull, batch: e.near.length });
+      }
+      c.batch = null;
+    }
+    const batchable = new Map(); // every geometry in a batch needs the same attributes and an index
+    const fit = (g) => {
+      if (batchable.has(g)) return batchable.get(g);
+      let f = g;
+      if (!g.attributes.uv || !g.index) {
+        f = g.clone();
+        if (!f.attributes.uv) f.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(f.attributes.position.count * 2), 2));
+        if (!f.index) f.setIndex([...Array(f.attributes.position.count).keys()]);
+      }
+      batchable.set(g, f);
+      return f;
+    };
+    const batch = (m, items, cast) => {
+      if (!items.length) return;
+      const geos = [...new Set(items.map((i) => fit(i[0])))];
+      let nv = 0, ni = 0;
+      for (const g of geos) { nv += g.attributes.position.count; ni += g.index.count; }
+      const bm = new THREE.BatchedMesh(items.length, nv, ni, m);
+      const gid = new Map(geos.map((g) => [g, bm.addGeometry(g)]));
+      for (const [g, mx, slice] of items) {
+        const id = bm.addInstance(gid.get(fit(g)));
+        bm.setMatrixAt(id, mx);
+        bm.setVisibleAt(id, false);
+        slice.ids.push(bm, id);
+      }
+      bm.sortObjects = false;
+      add(bm, cast).visible = true; // its instances come and go, not the batch
+    };
+    for (const [m, w] of worldBatch) { batch(m, w.cast, true); batch(m, w.flat, false); batch(m, w.far, false); }
+>>>>>>> origin/main
     // the one-off pieces: merged per cell and material, near (full) and far (low detail, and
     // nothing smaller than a person)
     this.merged = 0;
@@ -468,6 +565,20 @@ export class Kit {
   setBiome(tex, rect) { this.U.kBiome.value = tex; this.U.kBiomeRect.value.set(...rect); }
 }
 
+<<<<<<< HEAD
+=======
+/** One cell's instances in a world-wide BatchedMesh, shown and hidden together like a mesh. */
+class Slice {
+  constructor() { this.ids = []; this.on = false; } // ids: [batch, instance id, batch, instance id, ...]
+  get visible() { return this.on; }
+  set visible(v) {
+    if (v === this.on) return;
+    this.on = v;
+    for (let i = 0; i < this.ids.length; i += 2) this.ids[i].setVisibleAt(this.ids[i + 1], v);
+  }
+}
+
+>>>>>>> origin/main
 /** The palette as a lookup table: every 5-bit colour (32^3, laid out as 32 slices of 32x32 in a
  * 1024 x 32 texture) to its nearest palette entry. */
 function paletteLUT(colors) {

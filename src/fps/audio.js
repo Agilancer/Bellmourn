@@ -63,8 +63,12 @@ export class Sfx {
   cast(kind = 'fire') {
     if (!this.ok) return;
     const t = this.ctx.currentTime;
+<<<<<<< HEAD
     const base = { fire: 220, frost: 660, lightning: 140, heal: 520, wisp: 880, staff: 330, arcane: 520, drain: 110, bone: 300,
       void: 90, poison: 180, blade: 760, stone: 70 }[kind] || 400;
+=======
+    const base = { fire: 220, frost: 660, lightning: 140, heal: 520, wisp: 880, staff: 330 }[kind] || 400;
+>>>>>>> origin/main
     this._tone(t, 0.35, { type: kind === 'lightning' ? 'sawtooth' : 'triangle', f0: base, f1: base * 2.2, gain: 0.12, attack: 0.02 });
     this._noise(t, 0.3, { f0: base * 2, f1: base * 6, q: 2, gain: 0.25, attack: 0.03 });
     if (kind === 'heal' || kind === 'wisp') for (const k of [1, 1.25, 1.5]) this._tone(t + 0.05 * k, 0.7, { f0: base * k, f1: base * k, gain: 0.06 });

@@ -96,11 +96,16 @@ export function detailedHouse(ctx, h, M, mats) {
   const timber = mats.timber, trim = mats.trim;
   const shutter = mats.shutters[(Math.abs(Math.round(h.x * 7 + h.z * 3))) % mats.shutters.length];
   const top = G + U;
-  ctx.zones.push({ ...worldRect(F, -W / 2, -D / 2, W / 2, D / 2), y0: base - 1, y1: base + G, name: h.title || h.name });
+  const zone = { ...worldRect(F, -W / 2, -D / 2, W / 2, D / 2), y0: base - 1, y1: base + G, name: h.title || h.name };
+  ctx.zones.push(zone);
 
   // the stone plinth the house stands on, the floor inside, and a step at the door
   F.box([-W / 2 - 0.12, 0, -D / 2 - 0.12], [W / 2 + 0.12, fl, D / 2 + 0.12], { top: floorMat, bottom: mats.plinth, side: mats.plinth });
   const doorU = h.doorAt || 0;
+  // its room, for the people who live in it (and anything that lies in wait there): the floor,
+  // and the step outside the front door
+  const [dx, , dz] = F.p(doorU, 0, D / 2 + 1.6);
+  ctx.interiors?.push({ ...zone, floor: base + fl, door: { x: dx, z: dz }, biome: h.biome || 'village' });
   F.box([doorU - 1.2, 0, D / 2 + 0.12], [doorU + 1.2, 0.2, D / 2 + 0.62], mats.plinth);
 
   // ground storey walls

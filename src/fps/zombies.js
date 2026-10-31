@@ -1,10 +1,11 @@
-// The walking dead (templates/models/creatures/zombie/zombie_<a-g>.glb): a horde in the
-// graveyard that keeps clawing its way back out of the graves, and more in the dungeon below.
+// The walking dead (the grotesques: templates/models/creatures/grotesques/<name>.glb): a horde in
+// the graveyard that keeps clawing its way back out of the graves, more in every dungeon level and
+// cave (each place a registered "under", with its own walkable grid), and some out in the world.
 //
 // Every zombie is a skinned glTF with its own clips (idle, walk, run, jump, attack1-3, fall,
 // death, dead, rise, getup, and on the ground: collapse, crawl, crawl_attack, crawl_death,
-// crawl_dead). Seven bodies: a-c from the warrior, d-e from the female fighter, f-g from the
-// male fighter.
+// crawl_dead). The seven zombie bodies before them (a-c from the warrior, d-e from the female
+// fighter, f-g from the male fighter) and the nine monsters stay loadable but aren't loaded.
 //
 // The brain: each zombie sees (a cone, a range, and a clear line from its eyes to yours),
 // hears (you running carries far, walking less, standing still hardly at all; swings, clangs
@@ -12,7 +13,8 @@
 // moans, and the others in earshot come. They close in from different sides instead of
 // queueing, keep apart from each other, feel their way round what's in the way and jump the
 // graves and walls they can get over; runners sprint and lunge. Down in the dungeon they follow
-// you through the corridors by a flow field over the carved grid. Lose them and they search
+// you through the corridors by a flow field over the carved grid of whichever level or cave
+// you are in. Lose them and they search
 // where they last had you, then drift back to wandering. Temperaments: shamblers, runners, and
 // lurkers that lie buried in the graveyard or sprawled like corpses in the dungeon until you
 // come close.
@@ -31,15 +33,42 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { TOUCH } from './input.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 // The monster bodies (templates/models/creatures/monsters/<name>.glb): one human body under nine
 // skins, each with its own hand-keyed idle, move, attack1, attack2, roar, hit and death. Their
 // UE-style bones are renamed to the zombie body's on load so the brain and the gore drive them.
-const MONSTER_ROOT = 'templates/models/creatures/monsters/';
+// A phone loads their phone copies (monsters/phone/, from tools/creatures/phone_copies.py:
+// every image at most 512 square), one at a time: the full ones carry five 2048 images apiece,
+// and nine of them decoding together ran to hundreds of megabytes and killed the tab.
+const MONSTER_ROOT = 'templates/models/creatures/monsters/' + (TOUCH ? 'phone/' : '');
 export const MONSTERS = ['grave_zombie', 'drowned_zombie', 'plague_zombie', 'frost_zombie', 'mummified_zombie',
   'cinder_zombie', 'infernal_demon', 'obsidian_demon', 'bone_demon'];
+// The grotesques (templates/models/creatures/grotesques/<name>.glb, from tools/creatures/grotesques):
+// the Humans FBX's bare man reshaped and sculpted under ten painted skins, built on the zombies' own
+// bones with the zombies' own clips, so they rise, hunt, crawl and come apart exactly like them.
+// The ember husk's cracks and the chitin fiend's eyes glow (their emissive maps). A phone loads
+// their phone copies (grotesques/phone/), one at a time, with the monsters.
+// They are the game's dead now: the seven zombies and nine monsters before them stay in the repo
+// (load(VARIANTS, MONSTERS) brings them back) but aren't loaded.
+const GROTESQUE_ROOT = 'templates/models/creatures/grotesques/' + (TOUCH ? 'phone/' : '');
+export const GROTESQUES = ['rotting_zombie', 'bloated_drowner', 'plague_bearer', 'tomb_mummy', 'ember_husk',
+  'pale_ghoul', 'chitin_fiend', 'deep_maw', 'fungal_husk', 'bog_troll'];
+// who haunts where: each place draws its dead from its own few (repeats weight the draw)
+export const HAUNTS = {
+  yard: ['rotting_zombie', 'rotting_zombie', 'rotting_zombie', 'plague_bearer', 'plague_bearer', 'pale_ghoul', 'tomb_mummy'],
+  undercroft: ['rotting_zombie', 'rotting_zombie', 'tomb_mummy', 'tomb_mummy', 'pale_ghoul', 'plague_bearer', 'ember_husk'],
+  deep: ['ember_husk', 'chitin_fiend', 'chitin_fiend', 'pale_ghoul', 'tomb_mummy', 'fungal_husk', 'bog_troll'],
+  barrow: ['tomb_mummy', 'tomb_mummy', 'rotting_zombie', 'pale_ghoul', 'pale_ghoul'],
+  cellars: ['plague_bearer', 'plague_bearer', 'rotting_zombie', 'fungal_husk', 'bloated_drowner', 'ember_husk'],
+  water: ['bloated_drowner', 'bloated_drowner', 'deep_maw', 'deep_maw'],
+  fungal: ['fungal_husk', 'fungal_husk', 'chitin_fiend'],
+  troll: ['bog_troll', 'bog_troll', 'fungal_husk'],
+  hollow: ['chitin_fiend', 'fungal_husk', 'pale_ghoul'],
+  wood: ['pale_ghoul', 'rotting_zombie', 'fungal_husk'],
+};
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
   clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',
   lowerarm_l: 'forearmL', lowerarm_r: 'forearmR', hand_l: 'handL', hand_r: 'handR',
@@ -56,10 +85,15 @@ const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, 
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
 const HP = 170;
 const WOUNDS = 16;
+<<<<<<< HEAD
 // a spell's wound is round, its rim burned or frozen: its radius is kept as r + 10 (frost: r + 20)
 const SPELL_RIM = { fire: 10, lightning: 10, staff: 10, frost: 20, arcane: 10, missile: 10, void: 10 };
 // what lingering spells do to the skin's colour (frozen first, then burning, poisoned, chilled)
 const TINT = { frozen: [0.6, 0.86, 1.4], burn: [0.5, 0.36, 0.3], poison: [0.68, 1.0, 0.5], chill: [0.8, 0.93, 1.15] };
+=======
+// a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
+const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3 };
+>>>>>>> origin/main
 // the chance a spell blows off what it hits, by where it hits (times the spell's own `blow`)
 const BLOW = { head: 0.4, upper_arm: 0.3, forearm: 0.35, hand: 0.35, thigh: 0.4, shin: 0.45, foot: 0.45, waist: 0.12 };
 // temperaments: walking speed, sprint speed (0: never runs), how far it sees, how well it hears
@@ -71,6 +105,8 @@ const KINDS = {
 
 const GORE_GLSL = /* glsl */`
 uniform vec4 uWound[${WOUNDS}];
+uniform vec4 uWoundD[${WOUNDS}];
+uniform vec3 uWoundB[${WOUNDS}];
 uniform float uWoundN;
 varying vec3 vBind;
 float gHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -79,6 +115,7 @@ float gNoise(vec3 x) {
   return mix(mix(mix(gHash(i), gHash(i + vec3(1, 0, 0)), f.x), mix(gHash(i + vec3(0, 1, 0)), gHash(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(gHash(i + vec3(0, 0, 1)), gHash(i + vec3(1, 0, 1)), f.x), mix(gHash(i + vec3(0, 1, 1)), gHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
+<<<<<<< HEAD
 // wounds (w > 0: a hole torn in the skin; w > 5: a spell's round hole, burned, w > 15 frozen)
 // and cuts (w < 0: a severed joint)
 float gore(inout vec4 col) {
@@ -91,10 +128,41 @@ float gore(inout vec4 col) {
     else if (w.w > 5.0) burn = min(burn, l / (w.w - 10.0));
     else if (w.w > 0.0) hole = min(hole, l / w.w);
     else cut = min(cut, l / -w.w);
+=======
+// wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint), slashes (uWoundD
+// .w = 1: a gash along the segment w.xyz +- uWoundD.xyz, w.w wide, the blood running from it)
+// and spells' round holes (uWoundD.w = 2: burned, 3: frozen; w.w their radius)
+float gore(inout vec4 col) {
+  float hole = 99.0, cut = 99.0, gash = 99.0, run = 0.0, burn = 99.0, ice = 99.0;
+  for (int i = 0; i < ${WOUNDS}; i++) {
+    if (float(i) >= uWoundN) break;
+    vec4 w = uWound[i], D = uWoundD[i];
+    if (D.w > 1.5) {
+      float d = length(vBind - w.xyz) / w.w;
+      if (D.w > 2.5) ice = min(ice, d); else burn = min(burn, d);
+      continue;
+    }
+    if (D.w > 0.5) {
+      vec3 q = vBind - w.xyz, B = uWoundB[i];
+      float dep = dot(q, B);
+      if (dep > 0.07 || dep < -0.16) continue;   // only the side the blow struck
+      q -= B * dep;                       // in the plane across the blow: it wraps round the body
+      float t = clamp(dot(q, D.xyz) / max(dot(D.xyz, D.xyz), 1e-6), -1.0, 1.0);
+      vec3 e = q - D.xyz * t;
+      gash = min(gash, length(e) / w.w);
+      // the blood that ran down from it: under the gash, narrowing as it goes
+      float below = -e.y, side = length(e.xz) / w.w;
+      if (below > 0.0 && below < w.w * 9.0) run = max(run, (1.0 - below / (w.w * 9.0)) * step(side, 1.1 - below / (w.w * 10.0)));
+      continue;
+    }
+    float d = length(vBind - w.xyz) / abs(w.w);
+    if (w.w > 0.0) hole = min(hole, d); else cut = min(cut, d);
+>>>>>>> origin/main
   }
   float n = gNoise(vBind * 60.0) * 0.65 + gNoise(vBind * 170.0) * 0.35;
   float h = hole + (n - 0.5) * 0.6;
   float c = cut + (n - 0.5) * 0.5;
+<<<<<<< HEAD
   float s = min(burn, ice) + (n - 0.5) * 0.08;         // spell holes: clean discs, barely ragged
   vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
   if (gl_FrontFacing) {
@@ -112,11 +180,41 @@ float gore(inout vec4 col) {
       vec3 fade = frozen ? col.rgb * vec3(0.6, 0.76, 1.0) : col.rgb * mix(0.12, 0.45, n);
       col.rgb = s < 1.0 ? rim : mix(fade, col.rgb, smoothstep(1.0, 1.9, s));
       wet = s < 1.0 ? (frozen ? 1.0 : 0.05) : max(wet, frozen ? 0.5 : 0.0);
+=======
+  float s = gash + (n - 0.5) * 0.45;
+  float sp = min(burn, ice) + (n - 0.5) * 0.08;        // spell holes: clean discs, barely ragged
+  vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
+  if (gl_FrontFacing) {
+    if (h < 0.6 || sp < 0.62) discard;                  // torn (or blown) open
+    if (s < 0.45) { col.rgb = mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s)); return 1.0; }   // the gash
+    if (s < 2.4 || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.75) {
+      float k = s < 2.4 ? smoothstep(0.45, 2.4, s) : 0.3;
+      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it
+      if (s < 2.4) return (1.0 - k) * 0.9;
+    }
+    if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
+    if (sp < 0.7) { col.rgb = raw * 0.5; return 1.0; }  // a thin lip of seared meat
+    float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
+    col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
+    float wet = (1.0 - soak) * 0.7;
+    if (sp < 1.9) {
+      bool frozen = ice < burn;
+      // the rim: a glowing edge gone to char (frost: white rime), then soot (a blue chill) fading out
+      vec3 rim = frozen ? mix(vec3(0.92, 0.97, 1.0), vec3(0.55, 0.74, 0.92), smoothstep(0.7, 1.0, sp + n * 0.2))
+                        : mix(vec3(0.62, 0.17, 0.03), vec3(0.03, 0.022, 0.018), smoothstep(0.7, 0.78, sp + n * 0.06));
+      vec3 fade = frozen ? col.rgb * vec3(0.6, 0.76, 1.0) : col.rgb * mix(0.12, 0.45, n);
+      col.rgb = sp < 1.0 ? rim : mix(fade, col.rgb, smoothstep(1.0, 1.9, sp));
+      wet = sp < 1.0 ? (frozen ? 1.0 : 0.05) : max(wet, frozen ? 0.5 : 0.0);
+>>>>>>> origin/main
     }
     return wet;
   }
   // inside the body: wet meat, coils of gut, yellow fat (the kilt's inner face stays cloth)
+<<<<<<< HEAD
   if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0 && s > 3.0) { col.rgb *= 0.4; return 0.0; }
+=======
+  if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0 && sp > 3.0) { col.rgb *= 0.4; return 0.0; }
+>>>>>>> origin/main
   float coil = sin(vBind.x * 95.0 + sin(vBind.y * 60.0) * 2.5 + vBind.z * 40.0);
   vec3 meat = mix(vec3(0.20, 0.008, 0.015), vec3(0.58, 0.07, 0.07), n);
   meat = mix(meat, vec3(0.72, 0.36, 0.34), smoothstep(0.7, 0.95, coil) * 0.65);
@@ -125,16 +223,27 @@ float gore(inout vec4 col) {
   return 1.0;
 }`;
 
-export function goreMaterial(src, lib) {
+/** The gore shader on a body's material. `u`: the wound uniforms to use (a body of several
+ * materials shares one set, so a wound shows across all of them); a new set if not given. */
+export function goreMaterial(src, lib, u = null) {
   const normals = goreMaterial.normals || (goreMaterial.normals = new Map());
   const map = src.map;
   if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
   const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, specular: 0x2c1e1c, shininess: 30 });
+  mat.name = src.name || '';   // (the Sworn's fittings find their pieces by it)
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
     mat.normalMap = normals.get(map);
   }
-  const u = { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) }, uWoundN: { value: 0 } };
+  if (src.emissiveMap) {     // what glows: embers in the cracks, eyes
+    const e = src.emissiveMap;
+    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
+    mat.emissiveMap = e;
+    mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
+  }
+  u ||= { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
+    uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
+    uWoundB: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector3()) }, uWoundN: { value: 0 } };
   mat.userData.u = u;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
@@ -310,10 +419,33 @@ class Gore {
 // ------------------------------------------------------------------ a zombie
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3(), _f = new THREE.Vector3(), _m = new THREE.Matrix4();
 const normals = new Map();   // texture -> its normal map, made once per body
+const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
+const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
+
+// The monsters carry the same hair, eye and body-detail images byte for byte: one copy of each
+// serves them all (with a copy of the hair per monster, they alone ran past half a gigabyte of
+// graphics memory).
+const sharedTex = new Map();   // image name -> the texture every monster uses
+
+function shareTextures(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const k of Object.keys(m)) {
+        const t = m[k];
+        if (!t?.isTexture) continue;
+        const kept = t.name && sharedTex.get(t.name);
+        if (kept && kept !== t) { if (kept.source !== t.source) t.image?.close?.(); m[k] = kept; continue; }
+        if (t.name) sharedTex.set(t.name, t);
+      }
+    }
+  });
+}
 
 /** A monster body in the zombie body's terms: bones and tracks renamed, turned to face +z, and
  * the clips the brain asks for (walk, run, attack3, dead) made from its own. */
 function adaptMonster(gltf) {
+  shareTextures(gltf.scene);
   gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
   gltf.scene.rotation.y = Math.PI;                         // built facing -z
   const clips = {};
@@ -409,13 +541,23 @@ export class Zombie {
     // the body is the biggest skinned mesh (monsters also carry eyes, brows and bones)
     model.traverse((c) => { if (c.isSkinnedMesh && (!this.mesh || c.geometry.attributes.position.count > this.mesh.geometry.attributes.position.count)) this.mesh = c; });
     const mesh = this.mesh;
-    mesh.geometry = mesh.geometry.clone();
-    const geo = mesh.geometry;
-    geo.setAttribute('bindPos', geo.attributes.position.clone());
+    // every body of a kind shares its vertices; each has its own triangles, as limbs come off
+    const src = mesh.geometry, geo = mesh.geometry = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(src.attributes)) geo.setAttribute(k, a);
+    geo.setAttribute('bindPos', src.attributes.position);
+    geo.setIndex(src.index.clone());
+    for (const g of src.groups) geo.addGroup(g.start, g.count, g.materialIndex);
+    this.shared = Object.keys(geo.attributes);
     mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.frustumCulled = false;
-    this.u = mesh.material.userData.u;
+    this.u = [mesh.material].flat()[0].userData.u;
+    // a body of several materials (the sworn's armour): which group each triangle draws in, so
+    // the groups can be laid out again as limbs come off
+    if (geo.groups.length > 1) {
+      this.triGroup = new Uint8Array(geo.index.count / 3);
+      geo.groups.forEach((g, i) => this.triGroup.fill(i, g.start / 3, (g.start + g.count) / 3));
+    }
     this.skel = mesh.skeleton;
     this.bones = {};
     for (const b of this.skel.bones) this.bones[b.name] = b;
@@ -445,6 +587,7 @@ export class Zombie {
     this.zone = o.zone || 'yard';
     this.home = this.pos.clone();
     this.room = o.room || null;            // dungeon room rectangle it haunts
+    this.dg = o.dg || null;                // the underground place it haunts (its corridors' flow)
     this.kindName = o.kind || 'shambler';
     this.kind = KINDS[this.kindName];
     this.pace = 0.88 + Math.random() * 0.24;
@@ -485,6 +628,20 @@ export class Zombie {
   material(src, lib) { return goreMaterial(src, lib); }
 
   get dead() { return this.state === 'dead'; }
+  get slow() { return this.chillT > 0 ? 0.4 : 1; }
+
+  /** Frost and fire from a shield's enchantments: chilled it moves slow, burning it smoulders. */
+  afflict(dt) {
+    if (this.chillT > 0) this.chillT -= dt;
+    this.mixer.timeScale = this.chillT > 0 ? 0.45 : 1;
+    if (this.burnT > 0 && !this.dead) {
+      this.burnT -= dt;
+      this.hp -= (this.burnDps || 3) * dt;
+      if (Math.random() < dt * 24) this.owner.gore.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.6 + Math.random(), (Math.random() - 0.5) * 0.5)),
+        _w.set((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4), 0.014, EMBER[Math.floor(Math.random() * 3)]);
+      if (this.hp <= 0) this.die();
+    }
+  }
   get standing() { return !this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'playdead'; }
   has(b) { return !this.lost.has(b); }
   arm(s) { return this.has('upper_arm' + s) && this.has('forearm' + s); }
@@ -588,13 +745,29 @@ export class Zombie {
 
   writeWounds() {
     const all = [...this.cuts, ...this.wounds].slice(0, WOUNDS);
-    all.forEach((w, i) => this.u.uWound.value[i].copy(w));
+    all.forEach((w, i) => { this.u.uWound.value[i].copy(w); this.u.uWoundD.value[i].copy(w.d || ZERO4); this.u.uWoundB.value[i].copy(w.b || ZERO3); });
     this.u.uWoundN.value = all.length;
   }
 
-  wound(point, bone, r) {
+  /** A hole of radius r at a world point; rim: a spell's round one (SPELL_RIM), seared or frozen. */
+  wound(point, bone, r, rim = 0) {
     const c = this.toBind(point, bone);
-    this.wounds.push(new THREE.Vector4(c.x, c.y, c.z, r));
+    const w = new THREE.Vector4(c.x, c.y, c.z, r);
+    if (rim) w.d = new THREE.Vector4(0, 0, 0, rim);
+    this.wounds.push(w);
+    while (this.wounds.length + this.cuts.length > WOUNDS) this.wounds.shift();
+    this.writeWounds();
+  }
+
+  /** A blade's gash across the body where it bit: from a to b (world), `width` wide, the blow
+   * coming along `dir` (world: the gash is measured across it, so it follows the body round). */
+  slash(a, b, bone, width, dir) {
+    const ca = this.toBind(a, bone), cb = this.toBind(b, bone);
+    const w = new THREE.Vector4((ca.x + cb.x) / 2, (ca.y + cb.y) / 2, (ca.z + cb.z) / 2, width);
+    w.d = new THREE.Vector4((cb.x - ca.x) / 2, (cb.y - ca.y) / 2, (cb.z - ca.z) / 2, 1);
+    const mid = a.clone().lerp(b, 0.5);
+    w.b = this.toBind(mid.clone().add(dir), bone).sub(this.toBind(mid, bone)).normalize();
+    this.wounds.push(w);
     while (this.wounds.length + this.cuts.length > WOUNDS) this.wounds.shift();
     this.writeWounds();
   }
@@ -608,6 +781,7 @@ export class Zombie {
     return null;
   }
 
+<<<<<<< HEAD
   /** blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
   hit(h, { dmg, dir, heavy = false, kind = 'blade', blow = 0 }) {
     const owner = this.owner, g = owner.gore;
@@ -619,6 +793,24 @@ export class Zombie {
     const r = rim ? (heavy ? 0.1 : 0.07) + (kind === 'fire' ? 0.02 : 0) + Math.random() * 0.015
       : (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
     this.wound(p, b, r + rim);
+=======
+  /** A blow landing at h (bone, point) along dir. kind: 'blade' (a gash along `edge`, the
+   * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves;
+   * blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
+  hit(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0, blow = 0 }) {
+    const owner = this.owner, g = owner.gore;
+    const b = h.bone, p = h.point;
+    const back = dir.clone().negate();
+    // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
+    // the rim, anything else a ragged hole
+    const rim = SPELL_RIM[kind] || 0;
+    const r = rim ? (heavy ? 0.1 : 0.07) + (kind === 'fire' ? 0.02 : 0) + Math.random() * 0.015
+      : (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
+    if (kind === 'blade' && edge) {
+      const half = (heavy ? 0.17 : 0.12) * (0.85 + Math.random() * 0.3);
+      this.slash(_t.copy(p).addScaledVector(edge, -half), _f.copy(p).addScaledVector(edge, half), b, heavy ? 0.03 : 0.022, dir);
+    } else this.wound(p, b, r, rim);
+>>>>>>> origin/main
     g.spray(p, dir, heavy ? 70 : 45, { speed: heavy ? 4.5 : 3.4, spread: 0.9 });
     g.spray(p, back.clone().add(_u.set(0, 0.6, 0)), heavy ? 40 : 26, { speed: 2.6, spread: 0.8 });
     for (let i = 0; i < (heavy ? 7 : 4); i++) g.gib(p, _w.copy(dir).multiplyScalar(2 + Math.random() * 2).add(_u.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3)));
@@ -627,7 +819,7 @@ export class Zombie {
     // damage: limbs come off, the trunk dies
     const limb = this.limbOf(b);
     if (limb && !this.lost.has(limb)) {
-      this.limbHp[limb] -= dmg * (kind === 'blade' ? 1 : 0.7);
+      this.limbHp[limb] -= dmg * (kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
       if (this.limbHp[limb] <= 0) this.sever(limb, dir);
       else if (blow && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')]) this.blowOff(limb, dir, rim);
@@ -637,10 +829,13 @@ export class Zombie {
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
+    // shoved back along the blow (it carries on for a moment: see ground())
+    const shove = (push || (heavy ? 0.8 : 0.45)) * (this.mode === 'crawl' ? 0.4 : 1) / (this.heft || 1);
+    const fl = Math.hypot(dir.x, dir.z) || 1;
+    this.knock = (this.knock || new THREE.Vector3()).set(dir.x / fl, 0, dir.z / fl).multiplyScalar(shove * 9);
     if (!this.dead) {
       if (this.state === 'move' || this.state === 'attack') {
-        owner.physics.slide(this.pos, dir.x * (heavy ? 0.25 : 0.12), dir.z * (heavy ? 0.25 : 0.12), 0.3, 1.6, 0.45);
-        if (this.state === 'move') this.stagger = heavy ? 0.5 : 0.28;
+        if (this.state === 'move') this.stagger = heavy ? 0.55 : 0.32;
         if (this.state === 'move' && this.actions.hit) { this.holdT = 0; this.play('hit', 0.06); this.holdT = this.actions.hit.getClip().duration; this.stagger = Math.max(this.stagger, this.holdT); }
       }
       if (this.hp <= 0) this.die();
@@ -655,7 +850,11 @@ export class Zombie {
     const joint = this.bones[name === 'waist' ? 'spine' : name].getWorldPosition(new THREE.Vector3());
     const stay = name === 'waist' ? this.bones.spine : this.bones[name].parent;
     this.sever(name, dir.clone().multiplyScalar(1.8).add(_u.set(0, 0.4, 0)));
+<<<<<<< HEAD
     this.wound(joint, stay, (name === 'waist' ? 0.16 : name === 'head' ? 0.1 : 0.085) + (rim || 10));
+=======
+    this.wound(joint, stay, name === 'waist' ? 0.16 : name === 'head' ? 0.1 : 0.085, rim || 2);
+>>>>>>> origin/main
     this.owner.gore.spray(joint, dir, 90, { speed: 6, spread: 1.2, size: 0.016 });
   }
 
@@ -668,22 +867,23 @@ export class Zombie {
     const set = new Set();
     const take = (o) => o.traverse((c) => { if (c.isBone) set.add(this.skel.bones.indexOf(c)); });
     if (waist) { set.add(this.skel.bones.indexOf(this.bones.hips)); take(this.bones.thighL); take(this.bones.thighR); } else take(bone);
-    const idx = this.index, keep = [], gone = [];
+    const idx = this.index, keep = [], gone = [], keptT = [], goneT = [];
     for (let t = 0; t < this.alive.length; t++) {
       if (!this.alive[t]) continue;
       const a = idx[t * 3], b = idx[t * 3 + 1], c = idx[t * 3 + 2];
       const n = set.has(this.dom[a]) + set.has(this.dom[b]) + set.has(this.dom[c]);
-      if (n >= 2) { this.alive[t] = 0; gone.push(a, b, c); } else keep.push(a, b, c);
+      if (n >= 2) { this.alive[t] = 0; gone.push(a, b, c); goneT.push(t); } else { keep.push(a, b, c); keptT.push(t); }
     }
     this.lost.add(name);
     if (waist) { this.lost.add('thighL'); this.lost.add('thighR'); }
     this.mesh.geometry.setIndex(keep);
+    const goneGroups = this.triGroup ? this.regroup(this.mesh.geometry, keptT, goneT) : null;
     // the joint, in world space and bind space; a cut there colours the stump and the piece
     const joint = bone.getWorldPosition(new THREE.Vector3());
     const jb = this.toBind(joint, parent);
     this.cuts.push(new THREE.Vector4(jb.x, jb.y, jb.z, -(waist ? 0.15 : name === 'head' ? 0.09 : 0.075)));
     this.writeWounds();
-    if (gone.length) owner.addPiece(this, gone, joint, dir);
+    if (gone.length) owner.addPiece(this, gone, joint, dir, goneGroups);
     // a bone stub on the stump (the spine, cut in two), and a spurting pulse
     const at = waist ? new THREE.Vector3(0, 0.01, 0) : bone.position.clone();
     const along = waist ? new THREE.Vector3(0, -1, 0) : bone.position.clone().normalize();
@@ -706,6 +906,7 @@ export class Zombie {
     }
   }
 
+<<<<<<< HEAD
   // -------------------------------------------------------------- spells that linger
   /** Frozen solid for t seconds: nothing moves, the skin rimed blue-white. */
   freeze(t) { if (!this.dead) { this.frozen = Math.max(this.frozen || 0, t); this.burning = 0; } }
@@ -746,11 +947,32 @@ export class Zombie {
     else this.mesh.material.color.setRGB(1, 1, 1);
     if (!(this.frozen > 0 || this.chilled > 0 || this.burning > 0 || this.poisoned > 0)) this.frozen = this.chilled = this.burning = this.poisoned = 0;
     return this.frozen > 0 ? 0 : this.chilled > 0 ? 0.4 : 1;
+=======
+  /** The body's material groups laid out again over the triangles it keeps (`kept` and `gone` are
+   * triangle numbers in their first order, so each group's still sit together); returns the groups
+   * of the piece cut off, as [start, count, material]. */
+  regroup(geo, kept, gone) {
+    const n = new Uint32Array(this.mesh.material.length);
+    const groups = (tris) => {
+      n.fill(0);
+      for (const t of tris) n[this.triGroup[t]]++;
+      const out = [];
+      let at = 0;
+      n.forEach((c, g) => { if (c) out.push([at, c * 3, g]); at += c * 3; });
+      return out;
+    };
+    geo.clearGroups();
+    for (const [s, c, g] of groups(kept)) geo.addGroup(s, c, g);
+    return groups(gone);
+>>>>>>> origin/main
   }
 
   die() {
     this.state = 'dead';
     this.deadT = 0;
+    // the dead carried things into the ground with them, now and then
+    const loot = this.owner.foes?.ctx?.loot;
+    if (loot && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
     this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
     const g = this.owner.gore;
     g.splat(this.pos.x, this.owner.floorY(this.pos.x, this.pos.z, this.pos.y), this.pos.z, 2.0, 0.18);
@@ -794,7 +1016,7 @@ export class Zombie {
     } else if (this.goal === 'chase') {
       // lost sight: down below it can still follow the corridors to you; up top it goes to where
       // it last had you
-      const near = this.zone === 'dungeon' && owner.flowAt(this.pos) < 32;
+      const near = this.zone === 'dungeon' && owner.flowAt(this.pos, this.dg) < 32;
       if (!near && owner.time - this.lastT > 1.2) this.goal = 'hunt';
     }
   }
@@ -812,6 +1034,7 @@ export class Zombie {
       if (this.dead) this.corpse(dt);
       return;
     }
+    this.afflict(dt);
     // animation (every third frame when far off, every sixth when unseen but still hunting you)
     this.mixAcc += dt;
     if (!mid || ++this.frame % (far ? 6 : 3) === 0) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
@@ -908,13 +1131,13 @@ export class Zombie {
         const s = this.flank * Math.min(2.6, dist * 0.45) / dist;
         target.x += -toZOf(player, this) * s; target.z += toXOf(player, this) * s;
       }
-      if (this.zone === 'dungeon' && !this.canSee && owner.flowDir(this.pos, _w)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      if (this.zone === 'dungeon' && !this.canSee && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       if (crawl) speed = 0.12 + 0.2 * this.arm('L') + 0.2 * this.arm('R');
       else if (!this.feet) speed = 0.65;
       else speed = kind.run && dist < 13 && dist > 1.7 && this.has('head') ? kind.run : kind.walk * 1.05;
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
-      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       speed = crawl ? 0.25 : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
@@ -938,7 +1161,7 @@ export class Zombie {
       if (this.wander && this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? 0.22 : kind.walk * 0.85; }
     }
     if (!crawl && this.has('head') === false) speed = Math.min(speed, kind.walk * 1.1);
-    speed *= this.pace;
+    speed *= this.pace * this.slow;
     if (this.stagger > 0) speed = 0;
     if (target) {
       if (this.avoidT > 0) this.avoidT -= dt;
@@ -1003,9 +1226,13 @@ export class Zombie {
     }
   }
 
-  /** Stand on whatever is below; fall when there's nothing. */
+  /** Stand on whatever is below; fall when there's nothing. (And slide on with a shove.) */
   ground(dt) {
     const phys = this.owner.physics;
+    if (this.knock && this.knock.lengthSq() > 1e-4) {
+      phys.slide(this.pos, this.knock.x * dt, this.knock.z * dt, 0.3, 1.6, 0.45);
+      this.knock.multiplyScalar(Math.exp(-9 * dt));
+    }
     const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, 0.45);
     if (fl === -Infinity) return;
     if (this.pos.y > fl + 0.02) {
@@ -1034,8 +1261,9 @@ export class Zombie {
   remove() {
     this.gone = true;
     this.owner.scene.remove(this.root);
+    for (const k of this.shared) this.mesh.geometry.deleteAttribute(k); // the other bodies still draw with them
     this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    for (const m of [this.mesh.material].flat()) m.dispose();
     this.mixer.stopAllAction();
   }
 }
@@ -1092,14 +1320,26 @@ export class Zombies {
     this.flow = null; this.flowKey = -1; this.flowT = 0;
   }
 
-  async load(variants = VARIANTS, monsters = MONSTERS) {
+  async load(variants = [], monsters = [], grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
+    const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
+    const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
+      try { this.gltf[g] = await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`); } catch (e) { console.warn('grotesque', g, e); }
+    };
+    const one = async () => {   // a phone: one decoding at a time
+      for (const m of monsters) await monster(m);
+      for (const g of grotesques) await grotesque(g);
+    };
     await Promise.all([
       ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
-      ...monsters.map(async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); }),
+      ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
+<<<<<<< HEAD
     if (variants.length) for (const m of monsters) retargetGround(this.gltf[m], this.gltf[variants[0]]);
     this.pool = [...variants, ...monsters];
+=======
+    this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];
+>>>>>>> origin/main
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */
@@ -1119,7 +1359,13 @@ export class Zombies {
     return zb;
   }
 
-  randomVariant() { const p = this.pool || VARIANTS; return p[Math.floor(Math.random() * p.length)]; }
+  /** One of the dead for a place (a HAUNTS key), from those that loaded; any of them without one. */
+  randomVariant(haunt) {
+    const p = this.pool || VARIANTS;
+    const h = (HAUNTS[haunt] || []).filter((v) => p.includes(v));
+    const from = h.length ? h : p;
+    return from[Math.floor(Math.random() * from.length)];
+  }
 
   /** The graveyard: `n` of the dead about the graves, `buried` more under them, and the horde
    * kept at `n` by more clawing out of the ground. `avoid` [x0, z0, x1, z1] keeps them out of
@@ -1142,8 +1388,8 @@ export class Zombies {
       }
       return [(b.x0 + b.x1) / 2, b.z1 - 4];
     };
-    for (let i = 0; i < n; i++) { const [x, z] = spot(); this.spawn(this.randomVariant(), x, z, { zone: 'yard', kind: pickKind(0.08) }); }
-    for (let i = 0; i < buried; i++) { const [x, z] = this.graveSpot(null) || spot(); this.spawn(this.randomVariant(), x, z, { zone: 'yard', kind: 'lurker', start: 'buried' }); }
+    for (let i = 0; i < n; i++) { const [x, z] = spot(); this.spawn(this.randomVariant('yard'), x, z, { zone: 'yard', kind: pickKind(0.08) }); }
+    for (let i = 0; i < buried; i++) { const [x, z] = this.graveSpot(null) || spot(); this.spawn(this.randomVariant('yard'), x, z, { zone: 'yard', kind: 'lurker', start: 'buried' }); }
   }
 
   /** Beside a grave, between `near` and `far` metres from p (any grave if p is null). */
@@ -1164,37 +1410,85 @@ export class Zombies {
     return null;
   }
 
-  /** The dungeon: `n` of the dead spread through its rooms; some lie as if dead. */
-  populateDungeon(dg, n) {
-    this.dg = dg;
-    // which cells of the carved grid can be walked: carved, and not filled by furniture between
-    // knee and head height
-    const nav = dg.nav;
-    this.walk = new Uint8Array(nav.nx * nav.nz);
+  /** An underground place the dead can find their way about in (a dungeon level or a cave): which
+   * cells of its grid can be walked (carved, and not filled by furniture between knee and head
+   * height). dg: {nav, y or floorAt(x, z), contains(p)}. */
+  addUnder(dg) {
+    if (dg.walk) return dg;
+    const nav = dg.nav, floorY = (x, z) => dg.floorAt?.(x, z) ?? dg.y;
+    dg.walk = new Uint8Array(nav.nx * nav.nz);
     for (let k = 0; k < nav.nz; k++) for (let i = 0; i < nav.nx; i++) {
       const c = k * nav.nx + i;
       if (nav.cell[c] < 0) continue;
-      const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5;
+      const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5, fy = floorY(x, z);
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
-        if (b.tag !== 'prop' || b.max[1] < dg.y + 0.45 || b.min[1] > dg.y + 1.6) continue;   // (walls are in the grid)
+        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
         if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
       }
-      this.walk[c] = open ? 1 : 0;
+      dg.walk[c] = open ? 1 : 0;
     }
+    (this.unders ||= []).push(dg);
+    return dg;
+  }
+
+  /** A dungeon level: `n` of the dead from its haunt spread through its rooms; some lie as if
+   * dead; two sprawled at the foot of its stairs, waiting. */
+  populateDungeon(dg, n, haunt = 'undercroft') {
+    this.addUnder(dg);
+    const nav = dg.nav, walk = dg.walk;
     const rooms = dg.roomList;
+    // a spot on the room's own floor: walkable, not in a pit, not up on a dais or in furniture
+    const spot = (r, pad) => {
+      for (let t = 0; t < 24; t++) {
+        const x = r.x0 + pad + Math.random() * (r.x1 - r.x0 - 2 * pad), z = r.z0 + pad + Math.random() * (r.z1 - r.z0 - 2 * pad);
+        const c = Math.floor(z - nav.z0) * nav.nx + Math.floor(x - nav.x0);
+        if (walk[c] && Math.abs(this.physics.floorAt(x, z, dg.y + 0.3, 0.3, 0.45) - dg.y) < 0.1) return [x, z];
+      }
+      return null;
+    };
     for (let i = 0; i < n; i++) {
-      const r = rooms[1 + (i % (rooms.length - 1))];
-      const x = r.x0 + 1.2 + Math.random() * (r.x1 - r.x0 - 2.4), z = r.z0 + 1.2 + Math.random() * (r.z1 - r.z0 - 2.4);
+      const r = rooms[1 + (i % (rooms.length - 1))], p = spot(r, 1.2);
+      if (!p) continue;
       const kind = pickKind(0.3);
-      this.spawn(this.randomVariant(), x, z, { y: dg.y, zone: 'dungeon', room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
+      this.spawn(this.randomVariant(haunt), p[0], p[1], { y: dg.y, zone: 'dungeon', dg, room: r, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
     }
-    // two sprawled at the foot of the stairs, waiting
     const e = rooms[0];
     for (let i = 0; i < 2; i++) {
-      this.spawn(this.randomVariant(), e.x0 + 2 + Math.random() * (e.x1 - e.x0 - 4), e.z0 + 2 + Math.random() * (e.z1 - e.z0 - 6),
-        { y: dg.y, zone: 'dungeon', room: e, kind: 'lurker', start: 'playdead' });
+      const p = spot(e, 2);
+      if (p) this.spawn(this.randomVariant(haunt), p[0], p[1], { y: dg.y, zone: 'dungeon', dg, room: e, kind: 'lurker', start: 'playdead' });
     }
+  }
+
+  /** A cave: plan [[chamber tag, how many, haunt], ...]; they keep to their chamber till they
+   * find you, and follow its passages after you. */
+  populateCave(cv, plan) {
+    this.addUnder(cv);
+    let n = 0;
+    for (const [tag, count, haunt] of plan) for (let i = 0; i < count; i++) {
+      const p = cv.spot(tag, 1.0);
+      if (!p) continue;
+      const kind = pickKind(0.25);
+      const zb = this.spawn(this.randomVariant(haunt), p.x, p.z, { y: p.y, zone: 'dungeon', dg: cv, kind, start: kind === 'lurker' ? 'playdead' : 'stand' });
+      zb.yaw = Math.random() * 6.28;
+      n++;
+    }
+    return n;
+  }
+
+  /** Out in the world: the dead about a place, [{x, z, r, n, haunt}], wandering near it (they
+   * don't come back when cut down: only the graveyard keeps its dead). */
+  populateWild(places) {
+    let n = 0;
+    for (const pl of places) for (let i = 0; i < pl.n; i++) {
+      const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * pl.r;
+      const x = pl.x + Math.cos(a) * d, z = pl.z + Math.sin(a) * d;
+      if (pl.ok && !pl.ok(x, z)) continue;
+      const zb = this.spawn(this.randomVariant(pl.haunt), x, z, { zone: 'wild', kind: pickKind(pl.lurk ?? 0.15), start: pl.start || 'stand' });
+      zb.yaw = Math.random() * 6.28;
+      n++;
+    }
+    return n;
   }
 
   /** A zombie that has found you calls the others within `r` metres. */
@@ -1228,13 +1522,16 @@ export class Zombies {
   /** Steps along the corridors from you (a breadth-first flood over the carved grid, redone when
    * you move to another cell). */
   flowUpdate(player, dt) {
-    const dg = this.dg;
     this.flowT -= dt;
+    const p = player.pos;
+    // the place you are in (the dead of the others can't follow you there)
+    const dg = (this.unders || []).find((u) => u.contains(p)) || null;
+    if (dg !== this.dg) { this.dg = dg; this.flow = null; this.flowKey = -1; }
     if (!dg) return;
-    const nav = dg.nav, p = player.pos;
+    const nav = dg.nav;
     const ci = Math.floor(p.x - nav.x0), ck = Math.floor(p.z - nav.z0);
-    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz || p.y > dg.y + 4 || nav.cell[ck * nav.nx + ci] < 0) { this.flow = null; this.flowKey = -1; return; }
-    const walk = this.walk;
+    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz || nav.cell[ck * nav.nx + ci] < 0) { this.flow = null; this.flowKey = -1; return; }
+    const walk = dg.walk;
     const key = ck * nav.nx + ci;
     if (key === this.flowKey && this.flowT > 0) return;
     this.flowKey = key; this.flowT = 0.5;
@@ -1259,9 +1556,9 @@ export class Zombies {
     this.flow = dist;
   }
 
-  /** How many corridor steps from you p is (Infinity if not reachable or not down there). */
-  flowAt(p) {
-    if (!this.flow) return Infinity;
+  /** How many corridor steps from you p is (Infinity if not reachable, or not where you are). */
+  flowAt(p, dg = this.dg) {
+    if (!this.flow || dg !== this.dg) return Infinity;
     const nav = this.dg.nav, i = Math.floor(p.x - nav.x0), k = Math.floor(p.z - nav.z0);
     if (i < 0 || k < 0 || i >= nav.nx || k >= nav.nz) return Infinity;
     const d = this.flow[k * nav.nx + i];
@@ -1269,8 +1566,8 @@ export class Zombies {
   }
 
   /** The way toward you along the corridors from p, into out; false if there is none. */
-  flowDir(p, out) {
-    if (!this.flow) return false;
+  flowDir(p, out, dg = this.dg) {
+    if (!this.flow || dg !== this.dg) return false;
     const nav = this.dg.nav, i = Math.floor(p.x - nav.x0), k = Math.floor(p.z - nav.z0);
     const at = (a, b) => (a < 0 || b < 0 || a >= nav.nx || b >= nav.nz ? -1 : this.flow[b * nav.nx + a]);
     const here = at(i, k);
@@ -1322,7 +1619,9 @@ export class Zombies {
     return best;
   }
 
-  addPiece(z, tris, joint, dir) {
+  /** A piece cut off z: its triangles `tris` (vertex numbers in threes), drawn in `groups`
+   * ([start, count, material]) when z has several materials. */
+  addPiece(z, tris, joint, dir, groups = null) {
     const src = z.mesh.geometry, uv = src.attributes.uv, bind = src.attributes.bindPos, shell = src.attributes.shell;
     const map = new Map(), pos = [], bp = [], uvs = [], sh = [], index = [];
     const v = new THREE.Vector3();
@@ -1349,18 +1648,22 @@ export class Zombies {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     if (shell) g.setAttribute('shell', new THREE.Float32BufferAttribute(sh, 1));   // armour and cloth stay armour and cloth inside
     g.setIndex(index);
+    for (const [s, n, k] of groups || []) g.addGroup(s, n, k);
     g.computeVertexNormals();
     g.computeBoundingSphere();
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
-    const mat = z.mesh.material.clone();
-    mat.userData.u = z.u;
-    mat.onBeforeCompile = z.mesh.material.onBeforeCompile;
-    mat.customProgramCacheKey = z.mesh.material.customProgramCacheKey;
-    const m = new THREE.Mesh(g, mat);
+    const own = (src) => {
+      const mat = src.clone();
+      mat.userData.u = z.u;
+      mat.onBeforeCompile = src.onBeforeCompile;
+      mat.customProgramCacheKey = src.customProgramCacheKey;
+      return mat;
+    };
+    const m = new THREE.Mesh(g, Array.isArray(z.mesh.material) ? z.mesh.material.map(own) : own(z.mesh.material));
     m.position.copy(c);
     m.castShadow = true;
     this.scene.add(m);
-    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); }
+    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); o.m.geometry.dispose(); for (const x of [o.m.material].flat()) x.dispose(); }
     // its long axis (towards the farthest vertex) and how thick it is, to lie it down on the ground
     let far = 0;
     const long = new THREE.Vector3();
@@ -1470,7 +1773,7 @@ export class Zombies {
         const inYard = player.pos.x > y.x0 - 20 && player.pos.x < y.x1 + 20 && player.pos.z > y.z0 - 20 && player.pos.z < y.z1 + 20;
         const s = this.graveSpot(inYard ? player.pos : null);
         if (s) {
-          const zb = this.spawn(this.randomVariant(), s[0], s[1], { zone: 'yard', kind: pickKind(0.08), start: 'rise' });
+          const zb = this.spawn(this.randomVariant('yard'), s[0], s[1], { zone: 'yard', kind: pickKind(0.08), start: 'rise' });
           zb.yaw = Math.atan2(player.pos.x - zb.pos.x, player.pos.z - zb.pos.z);
         }
       }

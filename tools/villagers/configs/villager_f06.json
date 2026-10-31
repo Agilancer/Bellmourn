@@ -1,0 +1,66 @@
+{
+ "seed": 4406,
+ "face": "10_Casual",
+ "morph": {
+  "african-female-young": 1.0,
+  "nose-volume-point": 0.207,
+  "head-scale-horiz-more": 0.115,
+  "l-cheek-bones-out": 0.371,
+  "r-cheek-bones-out": 0.371,
+  "l-ear-size-big": 0.192,
+  "r-ear-size-big": 0.192,
+  "nose-scale-horiz-decr": 0.427,
+  "l-ear-flap-out": 0.201,
+  "r-ear-flap-out": 0.201,
+  "chin-width-min": 0.381,
+  "forehead-scale-vert-more": 0.536
+ },
+ "eye": "brown",
+ "iris_tint": [
+  0.5,
+  0.66,
+  0.79
+ ],
+ "dress": {
+  "White": [
+   "linen_brown",
+   1.0,
+   0.3
+  ],
+  "Orange": [
+   "burlap_coarse",
+   0.8,
+   0.3
+  ],
+  "Grey": [
+   "leather_strapwork",
+   0.8,
+   0.3
+  ],
+  "Casual_Feet:Skin": [
+   "leather_tooled",
+   0.6,
+   0.3
+  ]
+ },
+ "line": 0.0,
+ "scale": 0.98,
+ "outfit": "Casual",
+ "skin_tile": "10_Deep_Brown_Skin",
+ "hair": "Braid01",
+ "sleeves": "White",
+ "parts": [
+  "Casual_Body",
+  "Casual_Legs",
+  "Casual_Feet"
+ ],
+ "name": "villager_f06",
+ "sex": "female",
+ "shells": 0,
+ "eye_z": 1.665,
+ "views": [
+  "hero_34",
+  "hero_face"
+ ],
+ "samples": 40
+}

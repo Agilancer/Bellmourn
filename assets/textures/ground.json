@@ -1,0 +1,1671 @@
+{
+ "sets": [
+  {
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "tiles": 10
+  },
+  {
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "tiles": 10
+  },
+  {
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "tiles": 10
+  },
+  {
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "tiles": 10
+  },
+  {
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "tiles": 10
+  },
+  {
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "tiles": 10
+  },
+  {
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "tiles": 10
+  },
+  {
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "tiles": 10
+  },
+  {
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "tiles": 10
+  }
+ ],
+ "surfaces": [
+  {
+   "id": "ground_snow_01",
+   "file": "ground/snow/snow_01.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9cbd0"
+  },
+  {
+   "id": "ground_snow_02",
+   "file": "ground/snow/snow_02.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cacbd0"
+  },
+  {
+   "id": "ground_snow_03",
+   "file": "ground/snow/snow_03.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9cacf"
+  },
+  {
+   "id": "ground_snow_04",
+   "file": "ground/snow/snow_04.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#ccced2"
+  },
+  {
+   "id": "ground_snow_05",
+   "file": "ground/snow/snow_05.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cbccd1"
+  },
+  {
+   "id": "ground_snow_06",
+   "file": "ground/snow/snow_06.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cccdd2"
+  },
+  {
+   "id": "ground_snow_07",
+   "file": "ground/snow/snow_07.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cccdd2"
+  },
+  {
+   "id": "ground_snow_08",
+   "file": "ground/snow/snow_08.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#c9cacf"
+  },
+  {
+   "id": "ground_snow_09",
+   "file": "ground/snow/snow_09.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cccdd2"
+  },
+  {
+   "id": "ground_snow_10",
+   "file": "ground/snow/snow_10.jpg",
+   "kind": "ground",
+   "set": "snow",
+   "sheet": "art/ground/01_snow.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#cacbd1"
+  },
+  {
+   "id": "ground_flagstones_01",
+   "file": "ground/flagstones/flagstones_01.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#90836f"
+  },
+  {
+   "id": "ground_flagstones_02",
+   "file": "ground/flagstones/flagstones_02.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#948670"
+  },
+  {
+   "id": "ground_flagstones_03",
+   "file": "ground/flagstones/flagstones_03.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#91836e"
+  },
+  {
+   "id": "ground_flagstones_04",
+   "file": "ground/flagstones/flagstones_04.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#928671"
+  },
+  {
+   "id": "ground_flagstones_05",
+   "file": "ground/flagstones/flagstones_05.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#928470"
+  },
+  {
+   "id": "ground_flagstones_06",
+   "file": "ground/flagstones/flagstones_06.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#938672"
+  },
+  {
+   "id": "ground_flagstones_07",
+   "file": "ground/flagstones/flagstones_07.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#928571"
+  },
+  {
+   "id": "ground_flagstones_08",
+   "file": "ground/flagstones/flagstones_08.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#92846f"
+  },
+  {
+   "id": "ground_flagstones_09",
+   "file": "ground/flagstones/flagstones_09.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#968874"
+  },
+  {
+   "id": "ground_flagstones_10",
+   "file": "ground/flagstones/flagstones_10.jpg",
+   "kind": "ground",
+   "set": "flagstones",
+   "sheet": "art/ground/02_flagstones.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#928671"
+  },
+  {
+   "id": "ground_forest_floor_01",
+   "file": "ground/forest_floor/forest_floor_01.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a3829"
+  },
+  {
+   "id": "ground_forest_floor_02",
+   "file": "ground/forest_floor/forest_floor_02.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#463627"
+  },
+  {
+   "id": "ground_forest_floor_03",
+   "file": "ground/forest_floor/forest_floor_03.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#483728"
+  },
+  {
+   "id": "ground_forest_floor_04",
+   "file": "ground/forest_floor/forest_floor_04.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a392a"
+  },
+  {
+   "id": "ground_forest_floor_05",
+   "file": "ground/forest_floor/forest_floor_05.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b392b"
+  },
+  {
+   "id": "ground_forest_floor_06",
+   "file": "ground/forest_floor/forest_floor_06.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b392a"
+  },
+  {
+   "id": "ground_forest_floor_07",
+   "file": "ground/forest_floor/forest_floor_07.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b392a"
+  },
+  {
+   "id": "ground_forest_floor_08",
+   "file": "ground/forest_floor/forest_floor_08.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a382a"
+  },
+  {
+   "id": "ground_forest_floor_09",
+   "file": "ground/forest_floor/forest_floor_09.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4a392b"
+  },
+  {
+   "id": "ground_forest_floor_10",
+   "file": "ground/forest_floor/forest_floor_10.jpg",
+   "kind": "ground",
+   "set": "forest_floor",
+   "sheet": "art/ground/03_forest_floor.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4b3a2b"
+  },
+  {
+   "id": "ground_sand_01",
+   "file": "ground/sand/sand_01.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d4ad7b"
+  },
+  {
+   "id": "ground_sand_02",
+   "file": "ground/sand/sand_02.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d2ab79"
+  },
+  {
+   "id": "ground_sand_03",
+   "file": "ground/sand/sand_03.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d1ab79"
+  },
+  {
+   "id": "ground_sand_04",
+   "file": "ground/sand/sand_04.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d3ad7c"
+  },
+  {
+   "id": "ground_sand_05",
+   "file": "ground/sand/sand_05.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d2ab79"
+  },
+  {
+   "id": "ground_sand_06",
+   "file": "ground/sand/sand_06.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d4ad7b"
+  },
+  {
+   "id": "ground_sand_07",
+   "file": "ground/sand/sand_07.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d2ac7b"
+  },
+  {
+   "id": "ground_sand_08",
+   "file": "ground/sand/sand_08.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d3ac7b"
+  },
+  {
+   "id": "ground_sand_09",
+   "file": "ground/sand/sand_09.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d3ac7b"
+  },
+  {
+   "id": "ground_sand_10",
+   "file": "ground/sand/sand_10.jpg",
+   "kind": "ground",
+   "set": "sand",
+   "sheet": "art/ground/04_sand.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d3ac7b"
+  },
+  {
+   "id": "ground_concrete_01",
+   "file": "ground/concrete/concrete_01.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a8a39c"
+  },
+  {
+   "id": "ground_concrete_02",
+   "file": "ground/concrete/concrete_02.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a7a19b"
+  },
+  {
+   "id": "ground_concrete_03",
+   "file": "ground/concrete/concrete_03.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a6a19b"
+  },
+  {
+   "id": "ground_concrete_04",
+   "file": "ground/concrete/concrete_04.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a6a19b"
+  },
+  {
+   "id": "ground_concrete_05",
+   "file": "ground/concrete/concrete_05.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a7a19b"
+  },
+  {
+   "id": "ground_concrete_06",
+   "file": "ground/concrete/concrete_06.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a6a19b"
+  },
+  {
+   "id": "ground_concrete_07",
+   "file": "ground/concrete/concrete_07.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a6a19b"
+  },
+  {
+   "id": "ground_concrete_08",
+   "file": "ground/concrete/concrete_08.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a8a39d"
+  },
+  {
+   "id": "ground_concrete_09",
+   "file": "ground/concrete/concrete_09.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a8a39d"
+  },
+  {
+   "id": "ground_concrete_10",
+   "file": "ground/concrete/concrete_10.jpg",
+   "kind": "ground",
+   "set": "concrete",
+   "sheet": "art/ground/05_concrete.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a7a29c"
+  },
+  {
+   "id": "ground_cobbles_01",
+   "file": "ground/cobbles/cobbles_01.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6d6252"
+  },
+  {
+   "id": "ground_cobbles_02",
+   "file": "ground/cobbles/cobbles_02.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6d6152"
+  },
+  {
+   "id": "ground_cobbles_03",
+   "file": "ground/cobbles/cobbles_03.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6f6454"
+  },
+  {
+   "id": "ground_cobbles_04",
+   "file": "ground/cobbles/cobbles_04.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6e6353"
+  },
+  {
+   "id": "ground_cobbles_05",
+   "file": "ground/cobbles/cobbles_05.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6e6455"
+  },
+  {
+   "id": "ground_cobbles_06",
+   "file": "ground/cobbles/cobbles_06.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6f6454"
+  },
+  {
+   "id": "ground_cobbles_07",
+   "file": "ground/cobbles/cobbles_07.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6e6454"
+  },
+  {
+   "id": "ground_cobbles_08",
+   "file": "ground/cobbles/cobbles_08.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#6e6354"
+  },
+  {
+   "id": "ground_cobbles_09",
+   "file": "ground/cobbles/cobbles_09.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#716656"
+  },
+  {
+   "id": "ground_cobbles_10",
+   "file": "ground/cobbles/cobbles_10.jpg",
+   "kind": "ground",
+   "set": "cobbles",
+   "sheet": "art/ground/06_cobbles.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#716757"
+  },
+  {
+   "id": "ground_gravel_01",
+   "file": "ground/gravel/gravel_01.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7d7368"
+  },
+  {
+   "id": "ground_gravel_02",
+   "file": "ground/gravel/gravel_02.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7c7266"
+  },
+  {
+   "id": "ground_gravel_03",
+   "file": "ground/gravel/gravel_03.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7d7368"
+  },
+  {
+   "id": "ground_gravel_04",
+   "file": "ground/gravel/gravel_04.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7f7469"
+  },
+  {
+   "id": "ground_gravel_05",
+   "file": "ground/gravel/gravel_05.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e746a"
+  },
+  {
+   "id": "ground_gravel_06",
+   "file": "ground/gravel/gravel_06.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e7469"
+  },
+  {
+   "id": "ground_gravel_07",
+   "file": "ground/gravel/gravel_07.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e7368"
+  },
+  {
+   "id": "ground_gravel_08",
+   "file": "ground/gravel/gravel_08.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7d7368"
+  },
+  {
+   "id": "ground_gravel_09",
+   "file": "ground/gravel/gravel_09.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7e7469"
+  },
+  {
+   "id": "ground_gravel_10",
+   "file": "ground/gravel/gravel_10.jpg",
+   "kind": "ground",
+   "set": "gravel",
+   "sheet": "art/ground/07_gravel.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#7f7569"
+  },
+  {
+   "id": "ground_dirt_01",
+   "file": "ground/dirt/dirt_01.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8f6a46"
+  },
+  {
+   "id": "ground_dirt_02",
+   "file": "ground/dirt/dirt_02.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6944"
+  },
+  {
+   "id": "ground_dirt_03",
+   "file": "ground/dirt/dirt_03.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8d6844"
+  },
+  {
+   "id": "ground_dirt_04",
+   "file": "ground/dirt/dirt_04.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6944"
+  },
+  {
+   "id": "ground_dirt_05",
+   "file": "ground/dirt/dirt_05.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8d6843"
+  },
+  {
+   "id": "ground_dirt_06",
+   "file": "ground/dirt/dirt_06.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#906a46"
+  },
+  {
+   "id": "ground_dirt_07",
+   "file": "ground/dirt/dirt_07.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e6844"
+  },
+  {
+   "id": "ground_dirt_08",
+   "file": "ground/dirt/dirt_08.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8f6a46"
+  },
+  {
+   "id": "ground_dirt_09",
+   "file": "ground/dirt/dirt_09.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8d6945"
+  },
+  {
+   "id": "ground_dirt_10",
+   "file": "ground/dirt/dirt_10.jpg",
+   "kind": "ground",
+   "set": "dirt",
+   "sheet": "art/ground/08_dirt.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#906b47"
+  },
+  {
+   "id": "ground_grass_01",
+   "file": "ground/grass/grass_01.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    0,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#436f1a"
+  },
+  {
+   "id": "ground_grass_02",
+   "file": "ground/grass/grass_02.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    0,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#48741c"
+  },
+  {
+   "id": "ground_grass_03",
+   "file": "ground/grass/grass_03.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    0,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#45701b"
+  },
+  {
+   "id": "ground_grass_04",
+   "file": "ground/grass/grass_04.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    0,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#47731c"
+  },
+  {
+   "id": "ground_grass_05",
+   "file": "ground/grass/grass_05.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    0,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#44701a"
+  },
+  {
+   "id": "ground_grass_06",
+   "file": "ground/grass/grass_06.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    1,
+    0
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#44701b"
+  },
+  {
+   "id": "ground_grass_07",
+   "file": "ground/grass/grass_07.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    1,
+    1
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#446f1b"
+  },
+  {
+   "id": "ground_grass_08",
+   "file": "ground/grass/grass_08.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    1,
+    2
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#446f1b"
+  },
+  {
+   "id": "ground_grass_09",
+   "file": "ground/grass/grass_09.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    1,
+    3
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#44701b"
+  },
+  {
+   "id": "ground_grass_10",
+   "file": "ground/grass/grass_10.jpg",
+   "kind": "ground",
+   "set": "grass",
+   "sheet": "art/ground/09_grass.webp",
+   "cell": [
+    1,
+    4
+   ],
+   "size": [
+    256,
+    256
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#436f1a"
+  }
+ ]
+}

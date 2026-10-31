@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Builder } from './geo.js';
 import { detailedHouse } from './buildings.js';
-import { REGION, POOL, CLIFF, STREAM, terrainHeight, addPad, buildTerrain, buildWater, streamAt } from './terrain.js';
+import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, streamAt, riverAt } from './terrain.js';
+import { buildWater } from './water.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -43,15 +44,15 @@ export function buildRegion(ctx, M, hm) {
     [[604, -10], [640, -24], [672, -34], [684, -36]],
   ];
   const downsMat = buildTerrain(ctx, lib, paths);
-  ctx.water = buildWater(ctx, lib);
+  ctx.water = buildWater(ctx);
   const H = (x, z) => terrainHeight(x, z);
 
   // ---------------------------------------------------------------- the farm
-  detailedHouse(ctx, { name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 15, d: 10, h: 3.9, storeys: 2, timber: true,
+  detailedHouse(ctx, { biome: 'downs', name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 15, d: 10, h: 3.9, storeys: 2, timber: true,
     wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'vc_planks_02', door: 's', chimney: [4, -2], dormers: 2,
     furnish: [['table', -2, 0, 0], ['stool', -2, 1.2], ['stool', -3.2, 0], ['bed', 5, -2.5, Math.PI / 2], ['barrel', -6, -3.5], ['barrel', -6, -2.4], ['bookshelf', 2, -4.2, 0], ['candelabrum', 6, 3.5]] },
   M, { ...hm, ...hm.perHouse(1) });
-  detailedHouse(ctx, { name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 14, d: 18, h: 6.2, storeys: 1, timber: true,
+  detailedHouse(ctx, { biome: 'downs', name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 14, d: 18, h: 6.2, storeys: 1, timber: true,
     wall: 'vc_planks_06', roof: 'town_roof_oak_shingles', floor: 'town_stable_yard', door: 'w', openFront: true, furnish: [] }, M, { ...hm, ...hm.perHouse(2) });
   const S = (id, x, z, s = 1, rot = null, dy = 0) => ctx.scatter.place(id, x, H(x, z) + dy, z, s, rot);
   for (const [x, z] of [[452, 100], [452, 104], [453.5, 102], [462, 114], [463, 117]]) S('town_scatter_06_hay_bale', x, z, 1, 0.1);
@@ -72,7 +73,7 @@ export function buildRegion(ctx, M, hm) {
   windmill(ctx, M, mill.x, mill.z, mill.y, hm);
 
   // ---------------------------------------------------------------- the hamlet
-  homes.forEach((h, i) => detailedHouse(ctx, { ...h, h: 3.7, storeys: 2, timber: i % 2 === 0,
+  homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0,
     furnish: [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2], ['bookshelf', 1.5, -h.d / 2 + 0.6, 0]] },
   M, { ...hm, ...hm.perHouse(3 + i) }));
   for (const h of homes) { // a little clutter by each home
@@ -87,7 +88,7 @@ export function buildRegion(ctx, M, hm) {
   const clearOf = (x, z, pad) => !homes.some((h) => Math.hypot(x - h.x, z - h.z) < Math.max(h.w, h.d) + pad)
     && Math.hypot(x - farm.x, z - farm.z) > 24 + pad && Math.hypot(x - barn.x, z - barn.z) > 20 + pad && Math.hypot(x - mill.x, z - mill.z) > 12 + pad
     && !fields.some((f) => Math.abs(x - f.x) < f.w / 2 + pad && Math.abs(z - f.z) < f.d / 2 + pad)
-    && streamAt(x, z).d > 10 + pad * 0.5 && Math.hypot(x - POOL.x, z - POOL.z) > POOL.r + 8;
+    && streamAt(x, z).d > 10 + pad * 0.5 && Math.hypot(x - POOL.x, z - POOL.z) > POOL.r + 8 && riverAt(x, z).d > 9 + pad * 0.5;
   let made = 0;
   for (let i = 0; i < 400 && made < 16; i++) { // outcrops on the hilltops
     const x = REGION.x0 + 60 + R() * (CLIFF.x - REGION.x0 - 80), z = REGION.z0 + 30 + R() * (REGION.z1 - REGION.z0 - 60);
@@ -106,6 +107,7 @@ export function buildRegion(ctx, M, hm) {
   for (let i = 0; i < 70; i++) {
     const z = REGION.z0 + 14 + (i / 70) * (REGION.z1 - REGION.z0 - 28) + (R() - 0.5) * 6;
     if (Math.abs(z - (POOL.z - 2)) < 7) continue; // leave the waterfall clear
+    if (Object.values(CAVE_MOUTHS).some((mz) => Math.abs(z - mz) < 9)) continue;   // and the caves' mouths (delves.js frames them)
     const cx = CLIFF.x + Math.sin(z * 0.021) * 9 + Math.sin(z * 0.06) * 3, up = R();
     const x = cx - 7 + up * 9, s = 1.8 + R() * 3.2, y = H(x, z) - s * 0.4;
     b.place(x, y, z, R() * 6.28, 1, (B) => B.blob([0, 0, 0], [s * (0.8 + R() * 0.5), s * (1 + R() * 0.8), s], rock[i % 4], { detail: 1, jitter: 0.25, seed: 900 + i }), { tag: 'rock' });
@@ -138,6 +140,7 @@ export function buildRegion(ctx, M, hm) {
     const x = side === 2 ? REGION.x1 - R() * 14 : REGION.x0 + 20 + t * (REGION.x1 - REGION.x0 - 20);
     const z = side === 0 ? REGION.z0 + R() * 16 : side === 1 ? REGION.z1 - R() * 16 : REGION.z0 + t * (REGION.z1 - REGION.z0);
     const tr = edgeTrees[i % edgeTrees.length];
+    if (riverAt(x, z).d < 8) continue;   // (the river runs in from the back of the plateau)
     bill.add(tr.id, x, H(x, z), z, 1.0 + R() * 0.6, 0.8 + R() * 0.3);
     if (i % 4 === 0) ctx.trees3d.add(['pine', 'cedar', 'oak', 'forest'][i % 4 === 0 ? (i / 4) % 4 : 0], x + 4, H(x + 4, z), z, 1 + R() * 0.4);
   }
@@ -149,6 +152,7 @@ export function buildRegion(ctx, M, hm) {
     if (st.d < 4.5 || Math.hypot(x - POOL.x, z - POOL.z) < POOL.r + 2) continue;
     const y = H(x, z);
     if (x > CLIFF.x - 12 && x < CLIFF.x + 8) continue; // not on the cliff face
+    if (riverAt(x, z).d < 6) continue;                  // nor in the river
     const s = veg[(st.d < 14 && i % 3 === 0) ? veg.findIndex((v) => /reeds/.test(v.id)) : i % veg.length];
     bill.add(s.id, x, y, z, 0.6 + R() * 0.5, 0.85 + R() * 0.25);
   }
@@ -246,7 +250,9 @@ function windmill(ctx, M, x, z, y, hm) {
   for (let i = 0; i < 2; i++) b.beam([x + 2.6 + i * 0.45, y + 0.25, z - 2], [x + 2.2 + i * 0.45, y + hgt - 0.3, z - 2.4], 0.07, 0.07, timber);
   for (let k = 0; k < 14; k++) b.beam([x + 2.58, y + 0.6 + k * 0.8, z - 2.05 - k * 0.028], [x + 3.07, y + 0.6 + k * 0.8, z - 2.05 - k * 0.028], 0.05, 0.05, timber);
   props.add('candelabrum', x - 2.2, y + 0.25, z + 2.2);
-  ctx.zones.push({ x0: x - r0, z0: z - r0, x1: x + r0, z1: z + r0, y0: y - 1, y1: y + hgt, name: 'The Millhaven Windmill' });
+  const zone = { x0: x - r0, z0: z - r0, x1: x + r0, z1: z + r0, y0: y - 1, y1: y + hgt, name: 'The Millhaven Windmill' };
+  ctx.zones.push(zone);
+  ctx.interiors?.push({ ...zone, x0: x - r1 + 1, z0: z - r1 + 1, x1: x + r1 - 1, z1: z + r1 - 1, floor: y + 0.25, biome: 'downs' });
   // the sails: their own mesh, turning about the hub on the side facing the wind (west)
   const sb = new Builder({ add() {} });
   const cloth = M('cloth_04_aged_cream_linen', 1.2, { side: THREE.DoubleSide });

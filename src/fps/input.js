@@ -2,6 +2,10 @@
 // Everything ends up in one state the game reads each frame: move (-1..1 x/y), look deltas
 // (radians), and actions held or pressed this frame.
 
+// a phone or tablet: the main pointer is a finger. (A laptop with a touchscreen has a mouse or
+// touchpad as its main pointer, and plays with that.)
+export const TOUCH = matchMedia('(pointer: coarse)').matches;
+
 export class Input {
   constructor(canvas, ui) {
     this.canvas = canvas;
@@ -10,7 +14,7 @@ export class Input {
     this.look = [0, 0];
     this.mouse = { left: false, right: false };
     this.move = [0, 0];         // touch joystick
-    this.touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    this.touch = TOUCH;
     this.sensitivity = 0.0022;
     this.touchLook = 0.006;
     this.stickRun = false;      // the stick pushed right out runs
@@ -22,7 +26,7 @@ export class Input {
       if (['Tab', 'Space'].includes(e.code)) e.preventDefault();
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
-    addEventListener('blur', () => { this.keys.clear(); this.mouse.left = this.mouse.right = false; });
+    addEventListener('blur', () => this.release());
     canvas.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas) {
         if (this.enabled && !this.touch) canvas.requestPointerLock?.();
@@ -46,10 +50,25 @@ export class Input {
 
   get locked() { return document.pointerLockElement === this.canvas; }
 
+  /** Let go of everything held (the window lost focus, or the touch controls were put away). */
+  release() {
+    this.keys.clear();
+    this.mouse.left = this.mouse.right = false;
+    this.move = [0, 0]; this.stickRun = false;
+    this.resetTouch?.();
+  }
+
   setupTouch(ui) {
     const stick = ui.querySelector('#stick'), knob = ui.querySelector('#knob');
     let stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
     const R = 56;
+    this.resetTouch = () => {
+      stickId = lookId = null;
+      knob.style.transform = ''; stick.style.opacity = 0.35;
+      for (const b of ui.querySelectorAll('.tbtn.down')) b.classList.remove('down');
+    };
+    // iOS Safari zooms on a pinch whatever the viewport tag says
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
     const onStart = (e) => {
       for (const t of e.changedTouches) {
         if (t.target.closest('.tbtn')) continue;
