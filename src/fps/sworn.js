@@ -21,14 +21,11 @@
 // left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { ualClips, legJoints, attach } from './ual.js';
+import { ualClipsAsync, legJoints, attach, holdEnd, VILLAGER_BONES } from './ual.js';
 
 // the villager's bones under the zombie body's names (the rest keep their own: Body, Torso, the
 // fingers, the ends and the pole targets)
-const BONES = { Root: 'root', Hips: 'hips', Abdomen: 'spine', Chest: 'chest', Neck: 'neck', Head: 'head',
-  ShoulderL: 'shoulderL', UpperArmL: 'upper_armL', LowerArmL: 'forearmL', WristL: 'handL',
-  ShoulderR: 'shoulderR', UpperArmR: 'upper_armR', LowerArmR: 'forearmR', WristR: 'handR',
-  UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL', UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR' };
+const BONES = VILLAGER_BONES;
 const HEAD = /^V_(Head|Eyes|Lashes)/;   // what the villager keeps under the helm (not its clothes or hair)
 const HAIR = /^V_Hair/;                 // (and bareheaded, its hair)
 const CASTS = ['cast1', 'cast2', 'blink'];   // what an adept takes of the sorcerers' clips
@@ -200,7 +197,7 @@ function sockets(meta, sSkel, dSkel) {
  * has them (the knight's are kept for the rest: the fall and everything on the ground). `legacy`: the
  * knight's clips alone, as they were first carried over (the thighs and feet left where they hang).
  * Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
-export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null, ual = null, legacy = false } = {}) {
+export async function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null, ual = null, legacy = false } = {}) {
   const scene = villager.scene;
   // what the villager keeps (its head, and its hair if bareheaded) and what it wears (every piece
   // of the set, but the helm if it goes without)
@@ -236,12 +233,14 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
   fists(bound);
   let animations, ualHits = {}, gait = null;
   if (ual) {
-    const made = ualClips(ual, scene, bound, { mesh: body });
+    const made = await ualClipsAsync(ual, scene, bound, { mesh: body });   // (a few milliseconds at a time)
     const have = new Set(made.clips.map((c) => c.name));
     animations = [...made.clips, ...retarget(knight, scene, bound, knight.animations.map((c) => c.name).filter((n) => !have.has(n) && n !== 'dead'))];
-    // lying where the knockback threw it
-    const death = made.clips.find((c) => c.name === 'death'), last = Math.round(death.duration * FPS);
-    animations.push(THREE.AnimationUtils.subclip(death, 'dead', last - 1, last, FPS));
+    // lying where each death left it
+    for (const [d, lie] of [['death', 'dead'], ['death2', 'dead2']]) {
+      const c = made.clips.find((x) => x.name === d);
+      if (c) animations.push(holdEnd(c, lie));
+    }
     ualHits = made.hits; gait = made.gaits;
   } else animations = retarget(knight, scene, bound, null, legacy);
   if (casts) animations.push(...retarget(casts, scene, bound, CASTS, legacy));

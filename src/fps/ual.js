@@ -1,19 +1,22 @@
-// Quaternius' Universal Animation Library 2 (CC0) on the Sworn: the mannequin's clips
-// (templates/models/creatures/sworn/ual2.glb, cut down by tools/creatures/sworn_ual/trim.py) carried
+// Quaternius' Universal Animation Libraries 1 and 2 (CC0) on the Sworn: the mannequin's clips
+// (templates/models/creatures/sworn/ual.glb, cut down by tools/creatures/sworn_ual/trim.py) carried
 // onto a sworn body bone for bone. Both skeletons stand in a T-pose facing +z, and the mannequin's
 // bones match the villager's one to one (pelvis, three spine bones, neck, head; clavicle, upper and
 // lower arm, hand, three joints of each finger; thigh, calf, foot), so each of the body's bones takes
 // the mannequin bone's turn away from that pose, in the world; the hips also take the pelvis's rise,
 // fall and sway (scaled to the leg), and where the mannequin's feet are on the ground, the body's are.
 //
-// The library has no plain walk, run or death, so some clips are put together (RECIPES): the walk is
-// the mannequin's carrying walk below the waist under the shield guard above it; the run is that walk
-// twice as quick, its strides lengthened and the body pitched into them; the shield bash and the
-// charge's impact are the sword lunge's and the shield dash's legs driving the guard forward; the
-// death is the knockback that throws it flat on its back.
+// Some clips are put together (RECIPES): the walk, jog and sprint are the first library's below the
+// waist under the second's shield guard above it (pitched into the stride as they quicken); the shield
+// raised is the guard braced; the deaths are the knockback and the first library's fall.
+//
+// Every other body on a skeleton like it takes the same clips (ualBody): the villagers (their own bone
+// names mapped to the Sworn's, VILLAGER_BONES) and the open country's knights and sorcerers (the
+// zombie body's 20 bones, already under those names). A body without a shield stands easy (CALM).
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
-export const UAL_URL = 'templates/models/creatures/sworn/ual2.glb';
+export const UAL_URL = 'templates/models/creatures/sworn/ual.glb';
 const FPS = 30;
 
 // the mannequin's bones under the Sworn's names (sworn.js renames the villager's to the zombie body's;
@@ -31,8 +34,8 @@ const LOWER = new Set(['root', 'pelvis', 'thigh_l', 'calf_l', 'foot_l', 'ball_l'
 /** What each of the body's clips is made of. A recipe is a clip of the library (`src`, from `from` to
  * `to` seconds, played at `speed`), or a sequence of them (`seq`), with optionally another clip above
  * the waist (`upper`, stretched to fit if it loops, or held at its time `at`), standing as it stands
- * in its own clip or (`lean`) leaning as this one's hips lean. `stride`: the thighs' and the knees'
- * swing about their middle made that much bigger; `pitch`: the whole body tipped forward (radians);
+ * in its own clip or (`lean`) leaning as this one's hips lean; `pitch`: the body above the waist
+ * tipped forward (radians);
  * `turn`: bones turned further, in the world, each [bone, axis, radians] (after the bones above it);
  * `guard`: [in, out], the parts of the clip over which the shield arm comes out of the guard (the
  * library's moves start and end with it hanging) and goes back into it, so it joins the guard.
@@ -42,8 +45,35 @@ const LOWER = new Set(['root', 'pelvis', 'thigh_l', 'calf_l', 'foot_l', 'ball_l'
  * `gait`: measure how fast it goes over the ground (its feet don't slide played at that pace). */
 export const RECIPES = {
   idle: { src: 'Idle_Shield_Loop', plant: true },
-  walk: { src: 'Walk_Carry_Loop', upper: 'Idle_Shield_Loop', stride: [1.3, 1.15], plant: true, gait: true },
-  run: { src: 'Walk_Carry_Loop', upper: 'Idle_Shield_Loop', speed: 2, stride: [1.9, 1.6], pitch: 0.3, plant: true, gait: true },
+  walk: { src: 'Walk_Loop', upper: 'Idle_Shield_Loop', plant: true, gait: true },
+  run: { src: 'Jog_Fwd_Loop', upper: 'Idle_Shield_Loop', pitch: 0.1, plant: true, gait: true },
+  sprint: { src: 'Sprint_Loop', upper: 'Idle_Shield_Loop', pitch: 0.22, plant: true, gait: true },    // (the shield charge)
+  // not after anyone: at ease, on his round, talking, without his shield
+  idle_calm: { src: 'Idle_Loop', plant: true },
+  idle_talk: { src: 'Idle_Talking_Loop', plant: true },
+  idle_sword: { src: 'Sword_Idle', plant: true },
+  patrol: { src: 'Walk_Formal_Loop', plant: true, gait: true },
+  attack4: { src: 'Sword_Attack', plant: true, hit: 13, guard: [0.2, 0.3] },
+  punch1: { src: 'Punch_Jab', plant: true, hit: 6 },
+  punch2: { src: 'Punch_Cross', plant: true, hit: 8 },
+  roll: { src: 'Roll', ground: true },
+  hit_head: { src: 'Hit_Head', plant: true },
+  hit_chest: { src: 'Hit_Chest', plant: true },
+  death2: { src: 'Death01', ground: true },
+  cast: { seq: [{ src: 'Spell_Simple_Enter' }, { src: 'Spell_Simple_Shoot' }, { src: 'Spell_Simple_Exit' }], plant: true, hit: 24 },
+  // the everyday: kept for anyone on this skeleton (the villagers too)
+  crouch: { src: 'Crouch_Idle_Loop', plant: true },
+  crouch_walk: { src: 'Crouch_Fwd_Loop', plant: true, gait: true },
+  torch: { src: 'Idle_Torch_Loop', plant: true },
+  sit: { src: 'Sitting_Enter', plant: true },
+  sit_idle: { src: 'Sitting_Idle_Loop', plant: true },
+  sit_talk: { src: 'Sitting_Talking_Loop', plant: true },
+  stand: { src: 'Sitting_Exit', plant: true },
+  interact: { src: 'Interact', plant: true },
+  pickup: { src: 'PickUp_Table', plant: true },
+  kneel: { src: 'Fixing_Kneeling', plant: true },
+  push: { src: 'Push_Loop', plant: true },
+  dance: { src: 'Dance_Loop', plant: true },
   attack1: { src: 'Sword_Regular_A', plant: true, hit: 8, guard: [0.45, 0] },
   attack1_rec: { src: 'Sword_Regular_A_Rec', plant: true, guard: [0, 0.6] },
   attack2: { src: 'Sword_Regular_B', plant: true, hit: 8 },
@@ -63,10 +93,49 @@ export const RECIPES = {
   getup: { src: 'LayToIdle', ground: true, guard: [0, 0.35] },
   death: { src: 'Hit_Knockback', ground: true },
   jump: { seq: [{ src: 'NinjaJump_Start', to: 0.45 }, { src: 'NinjaJump_Land', from: 0.15, to: 1.0 }], ground: true },
+  leap: { seq: [{ src: 'Jump_Start', from: 0.4 }, { src: 'Jump_Land' }], ground: true },
   heavy: { src: 'Sword_Heavy_Combo', plant: true, hit: [15, 35, 54, 79], guard: [0.08, 0.15] },
+  // the rest of both libraries (not yet used by anyone's brain; hit frames still to find)
+  sword_combo: { src: 'Sword_Regular_Combo', plant: true, guard: [0.08, 0.15] },
+  shield_hit: { src: 'Shield_OneShot', plant: true },
+  carry_walk: { src: 'Walk_Carry_Loop', plant: true, gait: true },
+  punch3: { src: 'Melee_Hook', plant: true }, punch3_rec: { src: 'Melee_Hook_Rec', plant: true },
+  throw: { src: 'OverhandThrow', plant: true },
+  climb: { src: 'ClimbUp_1m' }, falling: { src: 'Jump_Loop' }, jump_hang: { src: 'NinjaJump_Idle_Loop' },
+  slide_start: { src: 'Slide_Start', ground: true }, slide: { src: 'Slide_Loop', ground: true }, slide_exit: { src: 'Slide_Exit', ground: true },
+  swim: { src: 'Swim_Fwd_Loop' }, swim_idle: { src: 'Swim_Idle_Loop' },
+  cast_ready: { src: 'Spell_Simple_Idle_Loop', plant: true },
+  idle_arms: { src: 'Idle_FoldArms_Loop', plant: true }, nod_yes: { src: 'Yes', plant: true }, nod_no: { src: 'Idle_No_Loop', plant: true },
+  lantern: { src: 'Idle_Lantern_Loop', plant: true }, rail: { src: 'Idle_Rail_Loop', plant: true }, rail_call: { src: 'Idle_Rail_Call', plant: true },
+  open_chest: { src: 'Chest_Open', plant: true }, consume: { src: 'Consume', plant: true },
+  harvest: { src: 'Farm_Harvest', plant: true }, plant: { src: 'Farm_PlantSeed', plant: true }, water: { src: 'Farm_Watering', plant: true },
+  chop: { src: 'TreeChopping_Loop', plant: true },
+  zombie_idle: { src: 'Zombie_Idle_Loop', plant: true }, zombie_walk: { src: 'Zombie_Walk_Fwd_Loop', plant: true, gait: true },
+  zombie_scratch: { src: 'Zombie_Scratch', plant: true },
 };
-const STRIDE = { thigh_l: 0, thigh_r: 0, calf_l: 1, calf_r: 1 };
 const GUARD = ['clavicle_l', 'upperarm_l', 'lowerarm_l', 'hand_l'];   // the shield arm
+
+/** A body with no shield (the villagers, the sorcerers): the library's own stance, walk, jog and
+ * sprint, arms free; the knight's shield guard is still there as `guard`. */
+export const CALM = {
+  idle: { src: 'Idle_Loop', plant: true },
+  walk: { src: 'Walk_Loop', plant: true, gait: true },
+  run: { src: 'Jog_Fwd_Loop', plant: true, gait: true },
+  sprint: { src: 'Sprint_Loop', plant: true, gait: true },
+  guard: RECIPES.idle,
+};
+/** The clips that go round and round (the rest play once and hold their end). */
+export const LOOPING = new Set(['idle', 'walk', 'run', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'block', 'guard',
+  'crouch', 'crouch_walk', 'torch', 'sit_idle', 'sit_talk', 'push', 'dance', 'dead', 'dead2',
+  'carry_walk', 'falling', 'jump_hang', 'slide', 'swim', 'swim_idle', 'cast_ready', 'idle_arms', 'nod_no', 'lantern', 'rail', 'chop',
+  'zombie_idle', 'zombie_walk']);
+
+/** The villager's bones under the Sworn's names (the zombie body's; the rest keep their own: Body,
+ * Torso, the fingers, the ends and the pole targets). */
+export const VILLAGER_BONES = { Root: 'root', Hips: 'hips', Abdomen: 'spine', Chest: 'chest', Neck: 'neck', Head: 'head',
+  ShoulderL: 'shoulderL', UpperArmL: 'upper_armL', LowerArmL: 'forearmL', WristL: 'handL',
+  ShoulderR: 'shoulderR', UpperArmR: 'upper_armR', LowerArmR: 'forearmR', WristR: 'handR',
+  UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL', UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR' };
 
 const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _m = new THREE.Matrix4();
 
@@ -126,15 +195,36 @@ export function ualSource(ual) {
   return { skel, bones, rest, bind, clips, mesh, root: skel.bones[0] };
 }
 
+/** How fast a gait goes over the ground: each foot's longest stretch on the ground (within 4 cm of
+ * the lowest it gets) round the loop, how far it slid back under the body over that time, averaged.
+ * `feet`: [y, z] of each foot a frame, n frames (the last is the first again). */
+function pace(feet, n) {
+  const v = [];
+  for (const f of feet) {
+    const lo = Math.min(...f.map((p) => p[0])), on = (i) => f[(i + n) % n][0] < lo + 0.04;
+    let best = null;
+    for (let s = 0; s < n; s++) {
+      if (!on(s) || on(s - 1)) continue;
+      let e = s;
+      while (on(e + 1) && e - s < n) e++;
+      if (e > s && (!best || e - s > best[0])) best = [e - s, (f[s % n][1] - f[e % n][1]) * FPS / (e - s)];
+    }
+    if (best) v.push(best[1]);
+  }
+  return v.length ? v.reduce((a, b) => a + b) / v.length : 0;
+}
+
 /** The lowest point of a skinned mesh as it's posed (a spread of ~1500 of its vertices, in the
- * world), its bones' world matrices up to date. */
-function lowest(mesh) {
-  const n = mesh.geometry.attributes.position.count, step = Math.max(1, Math.floor(n / 1500));
+ * world), its bones' world matrices up to date; of several (a villager's clothes), the lowest of all. */
+function lowest(mesh, k = 1500) {
+  if (Array.isArray(mesh)) return Math.min(...mesh.map((m) => lowest(m, Math.ceil(k / mesh.length) + 50)));
+  const n = mesh.geometry.attributes.position.count, step = Math.max(1, Math.floor(n / k));
   let y = Infinity;
   for (let i = 0; i < n; i += step) y = Math.min(y, mesh.getVertexPosition(i, _v).applyMatrix4(mesh.matrixWorld).y);
   return y;
 }
 const _v = new THREE.Vector3();
+const LOW = 1500;    // (vertices sampled for a body's lowest point)
 
 /** How long recipe r runs. */
 function length(src, r) {
@@ -167,7 +257,6 @@ function pose(src, r, t) {
     for (const [b, [p, rq]] of src.rest) { b.position.copy(p); b.quaternion.copy(rq); }
   }
   apply(src, c, tt);
-  if (r.stride) stretch(src, c, r.stride);
   for (const [name, q] of upper) src.bones[name].quaternion.copy(q);
   if (spine && !r.lean) {
     if (r.pitch) spine.premultiply(_q.setFromAxisAngle(_x, r.pitch));
@@ -200,35 +289,30 @@ function apply(src, c, t) {
   }
 }
 
-/** Lengthen a gait's strides: each thigh's and knee's turn away from its middle over the clip (the
- * average of its turns) made k times as big. */
-function stretch(src, c, k) {
-  c.mean ||= {};
-  for (const [name, i] of Object.entries(STRIDE)) {
-    const it = c.by[name]?.quaternion;
-    if (!it) continue;
-    if (!c.mean[name]) {          // (once per clip)
-      const m = new THREE.Vector4(), q = new THREE.Quaternion();
-      for (let f = 0; f <= Math.round(c.duration * FPS); f++) {
-        q.fromArray(it.evaluate(f / FPS));
-        const s = m.x * q.x + m.y * q.y + m.z * q.z + m.w * q.w < 0 ? -1 : 1;
-        m.x += q.x * s; m.y += q.y * s; m.z += q.z * s; m.w += q.w * s;
-      }
-      c.mean[name] = new THREE.Quaternion(m.x, m.y, m.z, m.w).normalize();
-    }
-    const b = src.bones[name], mean = c.mean[name];
-    const d = mean.clone().invert().multiply(b.quaternion);
-    if (d.w < 0) { d.x = -d.x; d.y = -d.y; d.z = -d.z; d.w = -d.w; }
-    const a = 2 * Math.acos(Math.min(1, d.w)), s = Math.sqrt(Math.max(1e-12, 1 - d.w * d.w));
-    d.setFromAxisAngle(_p.set(d.x / s, d.y / s, d.z / s), a * k[i]);
-    b.quaternion.copy(mean).multiply(d);
-  }
-}
-
 /** The library's clips (RECIPES, or those named in `only`) carried onto a sworn body: `scene` its
  * root, `skel` its bound skeleton (bones under the Sworn's names), `mesh` its skin (for the clips
  * that keep it off the ground). Returns {clips, hits, gaits} (the paces its gaits go at, m/s). */
-export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mesh = null } = {}) {
+export function ualClips(src, scene, skel, opts) {
+  const it = steps(src, scene, skel, opts);
+  for (;;) { const r = it.next(); if (r.done) return r.value; }
+}
+
+/** The same, a few milliseconds at a time (`ms`), so the game keeps drawing while they're made. It
+ * steps aside by a message, not a timer (a hidden tab's timers are held to one a second, and it would
+ * take minutes), and not at all while the tab is hidden (nothing's being drawn). */
+export async function ualClipsAsync(src, scene, skel, opts, ms = 8) {
+  const it = steps(src, scene, skel, opts);
+  for (let t = performance.now(); ;) {
+    const r = it.next();
+    if (r.done) return r.value;
+    if (performance.now() - t > ms && !document.hidden) { await breathe(); t = performance.now(); }
+  }
+}
+const breathe = () => new Promise((ok) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); ok(); }; c.port2.postMessage(0); });
+
+/** ualClips a frame at a time (a generator: it stops after each frame of each clip; between stops the
+ * library's skeleton may be posed by another body's, so each frame starts it from rest). */
+function* steps(src, scene, skel, { only = null, recipes = RECIPES, mesh = null } = {}) {
   const db = Object.fromEntries(skel.bones.map((b) => [b.name, b]));
   const pairs = Object.entries(UAL_BONES).filter(([s, d]) => src.bones[s] && db[d]);
   const sName = Object.fromEntries(pairs.map(([s, d]) => [d, s]));
@@ -271,10 +355,24 @@ export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mes
   for (const [b, [p, rq]] of src.rest) { b.position.copy(p); b.quaternion.copy(rq); }
   src.root.parent.updateMatrixWorld(true);
   const bindSoleS = srcSole();
-  const bindLowS = src.mesh ? lowest(src.mesh) : 0, bindLowD = mesh ? lowest(mesh) : 0;
+  const bindLowS = src.mesh ? lowest(src.mesh, LOW) : 0, bindLowD = mesh ? lowest(mesh, LOW) : 0;
+  // the bone the hips hang from, if it isn't the root (the villager's Body, which its belt and the
+  // tops of its legs are skinned to): carried with the pelvis, so all of that goes where the hips go
+  const carrier = db.hips.parent?.isBone && db.hips.parent.name !== 'root' && !sName[db.hips.parent.name] ? db.hips.parent : null;
+  const one = new THREE.Vector3(1, 1, 1), hipsBindInv = new THREE.Matrix4().compose(dBind.hips.p, dBind.hips.q, one).invert();
+  const cBind = carrier && bindOf(skel, carrier), carrierBind = carrier && new THREE.Matrix4().compose(cBind.p, cBind.q, one);
+  const carry = () => {      // (the pelvis's turn and rise away from its bind, put on the carrier's bind)
+    const s = src.bones.pelvis, q = s.getWorldQuaternion(new THREE.Quaternion()).multiply(fix.hips);
+    const p = s.getWorldPosition(new THREE.Vector3()).sub(src.bind.pelvis.p).multiplyScalar(legs).add(dBind.hips.p);
+    const m = new THREE.Matrix4().compose(p, q, one).multiply(hipsBindInv).multiply(carrierBind);
+    carrier.parent.updateWorldMatrix(true, false);
+    m.premultiply(new THREE.Matrix4().copy(carrier.parent.matrixWorld).invert());
+    m.decompose(carrier.position, carrier.quaternion, new THREE.Vector3());
+    carrier.updateMatrixWorld(true);
+  };
   /** Move the hips (and the legs hung from them) up by dy, in the world. */
   const lift = (dy) => {
-    const h = db.hips;
+    const h = carrier || db.hips;
     h.parent.updateWorldMatrix(true, false);
     h.position.add(_p.set(0, dy, 0).applyMatrix3(new THREE.Matrix3().setFromMatrix4(h.parent.matrixWorld).invert()));
     h.updateMatrixWorld(true);
@@ -285,15 +383,17 @@ export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mes
     if (only && !only.includes(name)) continue;
     const dur = length(src, r), n = Math.max(2, Math.round(dur * FPS) + 1);
     const times = new Float32Array(n), q = Object.fromEntries(order.map((b) => [b.name, new Float32Array(n * 4)]));
-    const moved = [db.hips, ...joints.map((j) => j.bone)], ps = moved.map(() => new Float32Array(n * 3));
-    const steps = [];      // (a gait: how fast the foot it stands on goes back under it)
-    let was = null;
+    const moved = [db.hips, ...joints.map((j) => j.bone), ...(carrier ? [carrier] : [])], ps = moved.map(() => new Float32Array(n * 3));
+    const cq = carrier && new Float32Array(n * 4);
+    const feet = r.gait ? [[], []] : null;      // (a gait: the mannequin's balls of the feet, [y, z] a frame)
     for (let f = 0; f < n; f++) {
       const t = Math.min(dur, f / FPS);
       times[f] = t;
       for (const [b, [p, rq]] of src.rest) { b.position.copy(p); b.quaternion.copy(rq); }
       pose(src, r, t);
       src.root.parent.updateMatrixWorld(true);
+      if (feet) ['ball_l', 'ball_r'].forEach((k, i) => { src.bones[k].getWorldPosition(_p); feet[i].push([_p.y, _p.z]); });
+      if (carrier) carry();
       for (const b of order) {
         const d = b.name, s = src.bones[sName[d]];
         s.getWorldQuaternion(_q).multiply(fix[d]);
@@ -304,11 +404,12 @@ export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mes
           b.parent.worldToLocal(_p);
           b.position.copy(_p);
         }
-        b.updateMatrixWorld(true);
+        b.updateWorldMatrix(false, false);    // (its children read it as they're posed; the rest once, below)
       }
+      skel.bones[0].parent.updateMatrixWorld(true);
       attach(joints);
       if (r.plant) lift((srcSole() - bindSoleS) * legs - (footY() - bindFootD));   // the soles as high off the ground as the mannequin's
-      else if (r.ground && mesh && src.mesh) lift((lowest(src.mesh) - bindLowS) * legs - (lowest(mesh) - bindLowD));   // all of it
+      else if (r.ground && mesh && src.mesh) lift((lowest(src.mesh, LOW) - bindLowS) * legs - (lowest(mesh, LOW) - bindLowD));   // all of it
       for (const b of order) {
         const out = q[b.name], o = f * 4;
         let sg = 1;
@@ -316,16 +417,16 @@ export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mes
         out[o] = b.quaternion.x * sg; out[o + 1] = b.quaternion.y * sg; out[o + 2] = b.quaternion.z * sg; out[o + 3] = b.quaternion.w * sg;
       }
       moved.forEach((b, i) => ps[i].set(b.position.toArray(), f * 3));
-      if (r.gait) {
-        const L = db.footL.getWorldPosition(new THREE.Vector3()), R = db.footR.getWorldPosition(new THREE.Vector3());
-        const on = L.y < R.y ? 'L' : 'R', z = on === 'L' ? L.z : R.z;
-        if (was?.on === on) steps.push((was.z - z) * FPS);
-        was = { on, z };
+      if (cq) {
+        const c = carrier.quaternion, o = f * 4, sg = f && c.x * cq[o - 4] + c.y * cq[o - 3] + c.z * cq[o - 2] + c.w * cq[o - 1] < 0 ? -1 : 1;
+        cq.set([c.x * sg, c.y * sg, c.z * sg, c.w * sg], o);
       }
+      yield;
     }
-    if (steps.length) gaits[name] = +steps.sort((a, b) => a - b)[steps.length >> 1].toFixed(2);
+    if (feet) gaits[name] = +(pace(feet, n - 1) * legs).toFixed(2);
     const tracks = order.map((b) => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, times, q[b.name]));
     moved.forEach((b, i) => tracks.push(new THREE.VectorKeyframeTrack(`${b.name}.position`, times, ps[i])));
+    if (cq) tracks.push(new THREE.QuaternionKeyframeTrack(`${carrier.name}.quaternion`, times, cq));
     clips.push(new THREE.AnimationClip(name, dur, tracks));
     if (r.hit != null) hits[name] = r.hit;
   }
@@ -333,4 +434,46 @@ export function ualClips(src, scene, skel, { only = null, recipes = RECIPES, mes
   for (const [b, [p, rq]] of src.rest) { b.position.copy(p); b.quaternion.copy(rq); }
   scene.updateMatrixWorld(true);
   return { clips, hits, gaits };
+}
+
+/** The library, read once however many ask for it (the Sworn, the villagers, the open country's foes). */
+let _ual = null;
+export function loadUal(loader) {
+  return (_ual ||= loader.loadAsync(UAL_URL).then(ualSource));
+}
+
+/** Every clip of the knight's for another body: `gltf` a loaded model (it's posed on a copy, so the
+ * original is left as it came), `names` its bones' own names mapped to the Sworn's if they differ
+ * (VILLAGER_BONES), `recipes` the set (CALM over RECIPES for a body with no shield). The clips' tracks
+ * are under the body's own names, so one set serves every model on that skeleton; the lying poses
+ * (dead, dead2) are cut from the ends of the deaths. Made a few milliseconds at a time (`ms`).
+ * Resolves to {clips, hits, gaits}. */
+export async function ualBody(src, gltf, { names = null, recipes = RECIPES, ms = 8 } = {}) {
+  const scene = cloneSkinned(gltf.scene);
+  const meshes = [];
+  scene.traverse((o) => { if (o.isSkinnedMesh && o.visible) meshes.push(o); });
+  const mesh = meshes.reduce((a, b) => (b.geometry.attributes.position.count > a.geometry.attributes.position.count ? b : a));
+  if (names) scene.traverse((o) => { if (o.isBone && names[o.name]) o.name = names[o.name]; });
+  const made = await ualClipsAsync(src, scene, mesh.skeleton, { mesh: meshes.length > 1 ? meshes : mesh, recipes }, ms);
+  for (const [d, lie] of [['death', 'dead'], ['death2', 'dead2']]) {
+    const c = made.clips.find((x) => x.name === d);
+    if (c) made.clips.push(holdEnd(c, lie));
+  }
+  if (names) {
+    const back = Object.fromEntries(Object.entries(names).map(([a, b]) => [b, a]));
+    for (const c of made.clips) for (const t of c.tracks) {
+      const i = t.name.lastIndexOf('.'), b = back[t.name.slice(0, i)];
+      if (b) t.name = b + t.name.slice(i);
+    }
+  }
+  return made;
+}
+
+/** A clip's last pose, held (a body lying where its death left it): a second of it, still. (A clip of
+ * one frame lasts no time at all, and looped, the mixer's time goes to NaN.) */
+export function holdEnd(c, name) {
+  return new THREE.AnimationClip(name, 1, c.tracks.map((t) => {
+    const k = t.getValueSize(), v = Array.from(t.values.slice(-k));
+    return new t.constructor(t.name, [0, 1], [...v, ...v]);
+  }));
 }

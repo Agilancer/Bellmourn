@@ -39,8 +39,12 @@ python tools/serve.py 8124
 
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 `/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
-Universal Animation Library 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page can
-set each move beside their old clips and the library's mannequin it came from.
+Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page
+can set each move beside their old clips and the library's mannequin it came from. Every other
+person in the game moves on the same clips (made as they load, once for each skeleton: the
+villagers' men and women, the open country's knights and sorcerers), and the page's Body list has
+them all. On Windows,
+double-click `knight-player.bat` to serve the folder and open it (`tools/knight_player.py`).
 
 | Key | Action |
 |---|---|
@@ -54,7 +58,7 @@ set each move beside their old clips and the library's mannequin it came from.
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
 | L, T | the quest log; show or hide the quest tracker |
-| Esc | pause (save, load, the quest log, a new game; pixel size, look speed, graphics, time of day) |
+| Esc | pause (save, load, the quest log, a new game; resolution, texels, look speed, graphics, time of day) |
 
 ### The coming of Tessariel
 
@@ -65,13 +69,23 @@ below with its rim of air, the sun) a green star crosses over the world, and clo
 man in black smallclothes, curled up in a ball, spins inside the fire (`hero.js`: villager_m09
 stripped at load, his clothes turned to skin and the briefs drawn on in the bind pose, posed by
 turning each bone so its child lies along the curl). It streaks across the sunset over the
-Darkwood; one of Velscour's Sworn walks out of the wood behind the town, stops and looks up; the
-camera dives behind the star onto him; white. Out of the white: a smoking crater with nothing left
+Darkwood; one of Velscour's Sworn walks out of the wood behind the town on his round (on the
+animation library's clips, `ual.js`), stops as the green light grows behind him, turns, looks up,
+flinches with a yell and cowers under his shield; the camera dives behind the star as he turns and
+runs for the town, falls back behind him, and the star goes past it into him; white. Out of the
+white: a smoking crater with nothing left
 of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
 bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
 staff, which can. The whole village screams at once (a synthesized crowd: `audio.js` `scream`).
 Black; then your own eyes, standing in the crater with nothing in your hands or your bag. The
 Canticle's verses run under it as captions. Esc (or the skip button) skips it.
+
+Nothing is fetched, built or compiled while it plays (`Intro.prepare`, behind the loading screen):
+it waits for the Sworn (retargeted onto their clips), the whole village, the knight's armour, his
+sword, shield and staff and the gauntlets you're given; compiles every shader both scenes draw
+(as the game draws them, into its own picture) and puts the textures on the GPU; draws a frame of
+every shot, and the village gathered as you'll find it; then times its heaviest shot and, if the
+GPU is what holds it up, draws it smaller. The frame-time easing is held while it plays.
 
 The crater (`crater.js`) is one height function added to the village's flat ground (so the
 physics, the map and everything else find the bowl), its own smooth mesh in the ground's material,
@@ -80,11 +94,14 @@ whose shader chars it out past the lip and fuses its floor to green glass with g
 flames, embers and smoke stay in it, and the village has left candles, wreaths and flowers just past
 its char (`polish.js`).
 
-Then the village comes running: Sister Odile (the keeper of the holy texts, new to the roster),
-the Reeve, Mother Hesk, Garrow, Tobias, Wren and Elsie stand round you in the crater and tell you
-who you are: **Tessariel, the Sacred Flame**, whose coming their texts describe to the
-smallclothes, sent to kill the Demon Lord Velscour; and that his sycophants kill anyone who speaks
-the name. They give you armour, gauntlets, gold and draughts (whatever's free goes straight on).
+The village has gathered on the meadow at the edge of town, well back from the hole: Sister Odile
+(the keeper of the holy texts, new to the roster), the Reeve, Mother Hesk, Garrow, Tobias, Wren and
+Elsie, talking among themselves about the man who fell out of the sky, and calling out when you
+climb over the rim (`villagers.gather`). Walk over and they tell you who you are: **Tessariel, the
+Sacred Flame**, whose coming their texts describe to the smallclothes, sent to kill the Demon Lord
+Velscour; and that his sycophants kill anyone who speaks the name. They give you armour, gauntlets,
+gold and draughts (whatever's free goes straight on), and Odile has a task for you first: the dead
+beneath the cathedral. (Leave mid-talk and Continue gives you whatever they hadn't yet.)
 Since then the village talks of little else: `tessariel.js` holds 187 conversations between
 townsfolk (and 18 for Velscour's garrison, who never say the name; nobody says it with the garrison
 in earshot, and someone who does gets hushed), plus greetings, muttering, and what each calling
@@ -161,13 +178,13 @@ you when they circle (they don't slide). They follow you through the keep's door
 by a flow field. In the Red Throne their lord, Ser Malgrave, half as big again and burning red,
 waits with two guards before a chest sealed by his oath: he calls Velscour's fire up under you,
 grows faster at half his life, and the chest (the Vigil's hoard: legendary and epic gear, gold and
-draughts) opens only once he's dead. The Sworn load in the background after the world is up (a
-phone takes one body and half the garrison, without the adepts).
+draughts) opens only once he's dead. The Sworn load with the rest, before play (a phone takes one
+body and half the garrison, without the adepts, once the village is in).
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
 and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
-the bag, and pause. The picture's resolution follows the frame rate (it drops a little when
-frames run long and comes back when there's time), and at high a phone gets a smaller sun shadow
+the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
+what holds frames up, and comes back when there's time; at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
 loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
 `templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
@@ -187,6 +204,19 @@ remarks, haggling and greetings) shows in Velscour's parchment bubbles over thei
 3D, rationed so the square never fills with text. `gear.js` and
 `bag.js` are the items and the inventory, `loot.js` what lies on the ground and in containers,
 `map.js` the map.
+
+How it's drawn (`src/fps/engine.js`): at the screen's own resolution (a phone's held to 1.5 device
+pixels to a CSS pixel) with 4x multisampling (a phone 2x); the textures stay low resolution with
+crisp, square texels, but the pixel where two texels meet is blended (`sharpTexel`), so nothing
+stair-steps or crawls; leaves, hair and plants are smoothed by alpha to coverage. Characters are
+culled to what can be seen and share one skeleton a body; hidden things skip their matrix updates;
+small pieces of the built world drop out far off. Before the Start button everything is loaded
+(every villager, the Sworn, every arm that can lie on the ground, the gauntlets), every texture
+uploaded, every shader compiled and the world drawn once with its shadows (`prepare`), and every
+spell cast and one of the dead cut apart off the map (`rehearse`), so nothing is built mid-fight.
+Roads, the plaza and yards fray into the grass (`lib.js` `feathered`, `geo.js` `ribbon`/`patch`),
+with grass tufts along their verges (`grass.js`); the graveyard's mist lies in the fog shader.
+Pause's **Resolution** (full, 75%, half) and **Texels** (crisp, smooth) set how it's drawn.
 
 The engine is in `src/fps/`: `world.js`, `buildings.js` and `dungeon.js` build the places,
 `lib.js` turns the Velscour texture library into normal-mapped materials, `main.js` runs the

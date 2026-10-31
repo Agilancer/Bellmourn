@@ -83,3 +83,14 @@ go in with `python tools/templates/import_bundle.py X_bundle.zip`: frames are cu
 (connected blobs, so poses that reach over a cell border stay whole), then
 `tools/creatures/<id>.py` applies that creature's hand repairs (`frame_ops.py`: mirror the
 legs, reorder, rescale, drop stray specks) before packing into `assets/creatures/<id>/`.
+
+## Weapon & shield re-skin pack (`reskin/`)
+
+Every weapon, staff and shield the game uses (52 models), laid out flat for ChatGPT to repaint
+in one consistent style, with the importer that puts the paintings back on the models and
+remakes the rarity finishes. See `reskin/README.md`.
+
+```
+python tools/models/reskin_pack.py                     # templates/packs/bellmourn_reskin_weapons.zip
+python tools/models/import_reskin.py bellmourn_reskin__<set>.zip   # ChatGPT's return -> the game
+```

@@ -215,7 +215,7 @@ export class Comet {
     this.t = 0; this.acc = 0;
     this.amount = 1;
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(0, -1, 0);
-    this.spinRate = new THREE.Vector3(9.5, 13, 6.5);
+    this.spinRate = new THREE.Vector3(19, 26, 13);   // (radians a second: he tumbles about four times a second)
   }
 
   /** Put the comet (and its trail) into a scene. */

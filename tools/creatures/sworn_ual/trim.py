@@ -1,9 +1,10 @@
-"""Trim Quaternius' Universal Animation Library 2 (CC0) down to what the Sworn use.
+"""Trim Quaternius' Universal Animation Libraries 1 and 2 (CC0) down to what the Sworn use, in one file.
 
-  python tools/creatures/sworn_ual/trim.py <UAL2_Standard.glb> templates/models/creatures/sworn/ual2.glb
+  python tools/creatures/sworn_ual/trim.py templates/models/creatures/sworn/ual.glb <UAL2_Standard.glb> <UAL1_Standard.glb>
 
-Keeps the mannequin (the knight viewer shows it beside the knight) and its skeleton, and only the
-clips in KEEP. Each clip loses the channels that never change from the bone's rest (every scale,
+Both libraries are the same mannequin on the same skeleton (the same bones at the same rest), so
+their clips go on the first file's skeleton by bone name. Keeps the mannequin (the knight viewer
+shows it beside the knight) and its skeleton, and only the clips in KEEP. Each clip loses the channels that never change from the bone's rest (every scale,
 every translation but the pelvis's, a still finger's turn); a channel that holds one value that
 isn't the rest keeps two keys. Nothing is resampled, so what's left plays exactly as it did.
 """
@@ -18,6 +19,20 @@ KEEP = [
     'Sword_Regular_A', 'Sword_Regular_A_Rec', 'Sword_Regular_B', 'Sword_Regular_B_Rec', 'Sword_Regular_C',
     'Sword_Heavy_Combo', 'Sword_Dash', 'Sword_Block', 'Shield_Dash', 'Shield_OneShot',
     'Hit_Knockback', 'LayToIdle', 'NinjaJump_Start', 'NinjaJump_Land',
+    # from the first library: real gaits, everyday idles and doings, more hits and deaths, the
+    # roll, jump, punches and spell (not its pistols, driving or swimming)
+    'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop', 'Crouch_Idle_Loop', 'Crouch_Fwd_Loop',
+    'Idle_Loop', 'Idle_Talking_Loop', 'Idle_Torch_Loop', 'Sword_Idle', 'Sword_Attack',
+    'Hit_Chest', 'Hit_Head', 'Death01', 'Roll', 'Jump_Start', 'Jump_Land', 'Punch_Jab', 'Punch_Cross',
+    'Spell_Simple_Enter', 'Spell_Simple_Shoot', 'Spell_Simple_Exit',
+    'Sitting_Enter', 'Sitting_Idle_Loop', 'Sitting_Talking_Loop', 'Sitting_Exit',
+    'Interact', 'PickUp_Table', 'Fixing_Kneeling', 'Push_Loop', 'Dance_Loop',
+    # and the rest of both, for everyone (not the pistols, driving, the phone call or the T-poses)
+    'Jump_Loop', 'Spell_Simple_Idle_Loop', 'Swim_Fwd_Loop', 'Swim_Idle_Loop',
+    'Chest_Open', 'ClimbUp_1m', 'Consume', 'Farm_Harvest', 'Farm_PlantSeed', 'Farm_Watering', 'Idle_FoldArms_Loop',
+    'Idle_Lantern_Loop', 'Idle_No_Loop', 'Idle_Rail_Call', 'Idle_Rail_Loop', 'Melee_Hook', 'Melee_Hook_Rec',
+    'NinjaJump_Idle_Loop', 'OverhandThrow', 'Slide_Exit', 'Slide_Loop', 'Slide_Start', 'Sword_Regular_Combo',
+    'TreeChopping_Loop', 'Yes', 'Zombie_Idle_Loop', 'Zombie_Scratch', 'Zombie_Walk_Fwd_Loop',
 ]
 NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
 
@@ -31,16 +46,21 @@ def load(path):
     return j, b[off + 8:off + 8 + ln]
 
 
-def main(src, dst):
-    j, binary = load(src)
-    acc, views = j['accessors'], j['bufferViews']
-
+def reader(j, binary):
+    """An accessor of file j as an array."""
     def read(ai):
-        a = acc[ai]
-        bv = views[a['bufferView']]
+        a = j['accessors'][ai]
+        bv = j['bufferViews'][a['bufferView']]
         start = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
         dt = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}[a['componentType']]
         return np.frombuffer(binary, dtype=dt, count=a['count'] * NC[a['type']], offset=start).reshape(a['count'], NC[a['type']])
+    return read
+
+
+def main(dst, srcs):
+    j, binary = load(srcs[0])
+    acc = j['accessors']
+    read = reader(j, binary)
 
     out = bytearray()
     new_acc, new_views = [], []
@@ -85,31 +105,40 @@ def main(src, dst):
             s['inverseBindMatrices'] = keep(s['inverseBindMatrices'])
 
     nodes = j['nodes']
+    by_name = {n.get('name'): i for i, n in enumerate(nodes)}
     rest = {'rotation': lambda n: n.get('rotation', [0, 0, 0, 1]), 'translation': lambda n: n.get('translation', [0, 0, 0]),
             'scale': lambda n: n.get('scale', [1, 1, 1])}
-    anims, before, after = [], 0, 0
-    for an in j['animations']:
-        if an['name'] not in KEEP:
-            continue
+    anims, count = [], [0, 0]
+
+    def clip(an, sj, sread):
+        """One clip of file sj on the first file's skeleton (by bone name), its still channels gone."""
         samplers, channels = [], []
         for ch in an['channels']:
             s = an['samplers'][ch['sampler']]
-            node, path = nodes[ch['target']['node']], ch['target']['path']
-            t, v = read(s['input']), read(s['output'])
-            before += v.size
+            name = sj['nodes'][ch['target']['node']]['name']
+            node, path = nodes[by_name[name]], ch['target']['path']
+            t, v = sread(s['input']), sread(s['output'])
+            count[0] += v.size
             still = np.abs(v - v[0]).max() < 1e-5
-            if path == 'scale' or (path == 'translation' and node['name'] != 'pelvis') or \
-                    (still and np.abs(v[0] - np.array(rest[path](node))).max() < 1e-4):
+            if path == 'scale' or (path == 'translation' and node['name'] != 'pelvis') or                     (still and np.abs(v[0] - np.array(rest[path](node))).max() < 1e-4):
                 if not still and path != 'scale':
                     print(f"  ! {an['name']} {node['name']}.{path} moves; dropped", file=sys.stderr)
                 continue
             if still:
                 t, v = t[[0, -1]], v[[0, -1]]
-            after += v.size
-            samplers.append({'input': put(t, acc[s['input']]), 'output': put(v, acc[s['output']]),
+            count[1] += v.size
+            samplers.append({'input': put(t, sj['accessors'][s['input']]), 'output': put(v, sj['accessors'][s['output']]),
                              'interpolation': s.get('interpolation', 'LINEAR')})
-            channels.append({'sampler': len(samplers) - 1, 'target': ch['target']})
-        anims.append({'name': an['name'], 'samplers': samplers, 'channels': channels})
+            channels.append({'sampler': len(samplers) - 1, 'target': {'node': by_name[name], 'path': path}})
+        return {'name': an['name'], 'samplers': samplers, 'channels': channels}
+
+    for k, src in enumerate(srcs):        # (each clip from the first file that has it)
+        sj, sb = (j, binary) if k == 0 else load(src)
+        sread = reader(sj, sb)
+        for an in sj['animations']:
+            if an['name'] in KEEP and not any(a['name'] == an['name'] for a in anims):
+                anims.append(clip(an, sj, sread))
+    before, after = count
     missing = set(KEEP) - {a['name'] for a in anims}
     if missing:
         sys.exit(f'missing clips: {sorted(missing)}')
@@ -117,7 +146,7 @@ def main(src, dst):
     j['animations'] = anims
     j['accessors'], j['bufferViews'] = new_acc, new_views
     j['buffers'] = [{'byteLength': len(out)}]
-    j.setdefault('asset', {})['extras'] = {'source': 'Universal Animation Library 2 by Quaternius (CC0 1.0)',
+    j.setdefault('asset', {})['extras'] = {'source': 'Universal Animation Libraries 1 and 2 by Quaternius (CC0 1.0)',
                                            'trimmed': 'tools/creatures/sworn_ual/trim.py'}
     js = json.dumps(j, separators=(',', ':')).encode()
     js += b' ' * (-len(js) % 4)
@@ -130,4 +159,4 @@ def main(src, dst):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2:])

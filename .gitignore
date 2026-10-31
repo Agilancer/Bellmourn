@@ -2,3 +2,7 @@ art/raw/
 art/view/
 __pycache__/
 .harness/
+
+# re-skin pack: import review sheets and template previews (regenerated)
+templates/reskin/imports/
+templates/reskin/_preview/
