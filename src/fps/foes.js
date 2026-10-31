@@ -109,7 +109,9 @@ const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62,
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 'cast2', 'blink', 'hit', 'shriek', 'death',
   'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup',
   'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
-  'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup']);
+  'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup',
+  'sword_combo', 'shield_hit', 'punch3', 'punch3_rec', 'throw', 'climb', 'slide_start', 'slide_exit', 'nod_yes', 'rail_call', 'open_chest',
+  'consume', 'harvest', 'plant', 'water', 'zombie_scratch']);
 // the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
 // [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
 export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3] };

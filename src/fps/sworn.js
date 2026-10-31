@@ -21,7 +21,7 @@
 // left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { ualClips, legJoints, attach, holdEnd, VILLAGER_BONES } from './ual.js';
+import { ualClipsAsync, legJoints, attach, holdEnd, VILLAGER_BONES } from './ual.js';
 
 // the villager's bones under the zombie body's names (the rest keep their own: Body, Torso, the
 // fingers, the ends and the pole targets)
@@ -197,7 +197,7 @@ function sockets(meta, sSkel, dSkel) {
  * has them (the knight's are kept for the rest: the fall and everything on the ground). `legacy`: the
  * knight's clips alone, as they were first carried over (the thighs and feet left where they hang).
  * Returns a glTF-like {scene, animations, userData: {foe}} for the foes to clone. */
-export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null, ual = null, legacy = false } = {}) {
+export async function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = true, casts = null, ual = null, legacy = false } = {}) {
   const scene = villager.scene;
   // what the villager keeps (its head, and its hair if bareheaded) and what it wears (every piece
   // of the set, but the helm if it goes without)
@@ -233,7 +233,7 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
   fists(bound);
   let animations, ualHits = {}, gait = null;
   if (ual) {
-    const made = ualClips(ual, scene, bound, { mesh: body });
+    const made = await ualClipsAsync(ual, scene, bound, { mesh: body });   // (a few milliseconds at a time)
     const have = new Set(made.clips.map((c) => c.name));
     animations = [...made.clips, ...retarget(knight, scene, bound, knight.animations.map((c) => c.name).filter((n) => !have.has(n) && n !== 'dead'))];
     // lying where each death left it
