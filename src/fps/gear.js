@@ -24,11 +24,10 @@ export const BAG_SIZE = 40;
 
 // ------------------------------------------------------------------ the bases
 // arms: the view model's kinds; dmg is the base roll at item level 1 (a two-hander hits harder,
-// wands and staves put their worth into their bolts)
+// a staff puts its worth into its bolts)
 const ARM = {
   onehand: { slot: 'weapon', dmg: [28, 38], type: 'One-handed' },
   twohand: { slot: 'weapon', dmg: [52, 70], type: 'Two-handed' },
-  wand: { slot: 'weapon', dmg: [15, 21], type: 'Wand', spell: true },
   staff: { slot: 'weapon', dmg: [26, 34], type: 'Staff', spell: true },
   shield_round: { slot: 'offhand', guard: 60, block: 0.55, type: 'Round shield' },
   shield_kite: { slot: 'offhand', guard: 95, block: 0.65, type: 'Kite shield' },
@@ -136,7 +135,7 @@ export function makeGear(opts = {}) {
   if (!slot) slot = pick(['weapon', 'weapon', 'weapon', 'offhand', 'offhand', 'head', 'body', 'hands', 'legs', 'feet', 'ring'], R);
   const it = { id: uid(), type: 'gear', slot, ilvl, rarity, affixes: [], implicit: [] };
   if (slot === 'weapon' || slot === 'offhand') {
-    kind ||= slot === 'weapon' ? pick(['onehand', 'onehand', 'onehand', 'twohand', 'twohand', 'wand', 'staff'], R) : pick(['shield_round', 'shield_round', 'shield_kite'], R);
+    kind ||= slot === 'weapon' ? pick(['onehand', 'onehand', 'onehand', 'twohand', 'twohand', 'staff'], R) : pick(['shield_round', 'shield_round', 'shield_kite'], R);
     const A = ARM[kind], list = modelsOf(kind);
     const m = list.find((e) => e.id === opts.model) || pick(list, R) || { id: kind, name: A.type };
     Object.assign(it, { kind, model: m.id, base: m.name, finish: opts.finish ?? Rr.finish, slot: A.slot });
@@ -220,7 +219,7 @@ export function itemValue(it) {
 
 // ------------------------------------------------------------------ the character
 // the plain arm of each kind you set out with
-const STARTER = { onehand: 'arming_sword', twohand: 'greatsword', wand: 'crystal_wand', staff: 'gnarled_staff', shield_round: 'ironbound', shield_kite: 'knights_kite' };
+const STARTER = { onehand: 'arming_sword', twohand: 'greatsword', staff: 'gnarled_staff', shield_round: 'ironbound', shield_kite: 'knights_kite' };
 
 export function newCharacter() {
   const c = { equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true };
@@ -231,15 +230,19 @@ export function newCharacter() {
   c.equip.body = g({ slot: 'body', base: 'Tunic' });
   c.equip.feet = g({ slot: 'feet', base: 'Shoes' });
   // the rest of the arms you set out with, in the bag
-  [g({ kind: 'staff', model: STARTER.staff }), g({ kind: 'twohand', model: STARTER.twohand }), g({ kind: 'wand', model: STARTER.wand }),
+  [g({ kind: 'staff', model: STARTER.staff }), g({ kind: 'twohand', model: STARTER.twohand }),
     g({ kind: 'shield_kite', model: STARTER.shield_kite }), makePotion('life', 3), makePotion('mana', 2)].forEach((it, i) => { c.bag[i] = it; });
   return c;
 }
 
 /** Once the manifest is in (a first visit's character is made before it, so its arms have no
  * models yet): every arm without a model of its kind gets its kind's plain one, and every
- * character, an old one too, is given the basic sword, shield and staff once, in the bag. */
+ * character, an old one too, is given the basic sword, shield and staff once, in the bag. There
+ * are no wands any more: one carried from before becomes a staff as good as it was. */
 export function fitCharacter(c) {
+  const unwand = (it) => (it?.type === 'gear' && it.kind === 'wand' ? { ...makeGear({ ilvl: it.ilvl, rarity: it.rarity, kind: 'staff' }), id: it.id } : it);
+  for (const s of Object.keys(c.equip)) c.equip[s] = unwand(c.equip[s]);
+  c.bag = c.bag.map(unwand);
   for (const it of [...Object.values(c.equip), ...c.bag]) {
     if (!it || it.type !== 'gear' || !ARM[it.kind] || modelsOf(it.kind).some((m) => m.id === it.model)) continue;
     const e = modelsOf(it.kind).find((m) => m.id === STARTER[it.kind]) || modelsOf(it.kind)[0];

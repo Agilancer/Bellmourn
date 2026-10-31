@@ -43,18 +43,18 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Key | Action |
 |---|---|
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
-| Left click | right hand: swing, or shoot with a wand or staff |
-| Right click | left hand: hold a shield up, swing, or shoot a wand |
+| Left click | right hand: swing, or shoot with a staff |
+| Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
 | E | open and close doors, search chests, crates, barrels, sacks and pots |
 | Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
-| 1 to 6 | quick-equip the first one-hander, two-hander, wand, staff, round shield or kite shield in the bag |
+| 1 to 5 | quick-equip the first one-hander, two-hander, staff, round shield or kite shield in the bag |
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
 You set out with a plain sword and round shield in hand and a staff in the bag (with a
-greatsword, a wand, a kite shield and some draughts); a character saved before this is given the
+greatsword, a kite shield and some draughts); a character saved before this is given the
 sword, shield and staff once, if it doesn't have them.
 
 Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
@@ -75,7 +75,7 @@ you two at a time while the rest circle a few strides off with their shields rea
 turn. Up close they cut in combinations of two and three; from further off they lunge, or charge
 behind the shield and bash you off your feet. They raise the shield when they see you swing, bash
 through yours when you hide behind it, and answer any blow that rings off theirs. Their adepts
-go bareheaded with burning eyes, a blade in one hand and a wand in the other (the sorcerers'
+go bareheaded with burning eyes, a blade in one hand and a staff in the other (the sorcerers'
 casting clips carried over too): they keep their distance, cast blood, call Velscour's fire up
 under you, mend their wounded brothers, and blink away when cornered. Their kite shields ride as
 far out from the forearm as each one's dish needs to clear the plate (`shieldLift`), and the

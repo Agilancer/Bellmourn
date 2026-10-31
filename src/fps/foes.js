@@ -48,7 +48,7 @@ export const FOES = {
   // Velscour's Sworn, who hold Blackvigil Keep (keep.js): villagers in the Fiend's Panoply on the
   // knights' clips (sworn.js), each with one of a dozen blades, axes, maces and hammers in a dark
   // finish and a kite shield on the arm (the round ones are dished too deep to ride a vambrace).
-  // Their adepts go bareheaded with burning eyes, a blade in one hand and a wand in the other, and
+  // Their adepts go bareheaded with burning eyes, a blade in one hand and a staff in the other, and
   // cast. Their lord is the same body half as big again, burning red.
   sworn_m: { kind: 'knight', title: 'Sworn of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['ancient', 'bloodforged', 'worn'], stats: 'sworn',
     R: ['arming_sword', 'bearded_axe', 'flanged_mace', 'morning_star', 'falchion', 'war_hammer', 'grave_messer', 'coffin_hammer', 'reliquary_blade', 'fang_blade', 'wolfjaw_sickle', 'scimitar'],
@@ -57,9 +57,9 @@ export const FOES = {
     R: ['arming_sword', 'falchion', 'scimitar', 'grave_messer', 'fang_blade', 'flanged_mace', 'morning_star', 'wolfjaw_sickle', 'gaolers_hook', 'bearded_axe'],
     L: ['thorned_kite', 'knights_kite', 'banded_kite'] },
   sworn_adept_m: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
-    caster: true, spell: 'blood', R: ['reliquary_blade', 'grave_messer', 'fang_blade', 'flanged_mace'], L: ['ember_rod', 'obsidian_shard', 'bone_wand'], Lsock: 'gripL' },
+    caster: true, spell: 'blood', R: ['reliquary_blade', 'grave_messer', 'fang_blade', 'flanged_mace'], L: ['serpent_staff', 'antler_staff', 'brazier_staff', 'skull_staff'], Lsock: 'gripL' },
   sworn_adept_f: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_f08', armor: 'fiend', sex: 'f', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
-    caster: true, spell: 'blood', R: ['reliquary_blade', 'scimitar', 'fang_blade', 'grave_messer'], L: ['ember_rod', 'obsidian_shard', 'serpent_wand'], Lsock: 'gripL' },
+    caster: true, spell: 'blood', R: ['reliquary_blade', 'scimitar', 'fang_blade', 'grave_messer'], L: ['serpent_staff', 'skull_staff', 'crosier', 'iron_crook'], Lsock: 'gripL' },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
@@ -1078,7 +1078,7 @@ export class Foes {
     const pick = (a) => a[Math.floor(Math.random() * a.length)];
     const finish = pick([def.finish || ''].flat());
     if (def.R) { const it = this.items[`${opts.weapon || pick(def.R)}|${finish}`]; if (it) f.hold('gripR', it.clone()); }
-    if (def.L) {                // a shield on the forearm (a Sworn's out as far as its dish needs), or an adept's wand
+    if (def.L) {                // a shield on the forearm (a Sworn's out as far as its dish needs), or an adept's staff
       const id = opts.shield || pick(def.L), it = this.items[`${id}|${finish}`], sock = def.Lsock || 'shieldL';
       if (it) {
         const obj = it.clone();

@@ -26,8 +26,10 @@
 // away as a piece of their own, the stump keeps a bone stub and spurts with a fading pulse. A
 // zombie without its head keeps coming (by sound); one without a leg, or cut in half, drops
 // and drags itself along with whatever arms it has left. Only destroying the body stops it.
-// Blood is opaque droplets that splat and pool on the ground, with gibs of meat. Corpses sink
-// into the earth after a while.
+// Spells punch round holes instead, seared black at the rim (frost: rimed white), and may blow
+// off whatever they hit outright: a head, an arm, a leg (and down it goes, crawling). Blood is
+// opaque droplets that splat and pool on the ground, with gibs of meat. Corpses sink into the
+// earth after a while.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -83,6 +85,10 @@ const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, 
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
 const HP = 170;
 const WOUNDS = 16;
+// a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
+const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3 };
+// the chance a spell blows off what it hits, by where it hits (times the spell's own `blow`)
+const BLOW = { head: 0.4, upper_arm: 0.3, forearm: 0.35, hand: 0.35, thigh: 0.4, shin: 0.45, foot: 0.45, waist: 0.12 };
 // temperaments: walking speed, sprint speed (0: never runs), how far it sees, how well it hears
 const KINDS = {
   shambler: { walk: 0.8, run: 0, sight: 20, hear: 1.0, turn: 2.4 },
@@ -102,13 +108,19 @@ float gNoise(vec3 x) {
   return mix(mix(mix(gHash(i), gHash(i + vec3(1, 0, 0)), f.x), mix(gHash(i + vec3(0, 1, 0)), gHash(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(gHash(i + vec3(0, 0, 1)), gHash(i + vec3(1, 0, 1)), f.x), mix(gHash(i + vec3(0, 1, 1)), gHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
-// wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint) and slashes (uWoundD
+// wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint), slashes (uWoundD
 // .w = 1: a gash along the segment w.xyz +- uWoundD.xyz, w.w wide, the blood running from it)
+// and spells' round holes (uWoundD.w = 2: burned, 3: frozen; w.w their radius)
 float gore(inout vec4 col) {
-  float hole = 99.0, cut = 99.0, gash = 99.0, run = 0.0;
+  float hole = 99.0, cut = 99.0, gash = 99.0, run = 0.0, burn = 99.0, ice = 99.0;
   for (int i = 0; i < ${WOUNDS}; i++) {
     if (float(i) >= uWoundN) break;
     vec4 w = uWound[i], D = uWoundD[i];
+    if (D.w > 1.5) {
+      float d = length(vBind - w.xyz) / w.w;
+      if (D.w > 2.5) ice = min(ice, d); else burn = min(burn, d);
+      continue;
+    }
     if (D.w > 0.5) {
       vec3 q = vBind - w.xyz, B = uWoundB[i];
       float dep = dot(q, B);
@@ -129,9 +141,10 @@ float gore(inout vec4 col) {
   float h = hole + (n - 0.5) * 0.6;
   float c = cut + (n - 0.5) * 0.5;
   float s = gash + (n - 0.5) * 0.45;
+  float sp = min(burn, ice) + (n - 0.5) * 0.08;        // spell holes: clean discs, barely ragged
   vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
   if (gl_FrontFacing) {
-    if (h < 0.6) discard;                               // torn open
+    if (h < 0.6 || sp < 0.62) discard;                  // torn (or blown) open
     if (s < 0.45) { col.rgb = mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s)); return 1.0; }   // the gash
     if (s < 2.4 || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.75) {
       float k = s < 2.4 ? smoothstep(0.45, 2.4, s) : 0.3;
@@ -139,12 +152,23 @@ float gore(inout vec4 col) {
       if (s < 2.4) return (1.0 - k) * 0.9;
     }
     if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
+    if (sp < 0.7) { col.rgb = raw * 0.5; return 1.0; }  // a thin lip of seared meat
     float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
     col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
-    return (1.0 - soak) * 0.7;
+    float wet = (1.0 - soak) * 0.7;
+    if (sp < 1.9) {
+      bool frozen = ice < burn;
+      // the rim: a glowing edge gone to char (frost: white rime), then soot (a blue chill) fading out
+      vec3 rim = frozen ? mix(vec3(0.92, 0.97, 1.0), vec3(0.55, 0.74, 0.92), smoothstep(0.7, 1.0, sp + n * 0.2))
+                        : mix(vec3(0.62, 0.17, 0.03), vec3(0.03, 0.022, 0.018), smoothstep(0.7, 0.78, sp + n * 0.06));
+      vec3 fade = frozen ? col.rgb * vec3(0.6, 0.76, 1.0) : col.rgb * mix(0.12, 0.45, n);
+      col.rgb = sp < 1.0 ? rim : mix(fade, col.rgb, smoothstep(1.0, 1.9, sp));
+      wet = sp < 1.0 ? (frozen ? 1.0 : 0.05) : max(wet, frozen ? 0.5 : 0.0);
+    }
+    return wet;
   }
   // inside the body: wet meat, coils of gut, yellow fat (the kilt's inner face stays cloth)
-  if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0) { col.rgb *= 0.4; return 0.0; }
+  if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0 && sp > 3.0) { col.rgb *= 0.4; return 0.0; }
   float coil = sin(vBind.x * 95.0 + sin(vBind.y * 60.0) * 2.5 + vBind.z * 40.0);
   vec3 meat = mix(vec3(0.20, 0.008, 0.015), vec3(0.58, 0.07, 0.07), n);
   meat = mix(meat, vec3(0.72, 0.36, 0.34), smoothstep(0.7, 0.95, coil) * 0.65);
@@ -616,9 +640,12 @@ export class Zombie {
     this.u.uWoundN.value = all.length;
   }
 
-  wound(point, bone, r) {
+  /** A hole of radius r at a world point; rim: a spell's round one (SPELL_RIM), seared or frozen. */
+  wound(point, bone, r, rim = 0) {
     const c = this.toBind(point, bone);
-    this.wounds.push(new THREE.Vector4(c.x, c.y, c.z, r));
+    const w = new THREE.Vector4(c.x, c.y, c.z, r);
+    if (rim) w.d = new THREE.Vector4(0, 0, 0, rim);
+    this.wounds.push(w);
     while (this.wounds.length + this.cuts.length > WOUNDS) this.wounds.shift();
     this.writeWounds();
   }
@@ -646,17 +673,21 @@ export class Zombie {
   }
 
   /** A blow landing at h (bone, point) along dir. kind: 'blade' (a gash along `edge`, the
-   * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves. */
-  hit(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0 }) {
+   * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves;
+   * blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
+  hit(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0, blow = 0 }) {
     const owner = this.owner, g = owner.gore;
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
-    // the wound and its blood: an edge leaves a gash where it cut, anything else a hole
-    const r = (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
+    // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
+    // the rim, anything else a ragged hole
+    const rim = SPELL_RIM[kind] || 0;
+    const r = rim ? (heavy ? 0.1 : 0.07) + (kind === 'fire' ? 0.02 : 0) + Math.random() * 0.015
+      : (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
     if (kind === 'blade' && edge) {
       const half = (heavy ? 0.17 : 0.12) * (0.85 + Math.random() * 0.3);
       this.slash(_t.copy(p).addScaledVector(edge, -half), _f.copy(p).addScaledVector(edge, half), b, heavy ? 0.03 : 0.022, dir);
-    } else this.wound(p, b, r);
+    } else this.wound(p, b, r, rim);
     g.spray(p, dir, heavy ? 70 : 45, { speed: heavy ? 4.5 : 3.4, spread: 0.9 });
     g.spray(p, back.clone().add(_u.set(0, 0.6, 0)), heavy ? 40 : 26, { speed: 2.6, spread: 0.8 });
     for (let i = 0; i < (heavy ? 7 : 4); i++) g.gib(p, _w.copy(dir).multiplyScalar(2 + Math.random() * 2).add(_u.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3)));
@@ -668,6 +699,7 @@ export class Zombie {
       this.limbHp[limb] -= dmg * (kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
       if (this.limbHp[limb] <= 0) this.sever(limb, dir);
+      else if (blow && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')]) this.blowOff(limb, dir, rim);
     } else {
       this.hp -= dmg;
     }
@@ -685,6 +717,18 @@ export class Zombie {
       }
       if (this.hp <= 0) this.die();
     }
+  }
+
+  /** A spell takes the limb clean off: a foot or a hand goes with the shin or forearm above it
+   * (so a leg shot always brings it down to crawl), flung hard, the stump seared. */
+  blowOff(limb, dir, rim) {
+    const name = limb.replace(/^foot/, 'shin').replace(/^hand/, 'forearm');
+    if (this.lost.has(name)) return;
+    const joint = this.bones[name === 'waist' ? 'spine' : name].getWorldPosition(new THREE.Vector3());
+    const stay = name === 'waist' ? this.bones.spine : this.bones[name].parent;
+    this.sever(name, dir.clone().multiplyScalar(1.8).add(_u.set(0, 0.4, 0)));
+    this.wound(joint, stay, name === 'waist' ? 0.16 : name === 'head' ? 0.1 : 0.085, rim || 2);
+    this.owner.gore.spray(joint, dir, 90, { speed: 6, spread: 1.2, size: 0.016 });
   }
 
   sever(name, dir) {

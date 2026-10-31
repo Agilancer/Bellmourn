@@ -116,9 +116,11 @@ let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, 
 // lying buried), and more spread through the Undercroft and the Deep Undercroft (the delves and
 // caves fill their own: delves.js)
 const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 26, DEEP_DEAD = 20;
-// what each kind of spell does to flesh: a direct hit, and its blast (radius, damage)
-const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, arcane: 18, staff: 30, wisp: 25 };
+// what each kind of spell does to flesh: a direct hit, its blast (radius, damage), and how
+// likely a direct hit is to blow off the head or limb it lands on (zombies.js BLOW: by where)
+const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, staff: 30, wisp: 25 };
 const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
+const SPELL_BLOW = { fire: 1, lightning: 1.25, staff: 0.85, frost: 0.5 };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
 let pix = Number(localStorage.getItem('bm.pix') || (HI ? 2 : 2));
@@ -311,7 +313,8 @@ async function build() {
   villagers.populate(touch && !HI ? 10 : 22);
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
-  magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: spellDamage(def), dir: d, heavy: def.size > 0.4, kind: def.kind });
+  magic.onHit = (def, at, d, h) => h.z.hit(h, { dmg: spellDamage(def), dir: d, heavy: def.size > 0.4, kind: def.kind,
+    blow: SPELL_BLOW[def.kind] || 0 });
   magic.onBlast = (def, at) => {
     const b = SPELL_BLAST[def.kind];
     if (b) zombies.blast(at, b[0], b[1], def.kind);
@@ -497,10 +500,10 @@ const stats = {
     return x;
   },
 };
-/** A spell's damage: its own, the wand's or staff's for their bolts, and the spell bonus. */
+/** A spell's damage: its own, the staff's for its bolts, and the spell bonus. */
 function spellDamage(def) {
   const w = char.equip.weapon;
-  const base = (def.kind === 'arcane' || def.kind === 'staff') && w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : SPELL_DMG[def.kind] ?? 30;
+  const base = def.kind === 'staff' && w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : SPELL_DMG[def.kind] ?? 30;
   return base * (1 + st.spellPct / 100);
 }
 
@@ -593,7 +596,7 @@ function aimPoint() {
   return o.clone().addScaledVector(d, hit ? hit.t : 400);
 }
 
-const KIND_SOUND = { fire: 'fire', frost: 'frost', lightning: 'lightning', heal: 'heal', wisp: 'wisp', arcane: 'wand', staff: 'staff' };
+const KIND_SOUND = { fire: 'fire', frost: 'frost', lightning: 'lightning', heal: 'heal', wisp: 'wisp', staff: 'staff' };
 function onEvent(kind, side, clip) {
   if (kind === 'fire') {
     const p = pending[side];
@@ -811,7 +814,7 @@ document.addEventListener('pointerlockchange', () => {
 // ------------------------------------------------------------------ the loop
 const clock = new THREE.Clock();
 let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0;
-const QUICK = { Digit1: 'onehand', Digit2: 'twohand', Digit3: 'wand', Digit4: 'staff', Digit5: 'shield_round', Digit6: 'shield_kite' };
+const QUICK = { Digit1: 'onehand', Digit2: 'twohand', Digit3: 'staff', Digit4: 'shield_round', Digit5: 'shield_kite' };
 
 let lastFrame = performance.now();
 function frame() {
@@ -853,13 +856,8 @@ function tick(dt) {
       }
     }
     // left hand (shields are held up as long as the button is)
-    const lk = vm.equip.L;
-    if (lk === 'wand' && inp.held('Mouse2') && !vm.busy('L') && player.mana < BOLTS.wand.mana) { if (inp.was('Mouse2')) noMana(); }
-    else {
-      const did = vm.actLeft(inp.held('Mouse2'));
-      if (did === 'wand') { player.mana -= BOLTS.wand.mana; pending.L = { def: BOLTS.wand, side: 'L' }; }
-      else if (did === 'onehand') setTimeout(() => sfx.swing(false), 140);
-    }
+    const did = vm.actLeft(inp.held('Mouse2'));
+    if (did === 'onehand') setTimeout(() => sfx.swing(false), 140);
     if (inp.was('KeyF')) castSlot('F');
     if (inp.was('KeyR')) castSlot('R');
     // footsteps on the bob's down-beats
