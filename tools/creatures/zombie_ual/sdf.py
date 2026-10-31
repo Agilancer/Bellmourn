@@ -95,6 +95,47 @@ EYE = (0.0335, -0.0585, 1.689)
 EYE_R = 0.0125
 MOUTH_C = (0.0, -0.058, 1.606)   # the slack jaw hangs open over a deep cavity
 MOUTH_R = (0.021, 0.042, 0.011)
+# variant switches, set per monster (monsters.py); the defaults are the first zombie
+V = dict(mouth="zombie", lids="heavy", nose="rotted", crown=True, tear=True, bloat=0.0, bulk=0.0, claws=1.0,
+         brow=1.0, cheeks=False, holes=[], teeth=1.0, gape=1.0, dome=1.0, shoulder=0.0, ropes=False, bony=0.0, lips=1.0, teeth_fwd=0.0,
+         bumps=[], ridges=[], ears=1.0, canine=1.0, slitw=1.0, hollow=0.0, inner=[])
+SLIT_C = np.array([0.0, -0.068, 1.625])  # the maw: a slit splitting the face from the eyes to the chin
+SLIT_R = np.array([0.0115, 0.042, 0.068])
+
+
+def cavity_c():
+    return SLIT_C if V["mouth"] == "slit" else np.array(MOUTH_C)
+
+
+ROPES = [  # (polyline on the left side, radius); arms in T-space
+    ([(0.028, -0.044, 1.47), (0.034, -0.036, 1.505), (0.031, -0.03, 1.54), (0.037, -0.022, 1.575)], 0.0024),
+    ([(0.05, -0.006, 1.47), (0.047, 0.004, 1.52), (0.043, 0.012, 1.57)], 0.002),
+    ([(0.48, 0.05, 1.462), (0.55, 0.043, 1.466), (0.62, 0.049, 1.463), (0.7, 0.044, 1.458)], 0.0024),
+    ([(0.5, 0.08, 1.462), (0.6, 0.086, 1.458), (0.69, 0.08, 1.455)], 0.002),
+    ([(0.072, -0.034, 0.46), (0.077, -0.025, 0.36), (0.074, -0.02, 0.26), (0.079, -0.012, 0.16)], 0.0024),
+    ([(0.11, 0.0, 0.8), (0.118, -0.01, 0.7), (0.112, -0.018, 0.6)], 0.0022),
+]
+
+
+def mouth_r():
+    g = V["gape"]
+    return np.array(MOUTH_R) * ((1.25, 1.0, 1.45) if V["mouth"] == "fangs" else (1, 1, 1)) * (1 + 0.15 * (g - 1), 1, g)
+
+
+def cavity_q(P, scale=(1.0, 1.0, 1.0)):
+    """Normalised distance into the open mouth (or the maw's slit): < 1 is inside."""
+    if V["mouth"] == "slit":
+        return np.linalg.norm((P - SLIT_C) / (SLIT_R * scale), axis=1)
+    return np.linalg.norm((P - np.array(MOUTH_C)) / (mouth_r() * scale), axis=1)
+
+
+def in_mouth(c):
+    if V["mouth"] == "slit":
+        return (cavity_q(c, (1.35, 1.0, 1.08)) < 1) & (c[:, 1] > -0.086)
+    out = (cavity_q(c, (1.3, 1.0, 1.7)) < 1) & (c[:, 1] > -0.083)
+    if V["tear"]:
+        out |= (ellipsoid(c, TEAR_C, TEAR_R, TEAR_ROT) < 0.003) & (c[:, 0] > 0)
+    return out
 TEAR_C = (0.04, -0.047, 1.603)   # the left cheek torn open to the molars: a slot along the cheek
 TEAR_R = (0.017, 0.04, 0.0135)   # (depth into the face, length along the cheek, height)
 TEAR_ROT = np.array([[0.8, -0.6, 0.0], [0.6, 0.8, 0.0], [0.0, 0.0, 1.0]]).T
@@ -149,7 +190,7 @@ def nail_c(name):
     pts = finger_pts(name)
     tip, prev = np.array(pts[-1]), np.array(pts[-2])
     dirv = (tip - prev) / np.linalg.norm(tip - prev)
-    return tip + dirv * 0.0018 + np.array([0, 0, FINGER_R[name] * 0.42])
+    return tip + dirv * (0.0018 + 0.0075 * (V["claws"] - 1)) + np.array([0, 0, FINGER_R[name] * 0.42])
 
 
 def unbend(P):
@@ -177,9 +218,9 @@ def _ss(a, b, x):
 
 def head(p):
     m = p.copy(); m[:, 0] = np.abs(m[:, 0])
-    d = ellipsoid(p, (0, 0.022, 1.708), (0.071, 0.099, 0.087))                     # cranium: a long egg
+    d = ellipsoid(p, (0, 0.022, 1.708 - 0.03 * (1 - V["dome"])), (0.071, 0.099, 0.087 * V["dome"]))   # cranium: a long egg
     d = smin(d, ellipsoid(p, (0, 0.098, 1.68), (0.042, 0.022, 0.024)), 0.025)      # occipital knob
-    for c, r in CROWN:                                                               # caved-in skull
+    for c, r in (CROWN if V["crown"] else []):                                       # caved-in skull
         jag = 0.0013 * np.sin(p[:, 0] * 1700 + 2 * np.sin(p[:, 1] * 1300)) * np.sin(p[:, 2] * 1500)
         d = smax(d, -(sphere(p, c, r) + jag), 0.0015)
     d = smin(d, ellipsoid(p, (0, -0.03, 1.645), (0.05, 0.055, 0.062)), 0.04)       # midface
@@ -189,27 +230,45 @@ def head(p):
     d = smin(d, sphere(q, (0, -0.068, 1.576), 0.019), 0.012)                        # chin
     d = smin(d, ellipsoid(m, (0.044, -0.047, 1.667), (0.017, 0.016, 0.011)), 0.014)  # cheekbones, tucked in
     for a, b in (((0.005, -0.083, 1.705), (0.027, -0.081, 1.713)), ((0.027, -0.081, 1.713), (0.051, -0.068, 1.706))):
-        d = smin(d, round_cone(m, a, b, 0.0108, 0.0108), 0.01)                      # brows arched over each socket
+        bs = V["brow"]                                                               # brows arched over each socket
+        d = smin(d, round_cone(m, (a[0], a[1] + (1 - bs) * 0.012, a[2]), (b[0], b[1] + (1 - bs) * 0.012, b[2]), 0.0108 * bs, 0.0108 * bs), 0.01)
     d = smin(d, sphere(m, (0.062, 0.03, 1.628), 0.012), 0.012)                       # mastoids
     d = smax(d, -ellipsoid(m, (0.074, -0.028, 1.716), (0.011, 0.026, 0.02)), 0.016)  # temples
     d = smax(d, -ellipsoid(m, (0.047, -0.056, 1.635), (0.016, 0.021, 0.024)), 0.02)  # cheek hollows, right under the sockets
     d = smax(d, -ellipsoid(m, (EYE[0], EYE[1] - 0.004, EYE[2]), (0.021, 0.02, 0.016)), 0.008)  # sockets
     d = smin(d, sphere(m, EYE, EYE_R), 0.003)                                        # eyeballs
-    for sx, lift in ((1, 0.0028), (-1, 0.0)):   # heavy upper lids, half shut; its left one hangs open wider
-        lid = round_cone(p * [sx, 1, 1], (EYE[0] - 0.012, EYE[1] - 0.0075, EYE[2] + 0.0045 + lift), (EYE[0] + 0.013, EYE[1] - 0.005, EYE[2] + 0.0035 + lift), 0.0058, 0.005)
+    heavy = V["lids"] == "heavy"
+    for sx, lift in ((1, 0.0028), (-1, 0.0)):   # upper lids: heavy and half shut, or drawn back off staring eyes
+        if not heavy:
+            lift = 0.0052
+        lid = round_cone(p * [sx, 1, 1], (EYE[0] - 0.012, EYE[1] - 0.0075, EYE[2] + 0.0045 + lift), (EYE[0] + 0.013, EYE[1] - 0.005, EYE[2] + 0.0035 + lift), 0.0058 if heavy else 0.0042, 0.005 if heavy else 0.0036)
         d = smin(d, np.where(p[:, 0] * sx > 0, lid, 1.0), 0.004)
     d = smin(d, round_cone(m, (EYE[0] - 0.011, EYE[1] - 0.009, EYE[2] - 0.0095), (EYE[0] + 0.007, EYE[1] - 0.008, EYE[2] - 0.0085), 0.0036, 0.003), 0.004)  # baggy lower lids, broken at the outer orbit
     # nose: rotted down, the bridge sunk, two dark slits
-    d = smin(d, round_cone(p, (0, -0.079, 1.702), (0, -0.086, 1.665), 0.0072, 0.0075), 0.009)  # cartilage rotted off
-    d = smin(d, sphere(m, (0.0105, -0.08, 1.657), 0.0075), 0.007)
-    d = smax(d, -ellipsoid(m, (0.0062, -0.087, 1.655), (0.0045, 0.011, 0.0075)), 0.002)  # skull-dark nasal holes
+    if V["nose"] == "skull":   # the nose rotted clean away: a pear-shaped skull aperture
+        d = smax(d, -ellipsoid(p, (0, -0.074, 1.659), (0.0082, 0.0172, 0.0118)), 0.004)
+    if V["nose"] == "rotted":
+        d = smin(d, round_cone(p, (0, -0.079, 1.702), (0, -0.086, 1.665), 0.0072, 0.0075), 0.009)  # cartilage rotted off
+        d = smin(d, sphere(m, (0.0105, -0.08, 1.657), 0.0075), 0.007)
+        d = smax(d, -ellipsoid(m, (0.0062, -0.087, 1.655), (0.0045, 0.011, 0.0075)), 0.002)  # skull-dark nasal holes
+    if V["mouth"] == "slit":
+        # the maw: the face splits from brow to chin, raw rims rolled back off rows of needles
+        for sx in (1, -1):
+            sw = V["slitw"]
+            rim = round_cone(p * [sx, 1, 1], (0.0125 * sw, -0.08 - 0.004 * (sw - 1), 1.70), (0.0135 * sw, -0.083 + 0.005 * (sw - 1), 1.585 + 0.011 * (sw - 1)),
+                             0.0045 * (1 + 0.3 * (sw - 1)), 0.0045 * (1 + 0.3 * (sw - 1)))
+            d = smin(d, np.where(p[:, 0] * sx > 0, rim, 1.0), 0.006)
+        d = smax(d, -ellipsoid(p, SLIT_C, SLIT_R), 0.004)
+        return d
     # mouth: thin lips peeled back off the teeth, jaw dropped, a real cavity behind
-    d = smin(d, round_cone(m, (0.0, -0.0815, 1.6215), (0.025, -0.07, 1.614), 0.0048, 0.0036), 0.006)
-    d = smin(d, round_cone(qm, (0.0, -0.079, 1.590), (0.023, -0.069, 1.598), 0.0054, 0.0038), 0.006)  # lower lip hangs
-    d = smax(d, -ellipsoid(p, MOUTH_C, MOUTH_R), 0.004)
-    tear = ellipsoid(p, TEAR_C, TEAR_R, TEAR_ROT)
-    tear -= 0.0016 * np.sin(p[:, 1] * 900) * np.sin(p[:, 2] * 700)                 # ragged edges
-    d = smax(d, -tear, 0.003)
+    lp = V["lips"]
+    d = smin(d, round_cone(m, (0.0, -0.0815, 1.6215), (0.025, -0.07, 1.614), 0.0048 * lp, 0.0036 * lp), 0.006)
+    d = smin(d, round_cone(qm, (0.0, -0.079 + 0.004 * (1 - lp), 1.590), (0.023, -0.069, 1.598), 0.0054 * lp, 0.0038 * lp), 0.006)  # lower lip hangs
+    d = smax(d, -ellipsoid(p, MOUTH_C, mouth_r()), 0.004)
+    if V["tear"]:
+        tear = ellipsoid(p, TEAR_C, TEAR_R, TEAR_ROT)
+        tear -= 0.0016 * np.sin(p[:, 1] * 900) * np.sin(p[:, 2] * 700)             # ragged edges
+        d = smax(d, -tear, 0.003)
     return d
 
 
@@ -225,7 +284,9 @@ def jaw_world(q):
 def neck(p, m):
     d = round_cone(p, (0, 0.022, 1.445), (0, 0.016, 1.625), 0.055, 0.043)
     d = smin(d, round_cone(m, (0.042, 0.014, 1.615), (0.02, -0.048, 1.475), 0.0085, 0.0072), 0.024)  # SCM cords
-    d = smin(d, round_cone(p, (0, -0.042, 1.575), (0, -0.047, 1.535), 0.0105, 0.0085), 0.02)     # larynx
+    d = smin(d, round_cone(p, (0, -0.042, 1.575), (0, -0.047, 1.535), 0.0105 - 0.004 * V["bony"], 0.0085 - 0.003 * V["bony"]), 0.02)  # larynx
+    if V["bony"] and V["hollow"]:   # the skin drawn tight under the jaw: bone and tendon show
+        d = smax(d, -ellipsoid(m, (0.03, -0.035, 1.565), (0.022, 0.03, 0.012)), 0.012)
     return d
 
 
@@ -242,14 +303,19 @@ def ribcage(p, m):
 
 def torso(p, m):
     d = ribcage(p, m)
-    d = smin(d, round_cone(m, (0.0, 0.03, 1.40), (0.145, 0.05, 1.415), 0.052, 0.032), 0.04)  # shoulder girdle
-    d = smin(d, round_cone(m, (0.028, 0.04, 1.55), (0.14, 0.045, 1.446), 0.02, 0.017), 0.04)  # trapezius sloping off the neck
-    d = smin(d, ellipsoid(p, (0, 0.045, 1.10), (0.098, 0.06, 0.115)), 0.05)          # gut sunk under the ribs
+    sh = V["shoulder"]
+    d = smin(d, round_cone(m, (0.0, 0.03, 1.40), (0.145, 0.05, 1.415), 0.052, 0.032 + 0.008 * sh), 0.04 + 0.015 * sh)  # shoulder girdle
+    d = smin(d, round_cone(m, (0.028, 0.04, 1.55), (0.14, 0.045, 1.446), 0.02, 0.017 + 0.004 * sh), 0.04 + 0.01 * sh)  # trapezius sloping off the neck
+    bl = V["bloat"]
+    d = smin(d, ellipsoid(p, (0, 0.045 - 0.075 * bl, 1.10 + 0.012 * bl), (0.098 + 0.03 * bl, 0.06 + 0.075 * bl, 0.115 + 0.018 * bl)), 0.05 + 0.06 * bl)  # gut: sunk, or one smooth bloated belly
+    if bl > 0.5:   # bloated: the lower chest swells into the gut, one soft overhang, no shelf
+        d = smin(d, ellipsoid(p, (0, 0.02 - 0.04 * bl, 1.2), (0.105 + 0.02 * bl, 0.085 + 0.025 * bl, 0.11)), 0.05 + 0.03 * bl)
     d = smin(d, ellipsoid(p, (0, 0.03, 0.958), (0.13, 0.085, 0.085)), 0.05)          # pelvis
     d = smin(d, sphere(m, (0.112, -0.006, 1.0), 0.028), 0.02)                        # iliac crests
     d = smin(d, ellipsoid(m, (0.058, 0.075, 0.905), (0.062, 0.045, 0.068)), 0.03)    # flat buttocks
     d = smin(d, ellipsoid(m, (0.085, 0.088, 1.37), (0.055, 0.02, 0.07), rot_y(12)), 0.025)  # scapulae
     d = smin(d, round_cone(m, (0.026, -0.07, 1.462), (0.075, -0.064, 1.468), 0.0095, 0.0085), 0.01)  # clavicles, S-curved
+    d = smin(d, sphere(p, (0.0, -0.058, 1.466), 0.017), 0.012)                                    # fill the notch between them
     d = smin(d, round_cone(m, (0.075, -0.064, 1.468), (0.135, -0.02, 1.466), 0.0085, 0.008), 0.016)
     d = smax(d, -sphere(p, (0, -0.08, 1.476), 0.013), 0.016)                         # sternal notch
     d = smin(d, ellipsoid(m, (0.06, -0.07, 1.36), (0.06, 0.018, 0.045)), 0.03)       # wasted pecs
@@ -293,13 +359,14 @@ def hand(m):
         f = None
         for j in range(len(pts) - 1):
             last = j == len(pts) - 2
-            seg = round_cone(m, pts[j], pts[j + 1], r * (0.86 - 0.08 * j), r * (0.62 if last else 0.78 - 0.08 * j))
+            tipr = max(0.45, 0.62 - 0.12 * (V["claws"] - 1))     # claws: the last joint tapers to a hook
+            seg = round_cone(m, pts[j], pts[j + 1], r * (0.86 - 0.08 * j), r * (tipr if last else 0.78 - 0.08 * j))
             f = seg if f is None else smin(f, seg, 0.003)
             if 0 < j:
                 f = smin(f, sphere(m, pts[j] + (0, 0, 0.0012), r * (1.12 - 0.07 * j)), 0.003)  # bony knuckles
         tip, prev = np.array(pts[-1]), np.array(pts[-2])
         dirv = (tip - prev) / np.linalg.norm(tip - prev)
-        f = smin(f, ellipsoid(m, nail_c(name), (0.0098, r * 0.6, 0.0016)), 0.0015)  # nails, overhanging to a point
+        f = smin(f, ellipsoid(m, nail_c(name), (0.0098 * V["claws"], r * 0.6, 0.0016 * min(V["claws"], 1.6))), 0.0015)  # nails, overhanging to a point
         d = smin(d, f, 0.007 if name != "thumb" else 0.012)
     return d
 
@@ -329,13 +396,38 @@ def leg(m):
 def body(p):
     p = np.atleast_2d(p).astype(float)
     m = p.copy(); m[:, 0] = np.abs(m[:, 0])
-    d = torso(p, m)
-    d = smin(d, neck(p, m), 0.035)
+    bu, bl = V["bulk"], V["bloat"]
+    d = torso(p, m) - 0.009 * bu - 0.008 * bl
+    d = smin(d, neck(p, m) - 0.0025 * bu - 0.003 * bl, 0.035 + 0.006 * (bu + bl))   # no ring where neck meets chest
     d = smin(d, head(p), 0.03)
     mt = to_T(m)                       # arms and hands are sculpted straight, then hung in the A-pose
-    d = smin(d, arm(mt), 0.035)
-    d = smin(d, hand(mt), 0.015)
-    d = smin(d, leg(m), 0.03)
+    d = smin(d, arm(mt) - 0.007 * bu - 0.005 * bl, 0.035)
+    d = smin(d, hand(mt) - 0.0006 * bu, 0.015)                     # bloat never balloons the fingers
+    d = smin(d, leg(m) - 0.008 * bu - 0.004 * bl, 0.03)
+    for pts, r0, r1 in V["ridges"]:              # ribs, sternum, sagging folds, bone spurs (A-space polylines)
+        k = len(pts) - 1
+        for i in range(k):
+            d = smin(d, round_cone(p, pts[i], pts[i + 1], r0 + (r1 - r0) * i / k, r0 + (r1 - r0) * (i + 1) / k), 0.004)
+    for c, r in V["bumps"]:                       # boils and barnacles big enough to break the silhouette
+        d = smin(d, sphere(p, c, r), 0.003)
+    if V["ropes"]:                               # swollen veins roped over the neck, forearms and shins
+        for path, r in ROPES:
+            ms = m if path[0][2] < 1.3 or path[0][0] < 0.3 else mt
+            rs = r * float(V["ropes"])
+            for a, b in zip(path[:-1], path[1:]):
+                d = smin(d, round_cone(ms, a, b, rs, rs * 0.9), 0.003)
+    if V["bony"]:                                # bonier knees, elbows and spine on the starved ones
+        bo = V["bony"]
+        d = smin(d, sphere(m, (0.089, -0.04, 0.536), 0.016 * bo), 0.008)                          # kneecaps
+        d = smin(d, sphere(to_T(m), (0.468, 0.094, 1.441), 0.013 * bo), 0.008)                    # elbow points
+        for z in np.linspace(1.05, 1.47, 12):                                                      # spine ridge
+            d = smin(d, sphere(p, (0, 0.1 + 0.008 * np.sin((z - 1.0) * 3.0), z), 0.009 * bo), 0.006)
+    for c, r in V["holes"]:                      # painted wounds carved open
+        d = smax(d, -sphere(p, c, r), 0.002)
+    for pts, r0, r1 in V["inner"]:               # what shows inside a wound: broken ribs
+        k = len(pts) - 1
+        for i in range(k):
+            d = smin(d, round_cone(p, pts[i], pts[i + 1], r0 + (r1 - r0) * i / k, r0 + (r1 - r0) * (i + 1) / k), 0.002)
     return d
 
 

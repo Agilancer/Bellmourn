@@ -1,16 +1,21 @@
 // The first-person view: the gauntleted arms (templates/models/gauntlets) and the equipped
 // items, in their own scene drawn over the world through the rigs' camera (90 degree
-// horizontal FOV at 16:10, shrunk 0.58 toward the bottom centre), so the arms move exactly
-// like the approved rigs. Clips are the rig animations by id; hit/fire times come from the
-// manifest.
+// horizontal FOV at 16:10, shrunk 0.58 toward the bottom centre). Every arm model shares one
+// skeleton, so the moves (tools/templates/moves.py: carries, attacks, blocks, casts) come from
+// one clip file per side, templates/models/arms/fp_moves_*.glb, with their times in
+// fp_moves.json and the player's choice of attack in fp_picks.json (the move viewer,
+// moves.html, writes it). Each arm is slid sideways on screen by how far its grip is from the
+// centre (the catalog's `stretch`, wider still on wide screens), so the hands sit at the sides
+// and leave the middle of the view open.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/';
-// the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
-// (the upright carry shows the flat); it turns back as it rises to upright again
-const ROLL_2H = { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 };
+const _p = new THREE.Vector3();
+// the greatsword turns a quarter in the hands as a swing lifts it, so it cuts with the edge
+// (the carry shows the flat); it turns back as the blade comes home
+const ROLL_2H = { angle: Math.PI / 2, in: 0.06, out: 0.22 };
 // the two-handed blades that turn like it; axes, hammers and polearms keep their head leading
 const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloodletter',
   'penitents_greatsword', 'tombstone']);
@@ -25,13 +30,32 @@ export const ITEMS = {
   shield_kite: { id: 'knights_kite', name: "Knight's Kite", type: 'kite shield', hands: ['L'] },
 };
 const WALK = {
-  R: { onehand: 'r1h_walk_3d', twohand: 'r2h_walk_3d', staff: 'r1s_walk', null: 'r1c_walk' },
-  L: { onehand: 'l1h_walk_3d', shield_round: 'lsh_walk', shield_kite: 'lks_walk', null: 'l1c_walk' },
+  R: { onehand: 'sword_walk', twohand: 'great_walk', staff: 'staff_walk', null: 'hand_walk' },
+  L: { onehand: 'sword_walk', shield_round: 'round_walk', shield_kite: 'kite_walk', null: 'hand_walk' },
 };
-const ACT = {
-  R: { onehand: 'r1h_swing_3d', twohand: 'r2h_swing_3d', staff: 'r1s_cast' },
-  L: { onehand: 'l1h_swing_3d', shield_round: 'lsh_block', shield_kite: 'lks_block' },
-};
+const BLOCK = { shield_round: 'round_block', shield_kite: 'kite_block' };
+const SHIELD = { shield_round: 'round', shield_kite: 'kite' };
+// what each held kind attacks with: a slot in fp_moves.json, whose picked option is a chain
+const SLOT_OF = { onehand: 'onehand', twohand: 'twohand', staff: 'staff' };
+const CHAIN_FADE = 0.1;   // the blend from one blow of a combo into the next
+const EVENTS = new Set(['hit', 'fire', 'whoosh']);   // the catalog's times that are told to the game
+
+/** The move set: catalog + each side's clips (smoothed once), fetched on first use. */
+let movesP = null;
+export function loadMoves(loader = new GLTFLoader()) {
+  movesP ||= (async () => {
+    const get = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const [cat, picks, gR, gL] = await Promise.all([get(ROOT + 'fp_moves.json'), get(ROOT + 'fp_picks.json'),
+      loader.loadAsync(ROOT + 'arms/fp_moves_R.glb'), loader.loadAsync(ROOT + 'arms/fp_moves_L.glb')]);
+    const clips = {};
+    for (const [side, g] of [['R', gR], ['L', gL]]) {
+      clips[side] = {};
+      for (const c of g.animations) clips[side][c.name] = smoothClip(c, cat.clips[c.name]?.kind === 'walk');
+    }
+    return { cat, clips, picks: picks || {} };
+  })();
+  return movesP;
+}
 
 /**
  * The rigs are keyed like sprite frames: one pose per frame, each held until the next (the
@@ -112,12 +136,29 @@ export class ViewModel {
     this.listeners = [];
     this.gauntlet = 'wayfarer';
     this.itemCache = new Map();
+    this.aspect = 1.6;
+    this.moves = null;        // {cat, clips, picks} (loadMoves)
+    this.picks = {};          // slot -> option id (over fp_picks.json and the catalog's defaults)
   }
+
+  /** The option picked for a slot ({id, name, chain}). */
+  pick(slot) {
+    const s = this.moves?.cat.slots[slot];
+    if (!s) return null;
+    const want = this.picks[slot] ?? this.moves.picks[slot] ?? s.default;
+    return s.options.find((o) => o.id === want) || s.options.find((o) => o.id === s.default) || s.options[0];
+  }
+
+  /** Choose a slot's option (the move viewer); takes effect on the next blow. */
+  setPick(slot, id) { this.picks[slot] = id; }
+
+  clipInfo(name) { return this.moves?.cat.clips[name]; }
 
   on(fn) { this.listeners.push(fn); }
   emit(...a) { for (const f of this.listeners) f(...a); }
 
   resize(aspect) {
+    this.aspect = aspect;
     // the rigs' projection (tools/models/viewer.html), widened for any aspect ratio
     const H = 240, S = this.manifest.view_scale, F = (H * 1.6 / 2) * S;
     const CY = H - (H / 2) * S, near = 0.02, far = 20;
@@ -145,6 +186,14 @@ export class ViewModel {
 
   async load(gauntlet = this.gauntlet) {
     this.gauntlet = gauntlet;
+    if (!this.moves) {
+      this.moves = await loadMoves(this.loader);
+      // the moves' times, where the rest of the game looks for clip times
+      for (const [name, c] of Object.entries(this.moves.cat.clips)) {
+        this.manifest.events[name] = c.events;
+        this.manifest.frame_starts[name] = c.starts;
+      }
+    }
     const entry = this.manifest.arms.find((a) => a.id === gauntlet) || this.manifest.arms[0];
     for (const side of ['R', 'L']) {
       const old = this.arms[side];
@@ -156,9 +205,10 @@ export class ViewModel {
       this.scene.add(g.scene);
       const mixer = new THREE.AnimationMixer(g.scene);
       const actions = {};
-      for (const clip of g.animations) actions[clip.name] = mixer.clipAction(smoothClip(clip, /_walk/.test(clip.name)));
+      for (const [name, clip] of Object.entries(this.moves.clips[side])) actions[name] = mixer.clipAction(clip);
+      g.scene.matrixAutoUpdate = false;   // (its matrix is the sideways slide: slide())
       this.arms[side] = { scene: g.scene, mixer, actions, socket: g.scene.getObjectByName('item'),
-        hand: g.scene.getObjectByName('hand'), item: null, walk: null, current: null };
+        hand: g.scene.getObjectByName('hand'), item: null, walk: null, current: null, roll: 0 };
     }
     await this.applyEquip();
   }
@@ -253,16 +303,22 @@ export class ViewModel {
   }
 
   walkClip(side) {
-    if (this.equip.R && ITEMS[this.equip.R].both) return 'r2h_walk_3d';
+    if (this.twoHanded()) return 'great_walk';
     return WALK[side][this.equip[side] ?? 'null'];
   }
 
+  twoHanded() { return !!(this.equip.R && ITEMS[this.equip.R]?.both); }
+
   /** Switch an arm to action `a`, cross-fading from whatever it was playing so the weights
    * always sum to one (fading in from nothing would let the bind pose show through). */
-  switchTo(arm, a, fade) {
+  switchTo(arm, a, fade, freeze = false) {
     const prev = arm.current;
     for (const other of Object.values(arm.actions)) if (other !== a && other !== prev) other.stop();
+    // (a blow cut short for the next one holds where it was cut, rather than playing on into
+    // its recovery underneath the blend)
+    if (freeze && prev && prev !== a) prev.setEffectiveTimeScale(0);
     a.reset();
+    a.setEffectiveTimeScale(1);
     a.setEffectiveWeight(1);
     a.play();
     if (prev && prev !== a && fade > 0) a.crossFadeFrom(prev, fade, false);
@@ -280,49 +336,85 @@ export class ViewModel {
     if (arm.item) arm.item.visible = true;
   }
 
-  /** Play a one-shot clip on one arm (or both); events fire at the manifest's times. */
-  play(side, name, { hold = null, hideItem = false } = {}) {
+  /** Play a one-shot clip on one arm; events fire at the catalog's times. `from` starts it
+   * part-way (a combo's next blow enters at its wind-up); a `quiet` arm fires no events (the
+   * left hand on a two-handed grip: the right one speaks for both). */
+  play(side, name, { hold = null, hideItem = false, from = 0, fade = 0.1, quiet = false, freeze = false } = {}) {
     const arm = this.arms[side];
     const a = arm.actions[name];
     if (!a) return false;
     a.setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = true;
-    this.switchTo(arm, a, 0.1);
+    this.switchTo(arm, a, fade, freeze);
+    a.time = from;
     if (arm.item) arm.item.visible = !hideItem;
     const ev = this.manifest.events[name] || {};
-    this.state[side] = { name, action: a, last: 0, events: ev, duration: ev.duration ?? a.getClip().duration, hold };
+    this.state[side] = { name, action: a, last: from - 1e-6, events: quiet ? {} : ev, duration: ev.duration ?? a.getClip().duration,
+      hold, info: this.hitInfo(side, name) };
     return true;
+  }
+
+  /** What a blow carries for the game: heavy or not, which way the edge sweeps (x right, y up). */
+  hitInfo(side, name) {
+    const c = this.clipInfo(name);
+    if (!c || c.kind !== 'attack') return null;
+    const e = c.events.edge || [0.8, 0.6];
+    return { attack: true, heavy: !!c.heavy, power: c.power ?? 1, edge: [side === 'L' ? -e[0] : e[0], e[1]] };
   }
 
   busy(side) { return !!this.state[side]; }
 
-  /** Attack with the right hand (LMB). Returns what happened, for the caller. */
-  attackRight() {
-    if (this.busy('R')) return null;
-    const kind = this.equip.R;
+  /** Attack with the right hand (LMB). Returns what happened, for the caller ('queued' when
+   * the next blow of a combo will follow the one under way). */
+  attackRight() { return this.attack('R'); }
+
+  attack(side) {
+    const kind = this.equip[side];
     if (!kind) return 'spell';
-    const both = ITEMS[kind].both;
-    if (both && this.busy('L')) return null;
-    this.play('R', ACT.R[kind]);
-    if (both) this.play('L', ACT.R[kind]);
-    // a shield swings out of the sword's way, frame for frame with the swing
-    const sh = this.equip.L;
-    if (kind === 'onehand' && (sh === 'shield_round' || sh === 'shield_kite') && !this.busy('L') && !this.blocking)
-      this.play('L', sh === 'shield_round' ? 'lsh_aside_3d' : 'lks_aside_3d');
+    const st = this.state[side];
+    if (st && !/_aside_/.test(st.name)) {   // (stepping aside for the other hand: cut it short)
+      // a blow under way: the next in its combo follows once this one's follow-through is done
+      // (asked for any time before its recovery is well along)
+      if (st.chain && !st.queued && st.action.time < (st.events.link ?? st.duration) + 0.15) { st.queued = true; return 'queued'; }
+      return null;
+    }
+    const both = ITEMS[kind]?.both;
+    if (both && this.busy('L') && !/_aside_/.test(this.state.L.name)) return null;
+    const list = this.pick(SLOT_OF[kind])?.chain;
+    if (!list) return null;
+    this.strike(side, list, 0, 0, 0.1);
     return kind;
+  }
+
+  /** Blow `index` of a combo (wrapping round), entering it at time `from`. */
+  strike(side, list, index, from, fade) {
+    const name = list[index % list.length];
+    const kind = this.equip[side];
+    const freeze = index > 0;   // (chained: the blow before holds where it was cut)
+    if (!this.play(side, name, { from, fade, freeze })) return;
+    if (this.clipInfo(name)?.kind === 'attack') this.state[side].chain = { list, index };
+    if (ITEMS[kind]?.both) this.play('L', name, { from, fade, quiet: true, freeze });
+    // a shield swings out of the sword's way, frame for frame with the blow
+    const sh = this.equip.L;
+    if (side === 'R' && kind === 'onehand' && SHIELD[sh] && !this.blocking && (!this.state.L || /_aside_/.test(this.state.L.name)))
+      this.play('L', `${SHIELD[sh]}_aside_${name.split('_')[1]}`, { from, fade, freeze });
+    // and a sword in the other hand makes room for this one
+    const other = side === 'R' ? 'L' : 'R';
+    if (kind === 'onehand' && this.equip[other] === 'onehand' && (!this.state[other] || /_aside_/.test(this.state[other].name)))
+      this.play(other, `sword_aside_${name.split('_')[1]}`, { from, fade, freeze });
   }
 
   /** The left hand's action (RMB): shields block while held; swords swing. */
   actLeft(held) {
     const kind = this.equip.L;
     if (this.equip.R && ITEMS[this.equip.R].both) return null;
-    if (kind === 'shield_round' || kind === 'shield_kite') {
-      if (held && !this.blocking && !this.busy('L')) {
+    if (BLOCK[kind]) {
+      if (held && !this.blocking && (!this.busy('L') || /_aside_/.test(this.state.L.name))) {
         this.blocking = true;
-        const name = ACT.L[kind];
-        const t3 = this.manifest.frame_starts[name][3];
+        const name = BLOCK[kind];
+        const t3 = this.manifest.events[name]?.hold ?? this.manifest.frame_starts[name][3];
         this.play('L', name, { hold: t3 });
-        if (this.equip.R === 'onehand' && !this.busy('R')) this.play('R', 'r1h_shield_back_3d', { hold: t3 });
+        if (this.equip.R === 'onehand' && !this.busy('R')) this.play('R', 'sword_guard', { hold: t3 });
       }
       if (!held && this.blocking) { // let go: play on from the hold to the end
         this.blocking = false;
@@ -330,31 +422,31 @@ export class ViewModel {
       }
       return this.blocking ? 'block' : null;
     }
-    if (!held || this.busy('L')) return null;
-    if (!kind) return 'spell';
-    this.play('L', ACT.L[kind]);
-    return kind;
+    if (!held) return null;
+    if (!kind) return this.busy('L') ? null : 'spell';
+    return this.attack('L');
   }
 
   /** Cast a spell with free hands: one-hand spells use the left hand if it's free, else the
    * right, else the left lowers what it holds; two-hand spells lower both. */
   cast(spell, { charge = false } = {}) {
     if (this.busy('R') || this.busy('L') || this.blocking) return null;
-    // a charged spell holds on the frame before it leaves the hand
+    // a charged spell holds on its CHARGE frame (or the frame before it leaves the hand)
     const hold = (clip) => {
       if (!charge) return null;
+      if (this.manifest.events[clip]?.hold != null) return this.manifest.events[clip].hold;
       const fire = this.manifest.events[clip]?.fire?.[0] ?? 0;
       return Math.max(0, ...this.manifest.frame_starts[clip].filter((t) => t < fire - 1e-3));
     };
     const both = () => {
-      this.play('R', 'b2c_cast', { hideItem: true, hold: hold('b2c_cast') });
-      this.play('L', 'b2c_cast', { hideItem: true, hold: hold('b2c_cast') });
+      this.play('R', 'both_cast', { hideItem: true, hold: hold('both_cast') });
+      this.play('L', 'both_cast', { hideItem: true, hold: hold('both_cast') });
       return 'both';
     };
     if (spell.hands === 2) return both();
     const side = !this.equip.L || (this.equip.R && ITEMS[this.equip.R].both) ? 'L' : (!this.equip.R ? 'R' : 'L');
     if (side === 'L' && this.equip.R && ITEMS[this.equip.R].both) return both(); // the two-hander: both hands come off it
-    const clip = side === 'R' ? 'r1c_cast' : 'l1c_cast';
+    const clip = this.pick('spell')?.chain[0] || 'hand_thrust';
     this.play(side, clip, { hideItem: true, hold: hold(clip) });
     return side;
   }
@@ -379,25 +471,25 @@ export class ViewModel {
     for (const side of ['R', 'L']) {
       const arm = this.arms[side];
       if (!arm) continue;
-      const st = this.state[side];
+      let st = this.state[side];
+      // a combo: the next blow takes over once this one's follow-through is done
+      if (st?.queued && st.action.time >= (st.events.link ?? st.duration)) {
+        const { list, index } = st.chain;
+        const next = list[(index + 1) % list.length];
+        this.strike(side, list, index + 1, this.manifest.events[next]?.enter ?? 0, CHAIN_FADE);
+        st = this.state[side];
+      }
       const roll = arm.item && ITEMS[this.equip[side]]?.roll;
-      if (roll) {
-        const ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
-        const on = st && st.name === roll.clip;
-        const t = on ? st.action.time : 0, d = on ? st.duration : 1;
-        arm.item.rotation.y = on ? roll.angle * ss(roll.in[0], roll.in[1], t) * (1 - ss(d - roll.out, d - 0.03, t)) : 0;
+      if (roll) {   // eased, so a combo entering mid-swing turns the blade rather than snapping it
+        const on = st && this.clipInfo(st.name)?.roll && st.action.time > roll.in && st.action.time < st.duration - roll.out;
+        arm.roll += ((on ? 1 : 0) - arm.roll) * Math.min(1, dt * 14);
+        arm.item.rotation.y = roll.angle * arm.roll * arm.roll * (3 - 2 * arm.roll);
       }
       if (st) {
         const a = st.action;
         if (st.hold != null && a.time >= st.hold) { a.time = st.hold; a.paused = true; }
         else a.paused = false;
-        const t = a.time;
-        for (const [kind, times] of Object.entries(st.events)) {
-          if (!Array.isArray(times)) continue;
-          for (const et of times) if (st.last < et && t >= et) this.emit(kind, side, st.name);
-        }
-        st.last = t;
-        if (!a.paused && t >= st.duration - 1e-4) {
+        if (!a.paused && a.time >= st.duration - 1e-4) {
           this.state[side] = null;
           this.playWalk(side);
         }
@@ -405,6 +497,42 @@ export class ViewModel {
         arm.walk.timeScale = 0.25 + Math.min(1.3, speed / 6.2);
       }
       arm.mixer.update(dt);
+      // events once the pose has moved on to them, so a hit fires on the frame that shows it
+      st = this.state[side];
+      if (st) {
+        const t = st.action.time;
+        for (const [kind, times] of Object.entries(st.events)) {
+          if (!EVENTS.has(kind)) continue;
+          for (const et of times) if (st.last < et - 1e-5 && t >= et - 1e-5) this.emit(kind, side, st.name, st.info);   // (time sums drift)
+        }
+        st.last = t;
+      }
+    }
+    this.slide();
+  }
+
+  /** Slide each arm sideways on screen (a shear: every depth moves the same distance on screen,
+   * so nothing bends) by how far its grip is from the centre, so the hands ride wide. Two hands
+   * on one grip slide together. */
+  slide() {
+    const fx = this.camera.projectionMatrix.elements[0];
+    const f = Math.min(2.2, Math.max(0.8, (this.moves?.cat.stretch ?? 1) * this.aspect / 1.6));
+    const shift = {};
+    for (const side of ['R', 'L']) {
+      const arm = this.arms[side];
+      if (!arm) continue;
+      arm.scene.matrix.identity();
+      arm.scene.updateMatrixWorld(true);
+      const p = arm.socket.getWorldPosition(_p);
+      shift[side] = p.z < -0.01 ? (fx * p.x / -p.z) * (f - 1) : 0;
+    }
+    if (this.twoHanded() && shift.R !== undefined) shift.L = shift.R;
+    for (const side of ['R', 'L']) {
+      const arm = this.arms[side];
+      if (!arm) continue;
+      const k = shift[side] / fx;   // x' = x - k z: on screen, + fx k
+      arm.scene.matrix.set(1, 0, -k, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+      arm.scene.updateMatrixWorld(true);
     }
   }
 

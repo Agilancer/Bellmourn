@@ -94,7 +94,7 @@ def pose(arm):
     ex, ey, ez = _frame(uz + fz, out_dir)
     out["elbow"] = mat(arm["E"], ex, ey, ez)
     # item socket: +y along the handle/blade, +z toward the knuckles (weapons) or out of the
-    # shield's face. Blades are modelled flat across x, which is what faces the camera.
+    # shield's face. Blades are modelled with their width along z and their flat facing x.
     iy = norm(arm["D"])
     if arm.get("shield"):
         # shields ride on the fist: the grip bar runs along the hand's grip axis, so the board
@@ -108,6 +108,19 @@ def pose(arm):
     else:
         aim = arm["A"]
         iz = norm(aim - iy * np.dot(aim, iy))
+        if arm.get("flat"):
+            # turn the blade in the fist (round grip: it doesn't show) that fraction of the way
+            # toward showing its flat to the eye, so a cut never reads as an edge-on stick. (The
+            # item models are thin along the socket's x and wide along z: x is the flat's normal.)
+            c = -np.asarray(arm["G"], float)
+            c = c - iy * np.dot(c, iy)
+            ix = np.cross(iy, iz)
+            if np.linalg.norm(c) > 1e-6:
+                c = norm(c)
+                if np.dot(c, ix) < 0:
+                    c = -c
+                t = math.atan2(np.dot(np.cross(ix, c), iy), np.dot(ix, c)) * arm["flat"]
+                iz = norm(iz * math.cos(t) + np.cross(iy, iz) * math.sin(t))
     out["item"] = mat(arm["G"], np.cross(iy, iz), iy, iz)
     return out
 

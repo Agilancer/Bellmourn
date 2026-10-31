@@ -24,6 +24,8 @@ def mirror(key):
     sx, sy, z = key["S"]
     out["S"] = (W - sx, sy, z)
     out["ang"] = 180 - key["ang"]
+    if "twist" in key:  # the torso turns the other way
+        out["twist"] = -key["twist"]
     for k in ("bend", "pole", "face", "fing", "palm"):
         if k in key:
             x, y, z = key[k]
