@@ -931,7 +931,7 @@ function tick(dt) {
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player));
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
-  ctx.water?.update(dt, t, 0.3 + 0.7 * day.day, smoke);
+  ctx.water?.update(dt, t, { camera, height: H, sun, hemi, day });
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);

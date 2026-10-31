@@ -5,7 +5,7 @@
 // ground the chart is of what you've walked: the undercroft's passages and rooms come out of
 // the dark as you pass through them.
 import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL } from './world.js';
-import { REGION, POOL, STREAM, terrainHeight } from './terrain.js';
+import { REGION, POOL, STREAM, RIVER, terrainHeight } from './terrain.js';
 import { SPOTS } from './region.js';
 import { DELVES } from './delves.js';
 
@@ -90,7 +90,7 @@ export class WorldMap {
     g.fillStyle = '#3a5a6a';
     const [px0, pz0] = this.px(POOL.x, POOL.z); g.beginPath(); g.arc(px0, pz0, POOL.r / PX, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#3a5a6a'; g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round';
-    g.beginPath(); STREAM.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke();
+    for (const line of [STREAM, RIVER]) { g.beginPath(); line.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }
     // roads and paths: the village's streets, the lane to the graveyard, the trail east and the
     // downs' paths
     const rect = (x0, z0, x1, z1, fill, stroke) => { const [a, b] = this.px(x0, z0), [c2, d2] = this.px(x1, z1); g.fillStyle = fill; g.fillRect(a, b, c2 - a, d2 - b); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(a, b, c2 - a, d2 - b); } };

@@ -3,7 +3,7 @@
 // into a broad pool, and a stream that winds from the pool out across the downs to the south
 // west. One height function shapes it all; the physics walks on it and the mesh is built from
 // it, textured by slope (rock), wetness (mud and gravel by the water, sand round the pool),
-// height (old snow on the plateau) and paths.
+// height (old snow on the plateau) and paths. The water itself is water.js's.
 import * as THREE from 'three';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
@@ -45,6 +45,28 @@ export function streamAt(x, z) {
 }
 export const streamLevel = (s) => POOL.level - 0.4 - s * 3.2; // the water falls gently away from the pool
 
+/** The line of the cliff's foot (x) at z: the escarpment's face runs from cliffX - 7 up to cliffX + 3. */
+export const cliffX = (z) => CLIFF.x + Math.sin(z * 0.021) * 9 + Math.sin(z * 0.06) * 3;
+// the falls: a river across the plateau runs west to the brink of the cliff, cut down into it a
+// little, and pours over into the pool. RIVER runs from the brink upstream (east)
+export const FALLS = { z: POOL.z - 2, level: 30.6 };   // where it goes over, and its water's height at the brink
+const BRINK = cliffX(FALLS.z) + 1.2;
+export const RIVER = [[BRINK - 3, FALLS.z], [BRINK + 12, FALLS.z], [BRINK + 28, FALLS.z + 4], [BRINK + 48, FALLS.z - 3], [BRINK + 72, FALLS.z + 4], [BRINK + 100, FALLS.z]];
+const RSEG = RIVER.slice(1).map((b, i) => Math.hypot(b[0] - RIVER[i][0], b[1] - RIVER[i][1]));
+/** Distance from (x, z) to the plateau river, and how far up it (metres from its first point). */
+export function riverAt(x, z) {
+  let best = Infinity, along = 0, acc = 0;
+  for (let i = 0; i + 1 < RIVER.length; i++) {
+    const [ax, az] = RIVER[i], [bx, bz] = RIVER[i + 1], dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+    if (d < best) { best = d; along = acc + t * RSEG[i]; }
+    acc += RSEG[i];
+  }
+  return { d: best, s: along };
+}
+export const riverLevel = (s) => FALLS.level + Math.max(0, s - 3) * 0.004;
+
 /** Height before the building pads are levelled. */
 function natural(x, z) {
   if (x < REGION.x0 - 2) return 0;
@@ -59,9 +81,20 @@ function natural(x, z) {
   const dp = Math.hypot(x - POOL.x, z - POOL.z); // the pool's basin
   h = h + (POOL.level - 2.4 - h) * (1 - smooth(POOL.r - 8, POOL.r + 6, dp));
   // the escarpment along the east, with the plateau above it
-  const cx = CLIFF.x + Math.sin(z * 0.021) * 9 + Math.sin(z * 0.06) * 3;
+  const cx = cliffX(z);
   const c = smooth(cx - 7, cx + 3, x);
   h = h + (CLIFF.top + fbm(x * 0.05, z * 0.05) * 4 - h) * c;
+  // the river's channel cut into the plateau: a flat bed a metre under the water, its banks
+  // rising steeply to the grass (and held up a little where the plateau dips toward the water)
+  if (x > cx - 2 && Math.abs(z - FALLS.z) < 22) {
+    const rv = riverAt(x, z);
+    if (rv.d < 12) {
+      const lv = riverLevel(rv.s), cut = lv - 1.1 + smooth(2.4, 7.5, rv.d) * 3.6;
+      h = Math.min(h, cut);
+      const hold = (1 - smooth(9, 12, rv.d)) * smooth(BRINK + 2, BRINK + 6, x);   // (not on the cliff's face)
+      h += Math.max(0, Math.min(lv + 0.35, cut) - h) * hold;
+    }
+  }
   return h;
 }
 
@@ -95,7 +128,7 @@ export function buildTerrain(ctx, lib, paths) {
   };
   attrAt = (x, z) => {        // wetness by the water, wear along the paths, and the pool's shore
     const st = streamAt(x, z), dp = Math.hypot(x - POOL.x, z - POOL.z);
-    const wet = Math.max(1 - smooth(4, 12, st.d), 1 - smooth(POOL.r - 4, POOL.r + 10, dp));
+    const wet = Math.max(1 - smooth(4, 12, st.d), 1 - smooth(POOL.r - 4, POOL.r + 10, dp), x > cliffX(z) + 3 ? 1 - smooth(5, 10, riverAt(x, z).d) : 0);   // (the river's banks, not the cliff under it)
     return [wet, 1 - smooth(1.2, 3.2, pathD(x, z)), 1 - smooth(POOL.r + 1, POOL.r + 15, dp)];
   };
   for (let tx = REGION.x0 - 2; tx < REGION.x1 + 40; tx += TILE) for (let tz = REGION.z0 - 40; tz < REGION.z1 + 40; tz += TILE) {
@@ -225,7 +258,10 @@ function downsMaterial(lib) {
         * (1.0 - smoothstep(${(POOL.level + 2.5).toFixed(1)}, ${(POOL.level + 5).toFixed(1)}, vDP.y));
       float sand = max(shore, smoothstep(0.6, 0.7, n3) * smoothstep(0.3, 0.8, vDA.x));
       bank = mix(bank, dTex(dT2, gp, 1.6) * ${tint[2]}, smoothstep(0.2, 0.8, sand));
-      c = mix(c, bank, smoothstep(0.2, 0.7, max(vDA.x, shore)));
+      // (on the cliffs the wet shows as dark, wet rock rather than mud smeared down the face)
+      float steep = smoothstep(0.3, 0.55, slope);
+      c = mix(c, bank, smoothstep(0.2, 0.7, max(vDA.x, shore)) * (1.0 - steep));
+      c *= 1.0 - 0.38 * steep * smoothstep(0.2, 0.8, vDA.x);
       c = mix(c, dTex(dT6, gp, 1.5) * ${tint[6]}, smoothstep(0.3, 0.8, vDA.y) * (1.0 - smoothstep(0.3, 0.5, slope)));
       // old snow lying in the hollows of the plateau above the falls, in ragged drifts
       float snow = smoothstep(${(CLIFF.top - 2.5).toFixed(1)}, ${(CLIFF.top + 0.5).toFixed(1)}, vDP.y) * (1.0 - smoothstep(0.1, 0.28, slope))
@@ -235,92 +271,4 @@ function downsMaterial(lib) {
       diffuseColor.rgb *= c;`);
   };
   return m;
-}
-
-/** Water: the pool, the stream as a ribbon down its channel, and the waterfall off the cliff,
- * with spray at its foot. Returns {update(dt, t)}. */
-export function buildWater(ctx, lib) {
-  const { scene } = ctx;
-  // a rippled normal map made on the GPU from a noise image
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d'), img = g.createImageData(128, 128);
-  for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
-    let v = 0; for (const [f, a] of [[4, 0.5], [8, 0.3], [16, 0.2]]) v += a * (0.5 + 0.5 * Math.sin((x / 128) * Math.PI * 2 * f + Math.sin((y / 128) * Math.PI * 2 * (f / 2 + 1)) * 2) * Math.cos((y / 128) * Math.PI * 2 * f));
-    const b = Math.round(v * 255); img.data.set([b, b, b, 255], (y * 128 + x) * 4);
-  }
-  g.putImageData(img, 0, 0);
-  const noise = new THREE.CanvasTexture(c); noise.wrapS = noise.wrapT = THREE.RepeatWrapping;
-  const make = (k) => { // each water gets its own normal map so their ripples drift apart
-    const m = new THREE.MeshPhongMaterial({ color: 0x24505c, specular: 0xb0c8d8, shininess: 140, transparent: true, opacity: 0.84, depthWrite: false, side: THREE.DoubleSide });
-    m.normalMap = lib.normalFrom(noise, k); m.normalScale.set(0.6, 0.6);
-    return m;
-  };
-  const poolMat = make(2.0), streamMat = make(1.7);
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(POOL.r + 7, 40), poolMat);
-  pool.rotation.x = -Math.PI / 2; pool.position.set(POOL.x, POOL.level, POOL.z); pool.receiveShadow = true;
-  scene.add(pool);
-  // the stream ribbon: a strip down the polyline, its UVs running along the flow
-  const P = [], U = [], I = [];
-  let along = 0;
-  const steps = [];
-  for (let i = 0; i + 1 < STREAM.length; i++) {
-    const [ax, az] = STREAM[i], [bx, bz] = STREAM[i + 1], l = Math.hypot(bx - ax, bz - az);
-    for (let k = 0; k < Math.ceil(l / 3); k++) steps.push([ax + (bx - ax) * k / Math.ceil(l / 3), az + (bz - az) * k / Math.ceil(l / 3)]);
-  }
-  steps.push(STREAM.at(-1));
-  steps.forEach(([x, z], i) => {
-    const [nx, nz] = steps[Math.min(i + 1, steps.length - 1)], [px, pz] = steps[Math.max(i - 1, 0)];
-    const dx = nx - px, dz = nz - pz, l = Math.hypot(dx, dz) || 1, sx = -dz / l, sz = dx / l, w = 5.2;
-    const s = streamAt(x, z).s, y = streamLevel(s);
-    if (i) along += Math.hypot(x - steps[i - 1][0], z - steps[i - 1][1]);
-    P.push(x + sx * w, y, z + sz * w, x - sx * w, y, z - sz * w);
-    U.push(0, along / 6, 1.7, along / 6);
-    if (i) { const a = (i - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-  });
-  const sg = new THREE.BufferGeometry();
-  sg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
-  sg.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(P.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
-  sg.setIndex(I);
-  const stream = new THREE.Mesh(sg, streamMat); stream.receiveShadow = true; scene.add(stream);
-  // the waterfall: a curved sheet from the lip of the cliff into the pool, its streaks pouring down
-  const fallMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { time: { value: 0 }, light: { value: 1 } }, fog: false,
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: /* glsl */`
-      uniform float time, light; varying vec2 vUv;
-      float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-      float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
-      void main() {
-        float streak = n(vec2(vUv.x * 40.0, vUv.y * 3.0 + time * 2.6)) * 0.6 + n(vec2(vUv.x * 90.0, vUv.y * 8.0 + time * 4.0)) * 0.4;
-        float edge = smoothstep(0.0, 0.08, vUv.x) * smoothstep(1.0, 0.92, vUv.x);
-        float a = (0.55 + 0.45 * streak) * edge * (0.75 + 0.25 * smoothstep(0.0, 0.2, vUv.y));
-        vec3 col = mix(vec3(0.55, 0.7, 0.78), vec3(1.0), smoothstep(0.55, 0.95, streak)) * (0.4 + 0.75 * light);
-        gl_FragColor = vec4(col * 1.25, a * 0.92);
-      }`,
-  });
-  const FW = 9, fz = POOL.z - 2, P2 = [], U2 = [], I2 = [];
-  const top = CLIFF.top + 0.6, lip = CLIFF.x - 1 + Math.sin(fz * 0.021) * 9 + Math.sin(fz * 0.06) * 3;
-  for (let i = 0; i <= 12; i++) {
-    const t = i / 12, y = top + (POOL.level - top) * t, x = lip - 1.5 - 6 * t - 3 * t * t; // arcing out clear of the cliff face
-    P2.push(x, y, fz - FW / 2, x, y, fz + FW / 2); U2.push(0, 1 - t, 1, 1 - t);
-    if (i) { const a = (i - 1) * 2; I2.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-  }
-  const fg = new THREE.BufferGeometry();
-  fg.setAttribute('position', new THREE.Float32BufferAttribute(P2, 3)); fg.setAttribute('uv', new THREE.Float32BufferAttribute(U2, 2)); fg.setIndex(I2);
-  const fall = new THREE.Mesh(fg, fallMat); fall.renderOrder = 4; scene.add(fall);
-  // the plateau stream that feeds it
-  const feed = new THREE.Mesh(new THREE.PlaneGeometry(40, FW * 0.9), streamMat);
-  feed.rotation.x = -Math.PI / 2; feed.position.set(lip + 21, top - 0.15, fz); scene.add(feed);
-  const foot = new THREE.Vector3(lip - 10, POOL.level + 0.2, fz);
-  return {
-    pool, stream, fall, foot,
-    update(dt, t, light, smoke, particles) {
-      poolMat.normalMap.offset.set(t * 0.01, t * 0.013);
-      streamMat.normalMap.offset.set(0, -t * 0.12);
-      poolMat.normalMap.repeat.set(4, 4); streamMat.normalMap.repeat.set(1, 1);
-      fallMat.uniforms.time.value = t; fallMat.uniforms.light.value = light;
-      if (smoke && Math.random() < dt * 30) smoke.emit(foot.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * FW)),
-        new THREE.Vector3((Math.random() - 0.7) * 2, 1.2 + Math.random(), (Math.random() - 0.5)), { life: 2.2, size: 0.9, grow: 1.4, alpha: 0.22, shade: 1.6 });
-    },
-  };
 }
