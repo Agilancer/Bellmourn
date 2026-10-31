@@ -155,6 +155,17 @@ main { padding: 18px 24px 70px; min-width: 0; }
 .clip.on { background: var(--gold); color: #1a1408; border-color: var(--gold); } .clip.on small { color: #4a3d1e; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: -6px 0 14px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1px solid; margin-right: 6px; vertical-align: -1px; }
+/* where a clip the game plays comes from */
+:root { --o-file: #a0968c; --o-ual: #7fb0e8; --o-carried: #b99be8; --o-copy: #6fc9b0; --o-held: #c9a38a; --o-code: #e39a5c; }
+.cgroup { margin-bottom: 12px; }
+.cg-h { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; display: flex; gap: 7px; align-items: center; }
+.cg-h .gn { font-family: var(--mono); color: var(--faint); }
+.cg-h i, .legend i[class^="o-"] { width: 9px; height: 9px; border-radius: 2px; display: inline-block; border: 0; }
+.o-file { --o: var(--o-file); } .o-ual { --o: var(--o-ual); } .o-carried { --o: var(--o-carried); } .o-copy { --o: var(--o-copy); } .o-held { --o: var(--o-held); } .o-code { --o: var(--o-code); }
+.cg-h i, .legend i[class^="o-"] { background: var(--o); }
+.clip[class*=" o-"] { border-color: color-mix(in srgb, var(--o) 45%, transparent); color: var(--text); }
+.clip[class*=" o-"] small { color: var(--o); }
+.clip[class*=" o-"].on { background: var(--gold); border-color: var(--gold); color: #1a1408; } .clip[class*=" o-"].on small { color: #4a3d1e; }
 
 /* gear */
 .swatches { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
@@ -302,12 +313,141 @@ const store = {
 let T = null;
 async function three() {
   if (!T) {
-    const [THREE, { GLTFLoader }, { OrbitControls }, { RoomEnvironment }] = await Promise.all([
+    const [THREE, { GLTFLoader }, { OrbitControls }, { RoomEnvironment }, { clone: cloneSkinned }] = await Promise.all([
       import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/controls/OrbitControls.js'),
-      import('three/addons/environments/RoomEnvironment.js')]);
-    T = { THREE, GLTFLoader, OrbitControls, RoomEnvironment };
+      import('three/addons/environments/RoomEnvironment.js'), import('three/addons/utils/SkeletonUtils.js')]);
+    // the game's code loads models by repo path ('templates/models/...'): send those to the repo
+    THREE.DefaultLoadingManager.setURLModifier(repoURL);
+    T = { THREE, GLTFLoader, OrbitControls, RoomEnvironment, cloneSkinned };
   }
   return T;
+}
+
+// ============================================================== the game's own code, run here
+// Some enemies' clips aren't all in their files: the game builds more as it loads them (ual.js's
+// animation library on the knights, sorcerers and Sworn, sworn.js's bodies, zombies.js's monster
+// copies). To show exactly what the game plays, the manager loads the game's own modules from the
+// repo (each as a blob, its './x.js' imports pointed at the others; 'three' comes through the
+// import map, the same copy as here) and calls the game's own loaders on stand-ins for the
+// Foes and Zombies objects.
+const G = { blobs: new Map(), ctx: {}, queue: Promise.resolve(), phone: false, mods: null };
+const IMPORT = /(\bfrom\s*|\bimport\s*\(?\s*)(['"])(\.\.?\/[^'"]+)\2/g;
+const normPath = (p) => { const out = []; for (const s of p.split('/')) { if (s === '..') out.pop(); else if (s && s !== '.') out.push(s); } return out.join('/'); };
+function repoURL(u) {
+  if (!S || /^[a-z][\w+.-]*:/i.test(u)) return u;
+  const p = normPath(u.split(/[?#]/)[0]);
+  if (G.phone) { const q = dir(p) + '/phone/' + base(p); if (S.files.has(q)) return S.src.url(q); }
+  return S.files.has(p) ? S.src.url(p) : u;
+}
+function gameModuleURL(path, stack = []) {
+  if (stack.includes(path)) throw new Error('circular import: ' + [...stack, path].join(' → '));
+  if (!G.blobs.has(path)) G.blobs.set(path, (async () => {
+    if (!S.files.has(path)) throw new Error(`${path} isn't in the repo`);
+    const code = await S.src.text(path);
+    const specs = [...new Set([...code.matchAll(IMPORT)].map((m) => m[3]))];
+    const urls = Object.fromEntries(await Promise.all(specs.map(async (s) => [s, await gameModuleURL(normPath(dir(path) + '/' + s), [...stack, path])])));
+    const out = code.replace(IMPORT, (m, a, q, s) => a + q + urls[s] + q);
+    return URL.createObjectURL(new Blob([out + `\n//# sourceURL=bellmourn/${path}`], { type: 'text/javascript' }));
+  })());
+  return G.blobs.get(path);
+}
+async function gameContext(phone) {
+  G.mods ||= Promise.all(['src/fps/foes.js', 'src/fps/zombies.js', 'src/fps/ual.js'].map(async (p) => import(await gameModuleURL(p))))
+    .then(([foes, zombies, ual]) => ({ foes, zombies, ual }));
+  const mods = await G.mods;
+  if (!G.ctx[phone]) {
+    const foes = () => Object.assign(Object.create(mods.foes.Foes.prototype),
+      { gltf: {}, items: {}, sock: {}, loader: new T.GLTFLoader(), zombies: { list: [] }, manifest: S.manifest || { items: {} }, loadItems: async () => {} });
+    const Z = Object.create(mods.zombies.Zombies.prototype);
+    Object.assign(Z, { gltf: {}, list: [] });
+    // the Sworn get a Foes of their own: they carry over knight_a's own clips, so it mustn't have been
+    // given the library first (in the game that depends on which finishes first)
+    G.ctx[phone] = { F: foes(), FS: foes(), Z };
+  }
+  return { mods, ...G.ctx[phone] };
+}
+const GAME_FAMILIES = new Set(['foes', 'sworn', 'grotesques', 'monsters', 'zombies']);
+const gameLoadable = (e) => e && GAME_FAMILIES.has(e.family) && !e.missing && e.gameId != null;
+// an enemy as the game loads it: {scene, animations, userData}. One at a time (the phone switch is shared).
+function gameLoad(e, phone = false) {
+  const run = G.queue.then(() => gameLoadNow(e, phone));
+  G.queue = run.catch(() => {});
+  return run;
+}
+async function gameLoadNow(e, phone) {
+  await three();
+  const { F, FS, Z } = await gameContext(phone);
+  const id = e.gameId, main = S.code.get('src/fps/main.js') || '';
+  G.phone = phone;
+  try {
+    if (e.family === 'foes') {
+      if (!F.gltf[id]) await F.load([id]);
+      if (/\bfoes\.upgrade\(/.test(main)) await F.upgrade();   // as main.js does: its own choice of who gets the library
+      return F.gltf[id];
+    }
+    if (e.family === 'sworn') { if (!FS.gltf[id]) await FS.loadSworn([id]); return FS.gltf[id]; }
+    const args = { zombies: [[id], [], []], monsters: [[], [id], []], grotesques: [[], [], [id]] }[e.family];
+    if (!Z.gltf[id]) await Z.load(...args);
+    if (!Z.gltf[id]) throw new Error("the game's loader left it out");
+    return Z.gltf[id];
+  } finally { G.phone = false; }
+}
+
+// where each of the clips the game ended up with came from
+const ORIGIN = {
+  file: 'In the model file', ual: 'Built from the animation library (ual.js)', carried: 'Carried over from another model (sworn.js)',
+  copy: 'Copies made by code', held: 'Held poses (the end of a death)', code: 'Made by code',
+};
+function recipeText(r) {
+  if (!r) return '';
+  const src = r.seq ? r.seq.map((s) => s.src).join(' + ') : r.src;
+  return `${src}${r.upper ? ` (arms: ${r.upper})` : ''}${r.turn ? ', reposed' : ''}${r.to && !r.seq ? ', cut short' : ''}${r.pitch ? ', leaning in' : ''}`;
+}
+async function clipOrigins(e, g) {
+  const { ual } = await G.mods;
+  const R = ual.RECIPES || {}, C = ual.CALM || {}, foe = g.userData?.foe || {};
+  const own = e.composite ? [] : (e.parts[0].head?.clips || []), ownNames = new Set(own.map((c) => c.name));
+  const knightClips = new Set((S.enemies.get('knight_a')?.parts[0].head?.clips || []).map((c) => c.name));
+  const casts = e.d?.body?.casts, castClips = new Set((casts && S.enemies.get(casts)?.parts[0].head?.clips || []).map((c) => c.name));
+  const usesLib = foe.ual || e.composite;
+  return g.animations.map((c) => {
+    const n = c.name, o = { name: n, dur: c.duration };
+    if (g.old ? g.old.includes(c) : ownNames.has(n) && !(usesLib && R[n])) return { ...o, kind: 'file', text: `${e.parts[0].file}` };
+    if (/^dead2?$/.test(n)) return { ...o, kind: 'held', text: `the last pose of ${n === 'dead2' ? 'death2' : 'death'}, held` };
+    const r = usesLib && ((foe.calm && (C[n] || (n === 'guard' && C.guard))) || R[n]);
+    if (r) return { ...o, kind: 'ual', text: recipeText(r), src: r.seq ? r.seq[0].src : r.src };
+    if (e.composite && knightClips.has(n)) return { ...o, kind: 'carried', text: "knight_a's, retargeted", src: 'knight_a' };
+    if (e.composite && castClips.has(n)) return { ...o, kind: 'carried', text: `${casts}'s, retargeted`, src: casts };
+    const twin = g.animations.find((x) => x !== c && ownNames.has(x.name) && Math.abs(x.duration - c.duration) < 1e-4
+      && x.tracks.length === c.tracks.length && x.tracks[0]?.times.length === c.tracks[0]?.times.length);
+    if (twin) return { ...o, kind: 'copy', text: `a copy of ${twin.name}`, src: twin.name };
+    return { ...o, kind: 'code', text: 'made by the game\'s code' };
+  });
+}
+// the clips each enemy plays in game, remembered by the code's and the models' hashes
+const fnv = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
+function runtimeKey(e) {
+  // the game's code that builds clips (the loaders' modules and all they import, and main.js, which
+  // decides who gets the library) and the library itself
+  if (!S.rtBase) {
+    const deps = new Set(['src/fps/main.js']);
+    const walk = (p) => { if (deps.has(p) || !S.code.has(p)) return; deps.add(p); for (const m of S.code.get(p).matchAll(IMPORT)) walk(normPath(dir(p) + '/' + m[3])); };
+    ['src/fps/foes.js', 'src/fps/zombies.js', 'src/fps/ual.js'].forEach(walk);
+    S.rtBase = [...S.files.values()].filter((f) => deps.has(f.path) || (/\/ual\.glb$/.test(f.path) && !/zombie_ual/.test(f.path)))
+      .map((f) => f.path + '@' + f.sha).sort().join('|');
+  }
+  const extra = e.composite ? ['knight_a', e.d?.body?.casts].map((k) => S.enemies.get(k)?.parts[0].sha || '') : [];
+  return 'rt2:' + e.id + ':' + fnv([S.rtBase, ...e.parts.map((p) => p.sha), ...extra].join('|'));
+}
+function runtimeOf(e) {
+  if (!gameLoadable(e)) return null;
+  if (!S.runtime.has(e.id)) { const c = store.get(runtimeKey(e)); if (c) S.runtime.set(e.id, c); }
+  return S.runtime.get(e.id) || null;
+}
+async function noteRuntime(e, g) {
+  const rt = { clips: await clipOrigins(e, g) };
+  S.runtime.set(e.id, rt); store.set(runtimeKey(e), rt);
+  return rt;
 }
 
 // ============================================================== where the files come from
@@ -477,10 +617,10 @@ const quoted = (id) => [`'${id}'`, `"${id}"`, '`' + id + '`'];
 let S = null, loadGen = 0;
 function fresh(src) {
   return { src, files: new Map(), code: new Map(), lines: new Map(), consts: {}, models: new Map(), enemies: new Map(), gear: new Map(),
-    textures: new Map(), clipsets: [], clipUsed: new Map(), sprites: [], renders: [], art: [], tools: [], places: {}, allCode: '',
+    textures: new Map(), clipsets: [], clipUsed: new Map(), runtime: new Map(), building: null, sprites: [], renders: [], art: [], tools: [], places: {}, allCode: '',
     headersDone: 0, headersTotal: 0, notes: [] };
 }
-const UI = { section: 'enemies', q: '', texRole: 'all', thumbs: true };
+const UI = { section: 'enemies', q: '', texRole: 'all', thumbs: true, gameClips: true, clipView: 'game' };
 try { const c = JSON.parse(localStorage.getItem(CACHE + 'ui') || '{}'); if (c.section) UI.section = c.section; if (c.thumbs === false) UI.thumbs = false; if (c.repo) $('#repo').value = c.repo; if (c.ref) $('#ref').value = c.ref; } catch { }
 const saveUI = () => { try { localStorage.setItem(CACHE + 'ui', JSON.stringify({ section: UI.section, thumbs: UI.thumbs, repo: $('#repo').value, ref: $('#ref').value })); } catch { } };
 
@@ -493,6 +633,7 @@ function setStatus(text, err = false, frac = null) {
 async function load(src) {
   const gen = ++loadGen;
   S = fresh(src);
+  Object.assign(G, { blobs: new Map(), ctx: {}, mods: null, queue: Promise.resolve() });   // (another branch: other code)
   $('#view').innerHTML = `<div class="empty">Reading <b>${esc(src.label)}</b>…</div>`;
   renderNav();
   try {
@@ -961,22 +1102,32 @@ async function viewerInit() {
   });
 }
 function viewerClear() {
-  if (V.root) { V.scene.remove(V.root); disposeAll(V.root); V.root = null; }
+  if (V.root) { V.scene.remove(V.root); if (!V.shared) disposeAll(V.root); V.root = null; }   // (a game-built body is kept for next time)
   if (V.skel) { V.scene.remove(V.skel); V.skel = null; }
   V.mixer = null; V.action = null; V.clips = []; V.clip = null;
 }
-async function viewerShow(parts, { clip, phone = false, finish = null, hide = D.hide } = {}) {
+async function viewerShow(parts, { clip, phone = false, finish = null, hide = D.hide, game = null } = {}) {
   const token = ++V.token;
   $('#stage canvas')?.removeAttribute('hidden'); $('#stageImg').hidden = true;
-  $('#vmsg').textContent = 'Loading model…'; $('#vinfo').textContent = '';
+  $('#vmsg').textContent = game ? "Running the game's loader (building its clips can take a few seconds)…" : 'Loading model…'; $('#vinfo').textContent = '';
   try {
     await viewerInit();
     const { THREE } = T;
     viewerClear();
-    const urls = parts.map((m) => S.src.url(phone && m.phone ? m.phone : m.path));
-    const gltfs = await Promise.all(urls.map((u) => V.loader.loadAsync(u)));
-    if (token !== V.token) { gltfs.forEach((g) => disposeAll(g.scene)); return; }
-    V.root = assemble(gltfs, hide); V.scene.add(V.root);
+    let gltfs;
+    if (game) {
+      const g = await gameLoad(game, phone);
+      if (token !== V.token) return;
+      gltfs = [{ scene: T.cloneSkinned(g.scene), animations: g.animations }];
+      V.shared = true;
+      noteRuntime(game, g).then((rt) => { if (D.enemy === game && D.game) showClipBox(rt); renderNav(); }).catch((e) => console.warn('clip origins', e));
+    } else {
+      const urls = parts.map((m) => S.src.url(phone && m.phone ? m.phone : m.path));
+      gltfs = await Promise.all(urls.map((u) => V.loader.loadAsync(u)));
+      if (token !== V.token) { gltfs.forEach((g) => disposeAll(g.scene)); return; }
+      V.shared = false;
+    }
+    V.root = assemble(gltfs, game ? null : hide); V.scene.add(V.root);
     if (finish) {
       const tex = await new THREE.TextureLoader().loadAsync(S.src.url(finish));
       tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
@@ -997,12 +1148,13 @@ async function viewerShow(parts, { clip, phone = false, finish = null, hide = D.
     if (V.wire) setWire(true); if (V.bones) setBones(true);
     V.clock.getDelta(); V.playing = true;
     $('#vmsg').textContent = '';
-    $('#vinfo').innerHTML = `${size.y.toFixed(2)} m tall · ${size.x.toFixed(2)} × ${size.z.toFixed(2)} m footprint${phone ? ' · phone copy' : ''}`;
+    $('#vinfo').innerHTML = `${size.y.toFixed(2)} m tall · ${size.x.toFixed(2)} × ${size.z.toFixed(2)} m footprint${phone ? ' · phone copy' : ''}${game ? ` · as the game loads it · ${plural(V.clips.length, 'clip')}` : ''}`;
     syncClipButtons(); syncBar();
   } catch (e) {
     if (token !== V.token) return;
     console.error(e);
-    $('#vmsg').innerHTML = `<span style="color:var(--bad)">Couldn't load the model.</span><br>${esc(e.message || e)}`;
+    $('#vmsg').innerHTML = `<span style="color:var(--bad)">Couldn't ${game ? "run the game's loader on it" : 'load the model'}.</span><br>${esc(e.message || e)}${game ? '<br><br><button data-act="game">Show the file alone</button>' : ''}`;
+    syncBar();
   }
 }
 function viewerPlay(name) {
@@ -1028,6 +1180,7 @@ function syncBar() {
       <select data-act="speed" aria-label="Speed">${[0.25, 0.5, 1, 1.5, 2].map((s) => `<option value="${s}"${s === V.speed ? ' selected' : ''}>${s}×</option>`).join('')}</select>` : ''}
     ${finishes.length ? `<select data-act="finish" aria-label="Finish"><option value="">base texture</option>${finishes.map((f) => `<option value="${esc(f)}"${f === D.finish ? ' selected' : ''}>${esc(f)}</option>`).join('')}</select>` : ''}
     <span class="grow"></span>
+    ${gameLoadable(D.enemy) ? `<button data-act="game" class="${D.game ? 'on' : ''}" title="On: loaded by the game's own code, with every clip it builds. Off: the model file alone.">As in game</button>` : ''}
     ${ph ? `<button data-act="phone" class="${D.phone ? 'on' : ''}" title="The smaller copy phones load">Phone copy</button>` : ''}
     <button data-act="wire" class="${V.wire ? 'on' : ''}">Wireframe</button>
     ${V.root && D.parts.some((m) => m.head?.bones) ? `<button data-act="bones" class="${V.bones ? 'on' : ''}">Bones</button>` : ''}
@@ -1055,7 +1208,8 @@ function render(keepScroll = false) {
   if (!S) return;
   const y = window.scrollY;
   const s = SECTIONS.find((x) => x.id === UI.section) || SECTIONS[0];
-  $('#tools').innerHTML = UI.section === 'textures' ? `<span class="seg">${['all', 'color', 'normal', 'emissive', 'other'].map((r) => `<button data-act="texrole" data-v="${r}" class="${UI.texRole === r ? 'on' : ''}">${r === 'all' ? 'All' : r === 'color' ? 'Base colour' : r === 'other' ? 'Other maps' : pretty(r)}</button>`).join('')}</span>` : '';
+  $('#tools').innerHTML = UI.section === 'textures' ? `<span class="seg">${['all', 'color', 'normal', 'emissive', 'other'].map((r) => `<button data-act="texrole" data-v="${r}" class="${UI.texRole === r ? 'on' : ''}">${r === 'all' ? 'All' : r === 'color' ? 'Base colour' : r === 'other' ? 'Other maps' : pretty(r)}</button>`).join('')}</span>`
+    : UI.section === 'clips' ? `<span class="seg">${[['game', 'As the game plays them'], ['file', 'As stored in the files']].map(([k, l]) => `<button data-act="clipview" data-v="${k}" class="${UI.clipView === k ? 'on' : ''}">${l}</button>`).join('')}</span>` : '';
   const html = ({ enemies, models, textures, clips, gear, sprites, renders, art, tools })[s.id]();
   $('#view').innerHTML = html;
   if (S.notes.length && s.id === 'enemies') $('#view').insertAdjacentHTML('afterbegin', `<div class="note">${S.notes.map(esc).join('<br>')}</div>`);
@@ -1078,13 +1232,13 @@ function enemyThumb(e) {
   return portraitImg(e.parts, (e.gameId || e.id).slice(0, 2).toUpperCase(), e.hide);
 }
 function enemyCard(e) {
-  const h = e.parts[0]?.head;
+  const h = e.parts[0]?.head, rt = runtimeOf(e);
   const where = e.haunts?.length ? e.haunts.slice(0, 3).map((x) => `<span class="chip" title="${esc(x.label)}">${esc(x.key)}${x.n > 1 ? ' ×' + x.n : ''}</span>`).join('') + (e.haunts.length > 3 ? `<span class="chip">+${e.haunts.length - 3}</span>` : '')
     : e.refs?.filter((r) => !r.comment).length ? `<span class="chip" title="Lines of game code that name it">${plural(e.refs.filter((r) => !r.comment).length, 'code ref')}</span>` : '';
   return `<div class="card" data-act="enemy" data-v="${esc(e.id)}">
     <div class="thumb">${e.missing ? `<span class="tag">${pill('missing')}</span>` : ''}${enemyThumb(e)}</div>
     <div class="body"><h3>${esc(e.title)}</h3><div>${idChip(e.gameId ?? e.id)}</div>
-      <div class="chips">${pill(e.status)}${e.kind ? `<span class="chip">${esc(e.kind)}</span>` : ''}${h ? `<span class="chip">${plural(h.clips.length, 'clip')}</span>` : ''}${where}</div></div></div>`;
+      <div class="chips">${pill(e.status)}${e.kind ? `<span class="chip">${esc(e.kind)}</span>` : ''}${rt ? `<span class="chip" title="Every clip it has in game (${rt.clips.length - rt.clips.filter((c) => c.kind === 'file').length} built by the game's code)">${plural(rt.clips.length, 'clip')}</span>` : h ? `<span class="chip" title="In its file">${plural(h.clips.length, 'clip')}</span>` : ''}${where}</div></div></div>`;
 }
 function enemies() {
   const list = [...S.enemies.values()].filter((e) => match(e.id, e.gameId, e.title, e.kind, e.family, FAMILIES[e.family]?.label, e.status, e.parts.map((p) => p.path), e.haunts?.map((h) => h.key), e.R, e.L));
@@ -1162,8 +1316,55 @@ function setLabel(s) {
   const by = groupBy(s.models, (m) => { const e = m.users[0]; return !e ? m.family : e.composite ? 'Sworn bodies' : e.kind ? e.kind + 's' : e.family; });
   return [...by].map(([k, l]) => `${k} ×${l.length}`).join(' · ');
 }
-function clips() {
-  let html = head('Animations', `${S.clipUsed.size} clip names`, 'Clips grouped by the set of models that share them (one rig, one set). Gold clips are ones the game plays by name somewhere in its code. Click a clip to play it on that set\'s first model, or a model to open it.');
+const ORIGIN_SHORT = { file: 'in the file', ual: 'from the library', carried: 'carried over', copy: 'copies', held: 'held poses', code: 'by code' };
+function originLegend() {
+  return `<div class="legend">${Object.keys(ORIGIN).map((k) => `<span><i class="o-${k}"></i>${esc(ORIGIN[k])}</span>`).join('')}</div>`;
+}
+function clips() { return UI.clipView === 'game' ? gameClips() : fileClips(); }
+// every clip each enemy plays in game, from the game's own loaders
+function gameClips() {
+  const ens = [...S.enemies.values()].filter(gameLoadable);
+  const built = ens.filter((e) => runtimeOf(e)), left = ens.filter((e) => !runtimeOf(e));
+  let html = head('Animations', `${built.length}/${ens.length} enemies`, 'Every clip each enemy plays in game. The manager runs the game\'s own loaders on each model (foes.js, sworn.js, ual.js and zombies.js, read from the repo), the way the game does when it loads them, so clips the code builds at runtime are here too. Enemies with the same clips are grouped. Colour shows where each clip comes from: hover one for its source, click it to play it on that enemy.');
+  if (S.building) html += `<div class="note">Running the game's loaders… ${S.building.done}/${S.building.total}${S.building.cur ? ` · now <code>${esc(S.building.cur)}</code>` : ''}</div>`;
+  else if (left.length) html += `<div class="note"><button class="primary" data-act="buildall">Find every enemy's clips</button> &nbsp;<span>${built.length ? `${built.length} of ${ens.length} done. ` : ''}Runs the game's loaders on the ${left.length} left, using their phone copies (a few MB each; takes a minute or so). The results are remembered until the code or the models change.</span></div>`;
+  if (S.buildFailed?.length) html += `<div class="note" style="color:var(--bad)">The game's loader failed on: ${S.buildFailed.map(esc).join('; ')}</div>`;
+  html += originLegend();
+  const sets = groupBy(built, (e) => runtimeOf(e).clips.map((c) => c.name + ':' + c.kind).sort().join('|'));
+  const label = (list) => [...groupBy(list, (e) => e.family === 'foes' ? e.kind + 's' : FAMILIES[e.family]?.label || e.family)].map(([k, l]) => `${k} ×${l.length}`).join(' · ');
+  let shown = 0;
+  for (const list of [...sets.values()].sort((a, b) => b.length - a.length || runtimeOf(b[0]).clips.length - runtimeOf(a[0]).clips.length)) {
+    const e0 = list[0], rt = runtimeOf(e0);
+    const cl = rt.clips.filter((c) => match(c.name, c.src, c.text, list.map((e) => [e.gameId, e.title])));
+    if (!cl.length) continue; shown++;
+    const counts = [...groupBy(rt.clips, (c) => c.kind)].map(([k, l]) => `${l.length} ${ORIGIN_SHORT[k]}`).join(' · ');
+    html += `<div class="clipset"><h3>${esc(label(list))}</h3><div class="meta">${plural(rt.clips.length, 'clip')}: ${esc(counts)}</div>
+      <div class="who">${list.map((e) => `<span class="chip click" data-act="enemy" data-v="${esc(e.id)}">${esc(e.gameId)}</span>`).join('')}</div>
+      ${runtimeClipChips({ clips: cl }, 'gclip', e0.id + '|')}</div>`;
+  }
+  if (!built.length && !S.building) html += `<div class="empty">Nothing found yet. Press <b>Find every enemy's clips</b>, or open an enemy (its clips are found as it opens).</div>`;
+  else if (!shown && built.length) html += '<div class="empty">Nothing matches.</div>';
+  if (left.length && built.length && !S.building) html += `<div class="group-h"><b>Not run yet</b><span class="gn">${left.length}</span></div><div class="chips">${left.map((e) => `<span class="chip click" data-act="enemy" data-v="${esc(e.id)}">${esc(e.gameId)}</span>`).join('')}</div>`;
+  html += `<p class="meta" style="margin-top:18px">Files no enemy loader runs, such as the animation library itself (sworn/ual.glb), are under “As stored in the files”.</p>`;
+  return html;
+}
+async function buildAll() {
+  if (S.building) return;
+  const todo = [...S.enemies.values()].filter((e) => gameLoadable(e) && !runtimeOf(e)), gen = loadGen;
+  S.building = { done: 0, total: todo.length, cur: '' }; S.buildFailed = [];
+  const show = () => { if (UI.section === 'clips') render(true); };
+  show();
+  for (const e of todo) {
+    if (gen !== loadGen) return;
+    S.building.cur = e.gameId; show();
+    try { await noteRuntime(e, await gameLoad(e, true)); } catch (err) { console.warn('clips in game', e.id, err); S.buildFailed.push(`${e.gameId} (${err.message || err})`); }
+    S.building.done++;
+  }
+  G.ctx[true] = null;   // let go of the phone copies
+  S.building = null; renderNav(); show();
+}
+function fileClips() {
+  let html = head('Animations', `${S.clipUsed.size} clip names`, 'The clips stored in each model file, grouped by the set of models that share them (one rig, one set). Some enemies get more at runtime: see “As the game plays them”. Gold clips are ones the game plays by name somewhere in its code. Click a clip to play it on that set\'s first model, or a model to open it.');
   html += `<div class="legend"><span><i style="border-color:rgba(216,184,112,.5);background:var(--gold-bg)"></i>named in game code</span><span><i style="border-color:var(--edge)"></i>in the file only</span></div>`;
   html += loadingNote();
   let shown = 0;
@@ -1285,6 +1486,26 @@ function clipChips(m) {
   if (!h.clips.length) return '<p class="meta">No clips in this file.</p>';
   return `<div class="clips">${h.clips.map((c) => `<span class="clip${S.clipUsed.get(c.name) ? ' used' : ''}" data-act="play" data-v="${esc(c.name)}">${esc(c.name)}<small>${c.dur.toFixed(2)}s</small></span>`).join('')}</div>`;
 }
+// the clips an enemy has in game, grouped by where each came from (hover one for its source)
+function runtimeClipChips(rt, act = 'play', prefix = '') {
+  const by = groupBy(rt.clips, (c) => c.kind), times = new Map();
+  for (const c of rt.clips) times.set(c.name, (times.get(c.name) || 0) + 1);
+  return Object.keys(ORIGIN).filter((k) => by.has(k)).map((k) => `<div class="cgroup"><div class="cg-h"><i class="o-${k}"></i>${ORIGIN[k]}<span class="gn">${by.get(k).length}</span></div>
+    <div class="clips">${by.get(k).map((c) => { const n = times.get(c.name); return `<span class="clip o-${k}" data-act="${act}" data-v="${esc(prefix + c.name)}" title="${esc(c.text)}${n > 1 ? ` (the game's list has ${n} clips by this name)` : ''}">${esc(c.name)}${n > 1 ? ` ×${n}` : ''}<small>${c.dur.toFixed(2)}s${c.src && k !== 'file' ? ' · ' + esc(c.src) : ''}</small></span>`; }).join('')}</div></div>`).join('');
+}
+function clipBox(e) {
+  const rt = D.game && runtimeOf(e);
+  if (D.game && !rt) return `<p class="meta">Running the game's loader to find every clip it gives this enemy…</p>${clipChips(e.parts[0])}`;
+  return rt ? runtimeClipChips(rt) : clipChips(e.parts[0]);
+}
+function clipHead(e) {
+  const rt = D.game && runtimeOf(e);
+  return D.game ? `Clips in game${rt ? ` · ${rt.clips.length}` : ''}` : `Clips in ${e.parts[0].file}${gameLoadable(e) ? ' alone (turn on “As in game” for the rest)' : ''}`;
+}
+function showClipBox() {
+  const e = D.enemy, b = $('#clipBox'); if (!e || !b) return;
+  b.innerHTML = clipBox(e); $('#clipHead').textContent = clipHead(e); syncClipButtons();
+}
 function texGrid(parts) {
   const out = [];
   for (const m of parts) for (const im of m.head?.images || []) {
@@ -1318,7 +1539,7 @@ function enemyInfo(e) {
   if (e.haunts?.length) html += `<h4>Where it spawns (HAUNTS)</h4><ul>${e.haunts.map((h) => `<li><code>${esc(h.key)}</code> · ${h.n} of ${h.of} draws${h.label ? `<br><span class="meta">${esc(h.label)}</span>` : ''}</li>`).join('')}</ul>`;
   if (e.R?.length || e.L?.length) html += `<h4>Carries</h4>${gearList(e)}`;
   if (m0) {
-    html += `<h4>Clips${e.composite ? ` in ${esc(m0.file)} (the game adds its own at runtime)` : ''}</h4>${clipChips(m0)}`;
+    html += `<h4 id="clipHead">${esc(clipHead(e))}</h4><div id="clipBox">${clipBox(e)}</div>`;
     html += `<h4>Textures</h4>${texGrid(e.parts)}`;
     html += `<h4>Files</h4>${filesList(e.parts)}`;
     for (const m of e.parts) html += `<h4>Inside ${esc(m.file)}</h4>${statsKV(m) || '<p class="meta">Reading…</p>'}`;
@@ -1342,9 +1563,9 @@ function gearInfo(g) {
     <h4>Files</h4><ul>${g.path ? [g.path, ...[...S.files.keys()].filter((p) => dir(p) === dir(g.path) && p !== g.path)].map((p) => `<li><code>${esc(p)}</code><br><span class="meta">${kb(S.files.get(p)?.size)} · ${fileLinks(p)}</span></li>`).join('') : '<li>Not in the manifest, so the game skips it.</li>'}</ul>
     <h4>Code that names it</h4>${refList(findRefs(quoted(g.id)))}`;
 }
-async function openDetail({ parts, info, clip, gear: g, img, hide = null }) {
-  Object.assign(D, { parts, gear: g || null, finish: null, phone: false, clip, hide });
-  $('#info').innerHTML = info; hydrate($('#info'));
+async function openDetail({ parts, info, clip, gear: g, img, hide = null, enemy = null }) {
+  Object.assign(D, { parts, gear: g || null, finish: null, phone: false, clip, hide, enemy, game: gameLoadable(enemy) && UI.gameClips });
+  $('#info').innerHTML = typeof info === 'function' ? info() : info; hydrate($('#info'));
   $('#vbar').innerHTML = ''; $('#vinfo').textContent = '';
   const dlg = $('#detail'); if (!dlg.open) dlg.showModal();
   $('#info').scrollTop = 0;
@@ -1356,12 +1577,12 @@ async function openDetail({ parts, info, clip, gear: g, img, hide = null }) {
   }
   if (V.r) V.r.domElement.hidden = false;
   if (!parts?.length || parts.some((m) => m.missing)) { V.token++; if (V.r) viewerClear(); $('#stageImg').hidden = true; $('#vmsg').textContent = 'No model file to show.'; return; }
-  await viewerShow(parts, { clip });
+  await viewerShow(parts, { clip, game: D.game ? enemy : null });
 }
 function openEnemy(id, clip) {
   const e = S.enemies.get(id); if (!e) return;
   if (e.sprite) { const sp = e.sprite, list = [...sp.gifs, ...sp.pages]; return openDetail({ parts: [], info: enemyInfo(e) + spriteInfo(sp), img: { first: list[0], list } }); }
-  openDetail({ parts: e.parts, info: enemyInfo(e), clip, hide: e.hide });
+  openDetail({ parts: e.parts, info: () => enemyInfo(e), clip, hide: e.hide, enemy: e });
 }
 function spriteInfo(sp) {
   const d = sp.def;
@@ -1416,7 +1637,11 @@ document.addEventListener('click', async (ev) => {
     case 'wire': setWire(!V.wire); syncBar(); break;
     case 'bones': setBones(!V.bones); syncBar(); break;
     case 'home': if (V.home) { V.cam.position.copy(V.home.pos); V.ctl.target.copy(V.home.target); V.ctl.update(); } break;
-    case 'phone': D.phone = !D.phone; viewerShow(D.parts, { clip: V.clip, phone: D.phone, finish: D.finish && D.gear?.variants[D.finish] }); break;
+    case 'phone': D.phone = !D.phone; viewerShow(D.parts, { clip: V.clip, phone: D.phone, finish: D.finish && D.gear?.variants[D.finish], game: D.game ? D.enemy : null }); break;
+    case 'game': D.game = UI.gameClips = !D.game; showClipBox(); viewerShow(D.parts, { clip: V.clip, phone: D.phone, game: D.game ? D.enemy : null }); break;
+    case 'buildall': buildAll(); break;
+    case 'clipview': UI.clipView = v; render(); break;
+    case 'gclip': { const i = v.indexOf('|'); UI.gameClips = true; openEnemy(v.slice(0, i), v.slice(i + 1)); break; }
     case 'gif': $('#stageImg img').src = S.src.url(v); document.querySelectorAll('#vbar [data-act="gif"]').forEach((b) => b.classList.toggle('on', b === t)); break;
     case 'texrole': UI.texRole = v; render(); break;
     case 'local': pickFolder(); break;
