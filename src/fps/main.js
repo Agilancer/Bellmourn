@@ -660,7 +660,7 @@ function aimPoint() {
 }
 
 const KIND_SOUND = { fire: 'fire', frost: 'frost', lightning: 'lightning', heal: 'heal', wisp: 'wisp', staff: 'staff' };
-function onEvent(kind, side, clip) {
+function onEvent(kind, side, clip, info) {
   if (kind === 'fire') {
     const p = pending[side];
     if (!p) return;
@@ -670,20 +670,22 @@ function onEvent(kind, side, clip) {
     const from = fromView(castFrom(p));
     const dir = aimPoint().sub(from).normalize();
     magic.cast(p.def, from, dir, player, camera);
-  } else if (kind === 'hit' && /swing/.test(clip) && !(clip.startsWith('r2h') && side === 'L')) {
-    melee(clip.startsWith('r2h') ? 3.5 : 2.9, clip.startsWith('r2h'), side);
-  }
+  } else if (kind === 'whoosh') sfx.swing(!!info?.heavy);
+  else if (kind === 'hit' && info?.attack) melee(info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power);
 }
 
 // the weapons that crush rather than cut (no gash: a split in the flesh where they land)
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
-function melee(reach, heavy, side = 'R') {
+function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
   player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
-  for (const a of [-0.35, -0.15, 0, 0.15, 0.35]) {
-    const d = new THREE.Vector3(0, -0.05, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), a)
+  // the rays fan out along the blade's sweep across the view (a chop's fan stands up, a
+  // sweep's lies flat), a little either side of it
+  const sx = sweep ? sweep[0] : 1, sy = sweep ? sweep[1] : 0;
+  for (const [a, b] of [[-0.35, 0], [-0.15, 0], [0, 0], [0.15, 0], [0.35, 0], [0, -0.1], [0, 0.1]]) {
+    const d = new THREE.Vector3(a * sx - b * sy, -0.05 + a * sy + b * sx, -1)
       .applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ')).normalize();
     const hit = physics.ray([o.x, o.y, o.z], [d.x, d.y, d.z], reach);
     if (hit && (!best || hit.t < best.t)) best = { ...hit, d };
@@ -692,12 +694,13 @@ function melee(reach, heavy, side = 'R') {
   }
   if (flesh && (!best || flesh.t < best.t)) { // the blade bites into a zombie
     const it = ITEMS[vm.equip[side]] || ITEMS[vm.equip.R];
-    // the edge's sweep across the view: a rising diagonal for a one-hander, flatter for a two
+    // the edge's sweep across the view, as the blow travels on screen (fp_moves.json)
     const right = _v.set(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-    const edge = right.clone().multiplyScalar(heavy ? 0.94 : 0.82).addScaledVector(up, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)).normalize();
+    const sw = sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];
+    const edge = right.clone().multiplyScalar(sw[0]).addScaledVector(up, sw[1]).normalize();
     const blunt = BLUNT.test(it?.id || '');
-    const dmg = stats.meleeDamage(heavy, side);
-    flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) });
+    const dmg = stats.meleeDamage(heavy, side) * power;   // (a chop, slower than a cut, lands harder)
+    flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     // a treasure's powers: the dead set burning, or chilled to a crawl
     if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); }
     if (st.chillHit && !flesh.z.dead) flesh.z.chilled = Math.max(flesh.z.chilled || 0, st.chillHit);
@@ -1258,18 +1261,18 @@ function tick(dt) {
     if (inp.was('KeyQ')) drink('life');
     if (inp.was('KeyZ')) drink('mana');
     // right hand
-    if (inp.held('Mouse0') && !vm.busy('R')) {
-      const kind = vm.equip.R, bolt = BOLTS[kind];
+    // (a blade asked for again mid-blow goes on into the next of its combo: the view model
+    // queues it; the swish comes with each blow's own whoosh)
+    const bolt = BOLTS[vm.equip.R];
+    if (inp.held('Mouse0') && (!vm.busy('R') || !bolt)) {
       if (bolt && player.mana < bolt.mana) { if (inp.was('Mouse0')) noMana(); }
       else {
         const did = vm.attackRight();
-        if (did && bolt) { player.mana -= bolt.mana; pending.R = { def: bolt, side: 'R' }; }
-        else if (did === 'onehand' || did === 'twohand') setTimeout(() => sfx.swing(did === 'twohand'), did === 'twohand' ? 200 : 140);
+        if (did && did !== 'queued' && bolt) { player.mana -= bolt.mana; pending.R = { def: bolt, side: 'R' }; }
       }
     }
     // left hand (shields are held up as long as the button is)
-    const did = vm.actLeft(inp.held('Mouse2'));
-    if (did === 'onehand') setTimeout(() => sfx.swing(false), 140);
+    vm.actLeft(inp.held('Mouse2'));
     if (inp.was('KeyF')) castSlot('F');
     if (inp.was('KeyR')) castSlot('R');
     // footsteps on the bob's down-beats

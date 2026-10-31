@@ -43,10 +43,19 @@ Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_
 can set each move beside their old clips and the library's mannequin it came from. On Windows,
 double-click `knight-player.bat` to serve the folder and open it (`tools/knight_player.py`).
 
+`/moves.html` is the move picker for your own hands: the game's first-person arms on the move set
+in `tools/templates/moves.py` (carries at the sides of the screen; attacks, blocks and casts keyed
+from the same libraries' mannequin), where you try each attack and choose which the game uses
+("Use these in the game" writes `templates/models/fp_picks.json`). Double-click
+`moves-player.bat` to open it. After editing the moves: `python tools/models/build_moves.py`
+(bakes `templates/models/arms/fp_moves_*.glb` and `fp_moves.json`, and checks every frame stays
+clear of the top of the screen); `python tools/moves_review.py <specs.json>` renders contact
+sheets of them headless.
+
 | Key | Action |
 |---|---|
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
-| Left click | right hand: swing, or shoot with a staff |
+| Left click | right hand: swing, or shoot with a staff (click again, or hold, mid-blow for the next blow of the combo) |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
 | E | speak with someone (and take or hand in their work); open and close doors, search chests, crates, barrels, sacks and pots |

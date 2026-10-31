@@ -1,0 +1,1680 @@
+{
+ "stretch": 1.3,
+ "clips": {
+  "sword_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "great_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "staff_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "R",
+   "ref": []
+  },
+  "round_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "kite_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "hand_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "both_walk": {
+   "kind": "walk",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.114286,
+    0.228571,
+    0.342857,
+    0.457143,
+    0.571429,
+    0.685714,
+    0.8
+   ],
+   "events": {
+    "duration": 0.914286
+   },
+   "names": [
+    "WALK 1",
+    "WALK 2",
+    "WALK 3",
+    "WALK 4",
+    "WALK 5",
+    "WALK 6",
+    "WALK 7",
+    "WALK 8"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "sword_chop": {
+   "kind": "attack",
+   "heavy": false,
+   "roll": false,
+   "power": 1.15,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.514286,
+    0.571429,
+    0.628571
+   ],
+   "events": {
+    "duration": 0.685714,
+    "hit": [
+     0.342857
+    ],
+    "whoosh": [
+     0.228571
+    ],
+    "enter": 0.171429,
+    "link": 0.514286,
+    "edge": [
+     -0.025,
+     -1.0
+    ]
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "RAISE",
+    "COCK BACK",
+    "OVERHEAD",
+    "COME OVER",
+    "CHOP 1",
+    "HIT",
+    "DRIVE",
+    "PITCH",
+    "DIP",
+    "GUARD",
+    "UNDER",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "round_aside_chop": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.514286,
+    0.571429,
+    0.628571
+   ],
+   "events": {
+    "duration": 0.685714
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "RAISE",
+    "COCK BACK",
+    "OVERHEAD",
+    "COME OVER",
+    "CHOP 1",
+    "HIT",
+    "DRIVE",
+    "PITCH",
+    "DIP",
+    "GUARD",
+    "UNDER",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "kite_aside_chop": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.514286,
+    0.571429,
+    0.628571
+   ],
+   "events": {
+    "duration": 0.685714
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "RAISE",
+    "COCK BACK",
+    "OVERHEAD",
+    "COME OVER",
+    "CHOP 1",
+    "HIT",
+    "DRIVE",
+    "PITCH",
+    "DIP",
+    "GUARD",
+    "UNDER",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "sword_aside_chop": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.514286,
+    0.571429,
+    0.628571
+   ],
+   "events": {
+    "duration": 0.685714
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "RAISE",
+    "COCK BACK",
+    "OVERHEAD",
+    "COME OVER",
+    "CHOP 1",
+    "HIT",
+    "DRIVE",
+    "PITCH",
+    "DIP",
+    "GUARD",
+    "UNDER",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "sword_diag": {
+   "kind": "attack",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.4,
+    0.457143,
+    0.485714,
+    0.542857,
+    0.6,
+    0.657143
+   ],
+   "events": {
+    "duration": 0.714286,
+    "hit": [
+     0.314286
+    ],
+    "whoosh": [
+     0.171429
+    ],
+    "enter": 0.114286,
+    "link": 0.485714,
+    "edge": [
+     -0.739,
+     -0.674
+    ],
+    "src": [
+     "Sword_Attack",
+     0.433
+    ]
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCKED",
+    "OVER",
+    "CUT",
+    "HIT",
+    "THROUGH",
+    "FOLLOW",
+    "HANG",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Sword_Attack"
+   ]
+  },
+  "round_aside_diag": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.4,
+    0.457143,
+    0.485714,
+    0.542857,
+    0.6,
+    0.657143
+   ],
+   "events": {
+    "duration": 0.714286
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCKED",
+    "OVER",
+    "CUT",
+    "HIT",
+    "THROUGH",
+    "FOLLOW",
+    "HANG",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "kite_aside_diag": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.4,
+    0.457143,
+    0.485714,
+    0.542857,
+    0.6,
+    0.657143
+   ],
+   "events": {
+    "duration": 0.714286
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCKED",
+    "OVER",
+    "CUT",
+    "HIT",
+    "THROUGH",
+    "FOLLOW",
+    "HANG",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "sword_aside_diag": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.4,
+    0.457143,
+    0.485714,
+    0.542857,
+    0.6,
+    0.657143
+   ],
+   "events": {
+    "duration": 0.714286
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCKED",
+    "OVER",
+    "CUT",
+    "HIT",
+    "THROUGH",
+    "FOLLOW",
+    "HANG",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "sword_back": {
+   "kind": "attack",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571,
+    "hit": [
+     0.257143
+    ],
+    "whoosh": [
+     0.171429
+    ],
+    "enter": 0.114286,
+    "link": 0.457143,
+    "edge": [
+     0.953,
+     -0.302
+    ],
+    "src": [
+     "Sword_Regular_B",
+     0.267
+    ]
+   },
+   "names": [
+    "CARRY",
+    "CROSS",
+    "CHAMBER",
+    "COILED",
+    "WHIP",
+    "HIT",
+    "SWEEP",
+    "ROLL",
+    "EXTEND",
+    "HOLD",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Sword_Regular_A",
+    "Sword_Regular_B",
+    "Sword_Regular_B_Rec"
+   ]
+  },
+  "round_aside_back": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "CROSS",
+    "CHAMBER",
+    "COILED",
+    "WHIP",
+    "HIT",
+    "SWEEP",
+    "ROLL",
+    "EXTEND",
+    "HOLD",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "kite_aside_back": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "CROSS",
+    "CHAMBER",
+    "COILED",
+    "WHIP",
+    "HIT",
+    "SWEEP",
+    "ROLL",
+    "EXTEND",
+    "HOLD",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "sword_aside_back": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.228571,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "CROSS",
+    "CHAMBER",
+    "COILED",
+    "WHIP",
+    "HIT",
+    "SWEEP",
+    "ROLL",
+    "EXTEND",
+    "HOLD",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "sword_rise": {
+   "kind": "attack",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.2,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571,
+    "hit": [
+     0.2
+    ],
+    "whoosh": [
+     0.114286
+    ],
+    "enter": 0.057143,
+    "link": 0.342857,
+    "edge": [
+     -0.808,
+     0.589
+    ],
+    "src": [
+     "Sword_Regular_A",
+     0.267
+    ]
+   },
+   "names": [
+    "CARRY",
+    "DROP",
+    "WOUND",
+    "SWEEP",
+    "HIT",
+    "RISE",
+    "TOP",
+    "HOLD",
+    "DOWN",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Sword_Regular_A",
+    "Sword_Regular_A_Rec"
+   ]
+  },
+  "round_aside_rise": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.2,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "DROP",
+    "WOUND",
+    "SWEEP",
+    "HIT",
+    "RISE",
+    "TOP",
+    "HOLD",
+    "DOWN",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "kite_aside_rise": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.2,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "DROP",
+    "WOUND",
+    "SWEEP",
+    "HIT",
+    "RISE",
+    "TOP",
+    "HOLD",
+    "DOWN",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": []
+  },
+  "sword_aside_rise": {
+   "kind": "aside",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.2,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571
+   },
+   "names": [
+    "CARRY",
+    "DROP",
+    "WOUND",
+    "SWEEP",
+    "HIT",
+    "RISE",
+    "TOP",
+    "HOLD",
+    "DOWN",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "great_chop": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "power": 1.2,
+   "starts": [
+    0.0,
+    0.057143,
+    0.142857,
+    0.228571,
+    0.314286,
+    0.342857,
+    0.428571,
+    0.457143,
+    0.514286,
+    0.542857,
+    0.628571,
+    0.685714,
+    0.742857,
+    0.8
+   ],
+   "events": {
+    "duration": 0.857143,
+    "hit": [
+     0.457143
+    ],
+    "whoosh": [
+     0.314286
+    ],
+    "enter": 0.228571,
+    "link": 0.628571,
+    "edge": [
+     -0.005,
+     -1.0
+    ]
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCK BACK",
+    "OVERHEAD",
+    "COME OVER",
+    "CHOP 1",
+    "HIT",
+    "DRIVE",
+    "DIP",
+    "SLIDE",
+    "TURN",
+    "RAISE",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "great_cleave": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.142857,
+    0.228571,
+    0.314286,
+    0.371429,
+    0.4,
+    0.457143,
+    0.485714,
+    0.6,
+    0.657143,
+    0.714286,
+    0.771429
+   ],
+   "events": {
+    "duration": 0.828571,
+    "hit": [
+     0.4
+    ],
+    "whoosh": [
+     0.228571
+    ],
+    "enter": 0.142857,
+    "link": 0.6,
+    "edge": [
+     -0.673,
+     -0.74
+    ],
+    "src": [
+     "Sword_Attack",
+     0.433
+    ]
+   },
+   "names": [
+    "CARRY",
+    "LIFT",
+    "COCK",
+    "COCKED",
+    "OVER",
+    "CUT",
+    "HIT",
+    "THROUGH",
+    "FOLLOW",
+    "UNDER",
+    "ROUND",
+    "COME UP",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Sword_Attack"
+   ]
+  },
+  "great_back": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.428571,
+    0.457143,
+    0.485714,
+    0.514286,
+    0.571429,
+    0.628571,
+    0.685714
+   ],
+   "events": {
+    "duration": 0.742857,
+    "hit": [
+     0.371429
+    ],
+    "whoosh": [
+     0.257143
+    ],
+    "enter": 0.171429,
+    "link": 0.571429,
+    "edge": [
+     0.85,
+     -0.527
+    ],
+    "src": [
+     "Sword_Dash",
+     0.333
+    ]
+   },
+   "names": [
+    "CARRY",
+    "TIP",
+    "CROSS",
+    "CHAMBER",
+    "COILED",
+    "WHIP",
+    "DRAW",
+    "HIT",
+    "DRAG",
+    "ROLL",
+    "FOLLOW",
+    "EXTEND",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Sword_Dash"
+   ]
+  },
+  "round_block": {
+   "kind": "block",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.228571,
+    0.285714,
+    0.342857,
+    0.4
+   ],
+   "events": {
+    "duration": 0.457143,
+    "hold": 0.114286,
+    "src": [
+     "Idle_Shield_Loop",
+     0.0
+    ]
+   },
+   "names": [
+    "CARRY",
+    "RAISE 1",
+    "RAISE 2",
+    "BLOCK",
+    "BRACE",
+    "LOWER 1",
+    "LOWER 2",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": [
+    "Idle_Shield_Break",
+    "Idle_Shield_Loop",
+    "Shield_OneShot"
+   ]
+  },
+  "kite_block": {
+   "kind": "block",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.228571,
+    0.285714,
+    0.342857,
+    0.4
+   ],
+   "events": {
+    "duration": 0.457143,
+    "hold": 0.114286,
+    "src": [
+     "Idle_Shield_Loop",
+     0.0
+    ]
+   },
+   "names": [
+    "CARRY",
+    "RAISE 1",
+    "RAISE 2",
+    "BLOCK",
+    "BRACE",
+    "LOWER 1",
+    "LOWER 2",
+    "SETTLE"
+   ],
+   "sides": "L",
+   "ref": [
+    "Idle_Shield_Break",
+    "Idle_Shield_Loop",
+    "Shield_OneShot"
+   ]
+  },
+  "sword_guard": {
+   "kind": "block",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.228571,
+    0.285714,
+    0.342857,
+    0.4
+   ],
+   "events": {
+    "duration": 0.457143
+   },
+   "names": [
+    "CARRY",
+    "RAISE 1",
+    "RAISE 2",
+    "BLOCK",
+    "BRACE",
+    "LOWER 1",
+    "LOWER 2",
+    "SETTLE"
+   ],
+   "sides": "R",
+   "ref": []
+  },
+  "hand_thrust": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571,
+    "fire": [
+     0.285714
+    ],
+    "hold": 0.171429
+   },
+   "names": [
+    "READY",
+    "DRAW",
+    "GATHER",
+    "CHARGE",
+    "THRUST",
+    "RELEASE",
+    "FOLLOW",
+    "RETURN 1",
+    "RETURN 2",
+    "RETURN 3",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": []
+  },
+  "hand_push": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571,
+    "fire": [
+     0.285714
+    ],
+    "hold": 0.171429,
+    "src": [
+     "Spell_Simple_Shoot",
+     0.2
+    ]
+   },
+   "names": [
+    "READY",
+    "RISE",
+    "BEFORE FACE",
+    "CHARGE",
+    "TURN",
+    "PUSH",
+    "HOLD",
+    "RETURN 1",
+    "RETURN 2",
+    "RETURN 3",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Spell_Simple_Enter",
+    "Spell_Simple_Exit",
+    "Spell_Simple_Idle_Loop",
+    "Spell_Simple_Shoot"
+   ]
+  },
+  "hand_hurl": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.428571,
+    0.485714,
+    0.542857
+   ],
+   "events": {
+    "duration": 0.6,
+    "fire": [
+     0.285714
+    ],
+    "hold": 0.171429,
+    "src": [
+     "OverhandThrow",
+     0.367
+    ]
+   },
+   "names": [
+    "READY",
+    "WIND",
+    "COCK",
+    "CHARGE",
+    "THROW",
+    "RELEASE",
+    "FOLLOW",
+    "DROP",
+    "RETURN 1",
+    "RETURN 2",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "OverhandThrow"
+   ]
+  },
+  "both_cast": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.285714,
+    0.314286,
+    0.371429,
+    0.428571,
+    0.485714,
+    0.542857,
+    0.6
+   ],
+   "events": {
+    "duration": 0.657143,
+    "fire": [
+     0.314286
+    ],
+    "hold": 0.171429,
+    "src": [
+     "Spell_Simple_Shoot",
+     0.2
+    ]
+   },
+   "names": [
+    "READY",
+    "BRING IN",
+    "GATHER",
+    "CHARGE",
+    "PUSH",
+    "RELEASE",
+    "FOLLOW",
+    "RETURN 1",
+    "RETURN 2",
+    "RETURN 3",
+    "SETTLE"
+   ],
+   "sides": "LR",
+   "ref": [
+    "Spell_Simple_Enter",
+    "Spell_Simple_Exit",
+    "Spell_Simple_Idle_Loop",
+    "Spell_Simple_Shoot"
+   ]
+  },
+  "staff_point": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429,
+    0.628571
+   ],
+   "events": {
+    "duration": 0.685714,
+    "fire": [
+     0.285714
+    ],
+    "hold": 0.171429
+   },
+   "names": [
+    "CARRY",
+    "RAISE 1",
+    "RAISE 2",
+    "CHARGE",
+    "TIP",
+    "FIRE",
+    "FOLLOW",
+    "RETURN 1",
+    "RETURN 2",
+    "RETURN 3",
+    "RETURN 4",
+    "SETTLE"
+   ],
+   "sides": "R",
+   "ref": []
+  },
+  "staff_over": {
+   "kind": "cast",
+   "heavy": false,
+   "roll": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.057143,
+    0.114286,
+    0.171429,
+    0.257143,
+    0.285714,
+    0.342857,
+    0.4,
+    0.457143,
+    0.514286,
+    0.571429
+   ],
+   "events": {
+    "duration": 0.628571,
+    "fire": [
+     0.285714
+    ],
+    "hold": 0.171429,
+    "src": [
+     "OverhandThrow",
+     0.4
+    ]
+   },
+   "names": [
+    "CARRY",
+    "HEAVE",
+    "BACK",
+    "CHARGE",
+    "OVER",
+    "FIRE",
+    "FOLLOW",
+    "RETURN 1",
+    "RETURN 2",
+    "RETURN 3",
+    "SETTLE"
+   ],
+   "sides": "R",
+   "ref": [
+    "OverhandThrow"
+   ]
+  }
+ },
+ "slots": {
+  "onehand": {
+   "title": "One-handed weapon",
+   "options": [
+    {
+     "id": "combo",
+     "name": "Combo: cut, backhand, rising",
+     "chain": [
+      "sword_diag",
+      "sword_back",
+      "sword_rise"
+     ],
+     "ref": "UAL2 Sword_Regular_Combo"
+    },
+    {
+     "id": "diag",
+     "name": "Diagonal cut",
+     "chain": [
+      "sword_diag"
+     ],
+     "ref": "UAL1 Sword_Attack"
+    },
+    {
+     "id": "back",
+     "name": "Backhand sweep",
+     "chain": [
+      "sword_back"
+     ],
+     "ref": "UAL2 Sword_Regular_B"
+    },
+    {
+     "id": "rise",
+     "name": "Rising slash",
+     "chain": [
+      "sword_rise"
+     ],
+     "ref": "UAL2 Sword_Regular_A"
+    },
+    {
+     "id": "chop",
+     "name": "Overhead chop",
+     "chain": [
+      "sword_chop"
+     ],
+     "ref": "your swing video's timing",
+     "note": "straight down; slower, lands harder"
+    }
+   ],
+   "default": "combo"
+  },
+  "twohand": {
+   "title": "Two-handed weapon",
+   "options": [
+    {
+     "id": "combo",
+     "name": "Combo: cleave, backsweep",
+     "chain": [
+      "great_cleave",
+      "great_back"
+     ],
+     "ref": "UAL1 Sword_Attack + UAL2 Sword_Dash"
+    },
+    {
+     "id": "cleave",
+     "name": "Cleave",
+     "chain": [
+      "great_cleave"
+     ],
+     "ref": "UAL1 Sword_Attack"
+    },
+    {
+     "id": "back",
+     "name": "Backsweep",
+     "chain": [
+      "great_back"
+     ],
+     "ref": "UAL2 Sword_Dash"
+    },
+    {
+     "id": "chop",
+     "name": "Overhead chop",
+     "chain": [
+      "great_chop"
+     ],
+     "ref": "your swing video's timing",
+     "note": "straight down; slower, lands harder"
+    }
+   ],
+   "default": "combo"
+  },
+  "spell": {
+   "title": "One-hand spell",
+   "options": [
+    {
+     "id": "push",
+     "name": "Raise and push",
+     "chain": [
+      "hand_push"
+     ],
+     "ref": "UAL1 Spell_Simple"
+    },
+    {
+     "id": "hurl",
+     "name": "Overhand hurl",
+     "chain": [
+      "hand_hurl"
+     ],
+     "ref": "UAL2 OverhandThrow"
+    },
+    {
+     "id": "thrust",
+     "name": "Draw and thrust",
+     "chain": [
+      "hand_thrust"
+     ],
+     "ref": "(the first rig)"
+    }
+   ],
+   "default": "push"
+  },
+  "staff": {
+   "title": "Staff",
+   "options": [
+    {
+     "id": "point",
+     "name": "Raise and point",
+     "chain": [
+      "staff_point"
+     ],
+     "ref": "(the first rig)"
+    },
+    {
+     "id": "over",
+     "name": "Overhand",
+     "chain": [
+      "staff_over"
+     ],
+     "ref": "UAL2 OverhandThrow"
+    }
+   ],
+   "default": "point"
+  }
+ }
+}
