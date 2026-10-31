@@ -21,16 +21,19 @@ export const TEXELS = store('bm.texels', 'crisp') === 'smooth' ? 'smooth' : 'cri
 export const SHARP_GLSL = /* glsl */`
 #ifndef SHARP_TEXEL
 #define SHARP_TEXEL
-vec4 sharpTexel( sampler2D t, vec2 uv ) {
+// (with the uv's screen gradients given: safe inside a branch, and shared by every layer drawn
+// from the same world position)
+vec4 sharpTexelGrad( sampler2D t, vec2 uv, vec2 dx, vec2 dy ) {
 ${TEXELS === 'crisp' ? `  vec2 size = vec2( textureSize( t, 0 ) );
   vec2 p = uv * size;
-  vec2 w = max( fwidth( p ), vec2( 1e-5 ) );
+  vec2 w = max( ( abs( dx ) + abs( dy ) ) * size, vec2( 1e-5 ) );
   vec2 seam = floor( p + 0.5 );
   vec2 q = seam + clamp( ( p - seam ) / w, -0.5, 0.5 );
   // magnified: square texels with a pixel of blend at each seam; minified: plain filtering
   q = mix( q, p, smoothstep( 0.7, 1.4, max( w.x, w.y ) ) );
-  return textureGrad( t, q / size, dFdx( uv ), dFdy( uv ) );` : '  return texture( t, uv );'}
+  return textureGrad( t, q / size, dx, dy );` : '  return textureGrad( t, uv, dx, dy );'}
 }
+vec4 sharpTexel( sampler2D t, vec2 uv ) { return sharpTexelGrad( t, uv, dFdx( uv ), dFdy( uv ) ); }
 #endif
 `;
 // three's own materials take it where a material asks (SHARP_MAP, set by crisp()): a painted

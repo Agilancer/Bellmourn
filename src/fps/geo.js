@@ -489,7 +489,7 @@ export class Builder {
         let g = mergeGeometries(geos, false);
         if (mat.userData.feather) {   // a feathered overlay: its solid middle drawn without blending
           const [band, solid] = splitFeather(g);
-          if (solid) meshes.push(this.addMesh(scene, solid, solidTwin(mat), 1 + layerOf(solid)));
+          if (solid) meshes.push(this.addMesh(scene, solid, solidTwin(mat), -1000.5 + layerOf(solid)));
           if (!band) continue;
           g = band;
         }
@@ -545,13 +545,14 @@ function splitFeather(g) {
   });
 }
 
-/** The solid middle's material: the overlay's own, unblended and writing no depth, drawn just after
- * the ground (renderOrder 1+): the higher-laid after the lower, the frayed bands blended over all. */
+/** The solid middle's material: the overlay's own, unblended and writing no depth, drawn in turn with
+ * the frayed bands after everything solid (renderOrder: each layer's middle just before its band,
+ * the higher-laid after the lower, so a plaza covers the roads' frayed edges under it). */
 function solidTwin(m) {
   if (!m.userData.solid) {
     const s = m.clone();
     s.defines = { ...(m.defines || {}) };   // (clone() leaves them behind)
-    s.transparent = false; s.depthWrite = false;
+    s.transparent = true; s.blending = THREE.NoBlending; s.depthWrite = false;
     s.onBeforeCompile = m.onBeforeCompile; s.customProgramCacheKey = m.customProgramCacheKey;
     s.userData = { ...m.userData, solid: null };
     m.userData.solid = s;

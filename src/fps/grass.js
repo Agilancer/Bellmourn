@@ -66,8 +66,8 @@ export class Tufts {
     this.verge([...outline, outline[0]].map(([x, z]) => [x, z, 0]), 0, f, opts);
   }
 
-  add(x, z, scale = 0.7 + this.R() * 0.7, tint = [1, 1, 1]) {
-    this.at.push([x, z, this.R() * Math.PI, scale, 0.8 + this.R() * 0.4, tint]);
+  add(x, z, scale = 0.55 + this.R() * 0.5, tint = [1, 1, 1]) {
+    this.at.push([x, z, this.R() * Math.PI, scale, 0.62 + this.R() * 0.28, tint]);   // (darker than their paint: they sit in the grass, not on it)
   }
 
   /** All of them into the scene: one instanced mesh. */

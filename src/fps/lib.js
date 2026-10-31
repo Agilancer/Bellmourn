@@ -259,9 +259,11 @@ export class Library {
     m.userData.glow = { value: 1 };
     m.userData.noGlass = true; // out of doors, and its samplers are spoken for
     // one layer, sampled at its own scale and turn, in its tint
+    // (the meadow's grasses take a blurrier mip a little sooner: a fine noisy texture otherwise
+    // sparkles at middle distance)
     const L = (i, rot) => {
-      const c = new THREE.Color(layers[i][2] ?? 0xffffff), tint = [c.r, c.g, c.b].map((v) => v.toFixed(3)).join(', ');
-      return `gTex(gT${i}, gp, ${layers[i][1].toFixed(2)}, ${rot}) * vec3(${tint})`;
+      const c = new THREE.Color(layers[i][2] ?? 0xffffff), tint = [c.r, c.g, c.b].map((v) => v.toFixed(3)).join(', '), soft = i < 3 ? ' * 1.6' : '';
+      return `gTex(gT${i}, gp, gdx${soft}, gdy${soft}, ${layers[i][1].toFixed(2)}, ${rot}) * vec3(${tint})`;
     };
     m.onBeforeCompile = (sh) => {
       tex.forEach((t, i) => { sh.uniforms['gT' + i] = { value: t }; });
@@ -283,26 +285,50 @@ export class Library {
         float gFbm(vec2 p) { return gNoise(p) * 0.55 + gNoise(p * 2.1 + 9.1) * 0.3 + gNoise(p * 4.3 + 3.7) * 0.15; }
         ${SHARP_GLSL}
         // one layer at its own scale and turn, and again turned half round and shifted, switched by a
-        // slow noise so its tiling never lines up into rows
-        vec3 gTex(sampler2D t, vec2 p, float tile, float rot) {
-          float c = cos(rot), s = sin(rot);
-          vec2 uv = mat2(c, -s, s, c) * p / tile;
-          return mix(sharpTexel(t, uv).rgb, sharpTexel(t, vec2(0.41, 0.73) - uv).rgb, smoothstep(0.42, 0.58, gNoise(p * 0.12 + rot * 7.0)));
+        // slow noise so its tiling never lines up into rows (the second only where it shows). dx, dy:
+        // the world position's screen gradients, worked out once for every layer
+        vec3 gTex(sampler2D t, vec2 p, vec2 dx, vec2 dy, float tile, float rot) {
+          mat2 R = mat2(cos(rot), -sin(rot), sin(rot), cos(rot)) / tile;
+          vec2 uv = R * p, ux = R * dx, uy = R * dy;
+          float k = smoothstep(0.42, 0.58, gNoise(p * 0.12 + rot * 7.0));
+          vec3 a = k < 0.999 ? sharpTexelGrad(t, uv, ux, uy).rgb : vec3(0.0);
+          if (k > 0.001) a = mix(a, sharpTexelGrad(t, vec2(0.41, 0.73) - uv, -ux, -uy).rgb, k);
+          return a;
         }`)
         .replace('#include <map_fragment>', `
-        vec2 gp = vGround.xz;
+        vec2 gp = vGround.xz, gdx = dFdx(gp), gdy = dFdy(gp);
         float r = length(gp);
         float n1 = gFbm(gp * 0.03), n2 = gFbm(gp * 0.09 + 17.0), n3 = gFbm(gp * 0.05 + 41.0);
         float village = 1.0 - smoothstep(${(village - 14).toFixed(1)}, ${(village + 12).toFixed(1)}, r + (n1 - 0.5) * 40.0);
         vec2 yc = clamp(gp, gYard.xy, gYard.zw);
         float yard = 1.0 - smoothstep(0.0, 5.0, length(gp - yc) + (n2 - 0.5) * 5.0);
-        vec3 grass = mix(${L(0, '0.0')}, ${L(1, '0.7')}, smoothstep(0.42, 0.58, n2));
-        grass = mix(grass, ${L(2, '1.9')}, smoothstep(0.66, 0.74, n1 * 0.5 + n3 * 0.5));
-        vec3 forest = mix(${L(3, '0.3')}, ${L(4, '1.1')}, smoothstep(0.38, 0.62, n3));
-        forest = mix(forest, ${L(5, '2.3')}, smoothstep(0.62, 0.72, n2));
-        vec3 soil = mix(${L(6, '0.0')}, ${L(7, '0.9')}, smoothstep(0.45, 0.6, n1));
-        vec3 gc = mix(forest, grass, village);
-        gc = mix(gc, soil, yard);
+        // the meadow, the forest floor and the grave soil, each drawn only where it shows (the layers
+        // within each likewise): mostly two or three textures a pixel, not eight
+        float wg = village * (1.0 - yard), wf = (1.0 - village) * (1.0 - yard), ws = yard;
+        vec3 gc = vec3(0.0);
+        if (wg > 0.001) {
+          float a = smoothstep(0.42, 0.58, n2), b = smoothstep(0.66, 0.74, n1 * 0.5 + n3 * 0.5);
+          vec3 c = vec3(0.0);
+          if (a < 0.999) c = ${L(0, '0.0')};
+          if (a > 0.001) c = mix(c, ${L(1, '0.7')}, a);
+          if (b > 0.001) c = mix(c, ${L(2, '1.9')}, b);
+          gc += c * wg;
+        }
+        if (wf > 0.001) {
+          float a = smoothstep(0.38, 0.62, n3), b = smoothstep(0.62, 0.72, n2);
+          vec3 c = vec3(0.0);
+          if (a < 0.999) c = ${L(3, '0.3')};
+          if (a > 0.001) c = mix(c, ${L(4, '1.1')}, a);
+          if (b > 0.001) c = mix(c, ${L(5, '2.3')}, b);
+          gc += c * wf;
+        }
+        if (ws > 0.001) {
+          float a = smoothstep(0.45, 0.6, n1);
+          vec3 c = vec3(0.0);
+          if (a < 0.999) c = ${L(6, '0.0')};
+          if (a > 0.001) c = mix(c, ${L(7, '0.9')}, a);
+          gc += c * ws;
+        }
         gc *= 0.82 + 0.36 * gNoise(gp * 0.012 + 3.0);
         gc *= 0.92 + 0.16 * gNoise(gp * 0.09 + 21.0);   // (and a gentler drift every ten metres or so)
         // where Tessariel came down: charred out past the lip, streaked with what was thrown, the

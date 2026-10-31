@@ -66,7 +66,7 @@ export function buildKeep(ctx) {
   for (let x = ROAD.x0 + 2; x > ROAD.x1 - 4; x -= 2) line.push([x, roadZ(x)]);
   b.ribbon(verge, line, 3.2, 0.018);
   b.ribbon(gravel, line, 2.1, 0.024);
-  ctx.tufts?.verge(line, 3.2, 1.5, { tint: [0.85, 0.92, 0.85], clear: (x) => x > KEEP.x1 + 6 });   // (grass at its verges: grass.js)
+  ctx.tufts?.verge(line, 3.2, 1.5, { tint: [0.62, 0.68, 0.6], clear: (x) => x > KEEP.x1 + 6 });   // (grass at its verges, dark as the Darkwood's: grass.js)
   S('dark_forest_trail_sign', ROAD.x0 - 2, -4.6, 1, -Math.PI / 2);
   for (let x = ROAD.x0 - 18, k = 0; x > ROAD.x1 + 10; x -= 22, k++) S('dark_forest_lantern_stake', x, roadZ(x) + (k % 2 ? 3.6 : -3.6), 1, k % 2 ? Math.PI : 0);
   // the Sworn's warnings along the last of it: skulls heaped on the verge, a gibbet's chains

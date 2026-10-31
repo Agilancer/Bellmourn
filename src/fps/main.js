@@ -57,7 +57,7 @@ import { Tufts } from './grass.js';
 
 const touch = TOUCH;
 // mist lying on the graveyard's ground (in the fog shader, so made before anything is compiled)
-groundMist([GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1]);
+groundMist([GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], { density: 0.055 });
 // the mouse captured for looking (a refusal, say from a window in the background, is no matter)
 const lockPointer = () => { try { document.getElementById('game').requestPointerLock?.()?.catch?.(() => {}); } catch { /* not now */ } };
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
@@ -425,6 +425,7 @@ async function rehearse() {
     await step(20);
     z.gone = true; z.root.removeFromParent();
     zombies.list.splice(zombies.list.indexOf(z), 1);
+    if (magic.wisp) magic.wisp.t = 0;   // (the wisp would follow you for a minute and a half: sent off)
     await step(10);
   } catch (e) { console.warn('the rehearsal', e); }
   for (const s of ['R', 'L']) pending[s] = null;

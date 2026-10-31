@@ -699,7 +699,7 @@ function trail(ctx, M, R) {
   for (let x = 116; x <= REGION.x0 + 4; x += 2) line.push([x, zAt(x)]);
   b.ribbon(verge, line, 2.6, 0.018);   // (one continuous ribbon each, frayed along its sides)
   b.ribbon(dirt, line, 1.6, 0.024);
-  ctx.tufts?.verge(line, 2.6, 1.4, { tint: [0.9, 0.95, 0.85] });
+  ctx.tufts?.verge(line, 2.6, 1.4, { tint: [0.68, 0.74, 0.64] });   // (the Darkwood's: dark)
   const S = (id, x, z, s = 1, rot) => ctx.scatter.place(id, x, 0, z, s, rot);
   S('dark_forest_trail_sign', 118, 4.2, 1, Math.PI / 2);
   S('town_scatter_40_arrow_milestone', REGION.x0 - 4, 4.5, 1, Math.PI / 2);
