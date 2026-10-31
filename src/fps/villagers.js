@@ -27,6 +27,7 @@ import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS,
 import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
 import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
+import { cullable, shareSkeletons } from './engine.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
 // image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
@@ -159,7 +160,7 @@ export class Villagers {
       if (skel.bones.some((b) => !b)) { console.warn('armour: a bone it needs is missing', m.name); continue; }
       host.add(m);
       m.bind(skel, m.bindMatrix);
-      m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+      m.castShadow = true; m.receiveShadow = true;
     }
   }
 
@@ -177,9 +178,12 @@ export class Villagers {
     if (armor) this.wear(model, armor);
     let head = null;
     model.traverse((c) => {
-      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; }
+      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
       if (c.isBone && c.name === 'Head') head = c;
     });
+    // one skeleton for all thirteen-odd parts of them, culled to what can be seen (engine.js)
+    shareSkeletons(model);
+    cullable(model);
     // their clips: the knight's (clipsFor), or their own; each made into an action when first played
     const mixer = new THREE.AnimationMixer(model), actions = {};
     const clips = Object.fromEntries((set?.clips || gltf.animations).map((c) => [c.name, c]));

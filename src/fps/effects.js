@@ -171,7 +171,7 @@ export class Shafts {
 
 /** Low drifting mist: a few stacked sheets with noise in them, lit by the sky. */
 export class Mist {
-  constructor(scene, rect, { layers = 4, height = 1.4, color = 0xc8d0d8, density = 0.22, exclude = [] } = {}) {
+  constructor(scene, rect, { layers = 4, base = 0.12, height = 1.1, color = 0xc8d0d8, density = 0.22, exclude = [] } = {}) {
     this.uniforms = { time: { value: 0 }, color: { value: new THREE.Color(color) }, light: { value: 1 }, density: { value: density } };
     const [x0, z0, x1, z1] = rect;
     const m = new THREE.ShaderMaterial({
@@ -185,6 +185,9 @@ export class Mist {
           float a = smoothstep(0.35, 0.8, n) * density;
           vec2 e = min(vW.xz - vec2(${x0.toFixed(1)}, ${z0.toFixed(1)}), vec2(${x1.toFixed(1)}, ${z1.toFixed(1)}) - vW.xz);
           a *= smoothstep(0.0, 10.0, min(e.x, e.y));
+          // a sheet seen edge-on fades: no hard line where the top layers run off to the horizon
+          vec3 v = vW - cameraPosition;
+          a *= smoothstep(0.0, 0.14, abs(v.y) / max(length(v), 1e-3));
           ${exclude.map(([a0, b0, a1, b1]) => `if (vW.x > ${a0.toFixed(1)} && vW.x < ${a1.toFixed(1)} && vW.z > ${b0.toFixed(1)} && vW.z < ${b1.toFixed(1)}) a = 0.0;`).join(' ')}
           gl_FragColor = vec4(color * light, a);
         }`,
@@ -193,7 +196,7 @@ export class Mist {
     for (let i = 0; i < layers; i++) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), m);
       p.rotation.x = -Math.PI / 2;
-      p.position.set((x0 + x1) / 2, 0.12 + (i / Math.max(1, layers - 1)) * height, (z0 + z1) / 2);
+      p.position.set((x0 + x1) / 2, base + (i / Math.max(1, layers - 1)) * height, (z0 + z1) / 2);
       p.renderOrder = 3;
       this.group.add(p);
     }

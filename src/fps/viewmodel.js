@@ -5,6 +5,7 @@
 // manifest.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/';
 // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
@@ -96,8 +97,10 @@ export class ViewModel {
     this.hemi = new THREE.HemisphereLight(0xfff0dd, 0x302838, 1.2);
     this.sun = new THREE.DirectionalLight(0xffe0b0, 1.4);
     this.sun.position.set(-0.5, 0.8, 0.4);
-    this.torch = new THREE.PointLight(0xffa050, 0, 3, 1.5);
-    this.torch.position.set(0.2, 0.2, -0.3);
+    // the nearest flames' light, from where they are (a point light by the hands burnt a spot into
+    // whatever was held: setLight aims this)
+    this.torch = new THREE.DirectionalLight(0xffa050, 0);
+    this.torch.position.set(0.6, 0.5, 0.2);
     this.flash = new THREE.PointLight(0xffffff, 0, 3, 1.5); // spells going off in your hands
     this.flash.position.set(0, -0.15, -0.45);
     this.scene.add(this.hemi, this.sun, this.torch, this.flash);
@@ -221,15 +224,16 @@ export class ViewModel {
     await this.applyEquip();
   }
 
-  /** A retro-filtered, lit material for a model's skin: steel and gilt catch the light. */
+  /** A lit material for a model's skin, its texels crisp but anti-aliased (engine.js): steel and gilt
+   * catch the light. */
   skin(o, item) {
     o.frustumCulled = false;
     const m = o.material;
-    if (m.map) { m.map.magFilter = THREE.NearestFilter; m.map.minFilter = THREE.NearestFilter; m.map.generateMipmaps = false; m.map.needsUpdate = true; }
+    refineTexture(m.map);
     const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide,
       specular: item ? 0x6a625a : 0x1c1a18, shininess: item ? 48 : 16 });
     if (m.map && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.map, item ? 1.0 : 1.3);
-    return out;
+    return crisp(out);
   }
 
   /** Put the equipped items in the hands and start the matching walk loops. */
@@ -404,11 +408,13 @@ export class ViewModel {
     }
   }
 
-  /** ambient: 0 (dark) .. 1 (daylight); torch: warm light from flames nearby; flash: a spell. */
-  setLight(ambient, sun, torch, flash, flashColor) {
+  /** ambient: 0 (dark) .. 1 (daylight); torch: warm light from flames nearby, coming from
+   * torchDir (in the view's own space, toward the flame); flash: a spell. */
+  setLight(ambient, sun, torch, flash, flashColor, torchDir = null) {
     this.hemi.intensity = 0.03 + 1.0 * ambient;
     this.sun.intensity = 1.4 * sun;
-    this.torch.intensity = torch;
+    this.torch.intensity = Math.min(1.6, torch * 0.9);
+    if (torchDir) this.torch.position.copy(torchDir).normalize();
     this.flash.intensity = flash;
     if (flashColor) this.flash.color.copy(flashColor);
   }

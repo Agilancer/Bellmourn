@@ -60,7 +60,7 @@ export function buildRegion(ctx, M, hm) {
   S('town_scatter_05_grain_sacks', 462, 98); S('town_scatter_36_water_bucket', 425, 90); S('town_scatter_35_grain_handmill', 440, 92);
   props.add('well', 444, H(444, 88), 88, 0, 1.1);
   // fields: furrowed soil, rows of wheat, a split-rail fence round each
-  const soil = M('town_cart_rut_earth', 2.2, { overlay: true });
+  const soil = M('town_cart_rut_earth', 2.2, { overlay: true, feather: 1.2 });
   fields.forEach((f, i) => {
     const y = f.y + 0.03, x0 = f.x - f.w / 2, x1 = f.x + f.w / 2, z0 = f.z - f.d / 2, z1 = f.z + f.d / 2;
     b.quad(soil, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
