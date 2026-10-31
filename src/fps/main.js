@@ -278,7 +278,7 @@ async function build() {
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
   ctx.crater = new Crater(ctx);
   ctx.crater.smokers = ctx.crater.smokeSpots.map(([x, y, z]) => { smoke.addEmitter(x, y, z, 1.6); return smoke.emitters[smoke.emitters.length - 1]; });
-  ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));
+  ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
@@ -896,7 +896,8 @@ function menu(a) {
 /** Where things stand, beyond the character: kept as you play (Continue) and in each save. */
 function makeProgress() {
   const p = player.pos;
-  return { arrived: true, quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
+  // (welcomed: the village has had its say at the edge of town, and gifts: what they've given so far)
+  return { arrived: true, welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
     player: { x: p.x, y: p.y, z: p.z, yaw: player.yaw, pitch: player.pitch } };
 }
 function saveProgress() {
@@ -927,7 +928,14 @@ function applyProgress(pr) {
   player.vel.set(0, 0, 0);
   layArms(pr?.arms || []);
   zombies.forget();
+  villagers.endGather();
   villagers.postAt = quests.status('undercroft') === 'available' && pr?.arrived ? villagers.postAt : null;
+  // left before the village had said its piece: what they hadn't yet given you
+  if (pr?.arrived && pr.welcomed === false) {
+    for (const k of ['armor', 'gloves', 'gold', 'potions']) if (!pr.gifts?.includes(k)) gift(k, null);
+    pr.welcomed = true;
+    try { localStorage.setItem(PROGRESS, JSON.stringify(pr)); } catch { /* private window */ }
+  }
 }
 
 /** Load a save (from a slot). */
@@ -1029,18 +1037,71 @@ async function newGame() {
   await applyGear(true);
   zombies.forget();
   layArms([]);
+  villagers.endGather();
+  // you're put where you'll wake (unseen till then): the sun's shadows, which follow you, fall on the
+  // meadow the opening plays in
+  player.pos.set(CRATER.x + 0.6, 0, CRATER.z); player.vel.set(0, 0, 0);
   started = true; paused = false; introBusy = true;
   setCinema(true);
   if (touch) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   else lockPointer();
   if (!intro) {
-    intro = new Intro({ ui, scene, camera, worldPass, sfx, foes, ctx, light: cometLight, smoke, particles: magic.particles,
-      knight: async () => { await Promise.race([foes.swornReady, new Promise((r) => setTimeout(r, 15000))]); return foes.gltf.sworn_m ? 'sworn_m' : 'knight_a'; },
+    const say = (text) => { hud.overlay.querySelector('.go').textContent = text; };
+    intro = new Intro({ ui, scene, camera, worldPass, renderer, sfx, foes, ctx, villagers, light: cometLight, smoke, particles: magic.particles,
+      // a frame drawn as the game draws one (hands: with your arms in it)
+      render: (hands = false) => { showUnder(); const was = vmPass.enabled; vmPass.enabled = hands; composer.render(1 / 60); vmPass.enabled = was; },
+      compileTarget: () => composer.readBuffer,
+      layArms,
+      // the village gathered where it will stand when you wake, for warm's frames of it (on), and
+      // back as it was (off); the views of it: from where you wake, and from the crater's rim
+      stage: (on) => {
+        if (!on) { for (const [a, p, y, v] of staged) { a.root.position.copy(p); a.root.rotation.y = y; a.root.visible = v; } staged = []; return []; }
+        const { cast } = gatherSpots();
+        staged = [];
+        for (const c of cast) {
+          const a = villagers.list.find((q) => q.name === c.name);
+          if (!a) continue;
+          staged.push([a, a.root.position.clone(), a.root.rotation.y, a.root.visible]);
+          a.root.position.set(c.at[0], physics.groundAt(c.at[0], c.at[1]), c.at[1]); a.root.rotation.y = Math.atan2(CRATER.x - c.at[0], CRATER.z - c.at[1]); a.root.visible = true;
+        }
+        const d = new THREE.Vector3(GATHER.x - CRATER.x, 0, GATHER.z - CRATER.z).normalize(), at = new THREE.Vector3(GATHER.x, 1.2, GATHER.z);
+        const rim = new THREE.Vector3(CRATER.x, 0, CRATER.z).addScaledVector(d, CRATER.R + 1);
+        return [{ pos: new THREE.Vector3(CRATER.x + 0.6, -CRATER.depth + 1.6, CRATER.z), look: at }, { pos: rim.setY(physics.groundAt(rim.x, rim.z) + 1.6), look: at },
+          { pos: new THREE.Vector3(GATHER.x, 1.6, GATHER.z).addScaledVector(d, -7), look: at }];
+      },
+      // the Sworn (built on the animation library's clips) whole before it starts: nothing of them is
+      // retargeted while it plays (knight_a stands in if they never come)
+      knight: async () => { await Promise.race([foes.swornReady, new Promise((r) => setTimeout(r, 90000))]); return foes.gltf.sworn_m ? 'sworn_m' : 'knight_a'; },
+      // what comes after it, brought in now: the whole village (a phone brings them one at a time),
+      // the knight's armour in the crater, his sword, shield and staff, and the gauntlets you're given
+      preload: async (line) => {
+        const all = villagers.wanted || 0;
+        const count = () => line(`The village comes out to look… ${Math.min(villagers.list.length, all)} of ${all}`);
+        count();
+        const every = setInterval(count, 300);
+        await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
+        line('The knight’s arms and armour…');
+        await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
+          ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
+          .map((p) => Promise.resolve(p).catch((e) => console.warn('the opening, bringing in', e))));
+      },
+      compileAlso: [[vm.scene, vm.camera]],
+      // the picture sized once, before it starts (the frame-time easing is held while it plays):
+      // smaller if its heaviest shot would draw slowly for want of the GPU (a smaller picture is no
+      // help to a frame the CPU holds up)
+      calibrate: (ms, gpu) => {
+        const want = ms > 22 && gpu > ms * 0.35 ? Math.max(0.55, rs * Math.sqrt(16 / ms)) : rs;
+        console.info(`the opening: ${ms.toFixed(1)} ms a frame (${gpu.toFixed(1)} waiting on the GPU) at ${(rs * 100).toFixed(0)}%${want !== rs ? `, drawing it at ${(want * 100).toFixed(0)}%` : ''}`);
+        if (Math.abs(want - rs) > 0.01) { rs = want; resize(); }
+      },
       onImpact: () => layArms(),
       onPlace: placeInCrater,
-      onControl: () => { introBusy = false; setCinema(false); if (!touch && !document.pointerLockElement) pause(); },
+      onControl: () => {
+        introBusy = false; setCinema(false); if (!touch && !document.pointerLockElement) pause();
+        setTimeout(() => { if (progress?.welcomed === false) hud.toast('The village has gathered at the edge of town. Climb out and go to them.'); }, 1500);
+      },
       onDone: () => { introBusy = false; setCinema(false); saveProgress(); const done = intro; intro = null; setTimeout(() => done.dispose(), 500); } });
-    await intro.prepare();
+    await intro.prepare(say);
   }
   hud.showOverlay(null);
   intro.start(touch);
@@ -1054,44 +1115,82 @@ function setCinema(on) {
   if (!on) hud.refresh(vm.equip, book);
 }
 
-// who comes to the crater (and where they stand round you, at the angle given: 0 is east, toward
-// the town), and what they say, in turn
-const WELCOME_CAST = [['Odile', 0], ['Osric', -26], ['Hesk', 26], ['Garrow', -52], ['Tobias', 52], ['Wren', -76], ['Elsie', 76]];
-const WELCOME = [
-  { name: 'Elsie', text: "It's a man! In his smallclothes!" },
-  { name: 'Odile', text: 'Green fire out of the vault of heaven. Curled as a child in the womb. Girded in black.' },
-  { name: 'Odile', text: 'The Canticle of Embers, seven, twelve. It is him. Tessariel. The Sacred Flame.' },
-  { name: 'Osric', text: 'Forty years she has read us that verse. I thought it was about the weather.' },
-  { name: 'Hesk', text: "Hush, all of you! Say that name where the garrison can hear and they'll hang the lot of us." },
-  { name: 'Tobias', text: "Velscour's lickspittles kill anyone who speaks it. Whisper it, Flame, if you must." },
-  { name: 'Garrow', text: "You flattened one of his Sworn with your face. Here: you'll want more than smallclothes.", gift: 'armor' },
-  { name: 'Wren', text: 'Wraps for your hands. His sword and shield are lying about the crater: take them.', gift: 'gloves' },
-  { name: 'Tobias', text: "And forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
-  { name: 'Hesk', text: 'Draughts, dear. Red for the blood, blue for the mind. Drink them before you need to.', gift: 'potions' },
-  { name: 'Osric', text: 'The Book says you will put an end to the Demon Lord Velscour. We will help you how we can.', wave: true },
-  { name: 'Odile', text: 'Speak with me, Flame. There is work for you beneath the cathedral.' },
+// After the green star the village gathers on the meadow at the edge of town, east of the crater and
+// well back from it (nobody goes near the hole): where each stands, [name, across (m, along the
+// crowd's front), back (m, away from the crater)] from GATHER, Sister Odile at the front
+const GATHER = { x: CRATER.x + 30, z: CRATER.z + 12 };
+const GATHER_CAST = [['Odile', 0, 0], ['Osric', -1.7, 0.9], ['Hesk', 1.7, 0.7], ['Garrow', -3.3, 0.2], ['Tobias', 3.2, 0.5], ['Wren', -2.3, 2.3], ['Elsie', 2.5, 2.1]];
+// what they say among themselves while you're still down in it (round again, till you come)
+const GATHER_CHATTER = [
+  { name: 'Elsie', text: 'Did you see it? He fell right out of the sky!' },
+  { name: 'Tobias', text: 'Out of the sky, in a ball of green fire.' },
+  { name: 'Wren', text: 'Spinning like a top, all the way down.' },
+  { name: 'Osric', text: 'And square on top of one of the Sworn.' },
+  { name: 'Garrow', text: "Nothing left of that knight but his armour." },
+  { name: 'Hesk', text: 'Nobody lives through a fall like that.' },
+  { name: 'Elsie', text: 'Is he dead, down there?' },
+  { name: 'Odile', text: 'Green fire out of the vault of heaven… It cannot be. It cannot.' },
+  { name: 'Tobias', text: "Stay back from the edge, all of you. The ground's still smoking." },
+  { name: 'Wren', text: 'Somebody ought to go and look.' },
+  { name: 'Osric', text: 'After you, then.' },
+  { name: 'Elsie', text: 'Do you think he is an angel?' },
+  { name: 'Hesk', text: "If he lives, he'll come to us. Wait." },
+];
+// and when he climbs up out of it
+const GATHER_SIGHT = [
+  { name: 'Elsie', text: "There! He's climbing out!" },
+  { name: 'Tobias', text: "Saints preserve us. He's alive." },
+  { name: 'Wren', text: "He's in his smallclothes!" },
+  { name: 'Odile', text: 'Nobody run. Let him come to us.', wave: true },
+];
+// what they tell you when you come to them, in turn (and give you)
+const GATHER_TALK = [
+  { name: 'Odile', text: "Gently, now. You're among friends. This is Bellmourn.", wave: true },
+  { name: 'Elsie', text: 'You fell out of the sky! In a ball of green fire! We all saw!' },
+  { name: 'Osric', text: "And came down on one of Lord Velscour's Sworn. There's nothing left of him but his armour." },
+  { name: 'Odile', text: 'A green star out of heaven, a man curled as a child, girded in black. It is written, child.' },
+  { name: 'Odile', text: 'You are Tessariel. The Sacred Flame, sent down to kill the Demon Lord Velscour.' },
+  { name: 'Hesk', text: "Hush! Say that name where the garrison can hear and they'll hang the lot of us." },
+  { name: 'Tobias', text: 'Velscour rules us from his far throne. The Book says you will end him. It is your destiny.' },
+  { name: 'Garrow', text: "Not in your smallclothes, though. Here: you'll want more than that.", gift: 'armor' },
+  { name: 'Wren', text: "Wraps for your hands. The knight's sword and shield are in the crater: take them.", gift: 'gloves' },
+  { name: 'Tobias', text: "Forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
+  { name: 'Hesk', text: 'Draughts, dear. Red for the blood, blue for the mind.', gift: 'potions' },
+  { name: 'Odile', text: 'But before the Fiend, Flame, we have a task for you.' },
+  { name: 'Odile', text: 'The dead are walking beneath our cathedral. Speak with me, and I will tell you all of it.' },
 ];
 
+/** Where each of the village stands at the edge of town (facing the crater, Odile at the front), and
+ * which way they face. */
+function gatherSpots() {
+  const fx = CRATER.x - GATHER.x, fz = CRATER.z - GATHER.z, fl = Math.hypot(fx, fz), f = [fx / fl, fz / fl], side = [-f[1], f[0]];
+  return { f, cast: GATHER_CAST.map(([name, across, back]) => ({ name, at: [GATHER.x + side[0] * across - f[0] * back, GATHER.z + side[1] * across - f[1] * back] })) };
+}
+let staged = [];   // (the village as it was, while warm draws it gathered)
+
 /** In the black after the white: you stand in the crater's middle, facing the town, and the village
- * has come running. */
+ * has gathered at its edge, a good way off, to watch the hole. */
 function placeInCrater() {
   const x = CRATER.x + 0.6, z = CRATER.z;
   player.pos.set(x, physics.groundAt(x, z), z); player.vel.set(0, 0, 0);
-  player.yaw = -Math.PI / 2; player.pitch = 0.06;
+  player.yaw = Math.atan2(-(GATHER.x - x), -(GATHER.z - z)); player.pitch = 0.06;   // (toward them)
   player.health = player.maxHealth; player.mana = player.maxMana;
   camera.position.set(player.pos.x, player.pos.y + 1.58, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
-  const ring = (deg, r) => [CRATER.x + Math.cos(deg * Math.PI / 180) * r, CRATER.z + Math.sin(deg * Math.PI / 180) * r];
-  const cast = WELCOME_CAST.map(([name, deg]) => ({ name, at: ring(deg, 7 + Math.abs(deg) * 0.012), from: ring(deg, 19 + Math.random() * 3) }));
-  const [ox, oz] = ring(0, 7);
-  villagers.postAt = { Odile: [ox, oz, -Math.PI / 2] };   // she waits by the crater till you take her work
-  const done = () => { holdHour = false; hud.toast('Sister Odile has work for you: walk up to her and press E'); };
-  if (!villagers.welcome(player, cast, WELCOME, gift, done)) { for (const w of WELCOME) if (w.gift) gift(w.gift, null); done(); }
-  progress = { ...(progress || {}), arrived: true };
+  const { f, cast } = gatherSpots();
+  villagers.postAt = { Odile: [GATHER.x, GATHER.z, Math.atan2(f[0], f[1])] };   // she waits there till you take her work
+  progress = { ...(progress || {}), arrived: true, welcomed: false, gifts: [] };
+  const done = () => { holdHour = false; progress.welcomed = true; hud.toast('Sister Odile has a task for you: walk up to her and press E'); saveProgress(); };
+  const out = (p) => Math.hypot(p.pos.x - CRATER.x, p.pos.z - CRATER.z) > CRATER.R - 2 && p.pos.y > -0.8;   // up at the rim, or over it
+  if (!villagers.gather(player, cast, { look: [CRATER.x, CRATER.z], chatter: GATHER_CHATTER, sight: GATHER_SIGHT, script: GATHER_TALK, out, onGift: gift, onDone: done })) {
+    for (const w of GATHER_TALK) if (w.gift) gift(w.gift, null);
+    done();
+  }
 }
 
 /** The village's gifts. */
 function gift(kind, from) {
+  if (progress) (progress.gifts ||= []).push(kind);
   const who = from?.call || '';
   const g = (o) => makeGear({ ilvl: 1, rarity: 0, ...o });
   const give = (items, say) => {
@@ -1108,6 +1207,12 @@ function gift(kind, from) {
   bag.render();
 }
 
+/** What's under the ground: drawn only from below it, or from the head of the stairs down to it. */
+function showUnder() {
+  const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
+  for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
+}
+
 // ------------------------------------------------------------------ the loop
 const clock = new THREE.Clock();
 let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0, saveT = 10;
@@ -1119,7 +1224,7 @@ function frame() {
   const now = performance.now();
   frameMs += (Math.min(100, now - lastFrame) - frameMs) * 0.05;
   lastFrame = now;
-  if (ready && started && !paused && (rsT += 1) > 90) {   // every second and a half or so
+  if (ready && started && !paused && !introBusy && (rsT += 1) > 90) {   // every second and a half or so (held through the opening: sized once, before it)
     rsT = 0;
     const want = frameMs > 26 ? Math.max(0.55, rs * 0.88) : frameMs < 18 ? Math.min(1, rs * 1.07) : rs;
     if (Math.abs(want - rs) > 0.01) { rs = want; resize(); }
@@ -1206,7 +1311,7 @@ function tick(dt) {
   if (who) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
-    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else { villagers.stopScenes(who); villagers.face(who, player); } }
+    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); } }
   } else if (active) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
@@ -1244,9 +1349,7 @@ function tick(dt) {
     cometLight.position.set(CRATER.x, physics.groundAt(CRATER.x, CRATER.z) + 1.4, CRATER.z);
     cometLight.distance = 24; cometLight.intensity = CRATER.k ? 7 * fl * (0.4 + 0.6 * (1 - day.day)) : 0;
   }
-  // what's under the ground: only from below it, or from the head of the stairs down to it
-  const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
-  for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
+  showUnder();
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);

@@ -1,10 +1,10 @@
 # The Sworn on the Universal Animation Library
 
-Blackvigil Keep's knights (`src/fps/sworn.js`) move on Quaternius' **Universal Animation Library 2**
-(CC0 1.0). `trim.py` cuts the library's `UAL2_Standard.glb` down to its skeleton, its mannequin and
-the clips the knights use, dropping every channel that never moves (1.4 MB from 7.7):
+Blackvigil Keep's knights (`src/fps/sworn.js`) move on Quaternius' **Universal Animation Libraries
+1 and 2** (CC0 1.0), the same mannequin on the same skeleton. `trim.py` puts the clips the knights use
+from both into one file with the mannequin, dropping every channel that never moves (3 MB from 15):
 
-    python tools/creatures/sworn_ual/trim.py "<...>/UAL2_Standard.glb" templates/models/creatures/sworn/ual2.glb
+    python tools/creatures/sworn_ual/trim.py templates/models/creatures/sworn/ual.glb "<...>/UAL2_Standard.glb" "<...>/UAL1_Standard.glb"
 
 The game carries those clips onto each sworn body when it builds it (`src/fps/ual.js`):
 
