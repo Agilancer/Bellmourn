@@ -264,6 +264,16 @@ export class Sfx {
     if (done) this._tone(t + 0.28, 1.4, { type: 'sine', f0: b * 2, f1: b * 2, gain: 0.06 });
   }
 
+  /** The First Bell: a great bronze toll, its partials out of tune with each other as a bell's
+   * are, dying away over seconds. */
+  toll() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime, f = 82;
+    [[0.5, 0.11, 9], [1, 0.16, 7], [1.19, 0.08, 5], [1.5, 0.07, 4.5], [2, 0.06, 3.5], [2.52, 0.04, 2.5], [3.01, 0.03, 2], [4.07, 0.02, 1.4]]
+      .forEach(([k, g, d]) => this._tone(t, d, { type: 'sine', f0: f * k, f1: f * k * 0.998, gain: g }));
+    this._noise(t, 0.25, { type: 'bandpass', f0: 900, f1: 500, gain: 0.08 });
+  }
+
   /** Coin counted into the purse. */
   coin() {
     if (!this.ok) return;

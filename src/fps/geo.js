@@ -338,6 +338,26 @@ export class Builder {
     }
   }
 
+  /** An indexed mesh shaded smooth (vaults, domes, rock): positions [x,y,z,...], UVs in metres
+   * [u,v,...], triangles by index; `shade` one value or one a vertex (ambient occlusion). It is
+   * unrolled after its normals are made, so it merges with everything else. */
+  smooth(mat, P, U, I, shade = 1) {
+    const g = new THREE.BufferGeometry();
+    const tu = mat.userData.tileU || 1, tv = mat.userData.tileV || 1;
+    const uv = new Float32Array(U.length);
+    for (let i = 0; i < U.length; i += 2) { uv[i] = U[i] / tu; uv[i + 1] = U[i + 1] / tv; }
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    const C = new Float32Array(P.length);
+    if (typeof shade === 'number') C.fill(shade); else for (let i = 0; i < shade.length; i++) C[i * 3] = C[i * 3 + 1] = C[i * 3 + 2] = shade[i];
+    g.setAttribute('color', new THREE.BufferAttribute(C, 3));
+    g.setIndex(I);
+    g.computeVertexNormals();
+    const flat = g.toNonIndexed();
+    g.dispose();
+    this.push(mat, flat);
+  }
+
   /** Triangles straight from positions (flat [x,y,z,...] in threes) with UVs in metres. */
   raw(mat, P, U, shade = 1) {
     const g = new THREE.BufferGeometry();

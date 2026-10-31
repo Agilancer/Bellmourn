@@ -22,10 +22,10 @@ import { Builder } from './geo.js';
 import { Billboards } from './sprites.js';
 import { Props } from './props.js';
 import { buildWorld, VILLAGE_R, GRAVEYARD, STAIRS } from './world.js';
-import { buildDungeon, UNDERCROFT, DEEP_UNDERCROFT } from './dungeon.js';
+import { buildCatacombs } from './catacombs.js';
 import { buildDelves } from './delves.js';
 import { Input, TOUCH } from './input.js';
-import { Player } from './player.js';
+import { Player, EYE } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
@@ -141,9 +141,9 @@ let quests = null, saves = null, intro = null, introBusy = false, holdHour = fal
 const PROGRESS = 'bm.progress';
 let progress = (() => { try { return JSON.parse(localStorage.getItem(PROGRESS) || 'null'); } catch { return null; } })();
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
-// lying buried), and more spread through the Undercroft and the Deep Undercroft (the delves and
-// caves fill their own: delves.js)
-const YARD_DEAD = 28, YARD_BURIED = 6, DUNGEON_DEAD = 26, DEEP_DEAD = 20;
+// lying buried); the catacombs place their own, each where it would be (catacombs.js), and the
+// delves and caves fill theirs (delves.js)
+const YARD_DEAD = 28, YARD_BURIED = 6;
 // what each kind of spell does to flesh: a direct hit, its blast (radius, damage), and how
 // likely a direct hit is to blow off the head or limb it lands on (zombies.js BLOW: by where)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, staff: 30, wisp: 25 };
@@ -255,18 +255,19 @@ async function build() {
   };
   await mark('library');
   buildWorld(ctx); await mark('world');
-  // the Undercroft; Blackvigil Keep (after the undercroft: see keep.js); the Deep Undercroft below
-  // the Undercroft, the Darkwood's delves and the cliff's caves
+  // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
+  // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
   ctx.entrances = [[STAIRS.x, STAIRS.z]];
-  ctx.dungeon = buildDungeon(ctx, ctx.stairBottom, UNDERCROFT); await mark('dungeon');
+  ctx.catacombs = buildCatacombs(ctx);
+  ctx.dungeon = ctx.catacombs.upper; ctx.deep = ctx.catacombs.deep; await mark('dungeon');
   buildKeep(ctx); await mark('keep');
-  ctx.deep = buildDungeon(ctx, ctx.dungeon.stairDown, DEEP_UNDERCROFT);
-  ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', n: DUNGEON_DEAD }, { dg: ctx.deep, haunt: 'deep', n: DEEP_DEAD }, ...buildDelves(ctx)];
+  ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', cat: true }, { dg: ctx.deep, haunt: 'deep', cat: true }, { dg: ctx.catacombs.gulfDg, haunt: 'undercroft', cat: true }, ...buildDelves(ctx)];
   await mark('delves');
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
+  ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
   await mark('merge');
   bill.finish(); await mark('billboards');
   ctx.trees3d.finish(scene); await mark('trees');
@@ -281,6 +282,7 @@ async function build() {
   console.info(`3D scatter models: ${ctx.scatter.count}; textures: ${lib.used.size}/${lib.surf.size} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use; ${ctx.containers} containers`);
   flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
+  ctx.flameFx = { fx: flames, list: flameList };   // (for the few flames that move: the bridge's lanterns)
   skyDome = new Sky(scene);
   shafts = new Shafts(scene, ctx.stained.shafts());
   const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
@@ -305,12 +307,13 @@ async function build() {
   Object.assign(ctx.loot.hooks, {
     models: lootModel,
     zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
-    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); autoEquip(it); saveCharacter(char); bag.render(); },
+    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); autoEquip(it); saveCharacter(char); bag.render(); if (it?.unique) { try { localStorage.setItem('bm.taken.' + it.unique, '1'); } catch { /* no storage */ } } },
     full: () => hud.toast('Your bag is full'),
   });
   await mark('arms');
   await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
+  player.onFall = (d) => hurtPlayer(d, null, 'fall');      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
   zombies = new Zombies(scene, physics, kit, sfx);
@@ -321,9 +324,12 @@ async function build() {
   // cliff and the deep of the wood (a phone gets half)
   const few = (n) => (touch && !HI ? Math.ceil(n / 2) : n);
   for (const u of ctx.unders) {
+    if (u.cat) continue;
     if (u.plan) zombies.populateCave(u.dg, u.plan.map(([tag, n, haunt]) => [tag, few(n), haunt]));
     else zombies.populateDungeon(u.dg, few(u.n), u.haunt);
   }
+  ctx.catacombs.populate(zombies, few);
+  ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
   zombies.populateWild([
     { x: POOL.x - 14, z: POOL.z + 18, r: 10, n: few(3), haunt: 'water' },                       // the falls' pool
@@ -365,6 +371,7 @@ async function build() {
   magic.onBlast = (def, at) => {
     const b = SPELL_BLAST[def.kind];
     if (b) zombies.blast(at, b[0], b[1], def.kind);
+    if (b) ctx.catacombs.bridge.blast(at, b[0] * 2.2, b[1] * 0.12);   // (the bridge is thrown about)
     zombies.noise(at, def.size > 0.4 ? 26 : 16);   // the dead hear it go off
   };
 
@@ -716,6 +723,8 @@ function castSlot(slot) {
  * whatever gets through. If it kills you, you wake in the village. */
 function hurtPlayer(dmg, by = null, kind = 'melee') {
   if (introBusy) return;
+  // (a fall costs health and the climb back, never your life: it leaves you on your last legs)
+  if (kind === 'fall') { shake = Math.max(shake, 1.4); sfx.impact?.(); player.health = Math.max(Math.min(player.health, 8), player.health - dmg); hud.toast('The fall all but breaks you'); return; }
   let d = dmg * (by?.champ?.dmg || 1);   // a quest's champion hits harder
   const sh = st.shield;
   let front = true;
@@ -848,8 +857,9 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     const dmg = stats.meleeDamage(heavy, side) * power;   // (a chop, slower than a cut, lands harder)
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     // a treasure's powers: the dead set burning, or chilled to a crawl
-    if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); }
-    if (st.chillHit && !flesh.z.dead) flesh.z.chilled = Math.max(flesh.z.chilled || 0, st.chillHit);
+    // (it shows where the blade bit: char, or rime, about the wound, never the whole body)
+    if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); flesh.z.mark?.(flesh.point, flesh.bone, 0.07, 1); }
+    if (st.chillHit && !flesh.z.dead) { flesh.z.chilled = Math.max(flesh.z.chilled || 0, st.chillHit); flesh.z.mark?.(flesh.point, flesh.bone, 0.07, 2); }
     zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
@@ -871,7 +881,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
-  for (const u of ctx.unders) if (u.dg.contains(p)) return { name: u.dg.name, kind: 'under' };
+  for (const u of ctx.unders) if (u.dg.contains(p)) return { name: u.dg.where?.(p) || u.dg.name, kind: 'under', fog: u.dg.fogAt?.(p), amb: u.dg.ambAt?.(p) };
   if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
   if (p.x > REGION.x0) {   // the downs: see a long way
     for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
@@ -888,7 +898,7 @@ function zoneAt(p) {
   return { name: 'Bellmourn', kind: 'out' };
 }
 
-const L = { out: 1, under: 0, inCathedral: 0, open: 0 }; // smoothed zone weights
+const L = { out: 1, under: 0, inCathedral: 0, open: 0, fog: 46, amb: 0 }; // smoothed zone weights (and how far you see underground)
 let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -904,6 +914,8 @@ function light(dt, t) {
   L.under += ((z.kind === 'under' ? 1 : 0) - L.under) * k;
   L.inCathedral += ((z.name.startsWith('Cathedral') ? 1 : 0) - L.inCathedral) * k;
   L.open += ((z.open ? 1 : 0) - L.open) * k * 0.5; // the downs: see a long way
+  L.fog += ((z.fog || 46) - L.fog) * k * 0.6;        // a great space below: see across it
+  L.amb += ((z.amb || 0) - L.amb) * k * 0.6;         // (and a faint cold glow in the gulf)
   const indoor = Math.max(0, 1 - L.out - L.under);
   const surface = 1 - L.under; // underground nothing but torches and spells
 
@@ -911,6 +923,7 @@ function light(dt, t) {
   const isDay = day.day > 0.02;
   sun.color.copy(isDay ? day.sunColor : MOON);
   sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
+  sun.shadow.autoUpdate = L.under < 0.95;   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here)
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
     _lx.crossVectors(UP, ld).normalize();
@@ -925,9 +938,13 @@ function light(dt, t) {
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
+  if (L.amb > 0.002 && L.under > 0.5) {   // below: the gulf's glow, from its stream and its fungus
+    hemi.color.setRGB(0.47, 0.58, 0.6); hemi.groundColor.setRGB(0.1, 0.14, 0.15);
+    hemi.intensity += L.amb * L.under;
+  }
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
-  scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + 46 * L.under;   // (a phone draws less of the distance)
+  scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + L.fog * L.under;   // (a phone draws less of the distance)
   skyDome.update(day, t, camera.position, surface);
   bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
   bill.time.value = t;
@@ -950,8 +967,10 @@ function light(dt, t) {
     const p = camera.position;
     const ranked = flameList.map((f) => [f, (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2])
       .filter((a) => a[1] < 55 * 55).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
-    const groups = [[torchPool.slice(0, TORCH_SHADOWS), ranked.slice(0, TORCH_SHADOWS)],
-      [torchPool.slice(TORCH_SHADOWS), ranked.slice(TORCH_SHADOWS, TORCHES)]];
+    // (a flame marked f[4] sits in its own brazier or candles, which would shadow it: never a shadow light)
+    const shadowed = ranked.filter((f) => !f[4]).slice(0, TORCH_SHADOWS);
+    const groups = [[torchPool.slice(0, TORCH_SHADOWS), shadowed],
+      [torchPool.slice(TORCH_SHADOWS), ranked.filter((f) => !shadowed.includes(f)).slice(0, TORCHES - TORCH_SHADOWS)]];
     for (const [ls, want] of groups) {
       const free = want.filter((f) => !ls.some((l) => l.userData.flame === f));
       for (const l of ls) {
@@ -1220,6 +1239,7 @@ async function startOver() {
   await title.show('The sky is opening…');   // (black over the world before anything in it moves)
   char = newCharacter(true);
   fitCharacter(char); saveCharacter(char);
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('bm.taken.')) localStorage.removeItem(k); } catch { /* no storage */ }
   quests.load({});
   progress = { arrived: false };
   try { localStorage.removeItem(PROGRESS); } catch { /* no storage */ }
@@ -1368,7 +1388,7 @@ function placeInCrater() {
   player.pos.set(x, physics.groundAt(x, z), z); player.vel.set(0, 0, 0);
   player.yaw = Math.atan2(-(GATHER.x - x), -(GATHER.z - z)); player.pitch = 0.06;   // (toward them)
   player.health = player.maxHealth; player.mana = player.maxMana;
-  camera.position.set(player.pos.x, player.pos.y + 1.58, player.pos.z);
+  camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
   const { f, cast } = gatherSpots();
   villagers.postAt = { Odile: [GATHER.x, GATHER.z, Math.atan2(f[0], f[1])] };   // she waits there till you take her work
@@ -1503,6 +1523,12 @@ function tick(dt) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
     if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); } }
+  } else if (active && ctx.catacombs.prompt) {
+    hud.prompt(ctx.catacombs.prompt);
+    if (inp.was('KeyE')) ctx.catacombs.act?.();
+  } else if (active && ctx.catacombs.bell?.prompt) {
+    hud.prompt(ctx.catacombs.bell.prompt);
+    if (inp.was('KeyE')) ctx.catacombs.bell.ring(zombies, sfx, hud);
   } else if (active) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
@@ -1548,6 +1574,7 @@ function tick(dt) {
   }
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
+  ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
   foes.update(dt, player);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
