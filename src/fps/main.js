@@ -342,15 +342,17 @@ async function build() {
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
   foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
-  // the people of the village (tools/villagers' men and women), fewer on a phone, and Velscour's
-  // Sworn at the keep: all of them in before play (prepare waits; a phone brings the Sworn once the
-  // village is in, so it never holds both loads at once)
+  // the people of the village (tools/villagers' men and women), fewer on a phone, Velscour's Sworn at
+  // the keep, and the open country's knights and sorcerers onto the knight's clips (ual.js): all of
+  // them in before play (prepare waits; a phone brings the Sworn once the village is in, and the
+  // clips once the Sworn are, so it never holds two loads at once)
   villagers = new Villagers(scene, ctx);
   villagers.camera = camera;
   villagers.onLoading = (p) => { run.bringing = p?.name || ''; trace(); };   // who is coming in (null: they're in)
   villagers.populate(touch && !HI ? 10 : 22);
   const sworn = () => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e));
   foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
+  foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => zombies.list.map((z) => z.ray(p, d, far)).filter(Boolean);
@@ -445,7 +447,7 @@ async function rehearse() {
 async function prepare(mark) {
   const T0 = performance.now(), p0 = renderer.info.programs.length;
   const wait = (p, what) => Promise.resolve(p).catch((e) => console.warn(what, e));
-  await Promise.all([wait(villagers.ready, 'the village'), wait(foes.swornReady, 'the Sworn'), wait(ctx.crater.armourReady, "the knight's armour")]);
+  await Promise.all([wait(villagers.ready, 'the village'), wait(foes.swornReady, 'the Sworn'), wait(foes.ualReady, "the foes' clips"), wait(ctx.crater.armourReady, "the knight's armour")]);
   await mark('people');
   const items = touch
     ? [...Object.values(char.equip), ...char.bag, ...['vigilsword', 'vigilshield', 'vigilstaff'].map(makeUnique)].filter((it) => it?.model && it.kind !== 'gauntlet').map((it) => [it.model, it.finish || ''])
@@ -1229,6 +1231,8 @@ async function newGame() {
         count();
         const every = setInterval(count, 300);
         await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
+        line('The knights of the open country…');
+        await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]

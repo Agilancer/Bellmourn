@@ -40,7 +40,10 @@ python tools/serve.py 8124
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 `/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
 Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page
-can set each move beside their old clips and the library's mannequin it came from. On Windows,
+can set each move beside their old clips and the library's mannequin it came from. Every other
+person in the game moves on the same clips (made as they load, once for each skeleton: the
+villagers' men and women, the open country's knights and sorcerers), and the page's Body list has
+them all. On Windows,
 double-click `knight-player.bat` to serve the folder and open it (`tools/knight_player.py`).
 
 | Key | Action |

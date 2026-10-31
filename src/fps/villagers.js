@@ -26,6 +26,7 @@ import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './
 import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS, HUSH } from './tessariel.js';
 import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
+import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
 import { cullable, shareSkeletons } from './engine.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
@@ -110,7 +111,8 @@ export class Villagers {
       const jobs = [load(ROOT + p.m + '.glb')];
       if (p.armor) jobs.push(load(`${ARMOR}${p.armor}/${p.armor}_${p.m.includes('_f') ? 'f' : 'm'}.glb`));
       this.onLoading?.(p);
-      return Promise.all(jobs).then(([g, armor]) => this.spawn(g, p, k++, armor)).catch((e) => console.warn('villager', p.m, p.armor, e))
+      return Promise.all(jobs).then(async ([g, armor]) => this.spawn(g, p, k++, armor, await this.clipsFor(g, p.m.includes('_f') ? 'f' : 'm', loader)))
+        .catch((e) => console.warn('villager', p.m, p.armor, e))
         .finally(() => this.onLoading?.(null));
     };
     // a phone brings them one at a time, once the world has been drawn: all at once, over the first
@@ -119,6 +121,20 @@ export class Villagers {
     if (TOUCH) this.ready = who.reduce((prev, p) => prev.then(() => bring(p)), new Promise((r) => setTimeout(r, PHONE_WAIT * 1000)));
     else this.ready = Promise.all(who.map(bring));
     return who.length;
+  }
+
+  /** The knight's clips for the villagers (ual.js), standing easy (no shield): made once for the men's
+   * skeleton and once for the women's (every villager is on one or the other), a few milliseconds at
+   * a time, with the villagers' own wave, which the library hasn't. Null if the library can't be had
+   * (they keep their own clips). */
+  clipsFor(g, sex, loader) {
+    return ((this.sets ||= {})[sex] ||= loadUal(loader)
+      .then((src) => ualBody(src, g, { names: VILLAGER_BONES, recipes: { ...RECIPES, ...CALM } }))
+      .then((made) => {
+        const have = new Set(made.clips.map((c) => c.name));
+        return { ...made, clips: [...made.clips, ...g.animations.filter((c) => !have.has(c.name))] };
+      })
+      .catch((e) => { console.warn('villagers: the library', e); return null; }));
   }
 
   /** A copy of a loaded model's scene, sharing its geometry and textures: the original stays as it
@@ -156,7 +172,7 @@ export class Villagers {
     return this.homes[k % this.homes.length];
   }
 
-  spawn(gltf, p, k, armor = null) {
+  spawn(gltf, p, k, armor = null, set = null) {
     const model = Villagers.take(gltf), root = new THREE.Group();
     root.add(model);
     if (armor) this.wear(model, armor);
@@ -168,12 +184,12 @@ export class Villagers {
     // one skeleton for all thirteen-odd parts of them, culled to what can be seen (engine.js)
     shareSkeletons(model);
     cullable(model);
+    // their clips: the knight's (clipsFor), or their own; each made into an action when first played
     const mixer = new THREE.AnimationMixer(model), actions = {};
-    for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
-    for (const once of ['wave', 'interact']) if (actions[once]) { actions[once].setLoop(THREE.LoopOnce); actions[once].clampWhenFinished = true; }
+    const clips = Object.fromEntries((set?.clips || gltf.animations).map((c) => [c.name, c]));
     const home = this.homeFor(p, k), nd = this.graph[home];
     const x = nd.x + rand(-1, 1), z = nd.z + rand(-1, 1);
-    const a = { ...p, call: p.call || p.name, root, model, head, mixer, actions, cur: null,
+    const a = { ...p, call: p.call || p.name, root, model, head, mixer, actions, clips, ual: !!set, gait: set?.gaits || null, cur: null,
       pos: new THREE.Vector3(x, 0, z), yaw: rand(0, 6.28), want: null, path: [], goal: null, node: this.nearestNode(x, z), home,
       speed: p.tags.includes('old') ? 0.8 : rand(1.0, 1.25), busy: false, inside: false, flee: 0, faceTo: null, gesture: 0,
       talk: null, greeted: -99, frame: k % 4, acc: 0, stuck: 0, last: new THREE.Vector3(x, 0, z), nextT: rand(0, 3), occT: 0, hidden: false };
@@ -184,8 +200,22 @@ export class Villagers {
     return a;
   }
 
+  /** A villager's action for a clip, made the first time it's wanted (most of the fifty never are):
+   * the gestures and one-offs play once and hold their end. */
+  act(a, name) {
+    if (a.actions[name] || !a.clips[name]) return a.actions[name];
+    const act = a.actions[name] = a.mixer.clipAction(a.clips[name]);
+    if (a.ual ? !LOOPING.has(name) : name === 'wave' || name === 'interact') { act.setLoop(THREE.LoopOnce); act.clampWhenFinished = true; }
+    return act;
+  }
+
+  /** What they do with their hands at a job: on the knight's clips, more than the one reach. */
+  chore(a, well = false) {
+    return a.ual ? pick(well ? ['interact', 'pickup'] : ['interact', 'interact', 'pickup', 'kneel']) : 'interact';
+  }
+
   play(a, name, speed = 1) {
-    const act = a.actions[name];
+    const act = this.act(a, name);
     if (!act) return;
     act.timeScale = speed;
     if (a.cur === name) return;
@@ -197,7 +227,7 @@ export class Villagers {
 
   /** A one-off gesture (wave, interact), then back to whatever they were doing. */
   gesture(a, name) {
-    const act = a.actions[name];
+    const act = this.act(a, name);
     if (!act) return 0;
     this.play(a, name);
     a.gesture = act.getClip().duration;
@@ -464,7 +494,7 @@ export class Villagers {
     const until = this.time + rand(25, 50);
     while (this.time < until && !this.night) {
       if (chance(0.3)) yield* this.line(a, pick(BARKS.merchant), 0, 2);
-      if (chance(0.3)) this.gesture(a, 'interact');
+      if (chance(0.3)) this.gesture(a, this.chore(a));
       yield rand(4, 8);
     }
     a.tending = null;
@@ -490,7 +520,7 @@ export class Villagers {
     const f = this.faceFor(a, n); if (f != null) a.faceTo = f;
     const lines = a.tags.map((t) => WORK[t]).find(Boolean) || WORK.any;
     for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) {
-      yield this.gesture(a, 'interact') || 2;
+      yield this.gesture(a, this.chore(a)) || 2;
       if (chance(0.3)) yield* this.line(a, pick(lines), 0, 1);
       yield rand(0.8, 2);
     }
@@ -500,7 +530,7 @@ export class Villagers {
     const n = this.graph.find((q) => q.what === 'well');
     yield this.go(a, n.x + rand(-0.6, 0.6), n.z + rand(-0.6, 0.6));
     a.faceTo = this.faceFor(a, n);
-    yield this.gesture(a, 'interact') || 2;
+    yield this.gesture(a, this.chore(a, true)) || 2;
     if (chance(0.5)) yield* this.line(a, pick(WELL), 0, 2);
     yield rand(2, 5);
   }
@@ -713,7 +743,8 @@ export class Villagers {
           const want = Math.atan2(tx, tz);
           let e = want - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
           a.yaw += Math.max(-dt * 5, Math.min(dt * 5, e));
-          const run = a.flee > 0 || a.hurry, sp = (run ? 3.4 : a.speed) * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(e))));
+          // (on the knight's clips a run is the library's jog, which would look slowed at 3.4)
+          const run = a.flee > 0 || a.hurry, sp = a.sp = (run ? (a.ual ? 4.2 : 3.4) : a.speed) * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(e))));
           this.physics.slide(a.pos, Math.sin(a.yaw) * sp * dt, Math.cos(a.yaw) * sp * dt, 0.28, 1.6, 0.45);
           moving = true;
           a.stuck += dt;
@@ -729,7 +760,12 @@ export class Villagers {
       a.pos.y = this.physics.floorAt(a.pos.x, a.pos.z, a.pos.y + 0.5, 0.25, 0.6);
       if (!Number.isFinite(a.pos.y)) a.pos.y = 0;
       if (a.gesture > 0 && !moving) a.gesture -= dt;
-      else { if (moving) a.gesture = 0; const run = a.flee > 0 || a.hurry; this.play(a, moving ? (run ? 'run' : 'walk') : 'idle', moving ? (run ? 1 : a.speed / 1.05) : 1); }
+      else {
+        if (moving) a.gesture = 0;
+        const run = a.flee > 0 || a.hurry, gait = run ? 'run' : 'walk';
+        if (moving) this.play(a, gait, a.gait?.[gait] ? Math.max(0.3, a.sp / a.gait[gait]) : run ? 1 : a.speed / 1.05);   // (the feet don't slide)
+        else this.play(a, a.ual && a.talk && a.talk.t > 0 ? 'idle_talk' : 'idle');   // (talking with their hands while their words are up)
+      }
       // speech ages
       if (a.talk) { a.talk.t -= dt; a.talk.age += dt; if (a.talk.t <= 0) a.talk = null; }
       // you can't walk through them
