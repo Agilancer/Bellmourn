@@ -85,15 +85,10 @@ const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, 
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
 const HP = 170;
 const WOUNDS = 16;
-<<<<<<< HEAD
-// a spell's wound is round, its rim burned or frozen: its radius is kept as r + 10 (frost: r + 20)
-const SPELL_RIM = { fire: 10, lightning: 10, staff: 10, frost: 20, arcane: 10, missile: 10, void: 10 };
+// a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
+const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3, arcane: 2, missile: 2, void: 2 };
 // what lingering spells do to the skin's colour (frozen first, then burning, poisoned, chilled)
 const TINT = { frozen: [0.6, 0.86, 1.4], burn: [0.5, 0.36, 0.3], poison: [0.68, 1.0, 0.5], chill: [0.8, 0.93, 1.15] };
-=======
-// a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
-const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3 };
->>>>>>> origin/main
 // the chance a spell blows off what it hits, by where it hits (times the spell's own `blow`)
 const BLOW = { head: 0.4, upper_arm: 0.3, forearm: 0.35, hand: 0.35, thigh: 0.4, shin: 0.45, foot: 0.45, waist: 0.12 };
 // temperaments: walking speed, sprint speed (0: never runs), how far it sees, how well it hears
@@ -115,20 +110,6 @@ float gNoise(vec3 x) {
   return mix(mix(mix(gHash(i), gHash(i + vec3(1, 0, 0)), f.x), mix(gHash(i + vec3(0, 1, 0)), gHash(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(gHash(i + vec3(0, 0, 1)), gHash(i + vec3(1, 0, 1)), f.x), mix(gHash(i + vec3(0, 1, 1)), gHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
-<<<<<<< HEAD
-// wounds (w > 0: a hole torn in the skin; w > 5: a spell's round hole, burned, w > 15 frozen)
-// and cuts (w < 0: a severed joint)
-float gore(inout vec4 col) {
-  float hole = 99.0, cut = 99.0, burn = 99.0, ice = 99.0;
-  for (int i = 0; i < ${WOUNDS}; i++) {
-    if (float(i) >= uWoundN) break;
-    vec4 w = uWound[i];
-    float l = length(vBind - w.xyz);
-    if (w.w > 15.0) ice = min(ice, l / (w.w - 20.0));
-    else if (w.w > 5.0) burn = min(burn, l / (w.w - 10.0));
-    else if (w.w > 0.0) hole = min(hole, l / w.w);
-    else cut = min(cut, l / -w.w);
-=======
 // wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint), slashes (uWoundD
 // .w = 1: a gash along the segment w.xyz +- uWoundD.xyz, w.w wide, the blood running from it)
 // and spells' round holes (uWoundD.w = 2: burned, 3: frozen; w.w their radius)
@@ -157,30 +138,10 @@ float gore(inout vec4 col) {
     }
     float d = length(vBind - w.xyz) / abs(w.w);
     if (w.w > 0.0) hole = min(hole, d); else cut = min(cut, d);
->>>>>>> origin/main
   }
   float n = gNoise(vBind * 60.0) * 0.65 + gNoise(vBind * 170.0) * 0.35;
   float h = hole + (n - 0.5) * 0.6;
   float c = cut + (n - 0.5) * 0.5;
-<<<<<<< HEAD
-  float s = min(burn, ice) + (n - 0.5) * 0.08;         // spell holes: clean discs, barely ragged
-  vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
-  if (gl_FrontFacing) {
-    if (h < 0.6 || s < 0.62) discard;                   // torn (or blown) open
-    if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
-    if (s < 0.7) { col.rgb = raw * 0.5; return 1.0; }   // a thin lip of seared meat
-    float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
-    col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
-    float wet = (1.0 - soak) * 0.7;
-    if (s < 1.9) {
-      bool frozen = ice < burn;
-      // the rim: a glowing edge gone to char (frost: white rime), then soot (a blue chill) fading out
-      vec3 rim = frozen ? mix(vec3(0.92, 0.97, 1.0), vec3(0.55, 0.74, 0.92), smoothstep(0.7, 1.0, s + n * 0.2))
-                        : mix(vec3(0.62, 0.17, 0.03), vec3(0.03, 0.022, 0.018), smoothstep(0.7, 0.78, s + n * 0.06));
-      vec3 fade = frozen ? col.rgb * vec3(0.6, 0.76, 1.0) : col.rgb * mix(0.12, 0.45, n);
-      col.rgb = s < 1.0 ? rim : mix(fade, col.rgb, smoothstep(1.0, 1.9, s));
-      wet = s < 1.0 ? (frozen ? 1.0 : 0.05) : max(wet, frozen ? 0.5 : 0.0);
-=======
   float s = gash + (n - 0.5) * 0.45;
   float sp = min(burn, ice) + (n - 0.5) * 0.08;        // spell holes: clean discs, barely ragged
   vec3 raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n);
@@ -205,16 +166,11 @@ float gore(inout vec4 col) {
       vec3 fade = frozen ? col.rgb * vec3(0.6, 0.76, 1.0) : col.rgb * mix(0.12, 0.45, n);
       col.rgb = sp < 1.0 ? rim : mix(fade, col.rgb, smoothstep(1.0, 1.9, sp));
       wet = sp < 1.0 ? (frozen ? 1.0 : 0.05) : max(wet, frozen ? 0.5 : 0.0);
->>>>>>> origin/main
     }
     return wet;
   }
   // inside the body: wet meat, coils of gut, yellow fat (the kilt's inner face stays cloth)
-<<<<<<< HEAD
-  if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0 && s > 3.0) { col.rgb *= 0.4; return 0.0; }
-=======
   if (vBind.y > 0.52 && vBind.y < 1.0 && h > 3.0 && c > 3.0 && sp > 3.0) { col.rgb *= 0.4; return 0.0; }
->>>>>>> origin/main
   float coil = sin(vBind.x * 95.0 + sin(vBind.y * 60.0) * 2.5 + vBind.z * 40.0);
   vec3 meat = mix(vec3(0.20, 0.008, 0.015), vec3(0.58, 0.07, 0.07), n);
   meat = mix(meat, vec3(0.72, 0.36, 0.34), smoothstep(0.7, 0.95, coil) * 0.65);
@@ -463,69 +419,6 @@ function adaptMonster(gltf) {
     gltf.animations.push(THREE.AnimationUtils.subclip(clips.death, 'dead', last - 1, last, FPS));
   }
   return gltf;
-}
-
-/** The zombie body's clips on the ground, retargeted onto a monster body (which has none of its
- * own), so one that loses a leg drops and drags itself after you like the dead do. Both rest in
- * a T: each bone turns away from its rest as the zombie's does, in world terms, and the hips move
- * by the same share of their height. */
-const GROUND_CLIPS = ['collapse', 'crawl', 'crawl_attack', 'crawl_death', 'crawl_dead'];
-function retargetGround(monster, zombie) {
-  const src = cloneSkinned(zombie.scene), dst = monster.scene;
-  const bonesOf = (root) => { const m = {}; root.traverse((o) => { if (o.isBone && !m[o.name]) m[o.name] = o; }); return m; };
-  const zb = bonesOf(src), mb = bonesOf(dst);
-  const names = Object.values(MONSTER_BONES).filter((n) => zb[n] && mb[n]);
-  if (!names.includes('hips')) return;
-  src.updateMatrixWorld(true); dst.updateMatrixWorld(true);
-  // zombie world rest, inverted, times the monster's world rest: what each zombie pose turns
-  const fix = {};
-  for (const n of names) fix[n] = zb[n].getWorldQuaternion(new THREE.Quaternion()).invert().multiply(mb[n].getWorldQuaternion(new THREE.Quaternion()));
-  const zh0 = zb.hips.getWorldPosition(new THREE.Vector3()), mh0 = mb.hips.getWorldPosition(new THREE.Vector3());
-  const k = mh0.y / zh0.y, hipsUp = mb.hips.parent.matrixWorld.clone().invert();
-  const bones = [];   // parents before children
-  dst.traverse((o) => { if (o.isBone) bones.push(o); });
-  const restQ = new Map(bones.map((b) => [b, b.quaternion.clone()]));
-  const mapped = new Map(names.map((n) => [mb[n], n]));
-  const mixer = new THREE.AnimationMixer(src);
-  const q = new THREE.Quaternion(), w = new THREE.Quaternion(), p = new THREE.Vector3();
-  for (const name of GROUND_CLIPS) {
-    const clip = zombie.animations.find((c) => c.name === name);
-    if (!clip || monster.animations.some((c) => c.name === name)) continue;
-    mixer.stopAllAction();
-    mixer.clipAction(clip).play();
-    const n = Math.max(2, Math.round(clip.duration * FPS) + 1);
-    const times = [], Q = new Map(names.map((nm) => [mb[nm], []])), P = [];
-    for (let i = 0; i < n; i++) {
-      const t = Math.min(clip.duration, i / FPS);
-      mixer.setTime(t);
-      src.updateMatrixWorld(true);
-      times.push(t);
-      const world = new Map();
-      for (const b of bones) {
-        const up = world.get(b.parent) || b.parent.getWorldQuaternion(new THREE.Quaternion());
-        const nm = mapped.get(b);
-        if (nm) {
-          const target = zb[nm].getWorldQuaternion(w).multiply(fix[nm]).clone();
-          q.copy(up).invert().multiply(target);
-          Q.get(b).push(q.x, q.y, q.z, q.w);
-          world.set(b, target);
-        } else world.set(b, up.clone().multiply(restQ.get(b)));
-      }
-      zb.hips.getWorldPosition(p).sub(zh0).multiplyScalar(k).add(mh0).applyMatrix4(hipsUp);
-      P.push(p.x, p.y, p.z);
-    }
-    const tracks = [...Q].map(([b, v]) => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, times, v));
-    tracks.push(new THREE.VectorKeyframeTrack(`${mb.hips.name}.position`, times, P));
-    const named = new Set(tracks.map((tr) => tr.name));
-    for (const b of bones) if (!mapped.has(b) && !named.has(`${b.name}.quaternion`)) { // the rest hold still
-      named.add(`${b.name}.quaternion`);
-      const r = restQ.get(b);
-      tracks.push(new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, [0], [r.x, r.y, r.z, r.w]));
-    }
-    monster.animations.push(new THREE.AnimationClip(name, clip.duration, tracks));
-  }
-  mixer.stopAllAction();
-  mixer.uncacheRoot(src);
 }
 
 export class Zombie {
@@ -781,19 +674,6 @@ export class Zombie {
     return null;
   }
 
-<<<<<<< HEAD
-  /** blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
-  hit(h, { dmg, dir, heavy = false, kind = 'blade', blow = 0 }) {
-    const owner = this.owner, g = owner.gore;
-    const b = h.bone, p = h.point;
-    const back = dir.clone().negate();
-    if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
-    // the wound and its blood: a blade tears a ragged hole, a spell a round one, seared at the rim
-    const rim = SPELL_RIM[kind] || 0;
-    const r = rim ? (heavy ? 0.1 : 0.07) + (kind === 'fire' ? 0.02 : 0) + Math.random() * 0.015
-      : (heavy ? 0.085 : 0.06) + (kind === 'fire' ? 0.03 : 0) + Math.random() * 0.02;
-    this.wound(p, b, r + rim);
-=======
   /** A blow landing at h (bone, point) along dir. kind: 'blade' (a gash along `edge`, the
    * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves;
    * blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
@@ -801,6 +681,7 @@ export class Zombie {
     const owner = this.owner, g = owner.gore;
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
+    if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
     // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
     // the rim, anything else a ragged hole
     const rim = SPELL_RIM[kind] || 0;
@@ -810,7 +691,6 @@ export class Zombie {
       const half = (heavy ? 0.17 : 0.12) * (0.85 + Math.random() * 0.3);
       this.slash(_t.copy(p).addScaledVector(edge, -half), _f.copy(p).addScaledVector(edge, half), b, heavy ? 0.03 : 0.022, dir);
     } else this.wound(p, b, r, rim);
->>>>>>> origin/main
     g.spray(p, dir, heavy ? 70 : 45, { speed: heavy ? 4.5 : 3.4, spread: 0.9 });
     g.spray(p, back.clone().add(_u.set(0, 0.6, 0)), heavy ? 40 : 26, { speed: 2.6, spread: 0.8 });
     for (let i = 0; i < (heavy ? 7 : 4); i++) g.gib(p, _w.copy(dir).multiplyScalar(2 + Math.random() * 2).add(_u.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3)));
@@ -850,11 +730,7 @@ export class Zombie {
     const joint = this.bones[name === 'waist' ? 'spine' : name].getWorldPosition(new THREE.Vector3());
     const stay = name === 'waist' ? this.bones.spine : this.bones[name].parent;
     this.sever(name, dir.clone().multiplyScalar(1.8).add(_u.set(0, 0.4, 0)));
-<<<<<<< HEAD
-    this.wound(joint, stay, (name === 'waist' ? 0.16 : name === 'head' ? 0.1 : 0.085) + (rim || 10));
-=======
     this.wound(joint, stay, name === 'waist' ? 0.16 : name === 'head' ? 0.1 : 0.085, rim || 2);
->>>>>>> origin/main
     this.owner.gore.spray(joint, dir, 90, { speed: 6, spread: 1.2, size: 0.016 });
   }
 
@@ -906,7 +782,24 @@ export class Zombie {
     }
   }
 
-<<<<<<< HEAD
+  /** The body's material groups laid out again over the triangles it keeps (`kept` and `gone` are
+   * triangle numbers in their first order, so each group's still sit together); returns the groups
+   * of the piece cut off, as [start, count, material]. */
+  regroup(geo, kept, gone) {
+    const n = new Uint32Array(this.mesh.material.length);
+    const groups = (tris) => {
+      n.fill(0);
+      for (const t of tris) n[this.triGroup[t]]++;
+      const out = [];
+      let at = 0;
+      n.forEach((c, g) => { if (c) out.push([at, c * 3, g]); at += c * 3; });
+      return out;
+    };
+    geo.clearGroups();
+    for (const [s, c, g] of groups(kept)) geo.addGroup(s, c, g);
+    return groups(gone);
+  }
+
   // -------------------------------------------------------------- spells that linger
   /** Frozen solid for t seconds: nothing moves, the skin rimed blue-white. */
   freeze(t) { if (!this.dead) { this.frozen = Math.max(this.frozen || 0, t); this.burning = 0; } }
@@ -943,28 +836,9 @@ export class Zombie {
       if (this.frozen > 0 || this.dead) this.sync();
     } else this.pushV = null;
     const t = this.frozen > 0 ? TINT.frozen : this.burning > 0 ? TINT.burn : this.poisoned > 0 ? TINT.poison : this.chilled > 0 ? TINT.chill : null;
-    if (t) this.mesh.material.color.setRGB(t[0], t[1], t[2]);
-    else this.mesh.material.color.setRGB(1, 1, 1);
+    for (const m of [this.mesh.material].flat()) m.color.setRGB(...(t || [1, 1, 1]));
     if (!(this.frozen > 0 || this.chilled > 0 || this.burning > 0 || this.poisoned > 0)) this.frozen = this.chilled = this.burning = this.poisoned = 0;
     return this.frozen > 0 ? 0 : this.chilled > 0 ? 0.4 : 1;
-=======
-  /** The body's material groups laid out again over the triangles it keeps (`kept` and `gone` are
-   * triangle numbers in their first order, so each group's still sit together); returns the groups
-   * of the piece cut off, as [start, count, material]. */
-  regroup(geo, kept, gone) {
-    const n = new Uint32Array(this.mesh.material.length);
-    const groups = (tris) => {
-      n.fill(0);
-      for (const t of tris) n[this.triGroup[t]]++;
-      const out = [];
-      let at = 0;
-      n.forEach((c, g) => { if (c) out.push([at, c * 3, g]); at += c * 3; });
-      return out;
-    };
-    geo.clearGroups();
-    for (const [s, c, g] of groups(kept)) geo.addGroup(s, c, g);
-    return groups(gone);
->>>>>>> origin/main
   }
 
   die() {
@@ -1334,12 +1208,7 @@ export class Zombies {
       ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
       ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
-<<<<<<< HEAD
-    if (variants.length) for (const m of monsters) retargetGround(this.gltf[m], this.gltf[variants[0]]);
-    this.pool = [...variants, ...monsters];
-=======
     this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];
->>>>>>> origin/main
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */

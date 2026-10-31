@@ -708,7 +708,7 @@ export class Arcana {
         z.harm(n.def.dmg); z.freeze(n.def.freeze); z.chill(n.def.freeze + 3);   // and slow a while after it thaws
         for (let k = 0; k < 2; k++) {   // rime where the cold bit in
           const b = this.m.nearest?.(z, this.chest(z).add(rnd().multiplyScalar(0.5)));
-          if (b) z.wound(b.point, b.bone, 0.05 + 20);
+          if (b) z.wound(b.point, b.bone, 0.05, 3);
         }
         this.m.decals.add('frost', z.pos.clone().setY(z.pos.y + 0.02), UP, 1.4, { life: 12 });
         this.m.particles.burst(this.chest(z), this.cols(n.def), 30, { speed: 3, size: 0.05, grav: 6, life: 0.7 });
@@ -868,7 +868,7 @@ export class Arcana {
         for (const z of this.foes()) {
           if (Math.hypot(z.pos.x - p.x, z.pos.z - p.z) > 0.8 || Math.abs(z.pos.y - p.y) > 2) continue;
           z.harm(def.dmg); z.chill(2.5);
-          if (Math.random() < 0.3) { const b = this.m.nearest?.(z, sh.m.position); if (b) z.wound(b.point, b.bone, 0.035 + 20); }
+          if (Math.random() < 0.3) { const b = this.m.nearest?.(z, sh.m.position); if (b) z.wound(b.point, b.bone, 0.035, 3); }
         }
         return false;
       });
