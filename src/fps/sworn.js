@@ -21,14 +21,11 @@
 // left fist, and take the sorcerers' casting and blinking clips besides.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { ualClips, legJoints, attach } from './ual.js';
+import { ualClips, legJoints, attach, holdEnd, VILLAGER_BONES } from './ual.js';
 
 // the villager's bones under the zombie body's names (the rest keep their own: Body, Torso, the
 // fingers, the ends and the pole targets)
-const BONES = { Root: 'root', Hips: 'hips', Abdomen: 'spine', Chest: 'chest', Neck: 'neck', Head: 'head',
-  ShoulderL: 'shoulderL', UpperArmL: 'upper_armL', LowerArmL: 'forearmL', WristL: 'handL',
-  ShoulderR: 'shoulderR', UpperArmR: 'upper_armR', LowerArmR: 'forearmR', WristR: 'handR',
-  UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL', UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR' };
+const BONES = VILLAGER_BONES;
 const HEAD = /^V_(Head|Eyes|Lashes)/;   // what the villager keeps under the helm (not its clothes or hair)
 const HAIR = /^V_Hair/;                 // (and bareheaded, its hair)
 const CASTS = ['cast1', 'cast2', 'blink'];   // what an adept takes of the sorcerers' clips
@@ -242,9 +239,7 @@ export function swornBody(knight, villager, armor, { eyes = 0xff2a10, helm = tru
     // lying where each death left it
     for (const [d, lie] of [['death', 'dead'], ['death2', 'dead2']]) {
       const c = made.clips.find((x) => x.name === d);
-      if (!c) continue;
-      const last = Math.round(c.duration * FPS);
-      animations.push(THREE.AnimationUtils.subclip(c, lie, last - 1, last, FPS));
+      if (c) animations.push(holdEnd(c, lie));
     }
     ualHits = made.hits; gait = made.gaits;
   } else animations = retarget(knight, scene, bound, null, legacy);
