@@ -642,6 +642,9 @@ export class Magic {
       else l.light.intensity = 0;
     }
     this.arcana.update(dt, camera, height, player);
+    // a shadow-casting light that's out draws no shadow map: six faces of the world a frame each,
+    // for nothing (it stays in the scene, lit or not, so no shader is ever remade)
+    for (const { light } of this.lights) if (light.castShadow) light.shadow.autoUpdate = light.intensity > 0;
     this.vmFlash.amount = Math.max(0, this.vmFlash.amount - dt * 5);
     this.screen.amount = Math.max(0, this.screen.amount - dt * 2.5);
     this.shake = Math.max(0, this.shake - dt * 3);

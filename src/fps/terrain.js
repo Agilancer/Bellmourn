@@ -5,6 +5,7 @@
 // it, textured by slope (rock), wetness (mud and gravel by the water, sand round the pool),
 // height (old snow on the plateau) and paths. The water itself is water.js's.
 import * as THREE from 'three';
+import { SHARP_GLSL } from './engine.js';
 import { craterHeight } from './crater.js';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
@@ -238,37 +239,68 @@ function downsMaterial(lib) {
       float dHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float dNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
         return mix(mix(dHash(i), dHash(i + vec2(1.0, 0.0)), f.x), mix(dHash(i + vec2(0.0, 1.0)), dHash(i + vec2(1.0, 1.0)), f.x), f.y); }
-      vec3 dTex(sampler2D t, vec2 p, float tile) { return texture2D(t, p / tile).rgb; }
+      ${SHARP_GLSL}
+      // the world position's screen gradients, worked out once (so a layer can be skipped where it
+      // doesn't show, and the texture sampled inside the branch)
+      vec3 dPX, dPY;
+      float dUm;   // (where the second copies show: one mask a pixel, for every layer)
+      vec3 dTex(sampler2D t, vec2 p, float tile) {   // (and again turned and shifted by a slow noise: no rows of tiles)
+        return untiled(t, p / tile, dPX.xz / tile, dPY.xz / tile, dUm, false).rgb;
+      }
+      vec3 dTex2(sampler2D t, vec2 p, mat2 R, vec2 o, float tile) {   // (turned by R and shifted)
+        vec2 uv = (R * p + o) / tile;
+        return sharpTexelGrad(t, uv, R * dPX.xz / tile, R * dPY.xz / tile).rgb;
+      }
       vec3 dTri(sampler2D t, vec3 p, vec3 n, float tile) { // rock wraps round the cliffs without stretching
         vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
-        return texture2D(t, p.zy / tile).rgb * w.x + texture2D(t, p.xz / tile).rgb * w.y + texture2D(t, p.xy / tile).rgb * w.z;
+        vec3 c = vec3(0.0);
+        if (w.x > 0.01) c += sharpTexelGrad(t, p.zy / tile, dPX.zy / tile, dPY.zy / tile).rgb * w.x;
+        if (w.y > 0.01) c += sharpTexelGrad(t, p.xz / tile, dPX.xz / tile, dPY.xz / tile).rgb * w.y;
+        if (w.z > 0.01) c += sharpTexelGrad(t, p.xy / tile, dPX.xy / tile, dPY.xy / tile).rgb * w.z;
+        return c;
       }`)
       .replace('#include <map_fragment>', `
       vec2 gp = vDP.xz;
+      dPX = dFdx(vDP); dPY = dFdy(vDP);
+      dUm = untileMask(vDP.xz, 3.0);
       float n1 = dNoise(gp * 0.035), n2 = dNoise(gp * 0.11 + 7.0), n3 = dNoise(gp * 0.06 + 31.0);
-      vec3 lush = dTex(dT0, gp, 1.7) * ${tint[0]}, dry = dTex(dT0, mat2(0.6, -0.8, 0.8, 0.6) * gp + 0.37, 1.9) * ${T(0xffa8ff)};
-      vec3 grass = mix(lush, dry, smoothstep(0.4, 0.62, n2));
-      grass = mix(grass, dTex(dT1, gp, 2.6) * ${tint[1]}, smoothstep(0.7, 0.8, n1 * 0.6 + n3 * 0.4));
+      // every layer drawn only where it shows
       float slope = 1.0 - normalize(vDN).y;
-      vec3 rock = dTri(dT3, vDP, normalize(vDN), 3.5) * ${tint[3]};
-      vec3 c = mix(grass, rock, smoothstep(0.22, 0.4, slope + (n2 - 0.5) * 0.12));
+      float wr = smoothstep(0.22, 0.4, slope + (n2 - 0.5) * 0.12);
+      vec3 c = vec3(0.0);
+      if (wr < 0.999) {
+        float a = smoothstep(0.4, 0.62, n2), b = smoothstep(0.7, 0.8, n1 * 0.6 + n3 * 0.4);
+        vec3 grass = vec3(0.0);
+        if (a < 0.999) grass = dTex(dT0, gp, 1.7) * ${tint[0]};
+        if (a > 0.001) grass = mix(grass, dTex2(dT0, gp, mat2(0.6, -0.8, 0.8, 0.6), vec2(0.37), 1.9) * ${T(0xffa8ff)}, a);
+        if (b > 0.001) grass = mix(grass, dTex(dT1, gp, 2.6) * ${tint[1]}, b);
+        c = grass * (1.0 - wr);
+      }
+      if (wr > 0.001) c += dTri(dT3, vDP, normalize(vDN), 3.5) * ${tint[3]} * wr;
       // the banks: mud and gravel, a ragged beach of sand round the pool (on the low, level
       // ground, not up the cliff) and bars of it along the stream
-      vec3 bank = mix(dTex(dT4, gp, 2.5) * ${tint[4]}, dTex(dT5, gp, 1.3) * ${tint[5]}, smoothstep(0.4, 0.7, n1));
       float shore = smoothstep(0.42, 0.58, vDA.z + (n2 - 0.5) * 0.3) * (1.0 - smoothstep(0.25, 0.45, slope))
         * (1.0 - smoothstep(${(POOL.level + 2.5).toFixed(1)}, ${(POOL.level + 5).toFixed(1)}, vDP.y));
-      float sand = max(shore, smoothstep(0.6, 0.7, n3) * smoothstep(0.3, 0.8, vDA.x));
-      bank = mix(bank, dTex(dT2, gp, 1.6) * ${tint[2]}, smoothstep(0.2, 0.8, sand));
       // (on the cliffs the wet shows as dark, wet rock rather than mud smeared down the face)
       float steep = smoothstep(0.3, 0.55, slope);
-      c = mix(c, bank, smoothstep(0.2, 0.7, max(vDA.x, shore)) * (1.0 - steep));
+      float wb = smoothstep(0.2, 0.7, max(vDA.x, shore)) * (1.0 - steep);
+      if (wb > 0.001) {
+        float sand = max(shore, smoothstep(0.6, 0.7, n3) * smoothstep(0.3, 0.8, vDA.x)), a = smoothstep(0.4, 0.7, n1), sb = smoothstep(0.2, 0.8, sand);
+        vec3 bank = vec3(0.0);
+        if (a < 0.999) bank = dTex(dT4, gp, 2.5) * ${tint[4]};
+        if (a > 0.001) bank = mix(bank, dTex(dT5, gp, 1.3) * ${tint[5]}, a);
+        if (sb > 0.001) bank = mix(bank, dTex(dT2, gp, 1.6) * ${tint[2]}, sb);
+        c = mix(c, bank, wb);
+      }
       c *= 1.0 - 0.38 * steep * smoothstep(0.2, 0.8, vDA.x);
-      c = mix(c, dTex(dT6, gp, 1.5) * ${tint[6]}, smoothstep(0.3, 0.8, vDA.y) * (1.0 - smoothstep(0.3, 0.5, slope)));
+      float wp = smoothstep(0.3, 0.8, vDA.y) * (1.0 - smoothstep(0.3, 0.5, slope));
+      if (wp > 0.001) c = mix(c, dTex(dT6, gp, 1.5) * ${tint[6]}, wp);
       // old snow lying in the hollows of the plateau above the falls, in ragged drifts
       float snow = smoothstep(${(CLIFF.top - 2.5).toFixed(1)}, ${(CLIFF.top + 0.5).toFixed(1)}, vDP.y) * (1.0 - smoothstep(0.1, 0.28, slope))
         * smoothstep(0.42, 0.56, n1 * 0.45 + n2 * 0.35 + dNoise(gp * 0.45 + 13.0) * 0.2);
       c *= 0.84 + 0.32 * dNoise(gp * 0.013 + 3.0);
-      c = mix(c, dTex(dT7, gp, 3.0) * ${tint[7]} * (0.86 + 0.22 * n3), snow);
+      c *= 0.92 + 0.16 * dNoise(gp * 0.1 + 21.0);
+      if (snow > 0.001) c = mix(c, dTex(dT7, gp, 3.0) * ${tint[7]} * (0.86 + 0.22 * n3), snow);
       diffuseColor.rgb *= c;`);
   };
   return m;
