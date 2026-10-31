@@ -3,6 +3,7 @@
 // sun shadows (their shadow quad turns to face the sun instead), and every billboard is lit
 // by the sky and by the nearby torches and spells (the same lights the world uses).
 import * as THREE from 'three';
+import { SHARP_GLSL, refineTexture } from './engine.js';
 
 export const MAX_LIGHTS = 24;
 
@@ -44,15 +45,21 @@ const vert = /* glsl */`
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
   }`;
+// crisp texels (engine.js), and an edge cut at half alpha but anti-aliased by alpha to coverage; far
+// off, where the mipmaps soften the edge, the alpha is lifted so the sprite doesn't thin away
 const frag = /* glsl */`
   #include <fog_pars_fragment>
+  ${SHARP_GLSL}
   uniform sampler2D map;
   varying vec2 vUv;
   varying vec3 vLight;
   void main() {
-    vec4 c = texture2D(map, vUv);
-    if (c.a < 0.5) discard;
-    gl_FragColor = vec4(c.rgb * vLight, 1.0);
+    vec4 c = sharpTexel(map, vUv);
+    vec2 tw = fwidth(vUv * vec2(textureSize(map, 0)));
+    c.a *= 1.0 + max(0.0, log2(max(tw.x, tw.y))) * 0.25;
+    c.a = clamp((c.a - 0.5) / max(fwidth(c.a), 1e-4) + 0.5, 0.0, 1.0);
+    if (c.a <= 0.0) discard;
+    gl_FragColor = vec4(c.rgb * vLight, c.a);
     #include <colorspace_fragment>
     #include <fog_fragment>
   }`;
@@ -111,8 +118,7 @@ export class Billboards {
       const s = this.lib.sprite(id);
       if (!s) continue;
       const tex = this.lib.texture(s.file, false);
-      tex.minFilter = THREE.NearestFilter;
-      tex.generateMipmaps = false;
+      refineTexture(tex);
       const [w, h] = s.size;
       const ax = s.anchor[0] / w, ay = 1 - s.anchor[1] / h;
       // a unit quad whose bottom-centre sits on the sprite's ground anchor
@@ -139,7 +145,7 @@ export class Billboards {
       const shared = { map: { value: tex }, time: this.time, wind };
       const m = new THREE.ShaderMaterial({
         uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), ...shared, light: this.light, lp: this.lp, lc: this.lc },
-        vertexShader: vert, fragmentShader: frag, fog: true, side: THREE.DoubleSide,
+        vertexShader: vert, fragmentShader: frag, fog: true, side: THREE.DoubleSide, alphaToCoverage: true,
       });
       const mesh = new THREE.Mesh(g, m);
       mesh.frustumCulled = false;
@@ -162,8 +168,7 @@ export function wallPanel(lib, scene, id, x, y, z, normal, height, { glow = fals
   const s = lib.sprite(id);
   if (!s) return null;
   const tex = lib.texture(s.file, false);
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  refineTexture(tex);
   const w = height * s.size[0] / s.size[1];
   const g = new THREE.PlaneGeometry(w, height);
   // stained glass glows (bright enough to bloom); hangings are lit like walls

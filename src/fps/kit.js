@@ -129,10 +129,11 @@ export class Kit {
     t.userData.wait = [];
     t.colorSpace = THREE.SRGBColorSpace;
     t.flipY = false; // glTF UVs: (0, 0) is the image's top-left
-    t.magFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
-    t.minFilter = nearest ? THREE.NearestMipmapLinearFilter : THREE.LinearMipmapLinearFilter;
+    // (all linear: `nearest` texels are kept crisp in the shader, engine.js sharpTexel)
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
     t.wrapS = t.wrapT = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
-    t.anisotropy = 4;
+    t.anisotropy = THREE.Texture.DEFAULT_ANISOTROPY;
     this.tex.set(k, t);
     return t;
   }
@@ -212,7 +213,7 @@ export class Kit {
     return m;
   }
 
-  /** Weathering and the palette snap, in the material's shader. */
+  /** Weathering, in the material's shader (no palette snap: the colour is the weathering's own). */
   weather(m, w, built) {
     const U = this.U;
     m.customProgramCacheKey = () => 'kit' + JSON.stringify(w) + (built ? 'b' : '');
@@ -258,7 +259,6 @@ export class Kit {
             float sn = smoothstep(0.35, 0.7, n.y + snow * 0.25 - (1.0 - snow) * 0.6 + (g.b - 0.5) * 0.3) * snow;
             diffuseColor.rgb = mix(diffuseColor.rgb, kSnow * (0.82 + 0.25 * g.r), sn);
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.18) * 0.9; // Bellmourn's drab light
-            diffuseColor.rgb = kSnap(diffuseColor.rgb);
           }`);
     };
   }

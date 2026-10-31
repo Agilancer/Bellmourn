@@ -2,11 +2,14 @@
 // first person with the approved arm rigs. One of each weapon type in the bag, spells on F
 // and R. Mouse and keyboard on desktop; a thumb stick and buttons in landscape on phones.
 //
-// Rendering: Phong surfaces with GPU-made normal maps, a sun (or moon) whose shadow map
+// Rendering (engine.js): the screen's own resolution with 4x multisampling, texels crisp but
+// anti-aliased, Phong surfaces with GPU-made normal maps, a sun (or moon) whose shadow map
 // follows you, the nearest torches casting their own shadows, spells as moving shadow-casting
 // lights, bloom, tone mapping and a light grade. The dungeon has no ambient light at all:
-// only the torches on its walls (and whatever you cast) light it.
+// only the torches on its walls (and whatever you cast) light it. Everything is loaded,
+// uploaded and compiled before play (prepare).
 import * as THREE from 'three';
+import { makeRenderer, multisample, refineScene, cullable, shareSkeletons, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, Resolution, TEXELS, groundMist } from './engine.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -52,6 +55,8 @@ import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 
 const touch = TOUCH;
+// mist lying on the graveyard's ground (in the fog shader, so made before anything is compiled)
+groundMist([GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1]);
 // the mouse captured for looking (a refusal, say from a window in the background, is no matter)
 const lockPointer = () => { try { document.getElementById('game').requestPointerLock?.()?.catch?.(() => {}); } catch { /* not now */ } };
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
@@ -59,8 +64,8 @@ const HI = QUALITY === 'high';
 
 const canvas = document.getElementById('game');
 const ui = document.getElementById('ui');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(1);
+const renderer = makeRenderer(canvas, { touch });
+const res = new Resolution({ touch });
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.2;
 renderer.shadowMap.enabled = HI;
@@ -107,6 +112,10 @@ for (let i = 0; i < TORCHES; i++) {
 // the green star's light: it rides the comet down in the opening, then glows in the crater
 const cometLight = new THREE.PointLight(0x50ff80, 0, 30, 1.4);
 scene.add(cometLight);
+// underground, a faint warm fill about you (no shadows), so the walls and floor a few steps off can
+// be made out between the torches: the dark stays dark
+const lantern = new THREE.PointLight(0xffd2a0, 0, 9, 2);
+scene.add(lantern);
 
 const sfx = new Sfx();
 // A phone that runs out of memory is killed and reloaded by the browser with no word of why (Safari's
@@ -142,7 +151,6 @@ const SPELL_BLAST = { fire: [2.2, 40], lightning: [3.0, 50], frost: [0.8, 10] };
 const SPELL_BLOW = { fire: 1, lightning: 1.25, staff: 0.85, frost: 0.5 };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
-let pix = Number(localStorage.getItem('bm.pix') || (HI ? 2 : 2));
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
 let hour = { golden: 17.6, noon: 12, night: 23, cycle: 16.8 }[timeMode] ?? 16.8;
 let started = false, paused = false, lost = false;
@@ -155,31 +163,34 @@ const guard = { v: 0, max: 0, broken: false, wait: 0 };
 // ------------------------------------------------------------------ post-processing
 const composer = new EffectComposer(renderer);
 composer.setPixelRatio(1);
+multisample(composer, touch ? 2 : 4);   // (the world's buffer: no jagged edges)
 const worldPass = new RenderPass(scene, camera);
 const vmPass = new RenderPass(new THREE.Scene(), new THREE.Camera());
 vmPass.clear = false; vmPass.clearDepth = true;
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.55, 0.92);
+// the grade, last: flashes, the vignette, the red at the edges when hurt, a gentle contrast curve
+// and a little sharpening (the picture is full resolution now: no pixel-art dither)
 const GRADE = {
   uniforms: { tDiffuse: { value: null }, flash: { value: new THREE.Color() }, flashAmt: { value: 0 },
-    hurt: { value: 0 }, dither: { value: HI ? 1 : 0 } },
+    hurt: { value: 0 }, texel: { value: new THREE.Vector2(1, 1) }, sharpen: { value: 0.18 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform vec3 flash; uniform float flashAmt, hurt, dither;
+    uniform sampler2D tDiffuse; uniform vec3 flash; uniform float flashAmt, hurt, sharpen; uniform vec2 texel;
     varying vec2 vUv;
-    float bayer(vec2 p) {
-      vec2 q = mod(floor(p), 4.0);
-      int i = int(q.x + q.y * 4.0);
-      float m[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
-      return m[i] / 16.0;
-    }
     void main() {
       vec3 c = texture2D(tDiffuse, vUv).rgb;
+      // contrast-adaptive sharpening (after AMD's CAS): crisper detail with no halos on hard edges
+      vec3 n = texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb, s = texture2D(tDiffuse, vUv - vec2(0.0, texel.y)).rgb;
+      vec3 e = texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb, w = texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)).rgb;
+      vec3 mn = min(c, min(min(n, s), min(e, w))), mx = max(c, max(max(n, s), max(e, w)));
+      vec3 amp = sqrt(clamp(min(mn, 1.0 - mx) / max(mx, 1e-4), 0.0, 1.0));
+      vec3 k = -amp * mix(0.125, 0.2, sharpen);
+      c = clamp((c + (n + s + e + w) * k) / (1.0 + 4.0 * k), 0.0, 1.0);
       c += flash * flashAmt * (0.6 + 0.4 * c);
       float d = distance(vUv, vec2(0.5));
-      c *= mix(1.0, smoothstep(0.95, 0.3, d), 0.55);                 // vignette
+      c *= mix(1.0, smoothstep(0.95, 0.3, d), 0.45);                 // vignette
+      c = mix(c, c * c * (3.0 - 2.0 * c), 0.18);                       // a touch more contrast in the mids
       c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(1.2, 0.5, 0.45), hurt * smoothstep(0.2, 0.7, d));
-      // 32/64-bit era colour: a fine ordered dither down to 6 bits a channel
-      if (dither > 0.5) c = floor(c * 63.0 + bayer(gl_FragCoord.xy)) / 63.0;
       gl_FragColor = vec4(c, 1.0);
     }`,
 };
@@ -190,15 +201,14 @@ if (HI || QUALITY === 'low') composer.addPass(bloom);
 composer.addPass(new OutputPass());
 composer.addPass(grade);
 
-// dynamic resolution: the picture is drawn at `rs` of the chosen pixel size's resolution, eased
-// down (to 0.55) when frames run long and back up when there's time to spare
-let rs = 1, frameMs = 16, rsT = 0;
+// the picture's size (engine.js Resolution): the screen's own, eased down (to 0.6) when frames run
+// long and back up when there's time to spare
 function resize() {
-  W = Math.max(2, Math.floor(innerWidth / pix * rs));
-  H = Math.max(2, Math.floor(innerHeight / pix * rs));
+  [W, H] = res.size();
   renderer.setSize(W, H, false);
   composer.setSize(W, H);
   bloom.setSize(touch ? Math.ceil(W / 2) : W, touch ? Math.ceil(H / 2) : H);
+  grade.uniforms.texel.value.set(1 / W, 1 / H);
   camera.aspect = W / H;
   camera.updateProjectionMatrix();
   vm?.resize(W / H);
@@ -209,7 +219,7 @@ addEventListener('resize', resize);
 // ------------------------------------------------------------------ build everything
 // how far through the build each step is (as it runs on a desktop), for the loading line: a
 // phone takes a minute or more, and should be seen to be getting on with it
-const LOADED = { library: 10, world: 37, props: 45, arms: 73, icons: 77, zombies: 80, foes: 100 };
+const LOADED = { library: 8, world: 28, props: 34, arms: 52, icons: 54, zombies: 60, foes: 66, people: 80, 'arms ready': 85, uploaded: 92, compiled: 97, warm: 100 };
 
 async function build() {
   const T0 = performance.now(), times = (window.buildTimes = []);
@@ -271,14 +281,15 @@ async function build() {
   skyDome = new Sky(scene);
   shafts = new Shafts(scene, ctx.stained.shafts());
   const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
+  // (the mist on the ground is in the fog shader: engine.js groundMist; these are the wisps drifting over it)
   mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
-    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]) });
+    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.75, height: 0.45, density: 0.16 });
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
   ctx.crater = new Crater(ctx);
   ctx.crater.smokers = ctx.crater.smokeSpots.map(([x, y, z]) => { smoke.addEmitter(x, y, z, 1.6); return smoke.emitters[smoke.emitters.length - 1]; });
-  ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));
+  ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
@@ -327,15 +338,15 @@ async function build() {
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
   foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
-  // Velscour's Sworn come in behind, while you're on the road (a phone starts once the village is up)
-  foes.swornReady = new Promise((done) => setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep))
-    .catch((e) => console.warn('the Sworn', e)).finally(done), touch ? 6000 : 0));
-  // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
-  // background and walk out of their doors as they arrive
+  // the people of the village (tools/villagers' men and women), fewer on a phone, and Velscour's
+  // Sworn at the keep: all of them in before play (prepare waits; a phone brings the Sworn once the
+  // village is in, so it never holds both loads at once)
   villagers = new Villagers(scene, ctx);
   villagers.camera = camera;
   villagers.onLoading = (p) => { run.bringing = p?.name || ''; trace(); };   // who is coming in (null: they're in)
   villagers.populate(touch && !HI ? 10 : 22);
+  const sworn = () => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e));
+  foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => zombies.list.map((z) => z.ray(p, d, far)).filter(Boolean);
@@ -371,7 +382,123 @@ async function build() {
   hud.onMenu = menu;
   vm.on(onEvent);
   resize();
+  await prepare(mark);
   ready = true; run.step = 'loaded';
+  await rehearse();
+}
+
+/** Every spell cast once and one of the dead cut to pieces, out past the edge of the world where
+ * nothing is (and nobody can go): what they make the first time (their shaders, their shadows) is
+ * made now, in the loading, and not in your first fight. Everything is put back after. */
+async function rehearse() {
+  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const was = { started, paused, introBusy, book: { ...book }, mana: player.mana, health: player.health };
+  const at = new THREE.Vector3(2600, 0, 2600);
+  started = true; paused = false; introBusy = true;   // (the hands work; nothing walks, nothing hurts you)
+  const quiet = { toast: hud.toast, zone: hud.zone };   // (and nothing is said on screen)
+  hud.toast = () => {}; hud.zone = () => {};
+  const look = () => { camera.position.set(at.x, physics.groundAt(at.x, at.z) + 1.58, at.z); camera.rotation.set(-0.3, 0, 0, 'YXZ'); camera.updateMatrixWorld(); };
+  const step = async (n, dt = 1 / 15) => { for (let i = 0; i < n; i++) { look(); player.pos.set(at.x, physics.groundAt(at.x, at.z), at.z); tick(dt); } await new Promise((r) => setTimeout(r)); };
+  try {
+    for (const id of Object.keys(SPELLS)) {
+      book.F = id; player.mana = 9999;
+      for (let i = 0; i < 30 && (vm.busy('R') || vm.busy('L')); i++) await step(1);
+      castSlot('F');
+      await step(10);
+    }
+    // one of the dead, cut and burnt and blasted at every part of it until it comes apart
+    const z = zombies.spawn(null, at.x, at.z - 3.2, { zone: 'wild' });
+    cullable(z.root);
+    await step(2);
+    const kinds = [['blade', true], ['blunt', true], ['fire', true], ['lightning', true], ['frost', false]];
+    for (let round = 0; round < 2; round++) {
+      for (const [k, c] of z.capsules().entries()) {
+        const [kind, heavy] = kinds[(k + round) % kinds.length], p = c.a.clone().lerp(c.b, 0.5);
+        const dir = p.clone().sub(camera.position).normalize();
+        if (!z.gone) z.hit({ bone: c.bone, point: p, z }, { dmg: 45, dir, heavy, kind, edge: kind === 'blade' ? new THREE.Vector3(1, 0.4, 0).normalize() : null, push: 0.2, blow: 2 });
+      }
+      await step(4);
+    }
+    await step(20);
+    z.gone = true; z.root.removeFromParent();
+    zombies.list.splice(zombies.list.indexOf(z), 1);
+    await step(10);
+  } catch (e) { console.warn('the rehearsal', e); }
+  for (const s of ['R', 'L']) pending[s] = null;
+  magic.endCharge(); magic.arcana.endChannels();
+  Object.assign(book, was.book);
+  player.mana = was.mana; player.health = was.health; player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
+  started = was.started; paused = was.paused; introBusy = was.introBusy;
+  Object.assign(hud, quiet);
+  hud.refresh(vm.equip, book);
+  console.info(`rehearsed in ${Math.round(performance.now() - T0)} ms: ${renderer.info.programs.length - p0} more programs`);
+}
+
+/** Everything in before play, so nothing loads or is made on the GPU mid-game: the whole village and
+ * the Sworn, the knight's armour, every arm that can lie on the ground (a phone: the ones it carries
+ * and the knight's), every gauntlet (not on a phone); then every picture refined and uploaded, every
+ * shader compiled, and the world drawn once whole, with its shadows, so every buffer is on the GPU. */
+async function prepare(mark) {
+  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const wait = (p, what) => Promise.resolve(p).catch((e) => console.warn(what, e));
+  await Promise.all([wait(villagers.ready, 'the village'), wait(foes.swornReady, 'the Sworn'), wait(ctx.crater.armourReady, "the knight's armour")]);
+  await mark('people');
+  const items = touch
+    ? [...Object.values(char.equip), ...char.bag, ...['vigilsword', 'vigilshield', 'vigilstaff'].map(makeUnique)].filter((it) => it?.model && it.kind !== 'gauntlet').map((it) => [it.model, it.finish || ''])
+    : Object.entries(vm.manifest.items).filter(([k]) => k !== 'wand').flatMap(([, list]) => list.map((e) => [e.id, '']));
+  const arms = await Promise.all(items.map(([id, f]) => vm.modelScene(id, f).catch((e) => console.warn('arm', id, e))));
+  if (!touch) await Promise.all(vm.manifest.arms.map((a) => vm.prefetch(a.id).catch(() => {})));
+  else await wait(vm.prefetch('wayfarer'), 'the gauntlet');
+  await settled();
+  await mark('arms ready');
+  // the arms as they'd lie on the ground, in the world for the warm-up (and out again after)
+  const lying = new THREE.Group();
+  arms.forEach((o, i) => { if (o) { o.position.set(i * 0.6, -50, 0); lying.add(o); } });
+  scene.add(lying);
+  // the bodies: one skeleton to a body, culled to what can be seen (they came in with culling off);
+  // the villagers cast shadows only near you (the dead see to their own)
+  let skel = 0;
+  for (const a of villagers.list) { skel += shareSkeletons(a.root); cullable(a.root); a.casts = []; a.root.traverse((c) => { if (c.isMesh && c.castShadow) a.casts.push(c); }); }
+  for (const z of zombies.list) { skel += shareSkeletons(z.root); cullable(z.root); }
+  // the world's matrices only where something's shown, and its small pieces left out far off
+  visibleMatrices(scene);
+  ctx.detail = new DetailCull(ctx.built, { touch, under: ctx.builtUnder });
+  // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
+  // smooth-edged leaves, hair and lashes
+  const r1 = refineScene(scene), r2 = refineScene(vm.scene);
+  const tex = texturesOf(vm.scene, texturesOf(scene));
+  await upload(renderer, tex, (k) => hud.loading(Math.round(86 + 6 * k)));
+  await mark('uploaded');
+  await compile(renderer, [[scene, camera], [vm.scene, vm.camera]], composer.readBuffer);
+  await mark('compiled');
+  await warmWorld();
+  scene.remove(lying);
+  await mark('warm');
+  console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${renderer.info.programs.length - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
+}
+
+/** The world drawn once with everything in it shown and nothing culled, so every program it needs is
+ * made and every buffer uploaded; then once more into the shadow maps (the sun's, one torch's, the
+ * spells') with every kind of caster in it, so the depth programs are made too. Put back as it was. */
+async function warmWorld() {
+  const saved = [];
+  scene.traverse((o) => { if (o.isLight) return; saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; });   // (lights stay as they are: their count is in every shader)
+  const autoShadow = renderer.shadowMap.autoUpdate, vmOn = vmPass.enabled;
+  vmPass.enabled = true;
+  renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = false;
+  composer.render(1 / 60);
+  await new Promise((r) => setTimeout(r));
+  // shadows: bodies, instanced and batched growth and anything cut out by alpha into every kind of map
+  for (const [o, , fc] of saved) o.frustumCulled = fc && !(o.isSkinnedMesh || o.isInstancedMesh || o.isBatchedMesh || o.material?.alphaTest > 0);
+  const casters = [];
+  scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
+  for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
+  renderer.shadowMap.needsUpdate = true;
+  composer.render(1 / 60);
+  for (const [o, v, fc] of saved) { o.visible = v; o.frustumCulled = fc; }
+  for (const [l, au] of casters) { l.shadow.autoUpdate = au; l.shadow.needsUpdate = true; }   // (redrawn as they really are)
+  renderer.shadowMap.autoUpdate = autoShadow; renderer.shadowMap.needsUpdate = true;
+  vmPass.enabled = vmOn;
 }
 
 /** A small picture of an arm model for the bag, rendered from the model itself. */
@@ -740,8 +867,10 @@ function zoneAt(p) {
 }
 
 const L = { out: 1, under: 0, inCathedral: 0, open: 0 }; // smoothed zone weights
+let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
-const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3();
+const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
+const UP = new THREE.Vector3(0, 1, 0), WHITE = new THREE.Color(1, 1, 1), WISP = new THREE.Color(0xffe8b0);
 let day = dayState(hour);
 function light(dt, t) {
   if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
@@ -762,7 +891,7 @@ function light(dt, t) {
   sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
-    _lx.crossVectors(new THREE.Vector3(0, 1, 0), ld).normalize();
+    _lx.crossVectors(UP, ld).normalize();
     _ly.crossVectors(ld, _lx);
     const tx = 144 / 4096;
     _c.copy(player.pos);
@@ -771,7 +900,7 @@ function light(dt, t) {
     sun.target.position.copy(_c);
     sun.position.copy(_c).addScaledVector(ld, 300);
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
-  hemi.color.copy(day.zenith).lerp(new THREE.Color(1, 1, 1), 0.55);
+  hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
@@ -788,6 +917,8 @@ function light(dt, t) {
   if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;
   if (ctx.lantern) ctx.lantern.color.setRGB(0.9 + 1.8 * dusk, 0.6 + 1.1 * dusk, 0.3 + 0.55 * dusk);
   mist.update(t, 0.35 + 0.65 * day.day);
+  lantern.position.set(camera.position.x, camera.position.y + 0.35, camera.position.z);
+  lantern.intensity = 1.3 * L.under;
 
   // the nearest flames get the pool's lights; the closest few get the shadow-casting ones.
   // A light keeps its flame while that flame is still wanted, so shadows rarely re-render.
@@ -812,7 +943,7 @@ function light(dt, t) {
       }
     }
   }
-  let warm = 0;
+  let warm = 0, best = 0;
   const night = 1 - day.day;
   torchPool.forEach((l, i) => {
     const f = l.userData.flame;
@@ -824,12 +955,17 @@ function light(dt, t) {
     l.intensity = (big ? 13 : 5) * flick * Math.min(1.2, vis + 0.2);
     l.distance = big ? 16 : 9;
     const d = camera.position.distanceTo(l.position);
-    warm += Math.max(0, 1 - d / l.distance) ** 2 * (big ? 0.9 : 0.45) * flick;
+    const w = Math.max(0, 1 - d / l.distance) ** 2 * (big ? 0.9 : 0.45) * flick;
+    warm += w;
+    if (w > best) { best = w; _tdir.subVectors(l.position, camera.position); }   // (the hands are lit from the strongest)
   });
-  bill.setLights([...torchPool, ...magic.lights.map((x) => x.light)]);
+  // by day out of doors a torch is no light on the hands
+  warm *= 1 - 0.85 * L.out * day.day;
+  _tdir.applyQuaternion(_q.copy(camera.quaternion).invert());
+  bill.setLights(billLights ||= [...torchPool, ...magic.lights.map((x) => x.light)]);   // (the same lights every frame)
   const amb = (day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor)) * surface;
   vm.setLight(amb, sun.intensity / 2.5 * (L.out + 0.25 * indoor), warm,
-    magic.vmFlash.amount * 4 + (magic.wisp ? 1.6 : 0), magic.vmFlash.amount > 0.05 ? magic.vmFlash.color : magic.wisp ? new THREE.Color(0xffe8b0) : null);
+    magic.vmFlash.amount * 4 + (magic.wisp ? 1.6 : 0), magic.vmFlash.amount > 0.05 ? magic.vmFlash.color : magic.wisp ? WISP : null, best > 0 ? _tdir : null);
   vm.sun.color.copy(sun.color);
   grade.uniforms.flash.value.copy(magic.screen.color);
   grade.uniforms.flashAmt.value = magic.screen.amount;
@@ -1117,13 +1253,9 @@ let lastFrame = performance.now();
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now();
-  frameMs += (Math.min(100, now - lastFrame) - frameMs) * 0.05;
+  // (held through the opening: it's sized once, before it)
+  if (res.frame(now - lastFrame, ready && started && !paused && !introBusy)) resize();
   lastFrame = now;
-  if (ready && started && !paused && (rsT += 1) > 90) {   // every second and a half or so
-    rsT = 0;
-    const want = frameMs > 26 ? Math.max(0.55, rs * 0.88) : frameMs < 18 ? Math.min(1, rs * 1.07) : rs;
-    if (Math.abs(want - rs) > 0.01) { rs = want; resize(); }
-  }
   tick(Math.min(0.05, clock.getDelta()));
 }
 
@@ -1247,6 +1379,11 @@ function tick(dt) {
   // what's under the ground: only from below it, or from the head of the stairs down to it
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
   for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
+  ctx.detail.update(cp);   // (small pieces far off: left out)
+  for (const a of villagers.list) {   // (villagers' shadows: near you only)
+    const near = Math.abs(a.pos.x - cp.x) < 42 && Math.abs(a.pos.z - cp.z) < 42;
+    if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
+  }
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);
@@ -1288,10 +1425,12 @@ canvas.addEventListener('mousedown', () => sfx.start());
 // the title and pause screens' menus (hud.onMenu), and a click on the pause screen resumes
 hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
 hud.overlay.addEventListener('touchend', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; e.preventDefault(); if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
-const optPix = ui.querySelector('#optPix'), optSens = ui.querySelector('#optSens');
+const optRes = ui.querySelector('#optRes'), optTex = ui.querySelector('#optTex'), optSens = ui.querySelector('#optSens');
 const optGfx = ui.querySelector('#optGfx'), optTime = ui.querySelector('#optTime');
-optPix.value = String(pix);
-optPix.onchange = () => { pix = Number(optPix.value); localStorage.setItem('bm.pix', pix); resize(); };
+optRes.value = String(res.choice);
+optRes.onchange = () => { res.choice = Number(optRes.value); localStorage.setItem('bm.res', optRes.value); resize(); };
+optTex.value = TEXELS;
+optTex.onchange = () => { localStorage.setItem('bm.texels', optTex.value); location.reload(); };   // (the shaders are made with it)
 optSens.value = localStorage.getItem('bm.sens') || '1';
 const sens = () => { gameInput.sensitivity = 0.0022 * Number(optSens.value); gameInput.touchLook = 0.006 * Number(optSens.value); };
 optSens.oninput = () => { localStorage.setItem('bm.sens', optSens.value); sens(); };

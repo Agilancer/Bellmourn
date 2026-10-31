@@ -113,9 +113,10 @@ export class Villagers {
         .finally(() => this.onLoading?.(null));
     };
     // a phone brings them one at a time, once the world has been drawn: all at once, over the first
-    // frames' uploads, was more than it could hold
-    if (TOUCH) who.reduce((prev, p) => prev.then(() => bring(p)), new Promise((r) => setTimeout(r, PHONE_WAIT * 1000)));
-    else who.forEach(bring);
+    // frames' uploads, was more than it could hold. `ready`: when they're all in (the opening waits).
+    this.wanted = who.length;
+    if (TOUCH) this.ready = who.reduce((prev, p) => prev.then(() => bring(p)), new Promise((r) => setTimeout(r, PHONE_WAIT * 1000)));
+    else this.ready = Promise.all(who.map(bring));
     return who.length;
   }
 

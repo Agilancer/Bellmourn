@@ -5,6 +5,7 @@
 // it, textured by slope (rock), wetness (mud and gravel by the water, sand round the pool),
 // height (old snow on the plateau) and paths. The water itself is water.js's.
 import * as THREE from 'three';
+import { SHARP_GLSL } from './engine.js';
 import { craterHeight } from './crater.js';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
@@ -238,10 +239,14 @@ function downsMaterial(lib) {
       float dHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float dNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
         return mix(mix(dHash(i), dHash(i + vec2(1.0, 0.0)), f.x), mix(dHash(i + vec2(0.0, 1.0)), dHash(i + vec2(1.0, 1.0)), f.x), f.y); }
-      vec3 dTex(sampler2D t, vec2 p, float tile) { return texture2D(t, p / tile).rgb; }
+      ${SHARP_GLSL}
+      vec3 dTex(sampler2D t, vec2 p, float tile) {   // (and again turned and shifted by a slow noise: no rows of tiles)
+        vec2 uv = p / tile;
+        return mix(sharpTexel(t, uv).rgb, sharpTexel(t, vec2(0.41, 0.73) - uv).rgb, smoothstep(0.42, 0.58, dNoise(p * 0.12 + 3.0)));
+      }
       vec3 dTri(sampler2D t, vec3 p, vec3 n, float tile) { // rock wraps round the cliffs without stretching
         vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
-        return texture2D(t, p.zy / tile).rgb * w.x + texture2D(t, p.xz / tile).rgb * w.y + texture2D(t, p.xy / tile).rgb * w.z;
+        return sharpTexel(t, p.zy / tile).rgb * w.x + sharpTexel(t, p.xz / tile).rgb * w.y + sharpTexel(t, p.xy / tile).rgb * w.z;
       }`)
       .replace('#include <map_fragment>', `
       vec2 gp = vDP.xz;
@@ -268,6 +273,7 @@ function downsMaterial(lib) {
       float snow = smoothstep(${(CLIFF.top - 2.5).toFixed(1)}, ${(CLIFF.top + 0.5).toFixed(1)}, vDP.y) * (1.0 - smoothstep(0.1, 0.28, slope))
         * smoothstep(0.42, 0.56, n1 * 0.45 + n2 * 0.35 + dNoise(gp * 0.45 + 13.0) * 0.2);
       c *= 0.84 + 0.32 * dNoise(gp * 0.013 + 3.0);
+      c *= 0.92 + 0.16 * dNoise(gp * 0.1 + 21.0);
       c = mix(c, dTex(dT7, gp, 3.0) * ${tint[7]} * (0.86 + 0.22 * n3), snow);
       diffuseColor.rgb *= c;`);
   };

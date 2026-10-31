@@ -61,12 +61,11 @@ export function buildKeep(ctx) {
 
   // ------------------------------------------------------------ the Vigil Road
   // gravelled, with trodden earth either side (the ground sheets', darkened for the Darkwood)
-  const gravel = M('ground_gravel_07', 1.4, { overlay: true, tint: 0x969798 }), verge = M('ground_dirt_05', 1.6, { overlay: true, tint: 0x72737e });
-  for (let x = ROAD.x0; x > ROAD.x1; x -= 2) {
-    const z0 = roadZ(x), z1 = roadZ(x - 2);
-    for (const [w, m, y] of [[3.2, verge, 0.018], [2.1, gravel, 0.024]])
-      b.quad(m, [x - 2, y, z1 + w], [x, y, z0 + w], [x, y, z0 - w], [x - 2, y, z1 - w], [[x - 2, -(z1 + w)], [x, -(z0 + w)], [x, -(z0 - w)], [x - 2, -(z1 - w)]]);
-  }
+  const gravel = M('ground_gravel_07', 1.4, { overlay: true, tint: 0x969798, feather: 1.0 }), verge = M('ground_dirt_05', 1.6, { overlay: true, tint: 0x72737e, feather: 1.5 });
+  const line = [];   // (east to west: one continuous ribbon each, frayed along its sides)
+  for (let x = ROAD.x0 + 2; x > ROAD.x1 - 4; x -= 2) line.push([x, roadZ(x)]);
+  b.ribbon(verge, line, 3.2, 0.018);
+  b.ribbon(gravel, line, 2.1, 0.024);
   S('dark_forest_trail_sign', ROAD.x0 - 2, -4.6, 1, -Math.PI / 2);
   for (let x = ROAD.x0 - 18, k = 0; x > ROAD.x1 + 10; x -= 22, k++) S('dark_forest_lantern_stake', x, roadZ(x) + (k % 2 ? 3.6 : -3.6), 1, k % 2 ? Math.PI : 0);
   // the Sworn's warnings along the last of it: skulls heaped on the verge, a gibbet's chains
@@ -111,11 +110,11 @@ export function buildKeep(ctx) {
   for (const z of [-24, -14, 14, 24]) wallPanel(lib, scene, 'hanging_plain_arrow_slit', K.x1 + WT / 2 + 0.03, 5.4, z, [1, 0, 0], 1.6);
 
   // ------------------------------------------------------------ the courtyard
-  const flags = M('ground_flagstones_04', 2.4, { overlay: true, tint: 0x9d9c9e });   // (round the keep, not under it)
+  const flags = M('ground_flagstones_04', 2.4, { overlay: true, tint: 0x9d9c9e, feather: 0.8 });   // (round the keep, not under it)
   quad(flags, HALL.x1, K.z0 + 1.2, K.x1 + 5, K.z1 - 1.2, 0.022);
   quad(flags, K.x0 + 1.2, K.z0 + 1.2, HALL.x1, HALL.z0, 0.022); quad(flags, K.x0 + 1.2, HALL.z1, HALL.x1, K.z1 - 1.2, 0.022);
   quad(flags, K.x0 + 1.2, HALL.z0, HALL.x0, HALL.z1, 0.022);
-  quad(M('ground_cobbles_02', 1.4, { overlay: true, tint: 0xccd2e6 }), HALL.x1, -3, K.x1 + 5, 3, 0.03);       // the way up to the keep's door, cobbled
+  quad(M('ground_cobbles_02', 1.4, { overlay: true, tint: 0xccd2e6, feather: 0.7 }), HALL.x1, -3, K.x1 + 5, 3, 0.03);       // the way up to the keep's door, cobbled
   for (const [x, z] of [[-206, -9], [-206, 9], [-222, -9], [-222, 9]]) S('castle_keep_brazier_ash', x, z, 1.3);
   for (const [x, z] of [[-214, -9], [-214, 9]]) S('castle_keep_royal_banner_stand', x, z, 1.2, Math.PI / 2);
   S('castle_keep_weapon_chest', -203, -30, 1, 0); S('castle_keep_shield_rack', -209, -32.6, 1.1, 0);

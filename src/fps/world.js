@@ -33,6 +33,20 @@ function rng(seed) { // mulberry32: the same world every time
   };
 }
 
+/** A smooth wobble in -1 .. 1 round a closed outline (angle a, k picks which). */
+const wob = (a, k) => Math.sin(a * 3 + k) * 0.5 + Math.sin(a * 7 + k * 2.1) * 0.3 + Math.sin(a * 13 + k * 0.7) * 0.2;
+
+/** An outline [[x, z]...] round (cx, cz): a rectangle hx by hz (half sizes) with its corners rounded
+ * (a superellipse, power n: the higher, the squarer), its edge wobbling by `jit` metres; N points,
+ * turning the way geo.js patch() wants. */
+export function roundRect(cx, cz, hx, hz, n, jit, k, N = 48) {
+  return Array.from({ length: N }, (_, i) => {
+    const a = (i / N) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+    const r = 1 / ((Math.abs(c) / hx) ** n + (Math.abs(s) / hz) ** n) ** (1 / n) + jit * wob(a, k);
+    return [cx + c * r, cz + s * r];
+  });
+}
+
 export function buildWorld(ctx) {
   const { lib, b, props, bill, scene, physics } = ctx;
   const R = rng(1471);
@@ -77,24 +91,39 @@ export function buildWorld(ctx) {
   const restore = [keepOut(bill, 'add', (a) => [a[1], a[3]]), keepOut(props, 'add', (a) => [a[1], a[3]]),
     keepOut(physics, 'add', (a) => (a[2] === 'tree' || a[2] === 'prop' ? [(a[0][0] + a[1][0]) / 2, (a[0][2] + a[1][2]) / 2] : [1e9, 1e9]), (a) => ({ min: a[0], max: a[1], tag: a[2], off: true })),
     ...(ctx.scatter ? [keepOut(ctx.scatter, 'place', (a) => [a[1], a[3]])] : []), ...(ctx.trees3d ? [keepOut(ctx.trees3d, 'add', (a) => [a[1], a[3]])] : [])];
-  // roads and the plaza: overlay strips (drawn over the ground, see main.js polygon offset)
-  const road = M('town_wheel_worn_gravel', 3, { overlay: true });
-  const dirt = M('town_packed_dirt', 3, { overlay: true });
-  const cobble = M('town_grey_cobbles', 2.5, { overlay: true });
-  const paving = M('town_limestone_paving', 2.5, { overlay: true });
-  const strip = (mat, x0, z0, x1, z1, y = 0.02) => b.quad(mat, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0],
-    [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
-  strip(road, -4, -48, 4, VILLAGE_R + 20);            // north-south high street
-  strip(road, -VILLAGE_R - 20, -4, VILLAGE_R + 20, 4); // east-west road
-  strip(cobble, -20, -20, 20, 20, 0.03);               // the plaza
-  strip(paving, -16, -52, 16, -40, 0.03);              // the cathedral forecourt
+  // roads and the plaza: overlays drawn over the ground, their edges frayed into the grass rather
+  // than ruled straight (`feather`, metres: lib.js feathered). The roads wander a little and widen
+  // where they meet the plaza; the plaza, the forecourt and the lots are rounded, uneven patches.
+  const road = M('town_wheel_worn_gravel', 3, { overlay: true, feather: 2.6 });
+  const dirt = M('town_packed_dirt', 3, { overlay: true, feather: 1.8 });
+  const cobble = M('town_grey_cobbles', 2.5, { overlay: true, feather: 1.8 });
+  const paving = M('town_limestone_paving', 2.5, { overlay: true, feather: 1.1 });
+  const flare = (d) => (d < 0 ? 1 : d < 9 ? (1 - d / 9) ** 2 : 0);   // (a road opening out into the plaza)
+  const street = (along, cross, at) => {   // a road along one axis: [along, across, w] points
+    const pts = [];
+    for (let u = along[0]; u <= along[1] + 1e-6; u += 4) {
+      const v = cross + 0.45 * Math.sin(u * 0.043 + at) + 0.25 * Math.sin(u * 0.117 + at * 2);
+      pts.push([u, v, 4 * (1 + 0.06 * Math.sin(u * 0.071 + at)) + 2.6 * flare(Math.abs(u) - 20)]);
+    }
+    return pts;
+  };
+  b.ribbon(road, street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, w]) => [x, z, w]), 4);   // north-south high street
+  b.ribbon(road, street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4), 4);                        // east-west road
+  b.patch(cobble, 0, 0, 0.03, roundRect(0, 0, 20.5, 20.5, 5, 0.9, 1, 72));                     // the plaza
+  b.patch(paving, 0, -47.5, 0.03, roundRect(0, -47.5, 16.3, 7.8, 6, 0.35, 2, 56));             // the cathedral forecourt (on under its front)
   // the lane to the graveyard: off the forecourt's east side, round the bell tower (it stands
   // at the cathedral's south-east corner), up past the chancel and across to the gate
-  strip(dirt, 16, -50, 26, -44, 0.02);
-  strip(dirt, 20, -116, 26, -50, 0.021);
-  strip(dirt, 14, -126, 26, -116, 0.02);
-  for (const [x0, z0, x1, z1] of [[-60, 30, -48, 33], [44, 30, 58, 33], [-36, -32, -24, -4], [24, -32, 36, -4]])
-    strip(dirt, x0, z0, x1, z1, 0.02);
+  const lane = [[13.5, -46.5, 3.2], [18, -46.8, 3.2], [21.5, -48.6, 3.1], [23, -52, 3]];
+  for (let z = -56; z >= -108; z -= 4) lane.push([23.3 + 0.55 * Math.sin(z * 0.09) + 0.25 * Math.sin(z * 0.23), z, 2.9 + 0.25 * Math.sin(z * 0.13)]);
+  lane.push([22.6, -112, 3.1], [20.8, -116.5, 3.3], [18.6, -120, 3.5], [17.2, -124.5, 3.2]);
+  b.ribbon(dirt, lane, 3, 0.021);
+  // footpaths to the back doors, and the trodden lots beside the alchemist's and the store
+  for (const [x0, x1, z] of [[-61, -47, 31.5], [43, 59, 31.5]]) {
+    const pts = [];
+    for (let x = x0; x <= x1 + 1e-6; x += 2) pts.push([x, z + 0.35 * Math.sin(x * 0.4), 1.5 + 0.15 * Math.sin(x * 0.7)]);
+    b.ribbon(dirt, pts, 1.5, 0.02);
+  }
+  for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(dirt, x, -18, 0.02, roundRect(x, -18, 6.3, 14.3, 4, 0.6, k, 40));
   props.add('well', 0, 0.03, 0, 0, 1.2);
   // gateways on the three roads out of the village (the town pack's): fieldstone east, where
   // the trail to the downs begins, a timber market gate west, the guildhall gate south
@@ -175,24 +204,22 @@ export function buildWorld(ctx) {
 function groundPatches(ctx, M, R, houses) {
   const { b, lib } = ctx;
   const take = (re, salt) => lib.take((s) => re.test(s.id), salt);
-  // an irregular blob of ground: a fan of triangles round (x, z) with a ragged edge
-  const blob = (id, x, z, r, y = 0.022, n = 10) => {
-    const m = M(id, 2.5, { overlay: true });
+  // an irregular blob of ground round (x, z) with a ragged, frayed edge
+  const blob = (id, x, z, r, y = 0.022, n = 10, feather = 1.4) => {
+    const m = M(id, 2.5, { overlay: true, feather });
     const pts = Array.from({ length: n }, (_, k) => {
       const a = k / n * Math.PI * 2, rr = r * (0.7 + 0.3 * R());
-      return [x + Math.cos(a) * rr, y, z + Math.sin(a) * rr];
+      return [x + Math.cos(a) * rr, z + Math.sin(a) * rr];
     });
-    const pos = [[x, y, z], ...pts], uv = pos.map((p) => [p[0], -p[2]]);
-    b.mesh(m, pos, uv, pts.map((_, k) => [0, 1 + ((k + 1) % n), 1 + k]));
+    b.patch(m, x, z, y, pts);
   };
   const yard = /^town_(irregular_flagstone|slate_paving|brick_street|granite_setts|moss_pavers|fine_gravel|coarse_gravel|limestone_gravel|pebble_gravel)$/;
   houses.forEach((h, i) => { // the yard in front of each door
     const out = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[h.door];
     const cx = h.x + out[0] * (h.w / 2 + 2.2), cz = h.z + out[1] * (h.d / 2 + 2.2);
     const hw = out[0] ? 1.8 : 3, hd = out[0] ? 3 : 1.8;
-    const m = M(take(yard, i), 2, { overlay: true });
-    b.quad(m, [cx - hw, 0.025, cz + hd], [cx + hw, 0.025, cz + hd], [cx + hw, 0.025, cz - hd], [cx - hw, 0.025, cz - hd],
-      [[cx - hw, -(cz + hd)], [cx + hw, -(cz + hd)], [cx + hw, -(cz - hd)], [cx - hw, -(cz - hd)]]);
+    const m = M(take(yard, i), 2, { overlay: true, feather: 1.0 });
+    b.patch(m, cx, cz, 0.025, roundRect(cx, cz, hw + 0.4, hd + 0.4, 3, 0.3, i + 5, 28));
   });
   const grass = /^town_(dry_grass|sparse_grass|rough_field|moss_cover|trampled_verge|leaf_litter_grass|damp_grass|straw_grass|clover_grass)$/;
   const earth = /^town_(damp_mud|cracked_clay|cart_rut_earth|red_earth|dusty_earth|mud_puddles|churned_clay|sandy_earth|twig_earth|dark_grit|muddy_gravel|dusty_gravel)$/;
@@ -210,20 +237,24 @@ function groundPatches(ctx, M, R, houses) {
   placeAll(grass, 18, 26, 95, 6);
   placeAll(earth, 14, 22, 90, 3.5);
   // work yards behind the smithy, the bakery, the stable and the barracks
-  [[-40, 14], [-68, -4], [68, -2], [62, 52], [-40, 22], [70, -16]].forEach(([x, z], i) => blob(take(lime, i), x, z, 3.2, 0.024, 8));
+  [[-40, 14], [-68, -4], [68, -2], [62, 52], [-40, 22], [70, -16]].forEach(([x, z], i) => blob(take(lime, i), x, z, 3.2, 0.024, 8, 1.0));
   // paths in the graveyard: from the gate to the mausoleum, and round it
   const G = GRAVEYARD;
   const gy = /^cathedral_graveyard_(muddy_path|grave_gravel|moss_cobbles|nave_flagstone|limestone_squares|choir_slate|terracotta_nave)$/;
-  const pathMat = M(take(gy, 0), 2.2, { overlay: true });
-  b.quad(pathMat, [15.5, 0.025, G.z1], [18.5, 0.025, G.z1], [18.5, 0.025, G.z0 + 22], [15.5, 0.025, G.z0 + 22], [[15.5, -G.z1], [18.5, -G.z1], [18.5, -G.z0 - 22], [15.5, -G.z0 - 22]]);
-  const ring = M(take(gy, 1), 2, { overlay: true });
-  b.quad(ring, [-8, 0.026, G.z0 + 20], [18.5, 0.026, G.z0 + 20], [18.5, 0.026, G.z0 + 17], [-8, 0.026, G.z0 + 17], [[-8, -G.z0 - 20], [18.5, -G.z0 - 20], [18.5, -G.z0 - 17], [-8, -G.z0 - 17]]);
-  for (let i = 0; i < 5; i++) blob(take(gy, i + 2), G.x0 + 8 + i * 18, G.z0 + 30 + (i % 2) * 14, 2.4, 0.024, 8);
+  const pathMat = M(take(gy, 0), 2.2, { overlay: true, feather: 0.9 });
+  const gp = [];
+  for (let z = G.z1 + 1; z >= G.z0 + 20; z -= 2) gp.push([17 + 0.3 * Math.sin(z * 0.3), z, 1.5 + 0.12 * Math.sin(z * 0.5)]);
+  b.ribbon(pathMat, gp, 1.5, 0.025);
+  const ring = M(take(gy, 1), 2, { overlay: true, feather: 0.9 });
+  const rp = [];
+  for (let x = 18.5; x >= -8; x -= 2) rp.push([x, G.z0 + 18.5 + 0.3 * Math.sin(x * 0.35), 1.5]);
+  b.ribbon(ring, rp, 1.5, 0.026);
+  for (let i = 0; i < 5; i++) blob(take(gy, i + 2), G.x0 + 8 + i * 18, G.z0 + 30 + (i % 2) * 14, 2.4, 0.024, 8, 1.0);
   // trodden clearings and paths out in the forest
   const wood = /^dark_forest_(black_loam|gravel_path|packed_mud|dark_turf|peat|shale_chips|root_soil|pine_needles|damp_moss|dead_leaves)$/;
   for (let i = 0; i < 9; i++) {
     const a = i / 9 * Math.PI * 2 + 0.3, r = 140 + (i % 3) * 45;
-    blob(take(wood, i), Math.cos(a) * r, Math.sin(a) * r, 7 + (i % 3) * 2, 0.022, 12);
+    blob(take(wood, i), Math.cos(a) * r, Math.sin(a) * r, 7 + (i % 3) * 2, 0.022, 12, 2.2);
   }
 }
 
@@ -279,7 +310,7 @@ function villageDetail(ctx, M, hm, houses) {
   fence(ctx, [[-66, -15], [-72, -15], [-72, -1], [-66, -1]], hm);
   fence(ctx, [[52, -55], [58, -55], [58, -41], [52, -41]], hm);
   for (const [x0, z0, x1, z1] of [[40, 11, 48, 25], [-46, 11, -38, 25], [-72, -15, -66, -1], [52, -55, 58, -41]]) {
-    const soil = M('town_rooty_dirt', 2, { overlay: true });
+    const soil = M('town_rooty_dirt', 2, { overlay: true, feather: 0.8 });
     b.quad(soil, [x0, 0.02, z1], [x1, 0.02, z1], [x1, 0.02, z0], [x0, 0.02, z0], [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
     for (let x = x0 + 1; x < x1 - 0.5; x += 1.4) for (let z = z0 + 1; z < z1 - 0.5; z += 2.2)
       bill.add(['town_scatter_23_leafy_shrub', 'town_scatter_26_wildflowers', 'town_scatter_31_vegetable_basket'][Math.abs(Math.round(x * 3 + z)) % 3 === 2 ? 0 : 1], x, 0.02, z, 0.5);
@@ -318,7 +349,7 @@ function mageGarden(ctx, M, x, z) {
     const x0 = x - G + 0.5 + i * cell, z0 = z - G + 0.5 + k * cell;
     if (Math.hypot(x0 + cell / 2 - x, z0 + cell / 2 - z) < 7) continue;
     const isPath = (i + k) % 2 === 0;
-    quad(M(isPath ? paths[pi++ % paths.length] : beds[bi++ % beds.length], 2, { overlay: true }), x0, z0, x0 + cell, z0 + cell, isPath ? 0.035 : 0.025);
+    quad(M(isPath ? paths[pi++ % paths.length] : beds[bi++ % beds.length], 2, { overlay: true, feather: 0.35 }), x0, z0, x0 + cell, z0 + cell, isPath ? 0.035 : 0.025);
   }
   // palms, acacias, aloes and the rest of the southern sprites in the beds
   const plants = lib.sprites('tree', (s) => s.id.startsWith('sand_'));
@@ -648,13 +679,12 @@ function graveyard(ctx, M, R) {
  * downs, with a sign at the start, lanterns along it, and a camp or two beside it. */
 function trail(ctx, M, R) {
   const { b } = ctx;
-  const dirt = M('dark_forest_gravel_path', 2.4, { overlay: true }), verge = M('dark_forest_packed_mud', 2.6, { overlay: true });
+  const dirt = M('dark_forest_gravel_path', 2.4, { overlay: true, feather: 0.9 }), verge = M('dark_forest_packed_mud', 2.6, { overlay: true, feather: 1.4 });
   const zAt = (x) => Math.sin(x * 0.045) * 2.2 + Math.sin(x * 0.11) * 0.8;
-  for (let x = 116; x < REGION.x0 + 2; x += 2) {
-    const z0 = zAt(x), z1 = zAt(x + 2);
-    for (const [w, m, y] of [[2.6, verge, 0.018], [1.6, dirt, 0.024]])
-      b.quad(m, [x, y, z0 + w], [x + 2, y, z1 + w], [x + 2, y, z1 - w], [x, y, z0 - w], [[x, -(z0 + w)], [x + 2, -(z1 + w)], [x + 2, -(z1 - w)], [x, -(z0 - w)]]);
-  }
+  const line = [];
+  for (let x = 116; x <= REGION.x0 + 4; x += 2) line.push([x, zAt(x)]);
+  b.ribbon(verge, line, 2.6, 0.018);   // (one continuous ribbon each, frayed along its sides)
+  b.ribbon(dirt, line, 1.6, 0.024);
   const S = (id, x, z, s = 1, rot) => ctx.scatter.place(id, x, 0, z, s, rot);
   S('dark_forest_trail_sign', 118, 4.2, 1, Math.PI / 2);
   S('town_scatter_40_arrow_milestone', REGION.x0 - 4, 4.5, 1, Math.PI / 2);
