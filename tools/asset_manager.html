@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellmourn Asset Manager</title>
+<!--
+  Bellmourn Asset Manager: every enemy asset in the repo, under the names the game's code uses.
+
+  Open this file in Chrome or Edge. It reads the repo straight from GitHub (any branch), or from a
+  local checkout ("Open local folder", which also shows uncommitted work). Nothing is uploaded and
+  nothing in the repo is changed. The enemy lists come from the game's own code (src/fps/zombies.js,
+  foes.js, main.js), so new enemies show up here as soon as they're added there.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<style>
+:root {
+  --ink: #0c0a0e; --panel: #151219; --panel2: #1c1821; --edge: #2c2531; --edge2: #43394a;
+  --text: #ece5d8; --muted: #a0968c; --faint: #6f665f;
+  --gold: #d8b870; --gold-dim: #8a7448; --gold-bg: rgba(216, 184, 112, .08);
+  --ok: #8cc47a; --warn: #d7a64a; --off: #9a94b8; --bad: #e06a5a;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --serif: "Cinzel", "Trajan Pro", Georgia, serif;
+  --top: 58px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--text); font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+a { color: var(--gold); text-decoration: none; } a:hover { text-decoration: underline; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+input, select, button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--edge2); border-radius: 6px; padding: 6px 10px; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--gold-dim); outline-offset: 1px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--gold-dim); }
+button.primary { background: var(--gold); color: #1a1408; border-color: var(--gold); font-weight: 600; }
+button.primary:hover { background: #e6c98a; }
+button.ghost { background: transparent; }
+[hidden] { display: none !important; }
+
+/* top bar */
+.top { position: sticky; top: 0; z-index: 10; min-height: var(--top); display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  padding: 9px 18px; background: rgba(12, 10, 14, .95); border-bottom: 1px solid var(--edge); backdrop-filter: blur(6px); }
+.brand { font-family: var(--serif); letter-spacing: .16em; color: var(--gold); font-size: 18px; white-space: nowrap; font-weight: 700; }
+.brand small { font-family: system-ui, sans-serif; letter-spacing: .02em; color: var(--muted); font-size: 12.5px; margin-left: 8px; font-weight: 400; }
+form.src { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+form.src input { width: 170px; } form.src input#ref { width: 150px; }
+form.src .or { color: var(--faint); font-size: 12px; padding: 0 4px; }
+.status { margin-left: auto; color: var(--muted); font-size: 12.5px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.status .err { color: var(--bad); }
+.bar { width: 110px; height: 4px; background: var(--edge); border-radius: 2px; overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; background: var(--gold); width: 0; transition: width .2s; }
+
+/* layout */
+.layout { display: grid; grid-template-columns: 212px minmax(0, 1fr); }
+nav { position: sticky; top: var(--top); align-self: start; padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - var(--top)); overflow: auto; }
+nav button { all: unset; display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+nav button:hover { background: var(--panel); color: var(--text); }
+nav button.on { background: var(--panel2); color: var(--gold); box-shadow: inset 2px 0 var(--gold); }
+nav .n { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+nav .sep { height: 1px; background: var(--edge); margin: 10px 8px; }
+nav label { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12.5px; padding: 4px 12px; cursor: pointer; }
+main { padding: 18px 24px 70px; min-width: 0; }
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar input[type=search] { flex: 1; min-width: 200px; max-width: 460px; }
+.toolbar .seg { display: flex; gap: 0; }
+.toolbar .seg button { border-radius: 0; margin-left: -1px; padding: 5px 10px; font-size: 12.5px; }
+.toolbar .seg button:first-child { border-radius: 6px 0 0 6px; } .toolbar .seg button:last-child { border-radius: 0 6px 6px 0; }
+.toolbar .seg button.on { color: var(--gold); border-color: var(--gold-dim); background: var(--gold-bg); position: relative; }
+@media (max-width: 780px) {
+  .layout { grid-template-columns: 1fr; }
+  nav { position: sticky; top: 0; z-index: 9; flex-direction: row; overflow-x: auto; padding: 8px 12px; border-bottom: 1px solid var(--edge); background: var(--ink); max-height: none; }
+  nav button { white-space: nowrap; } nav .sep, nav label { display: none; }
+  main { padding: 14px 16px 60px; }
+  .top { position: static; } form.src input { width: 140px; }
+  .status { margin-left: 0; width: 100%; }
+}
+
+/* sections */
+.sec-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 4px; }
+.sec-h h2 { font-family: var(--serif); color: var(--gold); letter-spacing: .08em; font-size: 23px; margin: 0; font-weight: 700; }
+.sec-h .n { color: var(--faint); font-family: var(--mono); font-size: 13px; }
+.blurb { color: var(--muted); margin: 0 0 18px; max-width: 86ch; }
+.group-h { margin: 26px 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .13em; color: var(--muted); display: flex; gap: 10px;
+  align-items: baseline; border-bottom: 1px solid var(--edge); padding-bottom: 7px; flex-wrap: wrap; }
+.group-h b { color: var(--text); font-weight: 600; }
+.group-h .gn { font-family: var(--mono); color: var(--faint); letter-spacing: 0; }
+.group-h .gb { text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 12.5px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 8px; }
+.tile { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 10px 14px; }
+.tile b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 12px; }
+.empty { padding: 34px 20px; border: 1px dashed var(--edge2); border-radius: 10px; color: var(--muted); text-align: center; margin: 10px 0; }
+.empty b { color: var(--text); }
+.note { color: var(--muted); font-size: 12.5px; background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 8px 12px; margin: 0 0 14px; }
+
+/* cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 14px; }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.grid.tex { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color .15s, transform .15s; min-width: 0; }
+.card:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.card .body { padding: 9px 12px 12px; }
+.card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.thumb { aspect-ratio: 4 / 5; background: radial-gradient(ellipse at 50% 38%, #2b2331, #110e14 72%); position: relative; overflow: hidden; display: grid; place-items: center; }
+.thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s; }
+.thumb img.ok { opacity: 1; }
+.thumb .ph { font-family: var(--serif); color: #3b3240; font-size: 34px; letter-spacing: .05em; user-select: none; }
+.thumb.sq { aspect-ratio: 1; }
+.thumb.chk { background: conic-gradient(#1b181e 25%, #232026 0 50%, #1b181e 0 75%, #232026 0) 0 0 / 14px 14px; }
+.thumb.chk img, .thumb.fit img { object-fit: contain; }
+.thumb.wide { aspect-ratio: 16 / 10; }
+.thumb .tag { position: absolute; top: 6px; left: 6px; z-index: 1; }
+.thumb .spin { width: 18px; height: 18px; border: 2px solid #3b3240; border-top-color: var(--gold-dim); border-radius: 50%; animation: spin 1s linear infinite; position: absolute; bottom: 8px; right: 8px; }
+.thumb img.ok ~ .spin { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.id { font-family: var(--mono); font-size: 12px; color: var(--gold); background: var(--gold-bg); border: 1px solid rgba(216, 184, 112, .22);
+  padding: 0 6px; border-radius: 4px; cursor: copy; white-space: nowrap; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 99px; border: 1px solid; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; background: rgba(12, 10, 14, .75); }
+.pill.active { color: var(--ok); border-color: rgba(140, 196, 122, .45); }
+.pill.dormant { color: var(--warn); border-color: rgba(215, 166, 74, .45); }
+.pill.wip, .pill.unused, .pill.referenced, .pill.unknown { color: var(--off); border-color: rgba(154, 148, 184, .45); }
+.pill.missing { color: var(--bad); border-color: rgba(224, 106, 90, .5); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { font-size: 11.5px; padding: 1px 7px; border-radius: 4px; background: var(--panel2); border: 1px solid var(--edge); color: var(--muted); white-space: nowrap; }
+.chip.gold { color: var(--gold); border-color: rgba(216, 184, 112, .3); }
+.chip.click { cursor: pointer; } .chip.click:hover { border-color: var(--gold-dim); color: var(--text); }
+.meta { color: var(--muted); font-size: 12px; }
+.path { font-family: var(--mono); font-size: 11px; color: var(--faint); overflow-wrap: anywhere; }
+
+/* model rows */
+.rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+@media (max-width: 480px) { .rows { grid-template-columns: 1fr; } }
+.row { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; padding: 10px; }
+.row .thumb { border-radius: 6px; }
+.stats { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.stats b { color: var(--text); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
+
+/* clips */
+.clipset { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px 16px; margin-bottom: 14px; }
+.clipset h3 { margin: 0 0 2px; font-size: 15px; }
+.clipset .who { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 12px; }
+.clips { display: flex; flex-wrap: wrap; gap: 5px; }
+.clip { font-family: var(--mono); font-size: 12px; padding: 3px 8px; border-radius: 5px; background: var(--panel2); border: 1px solid var(--edge); color: var(--muted); cursor: pointer; }
+.clip:hover { border-color: var(--gold-dim); color: var(--text); }
+.clip.used { color: var(--gold); border-color: rgba(216, 184, 112, .35); }
+.clip small { color: var(--faint); margin-left: 4px; }
+.clip.on { background: var(--gold); color: #1a1408; border-color: var(--gold); } .clip.on small { color: #4a3d1e; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: -6px 0 14px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1px solid; margin-right: 6px; vertical-align: -1px; }
+
+/* gear */
+.swatches { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+.swatches span { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); background: var(--panel2); border: 1px solid var(--edge); border-radius: 4px; padding: 1px 6px 1px 2px; }
+.swatches img { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; image-rendering: pixelated; }
+
+/* sprites */
+.gifs { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; margin-top: 10px; }
+.gifs figure { margin: 0; background: #110e14; border: 1px solid var(--edge); border-radius: 6px; padding: 4px; cursor: pointer; text-align: center; }
+.gifs img { width: 100%; aspect-ratio: 1; object-fit: contain; image-rendering: pixelated; display: block; }
+.gifs figcaption { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+/* dialogs */
+dialog { border: 1px solid var(--edge2); background: var(--ink); color: var(--text); border-radius: 12px; padding: 0; }
+dialog::backdrop { background: rgba(0, 0, 0, .72); }
+#detail { width: min(1320px, 96vw); height: min(880px, 92vh); overflow: hidden; }
+#detail .wrap { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(330px, 1fr); height: 100%; }
+.stage { position: relative; background: #141117; min-height: 280px; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.stage .img { position: absolute; inset: 0; display: grid; place-items: center; padding: 50px 20px 60px; }
+.stage .img img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.vinfo { position: absolute; left: 12px; top: 10px; font-size: 12px; color: var(--muted); pointer-events: none; text-shadow: 0 1px 2px #000; }
+.vmsg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; text-align: center; padding: 20px; }
+.vbar { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.vbar button, .vbar select { padding: 4px 9px; font-size: 12.5px; background: rgba(21, 18, 25, .88); }
+.vbar .on { border-color: var(--gold); color: var(--gold); }
+.vbar .grow { flex: 1; }
+.info { overflow: auto; padding: 18px 22px 30px; border-left: 1px solid var(--edge); }
+.info h2 { font-family: var(--serif); color: var(--gold); margin: 6px 0 2px; font-size: 22px; letter-spacing: .05em; padding-right: 30px; }
+.info h4 { margin: 20px 0 8px; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.info ul { margin: 0; padding: 0; list-style: none; }
+.info li { padding: 4px 0; border-bottom: 1px solid var(--edge); font-size: 12.5px; overflow-wrap: anywhere; }
+.info li:last-child { border-bottom: 0; }
+.kv { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 5px 12px; font-size: 13px; margin-top: 12px; }
+.kv > span:nth-child(odd) { color: var(--muted); }
+.refs li { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.refs li.cm { opacity: .6; }
+.refs li a { margin-right: 6px; }
+.texgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.texgrid figure { margin: 0; cursor: pointer; }
+.texgrid .thumb { border-radius: 6px; border: 1px solid var(--edge); }
+.texgrid figcaption { font-family: var(--mono); font-size: 10.5px; color: var(--muted); overflow-wrap: anywhere; margin-top: 3px; line-height: 1.25; }
+.x { position: absolute; top: 10px; right: 12px; z-index: 3; width: 32px; height: 32px; padding: 0; border-radius: 50%; background: rgba(21, 18, 25, .9); }
+@media (max-width: 880px) {
+  #detail { width: 100vw; height: 100dvh; max-width: none; max-height: none; border-radius: 0; }
+  #detail .wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46dvh auto; overflow: auto; }
+  .info { border-left: 0; border-top: 1px solid var(--edge); overflow: visible; }
+}
+#lightbox { max-width: 94vw; max-height: 94vh; overflow: auto; }
+#lightbox .lb { position: relative; }
+#lightbox .pic { background: conic-gradient(#1b181e 25%, #232026 0 50%, #1b181e 0 75%, #232026 0) 0 0 / 16px 16px; display: grid; place-items: center; min-width: 280px; min-height: 200px; }
+#lightbox .pic img { max-width: 92vw; max-height: 74vh; display: block; }
+#lightbox .pic img.px { image-rendering: pixelated; }
+#lightbox .cap { padding: 12px 18px 16px; max-width: 92vw; }
+#lightbox .cap h3 { margin: 0 0 4px; font-family: var(--mono); font-size: 14px; color: var(--gold); overflow-wrap: anywhere; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--gold-dim); color: var(--text);
+  padding: 7px 14px; border-radius: 8px; font-size: 13px; z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">BELLMOURN<small>Asset Manager</small></div>
+  <form class="src" id="srcForm" autocomplete="off">
+    <input id="repo" value="Agilancer/Bellmourn" aria-label="GitHub repository (owner/name)" title="GitHub repository (owner/name)" spellcheck="false">
+    <input id="ref" value="main" list="refs" aria-label="Branch" title="Branch, tag or commit" spellcheck="false">
+    <datalist id="refs"></datalist>
+    <button class="primary" type="submit">Load from GitHub</button>
+    <span class="or">or</span>
+    <button type="button" id="localBtn" title="Read a checkout on this computer, including uncommitted work">Open local folder…</button>
+    <input type="file" id="dirInput" webkitdirectory multiple hidden>
+  </form>
+  <div class="status" id="status"><span id="statusText">Starting…</span><div class="bar" id="bar" hidden><i></i></div></div>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main>
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Filter by name, game ID, path, clip, texture…" aria-label="Filter">
+      <span id="tools"></span>
+    </div>
+    <section id="view"><div class="empty">Loading…</div></section>
+  </main>
+</div>
+
+<dialog id="detail">
+  <button class="x" data-act="close" aria-label="Close">✕</button>
+  <div class="wrap">
+    <div class="stage" id="stage">
+      <div class="img" id="stageImg" hidden><img alt=""></div>
+      <div class="vinfo" id="vinfo"></div>
+      <div class="vmsg" id="vmsg"></div>
+      <div class="vbar" id="vbar"></div>
+    </div>
+    <div class="info" id="info"></div>
+  </div>
+</dialog>
+
+<dialog id="lightbox">
+  <div class="lb">
+    <button class="x" data-act="close" aria-label="Close">✕</button>
+    <div class="pic"><img alt=""></div>
+    <div class="cap" id="lbcap"></div>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+// ============================================================== small helpers
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const kb = (n) => n == null ? '—' : n < 1024 ? n + ' B' : n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB';
+const kn = (n) => n == null ? '—' : n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+const pretty = (id) => String(id).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const base = (p) => p.slice(p.lastIndexOf('/') + 1);
+const dir = (p) => p.slice(0, Math.max(0, p.lastIndexOf('/')));
+const stem = (p) => base(p).replace(/\.[^.]+$/, '');
+const IMG = /\.(png|jpe?g|webp|gif)$/i;
+const plural = (n, w, ws = w + 's') => `${n} ${n === 1 ? w : ws}`;
+async function pool(items, n, fn) {
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; try { await fn(items[k], k); } catch (e) { console.warn(e); } }
+  }));
+}
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1600); }
+
+// localStorage is only a speed-up (model headers and 3D thumbnails, keyed by file hash): it may be
+// missing, full or blocked, and everything works without it.
+const CACHE = 'bmam1:';
+const store = {
+  get(k) { try { const v = localStorage.getItem(CACHE + k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set(k, v) {
+    const s = JSON.stringify(v);
+    try { localStorage.setItem(CACHE + k, s); } catch {
+      try { // full: drop the thumbnails and try once more
+        for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (/^bmam1:p\d*:/.test(key || '')) localStorage.removeItem(key); }
+        localStorage.setItem(CACHE + k, s);
+      } catch { /* give up quietly */ }
+    }
+  },
+};
+
+// three.js loads on first use, so the lists still work if the CDN can't be reached
+let T = null;
+async function three() {
+  if (!T) {
+    const [THREE, { GLTFLoader }, { OrbitControls }, { RoomEnvironment }] = await Promise.all([
+      import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/controls/OrbitControls.js'),
+      import('three/addons/environments/RoomEnvironment.js')]);
+    T = { THREE, GLTFLoader, OrbitControls, RoomEnvironment };
+  }
+  return T;
+}
+
+// ============================================================== where the files come from
+// Only these parts of the repo matter here (the rest is skipped when reading a folder).
+const ROOTS = ['src', 'templates/models', 'assets/creatures', 'art/creatures', 'tools/creatures'];
+const wanted = (p) => ROOTS.some((r) => p === r || p.startsWith(r + '/') || r.startsWith(p + '/'));
+const SKIP = new Set(['.git', 'node_modules', '__pycache__', '.claude']);
+
+class GitHubSource {
+  constructor(full, ref) {
+    const [o, r] = full.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').split('/');
+    this.owner = o; this.repo = r; this.ref = (ref || 'main').trim(); this.kind = 'github';
+    this.rangeOK = true; this.full = new Map();
+  }
+  get label() { return `${this.owner}/${this.repo} @ ${this.ref}`; }
+  enc(p) { return p.split('/').map(encodeURIComponent).join('/'); }
+  url(p) { return `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.enc(this.ref)}/${this.enc(p)}`; }
+  web(p, line) { return `https://github.com/${this.owner}/${this.repo}/blob/${this.enc(this.ref)}/${this.enc(p)}${line ? '#L' + line : ''}`; }
+  async api(path) {
+    const r = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}${path}`, { headers: { Accept: 'application/vnd.github+json' } });
+    if (r.status === 403 || r.status === 429) {
+      const reset = +r.headers.get('x-ratelimit-reset');
+      throw new Error(`GitHub's hourly limit for anonymous use is used up${reset ? ' until ' + new Date(reset * 1000).toLocaleTimeString() : ''}. Open a local folder instead, or try again then.`);
+    }
+    if (r.status === 404) throw new Error(`GitHub can't find ${this.owner}/${this.repo} at "${this.ref}" (is it private, or the branch misspelled?).`);
+    if (!r.ok) throw new Error(`GitHub answered ${r.status}.`);
+    return r.json();
+  }
+  async list() {
+    const j = await this.api(`/git/trees/${this.enc(this.ref)}?recursive=1`);
+    return j.tree.filter((e) => e.type === 'blob').map((e) => ({ path: e.path, size: e.size, sha: e.sha }));
+  }
+  async branches() { try { return (await this.api('/branches?per_page=100')).map((b) => b.name); } catch { return []; } }
+  async text(p) { const r = await fetch(this.url(p)); if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.text(); }
+  whole(p) {
+    if (!this.full.has(p)) {
+      this.full.set(p, fetch(this.url(p)).then((r) => { if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.arrayBuffer(); }).then((b) => new Uint8Array(b)));
+      while (this.full.size > 6) this.full.delete(this.full.keys().next().value);
+    }
+    return this.full.get(p);
+  }
+  // bytes [a, b) of a file: a range request, or the whole file if the browser or host won't do ranges
+  async range(p, a, b) {
+    if (this.full.has(p)) return (await this.full.get(p)).subarray(a, b);
+    if (this.rangeOK) {
+      try {
+        const r = await fetch(this.url(p), { headers: { Range: `bytes=${a}-${b - 1}` } });
+        if (r.status === 206) return new Uint8Array(await r.arrayBuffer());
+        if (r.ok) { const buf = new Uint8Array(await r.arrayBuffer()); this.full.set(p, Promise.resolve(buf)); return buf.subarray(a, b); }
+        throw new Error(`${p}: HTTP ${r.status}`);
+      } catch (e) { if (!(e instanceof TypeError)) throw e; this.rangeOK = false; }
+    }
+    return (await this.whole(p)).subarray(a, b);
+  }
+}
+
+class LocalSource {
+  constructor(name, files) { this.name = name; this.files = files; this.kind = 'local'; this.urls = new Map(); }
+  get label() { return `Local folder: ${this.name}`; }
+  async list() { return [...this.files].map(([path, f]) => ({ path, size: f.size, sha: f.size + '-' + f.lastModified })); }
+  url(p) { if (!this.urls.has(p)) { const f = this.files.get(p); this.urls.set(p, f ? URL.createObjectURL(f) : ''); } return this.urls.get(p); }
+  web() { return null; }
+  async text(p) { const f = this.files.get(p); if (!f) throw new Error('missing ' + p); return f.text(); }
+  async range(p, a, b) { return new Uint8Array(await this.files.get(p).slice(a, b).arrayBuffer()); }
+}
+
+async function pickFolder() {
+  if (!window.showDirectoryPicker) { $('#dirInput').click(); return; }
+  let h;
+  try { h = await window.showDirectoryPicker({ id: 'bellmourn', mode: 'read' }); } catch (e) { if (e.name !== 'AbortError') setStatus(e.message, true); return; }
+  setStatus(`Reading ${h.name}…`);
+  const files = new Map();
+  const walk = async (d, pre) => {
+    const kids = [];
+    for await (const [name, child] of d.entries()) {
+      const p = pre ? pre + '/' + name : name;
+      if (SKIP.has(name) || !wanted(p)) continue;
+      if (child.kind === 'directory') kids.push(walk(child, p)); else kids.push(child.getFile().then((f) => files.set(p, f)));
+    }
+    await Promise.all(kids);
+  };
+  await walk(h, '');
+  load(new LocalSource(h.name, files));
+}
+$('#dirInput').addEventListener('change', (ev) => {
+  const list = [...ev.target.files]; if (!list.length) return;
+  const files = new Map();
+  for (const f of list) { const p = f.webkitRelativePath.split('/').slice(1).join('/'); if (p && wanted(p) && !p.split('/').some((s) => SKIP.has(s))) files.set(p, f); }
+  load(new LocalSource(list[0].webkitRelativePath.split('/')[0], files));
+  ev.target.value = '';
+});
+
+// ============================================================== reading the game's code
+// A tiny reader for the JS literals the game keeps its lists in ([...], {...}, strings, numbers):
+// nothing is evaluated. Anything that isn't a plain literal (a call, an operator) stops it.
+function parseJS(s, i = 0) {
+  const ws = () => {
+    for (;;) {
+      while (i < s.length && /\s/.test(s[i])) i++;
+      if (s.startsWith('//', i)) { i = s.indexOf('\n', i); if (i < 0) i = s.length; } else if (s.startsWith('/*', i)) { const e = s.indexOf('*/', i); i = e < 0 ? s.length : e + 2; } else break;
+    }
+  };
+  const str = () => { const q = s[i++]; let out = ''; while (i < s.length && s[i] !== q) { if (s[i] === '\\') { out += s[i + 1]; i += 2; } else out += s[i++]; } i++; return out; };
+  const val = () => {
+    ws(); const c = s[i];
+    if (c === '[') {
+      i++; const a = [];
+      for (;;) { ws(); if (s[i] === ']') { i++; return a; } if (s.startsWith('...', i)) throw new Error('spread'); a.push(val()); ws(); if (s[i] === ',') i++; else if (s[i] === ']') { i++; return a; } else throw new Error('array'); }
+    }
+    if (c === '{') {
+      i++; const o = {};
+      for (;;) {
+        ws(); if (s[i] === '}') { i++; return o; }
+        let k;
+        if (s[i] === "'" || s[i] === '"') k = str(); else { const m = /^[\w$]+/.exec(s.slice(i, i + 80)); if (!m) throw new Error('key'); k = m[0]; i += k.length; }
+        ws(); if (s[i] === ':') { i++; o[k] = val(); } else o[k] = { sym: k };
+        ws(); if (s[i] === ',') i++; else if (s[i] === '}') { i++; return o; } else throw new Error('object');
+      }
+    }
+    if (c === "'" || c === '"' || c === '`') return str();
+    const n = /^-?(0x[\da-f]+|\d[\d_]*\.?\d*(e[+-]?\d+)?|\.\d+)/i.exec(s.slice(i, i + 40));
+    if (n) { i += n[0].length; return Number(n[0].replace(/_/g, '')); }
+    const id = /^[\w$.]+/.exec(s.slice(i, i + 80));
+    if (id) { i += id[0].length; ws(); if (s[i] === '(') throw new Error('call'); const w = id[0]; return w === 'true' ? true : w === 'false' ? false : w === 'null' ? null : w === 'undefined' ? undefined : { sym: w }; }
+    throw new Error('value at ' + i);
+  };
+  const value = val();
+  return { value, end: i };
+}
+const lineAt = (text, idx) => { let n = 1; for (let i = text.indexOf('\n'); i !== -1 && i < idx; i = text.indexOf('\n', i + 1)) n++; return n; };
+function constsOf(file) {
+  if (S.consts[file]) return S.consts[file];
+  const text = S.code.get(file) || '', out = {};
+  for (const m of text.matchAll(/(?:export\s+)?const\s+([A-Z][A-Z0-9_]*)\s*=\s*/g)) {
+    const at = m.index + m[0].length, end = text.indexOf(';', at);
+    const e = { file, at, line: lineAt(text, m.index), raw: text.slice(at, end < 0 ? at + 300 : end) };
+    try { e.value = parseJS(text, at).value; } catch { /* not a plain literal */ }
+    out[m[1]] = e;
+  }
+  return (S.consts[file] = out);
+}
+// the line an entry of a constant sits on
+function defLine(entry, needle) {
+  if (!entry) return null;
+  const text = S.code.get(entry.file) || '';
+  let idx = -1;
+  if (needle instanceof RegExp) { const re = new RegExp(needle.source, 'g'); re.lastIndex = entry.at; const m = re.exec(text); idx = m ? m.index : -1; } else idx = text.indexOf(needle, entry.at);
+  return idx < 0 ? entry.line : lineAt(text, idx);
+}
+function linesOf(file) { if (!S.lines.has(file)) S.lines.set(file, (S.code.get(file) || '').split('\n')); return S.lines.get(file); }
+// every line of game code that mentions one of the needles
+function findRefs(needles, skip = [], max = 60) {
+  const out = [], sk = new Set(skip);
+  for (const [file, text] of S.code) {
+    if (!needles.some((n) => text.includes(n))) continue;
+    linesOf(file).forEach((ln, i) => {
+      if (out.length >= max || sk.has(file + ':' + (i + 1)) || !needles.some((n) => ln.includes(n))) return;
+      const t = ln.trim();
+      out.push({ file, line: i + 1, text: t.slice(0, 240), comment: /^(\/\/|\*|\/\*)/.test(t) });
+    });
+  }
+  return out;
+}
+const quoted = (id) => [`'${id}'`, `"${id}"`, '`' + id + '`'];
+
+// ============================================================== state
+let S = null, loadGen = 0;
+function fresh(src) {
+  return { src, files: new Map(), code: new Map(), lines: new Map(), consts: {}, models: new Map(), enemies: new Map(), gear: new Map(),
+    textures: new Map(), clipsets: [], clipUsed: new Map(), sprites: [], renders: [], art: [], tools: [], places: {}, allCode: '',
+    headersDone: 0, headersTotal: 0, notes: [] };
+}
+const UI = { section: 'enemies', q: '', texRole: 'all', thumbs: true };
+try { const c = JSON.parse(localStorage.getItem(CACHE + 'ui') || '{}'); if (c.section) UI.section = c.section; if (c.thumbs === false) UI.thumbs = false; if (c.repo) $('#repo').value = c.repo; if (c.ref) $('#ref').value = c.ref; } catch { }
+const saveUI = () => { try { localStorage.setItem(CACHE + 'ui', JSON.stringify({ section: UI.section, thumbs: UI.thumbs, repo: $('#repo').value, ref: $('#ref').value })); } catch { } };
+
+function setStatus(text, err = false, frac = null) {
+  $('#statusText').innerHTML = err ? `<span class="err">${esc(text)}</span>` : esc(text);
+  const bar = $('#bar'); bar.hidden = frac == null; if (frac != null) bar.firstElementChild.style.width = Math.round(frac * 100) + '%';
+}
+
+// ============================================================== loading
+async function load(src) {
+  const gen = ++loadGen;
+  S = fresh(src);
+  $('#view').innerHTML = `<div class="empty">Reading <b>${esc(src.label)}</b>…</div>`;
+  renderNav();
+  try {
+    setStatus(`Listing ${src.label}…`);
+    for (const f of await src.list()) if (wanted(f.path)) S.files.set(f.path, f);
+    if (gen !== loadGen) return;
+    if (!S.files.has('src/fps/zombies.js')) throw new Error(src.kind === 'local' ? `"${src.name}" doesn't look like a Bellmourn checkout (no src/fps/zombies.js). Pick the folder that holds src/ and templates/.` : `No src/fps/zombies.js on ${src.label}.`);
+    const code = [...S.files.keys()].filter((p) => /^src\/.+\.js$/.test(p));
+    let done = 0;
+    await pool(code, 8, async (p) => { S.code.set(p, await src.text(p)); setStatus(`Reading game code… ${++done}/${code.length}`, false, done / code.length); });
+    if (gen !== loadGen) return;
+    S.allCode = [...S.code].filter(([p]) => p.startsWith('src/fps/')).map(([, t]) => t).join('\n');
+    setStatus('Reading manifests…');
+    const json = async (p) => S.files.has(p) ? JSON.parse(await src.text(p)) : null;
+    S.manifest = await json('templates/models/manifest.json').catch(() => null);
+    S.creatureIndex = await json('assets/creatures/index.json').catch(() => null) || {};
+    S.creatureDefs = {};
+    await pool(Object.entries(S.creatureIndex), 4, async ([id, c]) => { S.creatureDefs[id] = await json(c.path); });
+    S.readmes = {};
+    const docs = [...S.files.keys()].filter((p) => /^tools\/creatures\/([^/]+\/README\.md|[^/]+\.py)$/i.test(p));
+    await pool(docs, 4, async (p) => { S.readmes[p] = await src.text(p); });
+    if (gen !== loadGen) return;
+    build();
+    renderNav(); render();
+    if (src.kind === 'github') src.branches().then((b) => { $('#refs').innerHTML = b.map((n) => `<option value="${esc(n)}">`).join(''); });
+    await readHeaders(gen);
+  } catch (e) {
+    if (gen !== loadGen) return;
+    console.error(e);
+    setStatus(e.message, true);
+    $('#view').innerHTML = `<div class="empty"><b>Couldn't read the repo.</b><br>${esc(e.message)}<br><br><button data-act="local">Open local folder…</button></div>`;
+  }
+}
+
+// ============================================================== the registry: enemies → files
+const FAMILIES = {
+  foes: { label: 'Living foes', blurb: 'Dark knights and sorcerers of the downs, ghasts and grubbers of the Gloamhollow (foes.js FOES).' },
+  sworn: { label: "Velscour's Sworn", blurb: "Blackvigil Keep's garrison. No model of their own: sworn.js puts each together at runtime from a villager body and an armour set (FOES[id].body)." },
+  grotesques: { label: 'The dead: grotesques', blurb: 'The zombies the game spawns now (zombies.js GROTESQUES), drawn per place from HAUNTS.' },
+  monsters: { label: 'Monster bodies', blurb: 'zombies.js MONSTERS: still loadable, not loaded by default.' },
+  zombies: { label: 'Zombie bodies', blurb: 'zombies.js VARIANTS, loaded as zombie_<id>.glb: the first zombies, not loaded by default.' },
+  library: { label: 'Loaded directly by code', blurb: 'Creature files outside the enemy lists that the code loads by path, such as shared animation libraries. The ID is the constant that holds the path.' },
+  wip: { label: 'Not in the game yet', blurb: 'Creature models in templates/models/creatures that no game code loads.' },
+  sprites: { label: '2D sprite creatures', blurb: 'assets/creatures (the sprite pipeline from before the 3D pivot).' },
+};
+const FAMILY_ORDER = Object.keys(FAMILIES);
+const STATUS = { active: 'In game', dormant: 'Dormant', wip: 'Not in game', referenced: 'Referenced', unknown: 'Unknown', unused: 'Not in 3D game', missing: 'File missing' };
+
+function model(path, family, phoneDir = 'phone/') {
+  let m = S.models.get(path);
+  if (!m) {
+    const f = S.files.get(path), pp = phoneDir ? dir(path) + '/' + phoneDir + base(path) : null, pf = pp && S.files.get(pp);
+    m = { path, file: base(path), stem: stem(path), family, size: f?.size, sha: f?.sha, missing: !f, phone: pf ? pp : null, phoneSize: pf?.size, phoneSha: pf?.sha, users: [], head: null, phoneHead: null };
+    S.models.set(path, m);
+  }
+  return m;
+}
+function addEnemy(e) {
+  e.parts ||= [];
+  S.enemies.set(e.id, e);
+  for (const p of e.parts) if (!p.users.includes(e)) p.users.push(e);
+  if (e.parts.some((p) => p.missing)) e.missing = true;
+}
+
+function parsePlaces() {
+  const out = {};
+  const add = (k, v) => (out[k] ||= new Set()).add(v);
+  for (const [file, text] of S.code) {
+    for (const m of text.matchAll(/name:\s*'([^']+)'[^\n]*?haunt:\s*'(\w+)'/g)) add(m[2], m[1]);
+    for (const m of text.matchAll(/haunt:\s*'(\w+)'[^\n]*?\/\/\s*(.+)$/gm)) add(m[1], m[2].trim());
+    for (const m of text.matchAll(/\['(\w+)',\s*\d+,\s*'(\w+)'\]/g)) add(m[2], `${stem(file)}: ${m[1]}`);
+  }
+  return Object.fromEntries(Object.entries(out).map(([k, s]) => [k, [...s].slice(0, 6).join(' · ')]));
+}
+
+function build() {
+  const Z = 'src/fps/zombies.js', F = 'src/fps/foes.js', M = 'src/fps/main.js';
+  const zc = constsOf(Z), fc = constsOf(F);
+  const zText = S.code.get(Z) || '', mText = S.code.get(M) || '';
+  S.places = parsePlaces();
+  // which lists of the dead are loaded: zombies.load()'s defaults, unless main.js passes its own
+  const params = {}, lm = /async\s+load\s*\(([^)]*)\)/.exec(zText);
+  if (lm) for (const p of lm[1].split(',')) { const [k, v] = p.split('=').map((s) => s?.trim()); if (k) params[k] = v; }
+  const call = /zombies\.load\(([^)]*)\)/.exec(mText);
+  const zStatus = (param, list) => {
+    if (!call) return 'unknown';
+    const args = call[1].trim();
+    if (args) return args.includes(list) ? 'active' : 'dormant';
+    return params[param] === undefined ? 'unknown' : params[param] === list ? 'active' : 'dormant';
+  };
+  const root = (c, name, fallback) => {
+    const e = c[name];
+    return { root: typeof e?.value === 'string' ? e.value : fallback, phone: e && /['"`]phone\/['"`]/.test(e.raw) ? 'phone/' : '' };
+  };
+  const haunts = zc.HAUNTS?.value || {};
+  const hauntsOf = (id) => Object.entries(haunts).filter(([, l]) => Array.isArray(l) && l.includes(id))
+    .map(([k, l]) => ({ key: k, n: l.filter((x) => x === id).length, of: l.length, label: S.places[k] || '' }));
+
+  const dead = (family, list, param, rootName, fallback, fileOf) => {
+    const e = zc[list];
+    if (!Array.isArray(e?.value)) { if (S.code.has(Z)) S.notes.push(`Couldn't read ${list} in ${Z}.`); return; }
+    const r = root(zc, rootName, fallback), status = zStatus(param, list);
+    for (const id of e.value) {
+      const file = fileOf(id), line = defLine(e, `'${id}'`);
+      addEnemy({ id: file, gameId: id, family, title: family === 'zombies' ? `Zombie ${id.toUpperCase()}` : pretty(id), status,
+        parts: [model(r.root + file + '.glb', family, r.phone)], def: { file: Z, line, list }, haunts: hauntsOf(id),
+        refs: id.length > 2 ? findRefs(quoted(id), [`${Z}:${line}`]) : [] });
+    }
+  };
+  dead('grotesques', 'GROTESQUES', 'grotesques', 'GROTESQUE_ROOT', 'templates/models/creatures/grotesques/', (id) => id);
+  dead('monsters', 'MONSTERS', 'monsters', 'MONSTER_ROOT', 'templates/models/creatures/monsters/', (id) => id);
+  dead('zombies', 'VARIANTS', 'variants', 'ROOT', 'templates/models/creatures/zombie/', (id) => 'zombie_' + id);
+
+  const foes = fc.FOES?.value;
+  if (S.code.has(F) && (!foes || typeof foes !== 'object')) S.notes.push(`Couldn't read FOES in ${F}.`);
+  const fr = root(fc, 'ROOT', 'templates/models/creatures/foes/'), vr = root(fc, 'VILLAGERS', 'templates/models/creatures/villagers/');
+  const armorRoot = typeof fc.ARMOR?.value === 'string' ? fc.ARMOR.value : 'templates/models/armor/';
+  const foesOn = /foes\.load\(/.test(mText), swornOn = /loadSworn\(/.test(mText);
+  for (const [id, d] of Object.entries(foes || {})) {
+    if (!d || typeof d !== 'object' || d.sym) continue;
+    const line = defLine(fc.FOES, new RegExp(`\\b${id}\\s*:`)), b = d.body;
+    const parts = b ? [model(vr.root + b.villager + '.glb', 'sworn', vr.phone), model(`${armorRoot}${b.armor}/${b.armor}_${b.sex}.glb`, 'sworn', '')]
+      : [model(fr.root + id + '.glb', 'foes', fr.phone)];
+    addEnemy({ id, gameId: id, family: b ? 'sworn' : 'foes', kind: d.kind, title: d.title || pretty(id), status: (b ? swornOn : foesOn) ? 'active' : 'unknown',
+      parts, def: { file: F, line, list: 'FOES' }, d, composite: !!b, hide: b && b.helm === false ? 'helm' : null, finish: [d.finish ?? ''].flat(), R: d.R || [], L: d.L || [],
+      refs: findRefs(quoted(id), [`${F}:${line}`]) });
+  }
+
+  // creature models nothing above claims (villagers are townsfolk, not foes): ones the code loads by
+  // path (an animation library, say) under the constant that holds the path, the rest as not in game
+  for (const p of S.files.keys()) {
+    if (!/^templates\/models\/creatures\/.+\.glb$/i.test(p) || /\/phone\//.test(p) || S.models.has(p)) continue;
+    const folder = p.split('/')[3];
+    if (folder === 'villagers') continue;
+    const id = stem(p), refs = findRefs([p, '/' + base(p), `'${base(p)}`, `\`${base(p)}`]);
+    const live = refs.filter((r) => !r.comment);
+    const hit = live.find((r) => /const\s+[\w$]+\s*=\s*['"`]/.test(linesOf(r.file)[r.line - 1]));
+    const k = hit && /const\s+([\w$]+)/.exec(linesOf(hit.file)[hit.line - 1]);
+    const fam = live.length ? 'library' : 'wip', key = S.enemies.has(id) ? folder + '/' + id : id;
+    addEnemy({ id: key, gameId: k ? k[1] : null, family: fam, title: live.length ? `${folder}/${base(p)}` : pretty(id), status: live.length ? 'active' : 'wip',
+      parts: [model(p, fam)], folder, refs, def: hit ? { file: hit.file, line: hit.line, list: 'const' } : null });
+  }
+
+  // 2D sprite creatures
+  for (const [id, c] of Object.entries(S.creatureIndex)) {
+    const def = S.creatureDefs[id] || {}, d = dir(c.path);
+    const gifs = [...S.files.keys()].filter((p) => p.startsWith(d + '/preview/') && /\.gif$/i.test(p));
+    const order = Object.keys(def.anims || {});
+    gifs.sort((a, b) => (order.indexOf(stem(a)) + 1 || 99) - (order.indexOf(stem(b)) + 1 || 99));
+    const refs = findRefs([...quoted(id), 'creatures/' + id]).filter((r) => r.file.startsWith('src/fps/'));
+    const sp = { id, name: c.name || pretty(id), tier: c.tier, path: c.path, def, gifs, pages: (def.pages || []).map((n) => d + '/' + n), refs };
+    S.sprites.push(sp);
+    addEnemy({ id: 'sprite:' + id, gameId: id, family: 'sprites', title: sp.name, status: refs.length ? 'active' : 'unused', sprite: sp, refs, def: { file: 'assets/creatures/index.json', list: 'index.json' } });
+  }
+
+  // weapons and shields the foes carry, through the item manifest
+  const items = S.manifest ? Object.entries(S.manifest.items || {}).flatMap(([cat, list]) => list.map((x) => ({ ...x, cat }))) : [];
+  const itemRoot = typeof fc.ITEM_ROOT?.value === 'string' ? fc.ITEM_ROOT.value : 'templates/models/';
+  for (const e of S.enemies.values()) for (const hand of ['R', 'L']) for (const id of e[hand] || []) {
+    let g = S.gear.get(id);
+    if (!g) {
+      const it = items.find((x) => x.id === id), path = it ? itemRoot + it.path : null;
+      g = { id, name: it?.name || pretty(id), cat: it?.cat || 'not in manifest', path, item: it, carriers: [], finishes: new Set(), missing: !it || !S.files.has(path) };
+      g.tex = path ? [dir(path) + '/' + id + '_texture.png', dir(path) + '/' + id + '_sheet.png'].find((p) => S.files.has(p)) : null;
+      g.variants = it?.variants ? Object.fromEntries(Object.entries(it.variants).map(([k, v]) => [k, itemRoot + v])) : {};
+      const f = path && S.files.get(path);
+      g.model = f ? { path, file: base(path), stem: id, family: 'gear', size: f.size, sha: f.sha, phone: null, users: [], head: null } : null;
+      S.gear.set(id, g);
+    }
+    if (!g.carriers.some((c) => c.enemy === e && c.hand === hand)) g.carriers.push({ enemy: e, hand });
+    for (const f of e.finish || ['']) g.finishes.add(f);
+  }
+
+  // images: preview renders next to the enemy models, and the source art
+  const enemyDirs = new Set([...S.models.values()].map((m) => dir(m.path)));
+  const modelStems = (d) => [...S.models.values()].filter((m) => dir(m.path) === d).map((m) => m.stem);
+  const foreign = (d) => [...S.files.keys()].some((p) => dir(p) === d && /\.glb$/i.test(p) && !S.models.has(p));
+  for (const p of S.files.keys()) {
+    if (!IMG.test(p) || /\/phone\//.test(p)) continue;
+    const d = dir(p), up = dir(d);
+    if (enemyDirs.has(d)) { if (!modelStems(d).includes(stem(p))) S.renders.push(p); continue; }   // (same name as a model: its texture)
+    if (base(d) === 'preview' && enemyDirs.has(up)) {
+      if (!foreign(up) || modelStems(up).some((s) => stem(p).includes(s))) S.renders.push(p);
+    }
+  }
+  S.art = [...S.files.keys()].filter((p) => p.startsWith('art/creatures/') && IMG.test(p));
+
+  // the build tools
+  const tools = new Map();
+  for (const p of S.files.keys()) {
+    if (!p.startsWith('tools/creatures/')) continue;
+    const seg = p.split('/')[2], isDir = p.split('/').length > 3;
+    const t = tools.get(seg) || { name: seg, dir: isDir, files: [] };
+    t.files.push(p); tools.set(seg, t);
+  }
+  S.tools = [...tools.values()].sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name));
+}
+
+// model headers: what's inside each .glb (images, clips, triangles), read from its JSON chunk only
+async function readHeader(path, sha) {
+  const ck = 'h:' + path + ':' + (sha || '');
+  const c = store.get(ck);
+  if (c?.v === 2) return c;
+  const first = await S.src.range(path, 0, 65536);
+  const dv = new DataView(first.buffer, first.byteOffset, first.byteLength);
+  if (first.length < 20 || dv.getUint32(0, true) !== 0x46546C67) throw new Error('not a binary glTF');
+  const jl = dv.getUint32(12, true);
+  let jb = first.subarray(20, 20 + jl);
+  if (jb.length < jl) { const rest = await S.src.range(path, first.length, 20 + jl); const all = new Uint8Array(jl); all.set(jb); all.set(rest, jb.length); jb = all; }
+  const j = JSON.parse(new TextDecoder().decode(jb));
+  const bin = 20 + jl + 8, acc = j.accessors || [], bvs = j.bufferViews || [], texs = j.textures || [];
+  const roles = new Map(), mats = new Map();
+  const src = (ti) => { const t = texs[ti]; if (!t) return null; return t.source ?? t.extensions?.EXT_texture_webp?.source ?? t.extensions?.KHR_texture_basisu?.source ?? null; };
+  const tag = (info, role, mat) => {
+    if (!info || info.index == null) return; const s = src(info.index); if (s == null) return;
+    (roles.get(s) || roles.set(s, new Set()).get(s)).add(role); (mats.get(s) || mats.set(s, new Set()).get(s)).add(mat);
+  };
+  const matNames = (j.materials || []).map((mt, i) => {
+    const name = mt.name || 'material_' + i, p = mt.pbrMetallicRoughness || {};
+    tag(p.baseColorTexture, 'color', name); tag(p.metallicRoughnessTexture, 'metal/rough', name); tag(mt.normalTexture, 'normal', name);
+    tag(mt.occlusionTexture, 'occlusion', name); tag(mt.emissiveTexture, 'emissive', name);
+    for (const ext of Object.values(mt.extensions || {})) for (const [k, v] of Object.entries(ext || {})) if (v && typeof v === 'object' && 'index' in v) tag(v, k.replace(/Texture$/, ''), name);
+    return name;
+  });
+  const images = (j.images || []).map((im, i) => {
+    const bv = im.bufferView != null ? bvs[im.bufferView] : null;
+    return { name: im.name || (im.uri ? stem(im.uri) : 'image_' + i), mime: im.mimeType || (im.uri && /\.jpe?g$/i.test(im.uri) ? 'image/jpeg' : 'image/png'),
+      off: bv ? bin + (bv.byteOffset || 0) : null, len: bv ? bv.byteLength : null, uri: im.uri && !im.uri.startsWith('data:') ? im.uri : null,
+      roles: [...(roles.get(i) || [])], mats: [...(mats.get(i) || [])] };
+  });
+  let tris = 0, verts = 0;
+  for (const mesh of j.meshes || []) for (const p of mesh.primitives || []) {
+    const pos = acc[p.attributes?.POSITION]; verts += pos?.count || 0;
+    if ((p.mode ?? 4) === 4) tris += Math.floor(((p.indices != null ? acc[p.indices]?.count : pos?.count) || 0) / 3);
+  }
+  const clips = (j.animations || []).map((a) => ({ name: a.name || '', dur: Math.max(0, ...(a.samplers || []).map((s) => acc[s.input]?.max?.[0] || 0)) }));
+  const ex = j.scenes?.[j.scene || 0]?.extras || {};
+  let sockets = [];
+  try { if (ex.foe) sockets = Object.keys(JSON.parse(ex.foe).sockets || {}); } catch { }
+  const h = { v: 2, images, mats: matNames, tris, verts, bones: Math.max(0, ...(j.skins || []).map((s) => s.joints?.length || 0)), clips,
+    meshes: (j.meshes || []).map((m) => m.name || ''), nodes: (j.nodes || []).length, ext: j.extensionsUsed || [], gen: j.asset?.generator || '', sockets, extras: Object.keys(ex), json: jl };
+  store.set(ck, h);
+  return h;
+}
+
+async function readHeaders(gen) {
+  const rank = (m) => m.users.some((e) => e.status === 'active') ? 0 : 1;
+  const ms = [...S.models.values()].filter((m) => !m.missing).sort((a, b) => rank(a) - rank(b));
+  const jobs = [...ms.map((m) => ({ m, phone: false })), ...ms.filter((m) => m.phone).map((m) => ({ m, phone: true }))];
+  S.headersTotal = jobs.length; S.headersDone = 0;
+  const tick = () => setStatus(`${S.src.label} · reading models ${S.headersDone}/${S.headersTotal}`, false, S.headersDone / Math.max(1, S.headersTotal));
+  tick();
+  await pool(jobs, 4, async (job) => {
+    if (gen !== loadGen) return;
+    const p = job.phone ? job.m.phone : job.m.path, sha = job.phone ? job.m.phoneSha : job.m.sha;
+    try { const h = await readHeader(p, sha); if (job.phone) job.m.phoneHead = h; else job.m.head = h; } catch (e) { if (!job.phone) job.m.headErr = e.message; console.warn(p, e); }
+    S.headersDone++; tick(); if (!job.phone) soon();
+  });
+  if (gen !== loadGen) return;
+  derive(); renderNav(); render();
+  const total = [...S.models.values()].reduce((s, m) => s + (m.size || 0) + (m.phoneSize || 0), 0);
+  setStatus(`${S.src.label} · ${plural(S.enemies.size, 'enemy', 'enemies')} · ${plural(S.models.size, 'model')} (${kb(total)})${S.src.kind === 'github' && !S.src.rangeOK ? ' · no range requests, full downloads' : ''}`);
+}
+let soonT = 0;
+function soon() {
+  if (soonT) return;
+  soonT = setTimeout(() => { soonT = 0; derive(); renderNav(); if (['models', 'textures', 'clips'].includes(UI.section)) render(true); }, 700);
+}
+
+// textures and clip sets come out of the model headers
+function derive() {
+  S.textures = new Map();
+  for (const m of S.models.values()) {
+    for (const im of m.head?.images || []) {
+      const key = m.family + '|' + im.name;
+      let t = S.textures.get(key);
+      if (!t) {
+        t = { key, name: im.name, family: m.family, mime: im.mime, roles: new Set(), mats: new Set(), uses: [], file: null };
+        S.textures.set(key, t);
+      }
+      im.roles.forEach((r) => t.roles.add(r)); im.mats.forEach((r) => t.mats.add(r));
+      t.uses.push({ m, im });
+      t.file ||= ['.png', '.jpg', '.webp'].map((x) => dir(m.path) + '/' + im.name + x).find((p) => S.files.has(p)) || null;
+    }
+  }
+  const sets = new Map();
+  for (const m of S.models.values()) {
+    const h = m.head; if (!h?.clips.length) continue;
+    const sig = h.clips.map((c) => c.name).sort().join('|');
+    let s = sets.get(sig); if (!s) sets.set(sig, s = { sig, clips: h.clips.slice().sort((a, b) => a.name.localeCompare(b.name)), models: [] });
+    s.models.push(m);
+  }
+  S.clipsets = [...sets.values()].sort((a, b) => b.models.length - a.models.length || b.clips.length - a.clips.length);
+  for (const s of S.clipsets) for (const c of s.clips) if (!S.clipUsed.has(c.name)) S.clipUsed.set(c.name, quoted(c.name).some((q) => S.allCode.includes(q)));
+}
+
+// ============================================================== images out of models (range reads)
+const imgURLs = new Map();
+function modelImageURL(m, im, phone = false) {
+  const path = phone ? m.phone : m.path, key = path + '#' + im.name;
+  if (!imgURLs.has(key)) imgURLs.set(key, (async () => {
+    if (im.off == null) return im.uri ? S.src.url(dir(path) + '/' + im.uri) : '';
+    const bytes = await S.src.range(path, im.off, im.off + im.len);
+    return URL.createObjectURL(new Blob([bytes], { type: im.mime }));
+  })());
+  return imgURLs.get(key);
+}
+// a texture's thumbnail: its own file if it has one, else the phone copy's (smaller) bytes, else the full model's
+function texThumbURL(t) {
+  if (t.file) return Promise.resolve(S.src.url(t.file));
+  for (const u of t.uses) { const ph = u.m.phoneHead?.images.find((x) => x.name === u.im.name); if (ph) return modelImageURL(u.m, ph, true); }
+  return modelImageURL(t.uses[0].m, t.uses[0].im);
+}
+function texFullURL(t) { return t.file ? Promise.resolve(S.src.url(t.file)) : modelImageURL(t.uses[0].m, t.uses[0].im); }
+
+// ============================================================== 3D thumbnails
+const P = { q: [], busy: false, parts: new Map() };
+const portraitKey = (parts, hide) => parts.map((m) => (m.phone || m.path) + '@' + ((m.phone ? m.phoneSha : m.sha) || '')).join('+') + (hide ? '-' + hide : '');
+function portraitImg(parts, label = '', hide = null) {
+  if (!parts.length || parts.some((m) => m.missing)) return `<div class="ph">${esc(label)}</div>`;
+  const key = portraitKey(parts, hide); P.parts.set(key, { parts, hide });
+  return `<div class="ph">${esc(label)}</div><img data-portrait="${esc(key)}" alt=""><div class="spin"></div>`;
+}
+function requestPortrait(img) {
+  const key = img.dataset.portrait, c = P.mem?.get(key) || store.get('p2:' + key);
+  if (c) { img.src = c; (P.mem ||= new Map()).set(key, c); return; }
+  if (!UI.thumbs) { img.nextElementSibling?.remove(); return; }
+  P.q.push(key); pump();
+}
+async function pump() {
+  if (P.busy) return; P.busy = true;
+  while (P.q.length) {
+    const key = P.q.shift();
+    if (P.mem?.has(key)) { fillPortraits(key); continue; }
+    const imgs = document.querySelectorAll(`img[data-portrait="${CSS.escape(key)}"]`);
+    if (!imgs.length) continue;
+    try {
+      const { parts, hide } = P.parts.get(key);
+      const url = await renderPortrait(parts, hide);
+      (P.mem ||= new Map()).set(key, url); if (url) store.set('p2:' + key, url);
+    } catch (e) { console.warn('thumbnail', key, e); (P.mem ||= new Map()).set(key, ''); }
+    fillPortraits(key);
+  }
+  P.busy = false;
+}
+function fillPortraits(key) {
+  const url = P.mem.get(key);
+  document.querySelectorAll(`img[data-portrait="${CSS.escape(key)}"]`).forEach((i) => { if (url) i.src = url; else i.nextElementSibling?.remove(); });
+}
+
+function stageLights(scene, renderer) {
+  const { THREE, RoomEnvironment } = T;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.45;
+  scene.add(new THREE.HemisphereLight(0xe8e0d0, 0x2a2228, 1.3));
+  const key = new THREE.DirectionalLight(0xfff1dc, 2.4); key.position.set(2.5, 4, 3.5); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x9fb4ff, 1.1); rim.position.set(-3, 2.5, -3); scene.add(rim);
+}
+// put several glTFs together: the first is the body, the rest (armour) ride its bones by name;
+// `hide` names meshes of the extra parts to leave off (the helm, for a bareheaded adept)
+function assemble(gltfs, hide = null) {
+  const { THREE } = T;
+  const root = new THREE.Group(), bones = {};
+  gltfs[0].scene.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  gltfs.forEach((g, i) => {
+    root.add(g.scene);
+    g.scene.traverse((o) => {
+      if (i > 0 && hide && o.isMesh && o.name.toLowerCase().includes(hide)) o.visible = false;
+      if (!o.isSkinnedMesh) return;
+      o.frustumCulled = false;
+      if (i > 0 && Object.keys(bones).length) {
+        const nb = o.skeleton.bones.map((b) => bones[b.name] || b);
+        o.bind(new THREE.Skeleton(nb, o.skeleton.boneInverses), o.bindMatrix);
+      }
+    });
+  });
+  return root;
+}
+// turn a body to face the camera (+z): its feet point the way it faces (a foot bone runs to its toe
+// child, or along its own +y when it has none), snapped to a quarter turn
+function faceCamera(root) {
+  const { THREE } = T, f = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3();
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    if (!o.isBone || !/foot/i.test(o.name) || /ik/i.test(o.name)) return;
+    const kid = o.children.find((c) => c.isBone);
+    if (kid) { kid.getWorldPosition(b); o.getWorldPosition(a); b.sub(a); } else b.set(0, 1, 0).transformDirection(o.matrixWorld);
+    b.y = 0; if (b.lengthSq() > 1e-10) f.add(b.normalize());
+  });
+  if (f.lengthSq() < 0.01) return;
+  root.rotation.y = -Math.round(Math.atan2(f.x, f.z) / (Math.PI / 2)) * (Math.PI / 2);
+  root.updateMatrixWorld(true);
+}
+const pickIdle = (clips) => clips.find((c) => /^idle$/i.test(c.name)) || clips.find((c) => /idle/i.test(c.name) && !/tpose/i.test(c.name)) || clips.find((c) => !/tpose/i.test(c.name)) || null;
+function bounds(root) {
+  const { THREE } = T;
+  root.updateMatrixWorld(true);
+  root.traverse((o) => { if (o.isSkinnedMesh) { o.skeleton.update(); o.computeBoundingBox(); } });
+  return new THREE.Box3().setFromObject(root);
+}
+function aim(cam, box, az = 0.42, fill = 0.9) {
+  const { THREE } = T;
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  if (size.x < size.z * 0.6) az = Math.PI / 2 - az;   // flat across x (a blade, a shield): look at its face, not its edge
+  const t = Math.tan((cam.fov * Math.PI / 180) / 2), wid = Math.max(size.x, size.z, 0.01);
+  const d = Math.max(size.y / fill / 2 / t, wid / fill / 2 / t / cam.aspect) + wid / 2;
+  cam.position.set(c.x + Math.sin(az) * d, c.y + size.y * 0.06, c.z + Math.cos(az) * d);
+  cam.near = d / 200; cam.far = d * 20; cam.updateProjectionMatrix(); cam.lookAt(c);
+  return { c, d, size };
+}
+function disposeAll(root) {
+  root.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    for (const m of [o.material].flat()) {
+      if (!m) continue;
+      for (const v of Object.values(m)) if (v?.isTexture) v.dispose();
+      m.dispose();
+    }
+  });
+}
+async function renderPortrait(parts, hide) {
+  const { THREE, GLTFLoader } = await three();
+  if (!P.r) {
+    P.r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); P.r.setPixelRatio(1); P.r.setSize(240, 300);
+    P.scene = new THREE.Scene(); P.scene.background = new THREE.Color(0x19141c); stageLights(P.scene, P.r);
+    P.cam = new THREE.PerspectiveCamera(30, 240 / 300, 0.01, 100); P.loader = new GLTFLoader();
+  }
+  const gltfs = await Promise.all(parts.map((m) => P.loader.loadAsync(S.src.url(m.phone || m.path))));
+  const root = assemble(gltfs, hide);
+  if (parts[0].family === 'gear') root.traverse((o) => { if (o.isMesh && o.material.map) o.material.map.magFilter = THREE.NearestFilter; });
+  P.scene.add(root);
+  try {
+    const clip = pickIdle(gltfs[0].animations);
+    if (clip) { const mx = new THREE.AnimationMixer(root); mx.clipAction(clip).play(); mx.update(Math.min(0.5, clip.duration * 0.3)); }
+    faceCamera(root);
+    let box = bounds(root);
+    if (box.isEmpty()) return '';
+    if (Math.abs(box.min.y) > 0.02 * (box.max.y - box.min.y)) { root.position.y -= box.min.y; box = bounds(root); }
+    aim(P.cam, box);
+    P.r.render(P.scene, P.cam);
+    return P.r.domElement.toDataURL('image/jpeg', 0.84);
+  } finally { P.scene.remove(root); disposeAll(root); }
+}
+
+// ============================================================== the 3D viewer
+const V = { token: 0 };
+async function viewerInit() {
+  if (V.r) return;
+  const { THREE, OrbitControls, GLTFLoader } = await three();
+  const host = $('#stage');
+  V.r = new THREE.WebGLRenderer({ antialias: true }); V.r.setPixelRatio(Math.min(devicePixelRatio, 2));
+  host.prepend(V.r.domElement);
+  V.scene = new THREE.Scene(); V.scene.background = new THREE.Color(0x141117); stageLights(V.scene, V.r);
+  V.grid = new THREE.GridHelper(10, 10, 0x8a7448, 0x2e2733); V.grid.material.transparent = true; V.grid.material.opacity = 0.8; V.scene.add(V.grid);
+  V.cam = new THREE.PerspectiveCamera(32, 1, 0.01, 500);
+  V.ctl = new OrbitControls(V.cam, V.r.domElement); V.ctl.enableDamping = true;
+  V.clock = new THREE.Clock(); V.speed = 1; V.playing = true; V.loader = new GLTFLoader();
+  const fit = () => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; V.r.setSize(w, h, false); V.cam.aspect = w / h; V.cam.updateProjectionMatrix(); };
+  new ResizeObserver(fit).observe(host); fit();
+  V.r.setAnimationLoop(() => {
+    if (!$('#detail').open || !V.root) return;
+    const dt = Math.min(V.clock.getDelta(), 0.1);
+    if (V.mixer && V.playing) V.mixer.update(dt * V.speed);
+    V.ctl.update(); V.r.render(V.scene, V.cam);
+  });
+}
+function viewerClear() {
+  if (V.root) { V.scene.remove(V.root); disposeAll(V.root); V.root = null; }
+  if (V.skel) { V.scene.remove(V.skel); V.skel = null; }
+  V.mixer = null; V.action = null; V.clips = []; V.clip = null;
+}
+async function viewerShow(parts, { clip, phone = false, finish = null, hide = D.hide } = {}) {
+  const token = ++V.token;
+  $('#stage canvas')?.removeAttribute('hidden'); $('#stageImg').hidden = true;
+  $('#vmsg').textContent = 'Loading model…'; $('#vinfo').textContent = '';
+  try {
+    await viewerInit();
+    const { THREE } = T;
+    viewerClear();
+    const urls = parts.map((m) => S.src.url(phone && m.phone ? m.phone : m.path));
+    const gltfs = await Promise.all(urls.map((u) => V.loader.loadAsync(u)));
+    if (token !== V.token) { gltfs.forEach((g) => disposeAll(g.scene)); return; }
+    V.root = assemble(gltfs, hide); V.scene.add(V.root);
+    if (finish) {
+      const tex = await new THREE.TextureLoader().loadAsync(S.src.url(finish));
+      tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
+      V.root.traverse((o) => { if (o.isMesh) for (const m of [o.material].flat()) { m.map = tex; m.needsUpdate = true; } });
+    } else if (parts[0]?.family === 'gear' || V.pixel) {
+      V.root.traverse((o) => { if (o.isMesh && o.material.map) { o.material.map.magFilter = THREE.NearestFilter; o.material.map.needsUpdate = true; } });
+    }
+    V.clips = gltfs[0].animations; V.mixer = V.clips.length ? new THREE.AnimationMixer(V.root) : null;
+    const first = (clip && V.clips.find((c) => c.name === clip)) || pickIdle(V.clips);
+    if (first) { V.mixer.clipAction(first).play(); V.mixer.update(0.001); V.action = V.mixer.existingAction(first); V.clip = first.name; }
+    faceCamera(V.root);
+    let box = bounds(V.root);
+    if (box.isEmpty()) throw new Error('nothing visible in this file');
+    if (Math.abs(box.min.y) > 0.02 * (box.max.y - box.min.y)) { V.root.position.y -= box.min.y; box = bounds(V.root); }
+    const { c, size } = aim(V.cam, box, 0.5, 0.82);
+    V.ctl.target.copy(c); V.ctl.update(); V.home = { pos: V.cam.position.clone(), target: c.clone() };
+    const big = Math.max(size.x, size.y, size.z); V.grid.scale.setScalar(big > 6 ? Math.ceil(big / 5) : big < 0.6 ? 0.1 : 1);
+    if (V.wire) setWire(true); if (V.bones) setBones(true);
+    V.clock.getDelta(); V.playing = true;
+    $('#vmsg').textContent = '';
+    $('#vinfo').innerHTML = `${size.y.toFixed(2)} m tall · ${size.x.toFixed(2)} × ${size.z.toFixed(2)} m footprint${phone ? ' · phone copy' : ''}`;
+    syncClipButtons(); syncBar();
+  } catch (e) {
+    if (token !== V.token) return;
+    console.error(e);
+    $('#vmsg').innerHTML = `<span style="color:var(--bad)">Couldn't load the model.</span><br>${esc(e.message || e)}`;
+  }
+}
+function viewerPlay(name) {
+  if (!V.mixer) return;
+  const clip = V.clips.find((c) => c.name === name); if (!clip) return;
+  const a = V.mixer.clipAction(clip);
+  if (V.action && V.action !== a) V.action.fadeOut(0.18);
+  a.reset().setEffectiveWeight(1).fadeIn(0.18).play(); V.action = a; V.clip = name; V.playing = true;
+  syncClipButtons(); syncBar();
+}
+function setWire(on) { V.wire = on; V.root?.traverse((o) => { if (o.isMesh) for (const m of [o.material].flat()) m.wireframe = on; }); }
+function setBones(on) {
+  V.bones = on;
+  if (V.skel) { V.scene.remove(V.skel); V.skel = null; }
+  if (on && V.root) { V.skel = new T.THREE.SkeletonHelper(V.root); V.scene.add(V.skel); }
+}
+function syncClipButtons() { document.querySelectorAll('#info [data-act="play"]').forEach((b) => b.classList.toggle('on', b.dataset.v === V.clip)); }
+function syncBar() {
+  const b = $('#vbar'); if (!b || !D.parts) return;
+  const ph = D.parts.some((m) => m.phone);
+  const finishes = D.gear ? Object.keys(D.gear.variants || {}) : [];
+  b.innerHTML = `${V.mixer ? `<button data-act="pause">${V.playing ? '❚❚ Pause' : '▶ Play'}</button>
+      <select data-act="speed" aria-label="Speed">${[0.25, 0.5, 1, 1.5, 2].map((s) => `<option value="${s}"${s === V.speed ? ' selected' : ''}>${s}×</option>`).join('')}</select>` : ''}
+    ${finishes.length ? `<select data-act="finish" aria-label="Finish"><option value="">base texture</option>${finishes.map((f) => `<option value="${esc(f)}"${f === D.finish ? ' selected' : ''}>${esc(f)}</option>`).join('')}</select>` : ''}
+    <span class="grow"></span>
+    ${ph ? `<button data-act="phone" class="${D.phone ? 'on' : ''}" title="The smaller copy phones load">Phone copy</button>` : ''}
+    <button data-act="wire" class="${V.wire ? 'on' : ''}">Wireframe</button>
+    ${V.root && D.parts.some((m) => m.head?.bones) ? `<button data-act="bones" class="${V.bones ? 'on' : ''}">Bones</button>` : ''}
+    <button data-act="home" title="Reset the view">⟲</button>`;
+}
+
+// ============================================================== rendering: nav + sections
+const SECTIONS = [
+  { id: 'enemies', title: 'Enemies', count: () => S.enemies.size },
+  { id: 'models', title: '3D models', count: () => S.models.size },
+  { id: 'textures', title: 'Textures', count: () => S.headersDone < S.headersTotal && !S.textures.size ? '…' : S.textures.size },
+  { id: 'clips', title: 'Animations', count: () => S.clipUsed.size || (S.headersTotal && S.headersDone < S.headersTotal ? '…' : 0) },
+  { id: 'gear', title: 'Weapons & shields', count: () => S.gear.size },
+  { id: 'sprites', title: '2D sprites', count: () => S.sprites.length },
+  { id: 'renders', title: 'Preview renders', count: () => S.renders.length },
+  { id: 'art', title: 'Source art', count: () => S.art.length },
+  { id: 'tools', title: 'Build tools', count: () => S.tools.length },
+];
+function renderNav() {
+  $('#nav').innerHTML = SECTIONS.map((s) => `<button data-act="nav" data-v="${s.id}" class="${s.id === UI.section ? 'on' : ''}">${s.title}<span class="n">${S ? esc(s.count()) : ''}</span></button>`).join('')
+    + `<div class="sep"></div><label title="Render a small 3D picture of each model (downloads the phone copies once, then remembers them)"><input type="checkbox" data-act="thumbs" ${UI.thumbs ? 'checked' : ''}> 3D thumbnails</label>`;
+}
+const match = (...fields) => !UI.q || fields.flat(3).some((f) => f != null && String(f).toLowerCase().includes(UI.q));
+function render(keepScroll = false) {
+  if (!S) return;
+  const y = window.scrollY;
+  const s = SECTIONS.find((x) => x.id === UI.section) || SECTIONS[0];
+  $('#tools').innerHTML = UI.section === 'textures' ? `<span class="seg">${['all', 'color', 'normal', 'emissive', 'other'].map((r) => `<button data-act="texrole" data-v="${r}" class="${UI.texRole === r ? 'on' : ''}">${r === 'all' ? 'All' : r === 'color' ? 'Base colour' : r === 'other' ? 'Other maps' : pretty(r)}</button>`).join('')}</span>` : '';
+  const html = ({ enemies, models, textures, clips, gear, sprites, renders, art, tools })[s.id]();
+  $('#view').innerHTML = html;
+  if (S.notes.length && s.id === 'enemies') $('#view').insertAdjacentHTML('afterbegin', `<div class="note">${S.notes.map(esc).join('<br>')}</div>`);
+  hydrate($('#view'));
+  if (keepScroll) window.scrollTo(0, y);
+}
+function head(title, n, blurb) { return `<div class="sec-h"><h2>${esc(title)}</h2><span class="n">${esc(n)}</span></div><p class="blurb">${blurb}</p>`; }
+const pill = (st) => `<span class="pill ${st}">${esc(STATUS[st] || st)}</span>`;
+const idChip = (id) => id == null ? '' : `<span class="id" data-act="copy" data-v="${esc(id)}" title="Copy">${esc(id)}</span>`;
+const loadingNote = () => S.headersDone < S.headersTotal ? `<div class="note">Reading what's inside the models… ${S.headersDone}/${S.headersTotal}. This list fills in as they arrive.</div>` : '';
+function refLink(file, line, label) {
+  const w = S.src.web(file, line), t = esc(label || `${base(file)}${line ? ':' + line : ''}`);
+  return w ? `<a href="${esc(w)}" target="_blank" rel="noopener">${t}</a>` : `<code>${t}</code>`;
+}
+const fileLinks = (p) => { const w = S.src.web(p); return `<a href="${esc(S.src.url(p))}" target="_blank" rel="noopener" download="${esc(base(p))}">file</a>${w ? ` · <a href="${esc(w)}" target="_blank" rel="noopener">GitHub</a>` : ''}`; };
+function groupBy(list, key) { const m = new Map(); for (const x of list) { const k = key(x); (m.get(k) || m.set(k, []).get(k)).push(x); } return m; }
+
+function enemyThumb(e) {
+  if (e.sprite) { const g = e.sprite.gifs.find((p) => /walk|idle/.test(p)) || e.sprite.gifs[0]; return g ? `<img data-img="${esc(g)}" alt="" style="object-fit:contain;image-rendering:pixelated">` : '<div class="ph">2D</div>'; }
+  return portraitImg(e.parts, (e.gameId || e.id).slice(0, 2).toUpperCase(), e.hide);
+}
+function enemyCard(e) {
+  const h = e.parts[0]?.head;
+  const where = e.haunts?.length ? e.haunts.slice(0, 3).map((x) => `<span class="chip" title="${esc(x.label)}">${esc(x.key)}${x.n > 1 ? ' ×' + x.n : ''}</span>`).join('') + (e.haunts.length > 3 ? `<span class="chip">+${e.haunts.length - 3}</span>` : '')
+    : e.refs?.filter((r) => !r.comment).length ? `<span class="chip" title="Lines of game code that name it">${plural(e.refs.filter((r) => !r.comment).length, 'code ref')}</span>` : '';
+  return `<div class="card" data-act="enemy" data-v="${esc(e.id)}">
+    <div class="thumb">${e.missing ? `<span class="tag">${pill('missing')}</span>` : ''}${enemyThumb(e)}</div>
+    <div class="body"><h3>${esc(e.title)}</h3><div>${idChip(e.gameId ?? e.id)}</div>
+      <div class="chips">${pill(e.status)}${e.kind ? `<span class="chip">${esc(e.kind)}</span>` : ''}${h ? `<span class="chip">${plural(h.clips.length, 'clip')}</span>` : ''}${where}</div></div></div>`;
+}
+function enemies() {
+  const list = [...S.enemies.values()].filter((e) => match(e.id, e.gameId, e.title, e.kind, e.family, FAMILIES[e.family]?.label, e.status, e.parts.map((p) => p.path), e.haunts?.map((h) => h.key), e.R, e.L));
+  const all = [...S.enemies.values()];
+  const live = all.filter((e) => e.status === 'active').length;
+  const bytes = [...S.models.values()].reduce((s, m) => s + (m.size || 0) + (m.phoneSize || 0), 0);
+  let html = head('Enemies', S.enemies.size, `Every enemy the game defines, under the ID its code uses (click an ID to copy it). Click a card for its 3D model, clips, textures, gear and every line of code that names it. Read from <b>${esc(S.src.label)}</b>.`);
+  html += `<div class="tiles"><div class="tile"><b>${all.length}</b><span>enemies</span></div><div class="tile"><b>${live}</b><span>loaded by the game</span></div>
+    <div class="tile"><b>${S.models.size}</b><span>model files · ${kb(bytes)}</span></div><div class="tile"><b>${S.textures.size || '…'}</b><span>textures</span></div>
+    <div class="tile"><b>${S.clipsets.length || '…'}</b><span>clip sets (rigs)</span></div><div class="tile"><b>${S.gear.size}</b><span>weapons & shields carried</span></div></div>`;
+  const g = groupBy(list, (e) => e.family);
+  for (const fam of FAMILY_ORDER) {
+    const l = g.get(fam); if (!l?.length) continue;
+    html += `<div class="group-h"><b>${esc(FAMILIES[fam].label)}</b><span class="gn">${l.length}</span><span class="gb">${esc(FAMILIES[fam].blurb)}</span></div><div class="grid">${l.map(enemyCard).join('')}</div>`;
+  }
+  return list.length ? html : html + `<div class="empty">Nothing matches “${esc(UI.q)}”.</div>`;
+}
+
+function modelStats(m) {
+  const h = m.head;
+  if (m.missing) return `<div class="stats" style="color:var(--bad)">The game asks for this file, but it isn't in the repo.</div>`;
+  return `<div class="stats"><span><b>${kb(m.size)}</b>${m.phone ? ` · phone <b>${kb(m.phoneSize)}</b>` : ''}</span>
+    ${h ? `<span><b>${kn(h.tris)}</b> tris</span><span><b>${h.bones || 0}</b> bones</span><span><b>${h.clips.length}</b> clips</span><span><b>${h.images.length}</b> textures</span><span><b>${h.mats.length}</b> materials</span>`
+      : m.headErr ? `<span style="color:var(--bad)">${esc(m.headErr)}</span>` : '<span>reading…</span>'}</div>`;
+}
+function models() {
+  const list = [...S.models.values()].filter((m) => match(m.path, m.phone, m.users.map((e) => [e.id, e.gameId, e.title]), m.head?.mats, m.head?.images.map((i) => i.name)));
+  let html = head('3D models', S.models.size, 'Every .glb an enemy uses, with its phone copy (the smaller file phones load). The names under each file are the game IDs that load it. Click one to turn it round and play its clips.');
+  html += loadingNote();
+  const g = groupBy(list, (m) => dir(m.path));
+  for (const [d, l] of [...g].sort((a, b) => FAMILY_ORDER.indexOf(a[1][0].family) - FAMILY_ORDER.indexOf(b[1][0].family) || a[0].localeCompare(b[0]))) {
+    const size = l.reduce((s, m) => s + (m.size || 0) + (m.phoneSize || 0), 0);
+    html += `<div class="group-h"><b>${esc(d)}/</b><span class="gn">${l.length} · ${kb(size)}</span></div><div class="rows">`;
+    for (const m of l) {
+      const st = m.missing ? 'missing' : m.users.some((e) => e.status === 'active') ? 'active' : m.users[0]?.status || 'wip';
+      html += `<div class="card row" data-act="model" data-v="${esc(m.path)}"><div class="thumb">${portraitImg([m], m.stem.slice(0, 2).toUpperCase())}</div>
+        <div><h3>${esc(m.file)} ${pill(st)}</h3><div class="chips">${m.users.map((e) => idChip(e.gameId ?? e.id)).join(' ')}</div>
+        ${modelStats(m)}<div class="path" style="margin-top:4px">${esc(m.path)}</div></div></div>`;
+    }
+    html += '</div>';
+  }
+  return list.length ? html : html + `<div class="empty">Nothing matches “${esc(UI.q)}”.</div>`;
+}
+
+const ROLE = { color: 'base colour', normal: 'normal', emissive: 'glow', 'metal/rough': 'metal/rough', occlusion: 'occlusion' };
+function roleOf(t) {
+  const r = t.roles;
+  if (!r.size) return ['unbound'];
+  if (r.has('occlusion') && r.has('metal/rough')) return ['ORM', ...[...r].filter((x) => x !== 'occlusion' && x !== 'metal/rough').map((x) => ROLE[x] || x)];
+  return [...r].map((x) => ROLE[x] || x);
+}
+function textures() {
+  const want = (t) => UI.texRole === 'all' || (UI.texRole === 'other' ? ![...t.roles].some((r) => r === 'color' || r === 'normal' || r === 'emissive') : t.roles.has(UI.texRole));
+  const list = [...S.textures.values()].filter((t) => want(t) && match(t.name, t.file, [...t.mats], t.uses.map((u) => [u.m.path, u.m.users.map((e) => e.gameId)]), roleOf(t)));
+  let html = head('Textures', S.textures.size, 'The images inside each enemy model, under the name the model (and the game, which shares textures across models by name) gives them. Where a loose file of the same name sits next to the model, it\'s shown too. Click for full size.');
+  html += loadingNote();
+  const g = groupBy(list, (t) => t.family);
+  for (const fam of FAMILY_ORDER) {
+    const l = g.get(fam); if (!l?.length) continue;
+    html += `<div class="group-h"><b>${esc(FAMILIES[fam].label)}</b><span class="gn">${l.length}</span></div><div class="grid tex">`;
+    for (const t of l.sort((a, b) => a.name.localeCompare(b.name))) {
+      const u0 = t.uses[0], used = t.uses.length > 1 ? `${t.uses.length} models` : u0.m.file;
+      html += `<div class="card" data-act="tex" data-v="${esc(t.key)}"><div class="thumb sq chk"><img data-tex="${esc(t.key)}" alt=""><div class="spin"></div></div>
+        <div class="body"><h3 class="mono" style="font-size:12px">${esc(t.name)}</h3><div class="meta">${esc(used)} · ${kb(u0.im.len)} ${esc((u0.im.mime || '').replace('image/', ''))}</div>
+        <div class="chips">${roleOf(t).map((r) => `<span class="chip${r === 'base colour' ? ' gold' : ''}">${esc(r)}</span>`).join('')}${t.file ? `<span class="chip" title="${esc(t.file)}">+ ${esc(base(t.file))}</span>` : ''}</div></div></div>`;
+    }
+    html += '</div>';
+  }
+  if (!S.textures.size && S.headersDone >= S.headersTotal) return html + '<div class="empty">No textures found.</div>';
+  return list.length || !S.textures.size ? html : html + `<div class="empty">Nothing matches.</div>`;
+}
+
+function setLabel(s) {
+  if (s.models.length === 1) { const m = s.models[0], e = m.users[0]; return e && e.family !== 'wip' && e.family !== 'library' ? `${m.stem} (${e.composite ? 'body of ' + e.gameId : e.gameId ?? e.id})` : m.file; }
+  const by = groupBy(s.models, (m) => { const e = m.users[0]; return !e ? m.family : e.composite ? 'Sworn bodies' : e.kind ? e.kind + 's' : e.family; });
+  return [...by].map(([k, l]) => `${k} ×${l.length}`).join(' · ');
+}
+function clips() {
+  let html = head('Animations', `${S.clipUsed.size} clip names`, 'Clips grouped by the set of models that share them (one rig, one set). Gold clips are ones the game plays by name somewhere in its code. Click a clip to play it on that set\'s first model, or a model to open it.');
+  html += `<div class="legend"><span><i style="border-color:rgba(216,184,112,.5);background:var(--gold-bg)"></i>named in game code</span><span><i style="border-color:var(--edge)"></i>in the file only</span></div>`;
+  html += loadingNote();
+  let shown = 0;
+  S.clipsets.forEach((s, i) => {
+    const cl = s.clips.filter((c) => match(c.name, s.models.map((m) => [m.path, m.users.map((e) => e.gameId)])));
+    if (!cl.length) return; shown++;
+    const m0 = s.models[0];
+    html += `<div class="clipset"><h3>Set ${i + 1}: ${esc(setLabel(s))}</h3><div class="meta">${plural(s.clips.length, 'clip')} · ${plural(s.models.length, 'model')}</div>
+      <div class="who">${s.models.map((m) => `<span class="chip click" data-act="model" data-v="${esc(m.path)}">${esc(m.stem)}</span>`).join('')}</div>
+      <div class="clips">${cl.map((c) => `<span class="clip${S.clipUsed.get(c.name) ? ' used' : ''}" data-act="clip" data-v="${esc(m0.path + '|' + c.name)}">${esc(c.name)}<small>${c.dur.toFixed(2)}s</small></span>`).join('')}</div></div>`;
+  });
+  return shown || !S.clipsets.length ? html + (!S.clipsets.length && S.headersDone >= S.headersTotal ? '<div class="empty">No clips found.</div>' : '') : html + '<div class="empty">Nothing matches.</div>';
+}
+
+function gear() {
+  const list = [...S.gear.values()].filter((g) => match(g.id, g.name, g.cat, g.path, g.carriers.map((c) => c.enemy.gameId)));
+  let html = head('Weapons & shields', S.gear.size, 'What the foes and the Sworn carry: the FOES lists name items by their manifest ID (R: right hand, L: left), each drawn in that enemy\'s finish. Click to see it in 3D in each finish.');
+  const g = groupBy(list, (x) => x.cat);
+  for (const [cat, l] of [...g].sort((a, b) => a[0].localeCompare(b[0]))) {
+    html += `<div class="group-h"><b>${esc(pretty(cat))}</b><span class="gn">${l.length}</span></div><div class="grid">`;
+    for (const x of l.sort((a, b) => a.id.localeCompare(b.id))) {
+      const fins = [...x.finishes];
+      html += `<div class="card" data-act="gear" data-v="${esc(x.id)}"><div class="thumb sq">${x.missing ? `<span class="tag">${pill('missing')}</span>` : ''}${x.model ? portraitImg([x.model], x.id.slice(0, 2).toUpperCase()) : '<div class="ph">?</div>'}</div>
+        <div class="body"><h3>${esc(x.name)}</h3><div>${idChip(x.id)}</div>
+        <div class="chips">${x.carriers.slice(0, 6).map((c) => `<span class="chip">${esc(c.enemy.gameId)} ${c.hand}</span>`).join('')}${x.carriers.length > 6 ? `<span class="chip">+${x.carriers.length - 6}</span>` : ''}</div>
+        <div class="swatches">${fins.map((f) => !f || x.variants[f] ? `<span>${f ? `<img data-img="${esc(x.variants[f])}" alt="">` : ''}${esc(f || 'base')}</span>`
+          : `<span style="opacity:.5" title="No ${esc(f)} skin for this item: the game draws it in its base texture">${esc(f)} → base</span>`).join('')}</div></div></div>`;
+    }
+    html += '</div>';
+  }
+  return list.length ? html : html + `<div class="empty">${S.gear.size ? 'Nothing matches.' : 'No carried gear found (is templates/models/manifest.json there?).'}</div>`;
+}
+
+function sprites() {
+  const list = S.sprites.filter((s) => match(s.id, s.name, s.path, Object.keys(s.def.anims || {})));
+  let html = head('2D sprites', S.sprites.length, 'Sprite-sheet creatures in assets/creatures (index.json → creature.json → atlas pages). Their animations are 8-direction frames on an atlas; the GIFs are the pipeline\'s own previews.');
+  for (const s of list) {
+    const d = s.def, an = Object.entries(d.anims || {});
+    const secs = (a) => (a.frames || []).reduce((t, f) => t + (f.tics || 0), 0) / (d.tic_rate || 35);
+    html += `<div class="clipset" style="cursor:pointer" data-act="enemy" data-v="sprite:${esc(s.id)}"><h3>${esc(s.name)} ${idChip(s.id)} ${pill(s.refs.length ? 'active' : 'unused')}</h3>
+      <div class="meta">tier ${esc(s.tier)} · size class ${esc(d.size_class)} · ${esc(d.height_m)} m · ${esc(d.px_per_m)} px/m · ${esc(d.tic_rate)} tics/s · ${plural((d.pages || []).length, 'atlas page')} · <span class="path">${esc(s.path)}</span></div>
+      <div class="chips">${an.map(([k, a]) => `<span class="chip">${esc(k)} · ${(a.frames || []).length}f · ${secs(a).toFixed(2)}s${a.loop ? ' · loop' : ''}</span>`).join('')}</div>
+      <div class="gifs">${s.gifs.map((p) => `<figure data-act="img" data-v="${esc(p)}"><img data-img="${esc(p)}" alt=""><figcaption>${esc(stem(p))}</figcaption></figure>`).join('')}
+        ${s.pages.map((p) => `<figure data-act="img" data-v="${esc(p)}"><img data-img="${esc(p)}" alt=""><figcaption>${esc(base(p))}</figcaption></figure>`).join('')}</div></div>`;
+  }
+  return list.length ? html : html + `<div class="empty">${S.sprites.length ? 'Nothing matches.' : 'No assets/creatures/index.json on this branch.'}</div>`;
+}
+
+function imageGrid(paths, extra = () => '') {
+  return `<div class="grid wide">${paths.map((p) => `<div class="card" data-act="img" data-v="${esc(p)}"><div class="thumb wide fit"><img data-img="${esc(p)}" alt=""><div class="spin"></div></div>
+    <div class="body"><h3 class="mono" style="font-size:12px">${esc(base(p))}</h3><div class="meta">${kb(S.files.get(p)?.size)}</div>${extra(p)}</div></div>`).join('')}</div>`;
+}
+function renders() {
+  const list = S.renders.filter((p) => match(p));
+  let html = head('Preview renders', S.renders.length, 'Line-ups, turnarounds, in-game shots and review sheets saved beside the enemy models.');
+  for (const [d, l] of groupBy(list, dir)) html += `<div class="group-h"><b>${esc(d)}/</b><span class="gn">${l.length}</span></div>` + imageGrid(l);
+  return list.length ? html : html + `<div class="empty">${S.renders.length ? 'Nothing matches.' : 'No preview renders found.'}</div>`;
+}
+function art() {
+  const list = S.art.filter((p) => match(p));
+  let html = head('Source art', S.art.length, 'The painted sheets enemy models are built from (art/creatures). “Built into” matches the sheet to a model by name, or through a build tool whose README names the sheet.');
+  const viaTools = (p) => {
+    const outs = new Set();
+    for (const text of Object.values(S.readmes || {})) if (text.includes(base(p)) || text.includes(stem(p))) for (const m of text.matchAll(/templates\/models\/creatures\/([\w-]+)/g)) outs.add('templates/models/creatures/' + m[1]);
+    return [...S.models.values()].filter((m) => outs.has(dir(m.path)));
+  };
+  const into = (p) => { const st = stem(p), ms = [...new Set([...S.models.values()].filter((m) => m.stem.includes(st) || (st.length > 4 && st.includes(m.stem))).concat(viaTools(p)))]; return `<div class="chips">${ms.length ? ms.map((m) => `<span class="chip click gold" data-act="model" data-v="${esc(m.path)}">→ ${esc(m.file)}</span>`).join('') : '<span class="chip">no model by this name yet</span>'}</div>`; };
+  for (const [d, l] of groupBy(list, dir)) html += `<div class="group-h"><b>${esc(d)}/</b><span class="gn">${l.length}</span></div>` + imageGrid(l, into);
+  return list.length ? html : html + `<div class="empty">${S.art.length ? 'Nothing matches.' : `Nothing under art/creatures on <b>${esc(S.src.label)}</b>.${S.src.kind === 'github' ? ' If those sheets are only on your computer so far, use “Open local folder”.' : ''}`}</div>`;
+}
+function tools() {
+  const list = S.tools.filter((t) => match(t.name, t.files));
+  let html = head('Build tools', S.tools.length, 'The scripts in tools/creatures that make the models above (mostly headless Blender). What each writes is read from its README.');
+  html += `<div class="grid wide">`;
+  for (const t of list) {
+    const readme = t.dir ? t.files.find((p) => /README\.md$/i.test(p)) : t.files[0];
+    const text = readme ? S.readmes[readme] || '' : '';
+    let blurb = '';
+    if (t.dir) blurb = (text.split(/\n\s*\n/).map((s) => s.trim()).find((s) => s && !s.startsWith('#')) || '').replace(/`|\*\*?/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+    else blurb = ((/^\s*(?:"""|''')([\s\S]*?)(?:"""|''')/.exec(text) || /^((?:\s*#.*\n)+)/.exec(text) || [])[1] || '').replace(/^\s*#\s?/gm, '').trim();
+    const outs = [...new Set([...text.matchAll(/templates\/models\/creatures\/([\w-]+)/g)].map((m) => m[1]))];
+    html += `<div class="card" data-act="img" data-v="${esc(readme || '')}" style="cursor:${readme && S.src.web(readme) ? 'pointer' : 'default'}"><div class="body">
+      <h3 class="mono">${esc(t.name)}${t.dir ? '/' : ''}</h3><div class="meta">${t.dir ? plural(t.files.length, 'file') : kb(S.files.get(t.files[0])?.size)}</div>
+      <p class="meta" style="margin:8px 0 0;color:var(--text);opacity:.85">${esc(blurb.slice(0, 260))}${blurb.length > 260 ? '…' : ''}</p>
+      ${outs.length ? `<div class="chips">${outs.map((o) => `<span class="chip gold">→ creatures/${esc(o)}</span>`).join('')}</div>` : ''}</div></div>`;
+  }
+  return html + '</div>';
+}
+
+// lazy images: model thumbnails, textures out of models, files
+const io = new IntersectionObserver((ents) => {
+  for (const e of ents) {
+    if (!e.isIntersecting) continue;
+    io.unobserve(e.target);
+    const img = e.target, d = img.dataset;
+    if (d.portrait) requestPortrait(img);
+    else if (d.tex) { const t = S.textures.get(d.tex); if (t) texThumbURL(t).then((u) => { img.src = u; }).catch(() => img.nextElementSibling?.remove()); }
+    else if (d.mimg) { const [path, name] = d.mimg.split('#'); const m = S.models.get(path), im = m?.head?.images.find((x) => x.name === name); if (im) { const ph = m.phoneHead?.images.find((x) => x.name === name); (ph ? modelImageURL(m, ph, true) : modelImageURL(m, im)).then((u) => { img.src = u; }); } }
+    else if (d.img) img.src = S.src.url(d.img);
+  }
+}, { rootMargin: '400px' });
+function hydrate(root) { root.querySelectorAll('img[data-portrait],img[data-tex],img[data-img],img[data-mimg]').forEach((i) => io.observe(i)); }
+document.addEventListener('load', (e) => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
+document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') e.target.nextElementSibling?.classList.contains('spin') && e.target.nextElementSibling.remove(); }, true);
+
+// ============================================================== the detail panel
+const D = {};
+function refList(refs, max = 40) {
+  if (!refs?.length) return '<p class="meta">No game code names it.</p>';
+  return `<ul class="refs">${refs.slice(0, max).map((r) => `<li class="${r.comment ? 'cm' : ''}">${refLink(r.file, r.line)}${esc(r.text)}</li>`).join('')}</ul>${refs.length > max ? `<p class="meta">…and ${refs.length - max} more.</p>` : ''}`;
+}
+function filesList(parts) {
+  return `<ul>${parts.map((m) => `<li><code>${esc(m.path)}</code><br><span class="meta">${m.missing ? '<span style="color:var(--bad)">missing from the repo</span>' : `${kb(m.size)} · ${fileLinks(m.path)}`}</span>
+    ${m.phone ? `<br><code>${esc(m.phone)}</code><br><span class="meta">phone copy · ${kb(m.phoneSize)} · ${fileLinks(m.phone)}</span>` : ''}</li>`).join('')}
+    ${[...new Set(parts.map((m) => dir(m.path)))].flatMap((d) => [...S.files.keys()].filter((p) => dir(p) === d && /\.(html|md|json)$/i.test(p))).map((p) => `<li><code>${esc(p)}</code><br><span class="meta">${kb(S.files.get(p)?.size)} · ${fileLinks(p)}</span></li>`).join('')}</ul>`;
+}
+function clipChips(m) {
+  const h = m?.head; if (!h) return '<p class="meta">Reading the model…</p>';
+  if (!h.clips.length) return '<p class="meta">No clips in this file.</p>';
+  return `<div class="clips">${h.clips.map((c) => `<span class="clip${S.clipUsed.get(c.name) ? ' used' : ''}" data-act="play" data-v="${esc(c.name)}">${esc(c.name)}<small>${c.dur.toFixed(2)}s</small></span>`).join('')}</div>`;
+}
+function texGrid(parts) {
+  const out = [];
+  for (const m of parts) for (const im of m.head?.images || []) {
+    const t = S.textures.get(m.family + '|' + im.name);
+    out.push(`<figure data-act="tex" data-v="${esc(m.family + '|' + im.name)}"><div class="thumb sq chk"><img data-mimg="${esc(m.path + '#' + im.name)}" alt=""><div class="spin"></div></div>
+      <figcaption>${esc(im.name)}<br><span style="color:var(--faint)">${esc((t ? roleOf(t) : im.roles).join(', '))} · ${kb(im.len)}</span></figcaption></figure>`);
+  }
+  return out.length ? `<div class="texgrid">${out.join('')}</div>` : '<p class="meta">No textures read yet.</p>';
+}
+function statsKV(m) {
+  const h = m.head; if (!h) return '';
+  return `<div class="kv"><span>Triangles</span><span>${h.tris.toLocaleString()} · ${h.verts.toLocaleString()} verts</span><span>Bones</span><span>${h.bones}</span>
+    <span>Materials</span><span>${h.mats.map((x) => `<code>${esc(x)}</code>`).join(', ') || '—'}</span>
+    ${h.sockets.length ? `<span>Sockets</span><span>${h.sockets.map((x) => `<code>${esc(x)}</code>`).join(', ')}</span>` : ''}
+    <span>Meshes</span><span>${h.meshes.length} · ${h.nodes} nodes</span>${h.ext.length ? `<span>Extensions</span><span class="mono">${esc(h.ext.join(', '))}</span>` : ''}</div>`;
+}
+function gearList(e) {
+  const row = (hand, ids) => ids.map((id) => { const g = S.gear.get(id); return `<li style="display:flex;gap:10px;align-items:center;cursor:pointer" data-act="gear" data-v="${esc(id)}">
+    <span class="thumb sq" style="width:44px;flex:none;border-radius:4px">${g?.model ? portraitImg([g.model]) : ''}</span>
+    <span><b>${esc(g?.name || id)}</b> ${idChip(id)} <span class="chip">${hand === 'R' ? 'right hand' : 'left hand'}</span>${g?.missing ? ' ' + pill('missing') : ''}</span></li>`; }).join('');
+  return `<ul>${row('R', e.R || [])}${row('L', e.L || [])}</ul><p class="meta">Finish: ${(e.finish || []).map((f) => `<code>${esc(f || 'base')}</code>`).join(', ')} (one is picked per spawn)</p>`;
+}
+const SKIPD = new Set(['kind', 'title', 'R', 'L', 'finish', 'body']);
+function enemyInfo(e) {
+  const m0 = e.parts[0], d = e.d || {};
+  let html = `<div class="chips">${pill(e.status)}<span class="chip">${esc(FAMILIES[e.family]?.label || e.family)}</span>${e.kind ? `<span class="chip">${esc(e.kind)}</span>` : ''}${e.missing ? pill('missing') : ''}</div>
+    <h2>${esc(e.title)}</h2><div class="kv"><span>Game ID</span><span>${idChip(e.gameId ?? e.id)} ${e.def?.line ? `<span class="meta">${refLink(e.def.file, e.def.line, `${e.def.list} · ${base(e.def.file)}:${e.def.line}`)}</span>` : e.def ? `<span class="meta">${esc(e.def.list)}</span>` : '<span class="meta">not in any game list</span>'}</span>`;
+  if (e.composite) html += `<span>Built from</span><span><code>${esc(d.body.villager)}</code> + <code>${esc(d.body.armor)}_${esc(d.body.sex)}</code> armour${d.body.helm === false ? ', bareheaded' : ''}${d.body.casts ? `, casting like <code>${esc(d.body.casts)}</code>` : ''}, put together by sworn.js</span>`;
+  for (const [k, v] of Object.entries(d)) if (!SKIPD.has(k) && v != null) html += `<span>${esc(k)}</span><span class="mono">${esc(typeof v === 'number' && v > 4096 ? '0x' + v.toString(16) : v?.sym || JSON.stringify(v).replace(/^"|"$/g, ''))}</span>`;
+  html += '</div>';
+  if (e.haunts?.length) html += `<h4>Where it spawns (HAUNTS)</h4><ul>${e.haunts.map((h) => `<li><code>${esc(h.key)}</code> · ${h.n} of ${h.of} draws${h.label ? `<br><span class="meta">${esc(h.label)}</span>` : ''}</li>`).join('')}</ul>`;
+  if (e.R?.length || e.L?.length) html += `<h4>Carries</h4>${gearList(e)}`;
+  if (m0) {
+    html += `<h4>Clips${e.composite ? ` in ${esc(m0.file)} (the game adds its own at runtime)` : ''}</h4>${clipChips(m0)}`;
+    html += `<h4>Textures</h4>${texGrid(e.parts)}`;
+    html += `<h4>Files</h4>${filesList(e.parts)}`;
+    for (const m of e.parts) html += `<h4>Inside ${esc(m.file)}</h4>${statsKV(m) || '<p class="meta">Reading…</p>'}`;
+  }
+  html += `<h4>Code that names it</h4>${refList(e.refs)}`;
+  return html;
+}
+function modelInfo(m) {
+  const refs = findRefs([m.file, ...m.users.flatMap((e) => e.gameId && e.gameId.length > 2 ? quoted(e.gameId) : [])]);
+  return `<div class="chips">${m.users.map((e) => pill(e.status)).slice(0, 1).join('')}<span class="chip">${esc(FAMILIES[m.family]?.label || m.family)}</span></div>
+    <h2 class="mono" style="font-family:var(--mono);font-size:18px">${esc(m.file)}</h2>
+    <div class="kv"><span>Used by</span><span>${m.users.map((e) => `<span class="chip click gold" data-act="enemy" data-v="${esc(e.id)}">${esc(e.gameId ?? e.id)} · ${esc(e.title)}</span>`).join(' ') || '—'}</span></div>
+    ${statsKV(m)}<h4>Clips</h4>${clipChips(m)}<h4>Textures</h4>${texGrid([m])}<h4>Files</h4>${filesList([m])}<h4>Code that names it</h4>${refList(refs)}`;
+}
+function gearInfo(g) {
+  return `<div class="chips"><span class="chip">${esc(pretty(g.cat))}</span>${g.missing ? pill('missing') : ''}</div><h2>${esc(g.name)}</h2>
+    <div class="kv"><span>Item ID</span><span>${idChip(g.id)} <span class="meta">templates/models/manifest.json</span></span><span>Set</span><span>${esc(g.item?.set || '—')}</span></div>
+    <h4>Carried by</h4><div class="chips">${g.carriers.map((c) => `<span class="chip click gold" data-act="enemy" data-v="${esc(c.enemy.id)}">${esc(c.enemy.gameId)} · ${c.hand === 'R' ? 'right' : 'left'}</span>`).join('')}</div>
+    <h4>Finishes</h4><div class="texgrid">${Object.entries(g.variants).map(([f, p]) => `<figure data-act="img" data-v="${esc(p)}"><div class="thumb sq chk"><img data-img="${esc(p)}" alt="" style="image-rendering:pixelated"></div><figcaption>${esc(f)}${g.finishes.has(f) ? ' ★' : ''}</figcaption></figure>`).join('')}</div>
+    <p class="meta">★ a finish some carrier uses.</p>
+    <h4>Files</h4><ul>${g.path ? [g.path, ...[...S.files.keys()].filter((p) => dir(p) === dir(g.path) && p !== g.path)].map((p) => `<li><code>${esc(p)}</code><br><span class="meta">${kb(S.files.get(p)?.size)} · ${fileLinks(p)}</span></li>`).join('') : '<li>Not in the manifest, so the game skips it.</li>'}</ul>
+    <h4>Code that names it</h4>${refList(findRefs(quoted(g.id)))}`;
+}
+async function openDetail({ parts, info, clip, gear: g, img, hide = null }) {
+  Object.assign(D, { parts, gear: g || null, finish: null, phone: false, clip, hide });
+  $('#info').innerHTML = info; hydrate($('#info'));
+  $('#vbar').innerHTML = ''; $('#vinfo').textContent = '';
+  const dlg = $('#detail'); if (!dlg.open) dlg.showModal();
+  $('#info').scrollTop = 0;
+  if (img) { // a sprite: its GIFs instead of a 3D model
+    V.token++; if (V.r) { viewerClear(); V.r.domElement.hidden = true; }
+    $('#vmsg').textContent = ''; const box = $('#stageImg'); box.hidden = false; box.firstElementChild.src = S.src.url(img.first);
+    $('#vbar').innerHTML = img.list.map((p) => `<button data-act="gif" data-v="${esc(p)}" class="${p === img.first ? 'on' : ''}">${esc(stem(p))}</button>`).join('');
+    return;
+  }
+  if (V.r) V.r.domElement.hidden = false;
+  if (!parts?.length || parts.some((m) => m.missing)) { V.token++; if (V.r) viewerClear(); $('#stageImg').hidden = true; $('#vmsg').textContent = 'No model file to show.'; return; }
+  await viewerShow(parts, { clip });
+}
+function openEnemy(id, clip) {
+  const e = S.enemies.get(id); if (!e) return;
+  if (e.sprite) { const sp = e.sprite, list = [...sp.gifs, ...sp.pages]; return openDetail({ parts: [], info: enemyInfo(e) + spriteInfo(sp), img: { first: list[0], list } }); }
+  openDetail({ parts: e.parts, info: enemyInfo(e), clip, hide: e.hide });
+}
+function spriteInfo(sp) {
+  const d = sp.def;
+  return `<h4>Sprite data</h4><div class="kv"><span>File</span><span>${refLink(sp.path, null, sp.path)}</span><span>Size class</span><span>${esc(d.size_class)} · ${esc(d.height_m)} m · ${esc(d.px_per_m)} px/m</span>
+    <span>Animations</span><span>${Object.entries(d.anims || {}).map(([k, a]) => `<code>${esc(k)}</code> ${(a.frames || []).length}f`).join(', ')}</span><span>Atlas</span><span>${sp.pages.map((p) => `<code>${esc(base(p))}</code>`).join(', ')}</span></div>`;
+}
+function openModel(path, clip) { const m = S.models.get(path); if (m) openDetail({ parts: [m], info: modelInfo(m), clip }); }
+function openGear(id) {
+  const g = S.gear.get(id); if (!g) return;
+  openDetail({ parts: g.model ? [g.model] : [], info: gearInfo(g), gear: g });
+}
+
+// a big image with what it is
+async function openImage(url, title, capHTML, pixel = false) {
+  const lb = $('#lightbox'), img = $('#lightbox .pic img');
+  img.removeAttribute('src'); img.className = pixel ? 'px' : '';
+  $('#lbcap').innerHTML = `<h3>${esc(title)}</h3><div class="meta" id="lbdims">loading…</div>${capHTML || ''}`;
+  if (!lb.open) lb.showModal();
+  img.onload = () => { const d = $('#lbdims'); if (d) d.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`; };
+  img.src = await url;
+}
+function openFileImage(p) {
+  if (!p) return;
+  if (!IMG.test(p)) { const w = S.src.web(p); if (w) window.open(w, '_blank', 'noopener'); return; }
+  openImage(S.src.url(p), base(p), `<div class="meta">${kb(S.files.get(p)?.size)} · <span class="path">${esc(p)}</span> · ${fileLinks(p)}</div>`, /\.gif$|variants|_texture/i.test(p));
+}
+function openTexture(key) {
+  const t = S.textures.get(key); if (!t) return;
+  const u0 = t.uses[0];
+  openImage(texFullURL(t), t.name, `<div class="meta">${esc(roleOf(t).join(', '))} · ${kb(u0.im.len)} ${esc(u0.im.mime)} inside the model${t.file ? ` · also a file: <span class="path">${esc(t.file)}</span> (${fileLinks(t.file)})` : ''}</div>
+    <div class="meta" style="margin-top:6px">Material${t.mats.size > 1 ? 's' : ''}: ${[...t.mats].map((x) => `<code>${esc(x)}</code>`).join(', ') || '—'}</div>
+    <div class="chips" style="margin-top:8px">${t.uses.map((u) => `<span class="chip click gold" data-act="model" data-v="${esc(u.m.path)}">${esc(u.m.file)}</span>`).join('')}</div>`);
+}
+
+// ============================================================== events
+document.addEventListener('click', async (ev) => {
+  if (ev.target.closest('a')) return;
+  const t = ev.target.closest('[data-act]');
+  if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
+  const v = t.dataset.v;
+  switch (t.dataset.act) {
+    case 'nav': UI.section = v; saveUI(); renderNav(); render(); window.scrollTo(0, 0); break;
+    case 'copy': ev.stopPropagation(); try { await navigator.clipboard.writeText(v); toast(`Copied ${v}`); } catch { toast(v); } break;
+    case 'enemy': $('#lightbox').close(); openEnemy(v); break;
+    case 'model': $('#lightbox').close(); openModel(v); break;
+    case 'gear': openGear(v); break;
+    case 'tex': openTexture(v); break;
+    case 'img': openFileImage(v); break;
+    case 'clip': { const i = v.indexOf('|'); openModel(v.slice(0, i), v.slice(i + 1)); break; }
+    case 'play': viewerPlay(v); break;
+    case 'pause': V.playing = !V.playing; V.clock?.getDelta(); syncBar(); break;
+    case 'wire': setWire(!V.wire); syncBar(); break;
+    case 'bones': setBones(!V.bones); syncBar(); break;
+    case 'home': if (V.home) { V.cam.position.copy(V.home.pos); V.ctl.target.copy(V.home.target); V.ctl.update(); } break;
+    case 'phone': D.phone = !D.phone; viewerShow(D.parts, { clip: V.clip, phone: D.phone, finish: D.finish && D.gear?.variants[D.finish] }); break;
+    case 'gif': $('#stageImg img').src = S.src.url(v); document.querySelectorAll('#vbar [data-act="gif"]').forEach((b) => b.classList.toggle('on', b === t)); break;
+    case 'texrole': UI.texRole = v; render(); break;
+    case 'local': pickFolder(); break;
+    case 'close': t.closest('dialog').close(); break;
+  }
+});
+document.addEventListener('change', (ev) => {
+  const t = ev.target, a = t.dataset?.act;
+  if (a === 'speed') V.speed = +t.value;
+  else if (a === 'finish') { D.finish = t.value || null; viewerShow(D.parts, { clip: V.clip, phone: D.phone, finish: D.finish && D.gear.variants[D.finish] }); }
+  else if (a === 'thumbs') { UI.thumbs = t.checked; saveUI(); if (UI.thumbs) render(true); }
+});
+for (const d of document.querySelectorAll('dialog')) d.addEventListener('click', (ev) => { if (ev.target === d) d.close(); });
+$('#detail').addEventListener('close', () => { V.token++; if (V.r) viewerClear(); });
+$('#q').addEventListener('input', (ev) => { UI.q = ev.target.value.trim().toLowerCase(); render(); });
+$('#srcForm').addEventListener('submit', (ev) => { ev.preventDefault(); saveUI(); load(new GitHubSource($('#repo').value, $('#ref').value)); });
+$('#localBtn').addEventListener('click', pickFolder);
+document.addEventListener('keydown', (ev) => { if (ev.key === '/' && document.activeElement?.tagName !== 'INPUT' && !$('#detail').open) { ev.preventDefault(); $('#q').focus(); } });
+
+renderNav();
+load(new GitHubSource($('#repo').value, $('#ref').value));
+</script>
+</body>
+</html>
