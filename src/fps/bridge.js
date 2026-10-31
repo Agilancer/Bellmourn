@@ -252,15 +252,21 @@ export class RopeBridge {
     this.planks = new THREE.InstancedMesh(pg, pm, N);
     this.planks.receiveShadow = true;
     const rg = new THREE.CylinderGeometry(0.036, 0.036, 1, 6, 1, true).translate(0, 0.5, 0);
-    const rm = new THREE.MeshPhongMaterial({ color: 0x4e3c28, specular: 0x1a1510, shininess: 8 });
-    this.ropeN = 2 * N + 2 * M + this.hang.length + 2 * N;   // deck cables, hand ropes, hangers, the lashings' cross ties
+    const rm = new THREE.MeshPhongMaterial({ color: 0x3a2c1e, specular: 0x141008, shininess: 6 });
+    // (the hangers drawn straight down from each hand-rope point to the deck under it: the solve's
+    // pairs of them, a V, read as a steel truss)
+    this.hangDraw = [];
+    for (let j = 1; j < M; j++) if (2 * j <= N) this.hangDraw.push([this.ix.rl(j), this.ix.dl(2 * j)], [this.ix.rr(j), this.ix.dr(2 * j)]);
+    this.ropeN = 2 * N + 2 * M + this.hangDraw.length + 2 * N;   // deck cables, hand ropes, hangers, the lashings' cross ties
     this.ropes = new THREE.InstancedMesh(rg, rm, this.ropeN);
     // the sexton's lanterns, hung from the hand ropes every few metres (their flames light the deck)
     this.lamps = [];
     for (let j = 4; j < M - 2; j += 7) this.lamps.push([j, j % 2 ? 1 : -1]);
     const lg = new THREE.BoxGeometry(0.16, 0.24, 0.16), lm = new THREE.MeshPhongMaterial({ color: 0x2a2018, emissive: 0xffa040, emissiveIntensity: 1.6 });
     this.lampMesh = new THREE.InstancedMesh(lg, lm, this.lamps.length);
-    for (const [j, side] of this.lamps) { const n = side < 0 ? this.ix.rl(j) : this.ix.rr(j); this.ctx.flames?.push([this.p[n * 3], this.p[n * 3 + 1] - 0.3, this.p[n * 3 + 2], 0.22]); }
+    // (their flames: never a shadow light, so walking the deck doesn't swap them; moved with the
+    // lanterns in draw())
+    this.lampFlames = this.lamps.map(([j, side]) => { const n = side < 0 ? this.ix.rl(j) : this.ix.rr(j); const f = [this.p[n * 3] + side * 0.06, this.p[n * 3 + 1] - 0.28, this.p[n * 3 + 2], 0.22, 1]; this.ctx.flames?.push(f); return f; });
     for (const m of [this.planks, this.ropes, this.lampMesh]) { m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.ctx.scene.add(m); }
     // the broken ends at the gap hang down: drawn as planks dangling off their last lashing
     this.draw();
@@ -296,27 +302,33 @@ export class RopeBridge {
     }
     this.planks.instanceMatrix.needsUpdate = true;
     let r = 0;
-    const rope = (n0, n1, drop = 0) => {
-      P(n0, a); P(n1, b); b.y -= drop;
+    // (thick: the cables and hand ropes; thin: the hangers and the lashings)
+    const rope = (n0, n1, k = 1) => {
+      P(n0, a); P(n1, b);
       const L = a.distanceTo(b) || 1e-3;
       Y.copy(b).sub(a).divideScalar(L);
       const q = this._q ||= new THREE.Quaternion();
       q.setFromUnitVectors(this._up ||= new THREE.Vector3(0, 1, 0), Y);
-      m.compose(a, q, this._s ||= new THREE.Vector3()); this._s.set(1, L, 1);
+      (this._s ||= new THREE.Vector3()).set(k, L, k);
       m.compose(a, q, this._s);
       this.ropes.setMatrixAt(r++, m);
     };
-    for (let i = 0; i < N; i++) { rope(dl(i), dl(i + 1)); rope(dr(i), dr(i + 1)); }
-    for (let j = 0; j < M; j++) { rope(rl(j), rl(j + 1)); rope(rr(j), rr(j + 1)); }
-    for (const [a2, b2] of this.hang) rope(a2, b2);
-    for (let i = 0; i < N; i++) { rope(dl(i), dr(i)); rope(dl(i + 1), dr(i + 1)); }
+    for (let i = 0; i < N; i++) { rope(dl(i), dl(i + 1), 0.8); rope(dr(i), dr(i + 1), 0.8); }
+    for (let j = 0; j < M; j++) { rope(rl(j), rl(j + 1), 0.85); rope(rr(j), rr(j + 1), 0.85); }
+    for (const [a2, b2] of this.hangDraw) rope(a2, b2, 0.5);
+    for (let i = 0; i < N; i++) if (!this.missing(i)) { rope(dl(i), dr(i), 0.55); rope(dl(i + 1), dr(i + 1), 0.55); }   // (none where the planks are gone: no rungs over the gap)
     this.ropes.count = r;
     this.ropes.instanceMatrix.needsUpdate = true;
+    const fx = this.ctx.flameFx, fa = fx?.fx.points.geometry.attributes.position;
+    if (fx && !this.lampIdx) this.lampIdx = this.lampFlames.map((f) => fx.list.indexOf(f));
     this.lamps.forEach(([j, side], i) => {
       const n = side < 0 ? rl(j) : rr(j);
       m.makeTranslation(p[n * 3] + side * 0.06, p[n * 3 + 1] - 0.28, p[n * 3 + 2]);
       this.lampMesh.setMatrixAt(i, m);
+      const f = this.lampFlames?.[i];
+      if (f) { f[0] = p[n * 3] + side * 0.06; f[1] = p[n * 3 + 1] - 0.28; f[2] = p[n * 3 + 2]; if (fa && this.lampIdx[i] >= 0) fa.setXYZ(this.lampIdx[i], f[0], f[1], f[2]); }
     });
     this.lampMesh.instanceMatrix.needsUpdate = true;
+    if (fa) fa.needsUpdate = true;
   }
 }

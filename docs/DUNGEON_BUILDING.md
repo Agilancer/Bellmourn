@@ -108,6 +108,13 @@ If a question has no answer, the space doesn't get built.
   a charge up a stair at you.
 - **Bosses get arenas**: round, with room to circle, cover to break line, and their story in the
   dressing.
+- **Set pieces are fast.** Nobody should ever want to skip one. The threat is moving within about
+  a second of the trigger, and the whole beat (an ambush waking, the dead clawing up, a grille
+  lifting, a bell's horde arriving) is over in two or three seconds. The telegraph comes before
+  the trigger, not after it. Control is never taken away: no camera grabs, no waits, no long
+  speeches. The dead set in a scene scramble up (zb.quick = 1.6 in the catacombs: a get-up in
+  0.8 s, out of the earth in 1.5 s), and they wake far enough ahead that they rise in front of the
+  player, not behind.
 - Hits don't throw bodies back; legs come off rarely (bosses and big things almost never);
   wounds and blood show where the blow landed, never as a whole-body tint.
 
@@ -173,6 +180,7 @@ If a question has no answer, the space doesn't get built.
 - [ ] Critical path readable and lit; branches pay off.
 - [ ] Stairs have landings and 4 m+ overhead.
 - [ ] Encounters placed for a reason; ambushes telegraphed.
+- [ ] Every set piece timed: the threat moves within ~1 s, the beat is over in 2–3 s, no waiting.
 - [ ] Any drop has a way back up.
 - [ ] Path check clean; no prop in a mouth or doorway.
 - [ ] Frame time and memory checked.
@@ -214,8 +222,10 @@ strung a rope bridge across.
   middle, sags and rolls under whoever is on it, bounces, swings you with it. Three metres of planks
   are gone a third of the way over (the broken ends hang): a jump you commit to. The dead lying on
   the lit far landing come at a run once you are over the gap (the fight is on the far half, the
-  gap at your back); the dead won't walk off an edge (only a spell's force throws them over), and
-  one held at an edge for long gives up and goes back.
+  gap at your back); they come single file on the deck (no flanking where the side is a drop).
+  The dead won't walk off an edge (only a spell's force throws them over); one held at an edge for
+  long gives up, goes back and stays away a while; but one sent at you (the ambush, the bell's
+  horde) leaps, and the gap is too wide: it goes down into the gulf.
 - *The Gulf floor* (fall in, or go down by choice): bones, crawlers, a pilgrim's cache; the scree at
   the west end and a stair cut along the south wall climb back to the near landing. A fall leaves
   you on your last legs, never dead.

@@ -45,6 +45,8 @@ function strataMaterial(lib) {
         vec3 lichen = mix(vec3(1.0), vec3(0.8, 0.93, 0.68), up * (1.0 - wet) * 0.7);
         // and the rift goes up into the dark: no roof to be seen over the rims
         float lost = 1.0 - 0.93 * smoothstep(-15.0, -6.5, gP.y);
+        // (the beds alternate, harder and paler, softer and darker)
+        lost *= 1.0 + 0.13 * (mod(floor(gP.y / 2.3 + 0.18 * sin(gP.y * 0.7) + 0.5), 2.0) * 2.0 - 1.0) * (1.0 - up);
         diffuseColor.rgb *= rk * tint * lichen * mix(1.25, 0.9, wet) * (1.0 + 0.5 * up) * (1.0 - 0.72 * dn) * lost;
         vec3 gRock = rk * tint;`)
       // the stream's and the fungus's cold glow off the lowest rock, so the terraces stand out
@@ -53,7 +55,7 @@ function strataMaterial(lib) {
         totalEmissiveRadiance += gRock * vec3(0.05, 0.13, 0.14) * (1.0 - smoothstep(-40.0, -29.0, gP.y)) * (0.4 + 0.6 * up);`);
   };
   m.customProgramCacheKey = () => 'gulf-strata';
-  m.userData = { tileU: 1, tileV: 1 };
+  m.userData = { tileU: 1, tileV: 1, noCast: true };   // (84k triangles: not drawn again into every torch's shadow cube)
   return m;
 }
 
@@ -92,14 +94,23 @@ export const zn = (x) => zc(x) - hw(x) - bay(x, 1);
 const NT = 6, TOP = 25, VA = 0.5, VP = 1.6;
 const qOf = (Y) => VA + (1 - VA) * Math.pow(Math.max(0, Y) / TOP, 1 / VP);
 function terraces(x, side) {
-  const out = new Float32Array(NT * 2);
+  // (each riser's height wanders along the rift, two metres to six; the risers wander in and out
+  // on their own, so here a ledge pinches out and two risers stand as one sheer face)
+  const out = new Float32Array(NT * 2), w = new Float32Array(NT);
+  let sum = 0;
+  for (let k = 0; k < NT; k++) { w[k] = 0.5 + vn3(x * 0.035 + k * 5.1, side * 3.3, k * 1.7) * 1.1; sum += w[k]; }
+  let Y = 0;
   for (let k = 0; k < NT; k++) {
-    const Y = TOP * (k + 1) / NT;
-    let top = GF + Y + 0.9 * n2(x * 0.45 + k * 7.3, side * 5 + k);
+    const h = TOP * w[k] / sum;
+    Y += h;
+    let top = GF + Y + 0.5 * n2(x * 0.45 + k * 7.3, side * 5 + k);
     if (side > 0 && x > LEDGE.x0 - 3 && x < LEDGE.x1 + 3) top = Math.min(top, ledgeStep(Math.min(LEDGE.x1 - 0.01, Math.max(LEDGE.x0, x))) - 0.3);
-    out[k * 2] = qOf(Y - TOP / NT / 2) + 0.05 * n2(x * 0.3 + k * 3.1, side * 9 + 2);
+    out[k * 2] = qOf(Y - h / 2) + 0.16 * n2(x * 0.11 + k * 3.1, side * 9 + 2);
     out[k * 2 + 1] = top;
   }
+  // (and here and there a ledge is gone altogether, two risers standing as one sheer face 6 to 9 m
+  // high: about one stretch in three)
+  for (let k = NT - 2; k >= 0; k--) if (vn3(x * 0.045 + k * 9.7, side * 2.1 + 4, k) > 0.62) out[k * 2] = Math.max(out[k * 2], out[(k + 1) * 2]);
   return out;
 }
 /** Which side of the fissure's line (x, z) is on, that side's half width, and how far out it is. */
@@ -149,8 +160,14 @@ export function floorY(x, z = zc(x)) {
   let f = GF + 8 * smooth(-8, -40, x) + n2(x, z) * (x < -28 ? 0.45 : 1.2);   // (the scree smooth where the cut stair starts)
   const sc = zc(x) + 3 * Math.sin(x * 0.09), d = Math.abs(z - sc);         // the stream's bed
   if (d < 2.6 && x > -22) f -= 0.9 * (1 - (d / 2.6) ** 2);
+  // the rockfalls: cones of fallen rock heaped against the foot of the walls
+  for (const [cx, side, h, r] of CONES) {
+    const dd = Math.hypot(x - cx, z - (zc(cx) + side * hw(cx) * 0.64));
+    if (dd < r) f = Math.max(f, GF + h * Math.pow(1 - dd / r, 1.25) + n2(x * 2, z * 2) * 0.3);
+  }
   return f;
 }
+const CONES = [[-6, 1, 3.6, 5], [27, -1, 3.2, 4.6], [41, 1, 2.8, 4.2]];   // [x, side, height, radius]
 
 function polyD(poly, x, z) {       // signed distance to a convex polygon (negative inside)
   let inside = true, best = Infinity;
@@ -276,8 +293,13 @@ export class Gulf {
     // the soft beds weathered back between the hard ones, level along every wall (cut in, never
     // out, and not within a stride of a floor)
     if (wall && y > fl + 0.8) {
-      const u = y / 2.3 + cols.warp, f = u - Math.floor(u);
+      const u = y / 2.3 + 0.18 * Math.sin(y * 0.7) + cols.warp, f = u - Math.floor(u);     // (beds 1.8 to 3.2 m apart)
       r -= 0.55 * smooth(fl + 0.8, fl + 2, y) * smooth(0, 0.1, f) * (1 - smooth(0.36, 0.5, f));
+    }
+    // and joints: upright cracks through the beds every eight metres or so
+    if (wall && y > fl + 0.3) {
+      const jf = x / 8.3 + 0.8 * vn3(x * 0.05, y * 0.03, z * 0.05), j = Math.abs(jf - Math.round(jf));
+      if (j < 0.04) r -= 0.45 * (1 - j / 0.04) * smooth(fl + 0.3, fl + 1.2, y);
     }
     return r;
   }
@@ -356,6 +378,10 @@ export class Gulf {
       // (on the walls and the stream's banks, never strewn on the open floor)
       if (q % 5 === 0 && open > 0.5 && (bank ? -gy < 0.92 : y < -31 && -gy < 0.72) && vn3(x * 0.11 + 7, y * 0.11, z * 0.11) > (bank ? 0.5 : 0.6)) this.glowSpots.push([x, y, z, -gx, -gy, -gz]);
     }
+    // (one knot of them every few metres at most, so each reads as a cluster from the bridge)
+    { const seen = new Set(), keep = [];
+      for (const s of this.glowSpots) { const k = Math.floor(s[0] / 3.5) + ',' + Math.floor(s[1] / 3.5) + ',' + Math.floor(s[2] / 3.5); if (!seen.has(k)) { seen.add(k); keep.push(s); } }
+      this.glowSpots = keep; }
     // cut into 16 m slabs east-west so each can be culled on its own
     const mat = this.mat = strataMaterial(this.ctx.lib);
     const slabs = new Map();
@@ -423,17 +449,20 @@ export class Gulf {
   fungus(scene) {
     // (a flat cap on a short stalk, 30 faces: there are thousands)
     const geo = new THREE.LatheGeometry([[0.016, 0], [0.016, 0.05], [0.075, 0.056], [0, 0.084]].map(([r, h]) => new THREE.Vector2(r, h)), TOUCH ? 4 : 5);
-    const spots = this.glowSpots, per = TOUCH ? 2 : 3, M = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), n = new THREE.Vector3();
+    const spots = this.glowSpots, per = TOUCH ? 7 : 13, M = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), n = new THREE.Vector3();
+    const t1 = new THREE.Vector3(), t2 = new THREE.Vector3(), wn = new THREE.Vector3();
     const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }), spots.length * per);
     const col = new THREE.Color();
     let i = 0, seed = 7;
     const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     for (const [x, y, z, nx, ny, nz] of spots) {
       n.set(nx, ny + 0.9, nz).normalize(); q.setFromUnitVectors(up, n);     // (out of the rock, turning up to the light)
+      // (spread over the rock's face round the spot, the big ones in the middle)
+      wn.set(nx, ny, nz).normalize(); t1.crossVectors(wn, Math.abs(wn.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : up).normalize(); t2.crossVectors(wn, t1);
       const hue = R() < 0.7 ? [0.08, 0.5, 0.48] : [0.2, 0.55, 0.26];
       for (let k = 0; k < per; k++) {
-        const s = 0.55 + R() * 0.9;
-        M.compose(new THREE.Vector3(x + (R() - 0.5) * 0.25 - nx * 0.04, y + (R() - 0.5) * 0.25, z + (R() - 0.5) * 0.25 - nz * 0.04), q, new THREE.Vector3(s, s * 0.8, s));
+        const a = (R() - 0.5) * 0.7, c = (R() - 0.5) * 0.7, mid = 1 - Math.min(1, Math.hypot(a, c) / 0.45), s = 0.5 + R() * 0.5 + mid * 0.7;
+        M.compose(new THREE.Vector3(x + t1.x * a + t2.x * c - wn.x * 0.03, y + t1.y * a + t2.y * c - wn.y * 0.03, z + t1.z * a + t2.z * c - wn.z * 0.03), q, new THREE.Vector3(s, s * 0.8, s));
         mesh.setMatrixAt(i, M); mesh.setColorAt(i, col.setRGB(hue[0], hue[1] * (0.7 + R() * 0.5), hue[2] * (0.7 + R() * 0.5)));
         i++;
       }
@@ -479,8 +508,9 @@ export class Gulf {
     for (let x = -21; x < 52; x += 1) {
       const pts = [x, x + 1].map((xx) => { const c = zc(xx) + 3 * Math.sin(xx * 0.09); return [xx, c]; });
       const y = (xx) => Math.min(floorY(xx, zc(xx) + 3 * Math.sin(xx * 0.09)) + 0.45, GF - 0.55);
-      const w = 1.4;
-      const a = [pts[0][0], y(pts[0][0]), pts[0][1] - w], bb = [pts[1][0], y(pts[1][0]), pts[1][1] - w], c = [pts[1][0], y(pts[1][0]), pts[1][1] + w], d = [pts[0][0], y(pts[0][0]), pts[0][1] + w];
+      const w = (xx) => 1.4 * (0.6 + 0.75 * vn3(xx * 0.15, 3.3, 1.1));           // (it widens into pools and narrows over the rock)
+      const w0 = w(pts[0][0]), w1 = w(pts[1][0]);
+      const a = [pts[0][0], y(pts[0][0]), pts[0][1] - w0], bb = [pts[1][0], y(pts[1][0]), pts[1][1] - w1], c = [pts[1][0], y(pts[1][0]), pts[1][1] + w1], d = [pts[0][0], y(pts[0][0]), pts[0][1] + w0];
       P.push(...a, ...c, ...bb, ...a, ...d, ...c);
       U.push(0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1);
     }
@@ -491,13 +521,26 @@ export class Gulf {
   /** The gulf's own walkable grid (its floor, the scree and the ledge), for the dead who fall in. */
   nav() {
     const x0 = this.X0, z0 = this.Z0, W = Math.floor(this.nx * this.G), D = Math.floor(this.nz * this.G);
-    const cell = new Int16Array(W * D).fill(-1);
+    const cell = new Int16Array(W * D).fill(-1), h = new Float32Array(W * D).fill(NaN);
     for (let k = 0; k < D; k++) for (let i = 0; i < W; i++) {
       const x = x0 + i + 0.5, z = z0 + k + 0.5, j = this.idx(x, z);
       if (j < 0 || this.tag[j] !== 0) continue;
       const f = this.fl[j];
-      if (f < BY - 0.1) cell[k * W + i] = 0;
+      if (f < BY - 0.1) { cell[k * W + i] = 0; h[k * W + i] = f; }
     }
-    return { x0, z0, nx: W, nz: D, cell };
+    // (a cell standing more than a stride over its neighbour is a lip: off the map, so the terraces
+    // are islands and the dead go round by the scree and the cut stair, not at the cliff under you)
+    for (let k = 0; k < D; k++) for (let i = 0; i < W; i++) {
+      const c = k * W + i;
+      if (cell[c] < 0) continue;
+      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const a = i + di, b = k + dk;
+        if (a < 0 || b < 0 || a >= W || b >= D) continue;
+        const o = b * W + a;
+        if (cell[o] >= 0 && h[c] - h[o] > 0.65) { cell[c] = -2; break; }
+      }
+    }
+    for (let c = 0; c < cell.length; c++) if (cell[c] === -2) cell[c] = -1;
+    return { x0, z0, nx: W, nz: D, cell, h };
   }
 }

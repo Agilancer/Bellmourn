@@ -644,18 +644,19 @@ export class Zombie {
     this.root.rotation.y = this.yaw;
   }
 
-  beginRise() {
+  /** Up out of the ground; `speed` > 1 scrambles out (a set piece's dead: zb.quick). */
+  beginRise(speed = this.quick || 1) {
     this.state = 'rise';
     this.root.visible = true;
-    this.play('rise', 0);
+    this.play('rise', 0, speed);
     this.riseT = 0;
     this.owner.dirt(this.pos, 1.0);
     this.owner.sound('dirt', this.pos);
   }
 
-  wake(target) {
-    if (this.state === 'playdead') { this.state = 'getup'; this.play('getup', 0.1); }
-    else if (this.state === 'buried') this.beginRise();
+  wake(target, speed = this.quick || 1) {
+    if (this.state === 'playdead') { this.state = 'getup'; this.play('getup', 0.1, speed); }
+    else if (this.state === 'buried') this.beginRise(speed);
     this.hunt(target, true);
   }
 
@@ -1051,6 +1052,8 @@ export class Zombie {
     // you running carries far, walking less, standing still hardly at all; blind, it listens harder
     const loud = player.speed > 7 ? 15 : player.speed > 1 ? 7.5 : 2.2;
     const heard = same && d < loud * this.kind.hear * (eyes ? 1 : 1.6);
+    // (it gave up at an edge it can't cross and is going back: unless you are right there beside it)
+    if (this.balkT > owner.time) { if (this.canSee && d < 5 && Math.abs(player.pos.y - this.pos.y) < 1) this.balkT = 0; else return; }
     if (this.canSee) {
       if (!this.aggro) {
         this.aggro = true; owner.sound('groan', this.pos, true); owner.alert(this, player.pos, 18);
@@ -1143,8 +1146,11 @@ export class Zombie {
       if (this.done()) { this.state = 'move'; this.cool = 0.35 + Math.random() * 0.4; }
     } else if (this.state === 'jump') {
       const f = this.forward();
-      this.pos.addScaledVector(f, 2.3 * dt);
-      if (this.done()) { this.state = 'move'; phys.slide(this.pos, 0, 0, 0.3, 1.6, 0.45); }
+      this.pos.addScaledVector(f, (this.leapV ?? 2.3) * dt);
+      // (a hop ends with its clip; a leap when it comes down)
+      this.leapT = (this.leapT || 0) + dt;
+      const over = this.leapV ? (this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6 : this.done();
+      if (over) { this.state = 'move'; this.leapV = null; phys.slide(this.pos, 0, 0, 0.3, 1.6, 0.45); }
     } else {
       this.steer(dt, player, active, dist, facingErr);
     }
@@ -1174,18 +1180,20 @@ export class Zombie {
         this.jitter += dt;
         target.x += Math.sin(this.jitter * 0.9) * Math.min(3, dist * 0.35);
         target.z += Math.cos(this.jitter * 0.7) * Math.min(3, dist * 0.35);
-      } else if (this.flank && dist > 2.4 && dist < 10 && owner.chasers > 2) {
-        // with company it comes at you from the side, so they close round you
+      } else if (this.flank && !this.narrow && dist > 2.4 && dist < 10 && owner.chasers > 2) {
+        // with company it comes at you from the side, so they close round you (not on a bridge's
+        // deck or a ledge, where the side is a drop)
         const s = this.flank * Math.min(2.6, dist * 0.45) / dist;
         target.x += -toZOf(player, this) * s; target.z += toXOf(player, this) * s;
       }
       if (this.zone === 'dungeon' && (!this.canSee || Math.abs(player.pos.y - this.pos.y) > 0.8) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       if (crawl) speed = CRAWL.chase[0] + CRAWL.chase[1] * (this.arm('L') + this.arm('R'));
       else if (!this.feet) speed = 0.65;
-      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * 1.05;   // (rush: sent at you from far off)
+      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.7 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
-      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      // (the corridors' flow leads to you: not for one going back from an edge it gave up at)
+      if (this.zone === 'dungeon' && !(this.balkT > owner.time) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       speed = crawl ? CRAWL.hunt : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
@@ -1266,7 +1274,7 @@ export class Zombie {
         // stuck on something for a second: sidestep
         this.stuckT = (this.stuckT || 0) + 0.2;
         if (this.stuckT >= 1) {
-          if (this.stuckAt && this.stuckAt.distanceTo(this.pos) < 0.15 * speed) { this.avoid = Math.random() < 0.5 ? 1.3 : -1.3; this.avoidT = 0.9; }
+          if (this.stuckAt && this.stuckAt.distanceTo(this.pos) < 0.15 * speed && !this.edgeAhead) { this.avoid = Math.random() < 0.5 ? 1.3 : -1.3; this.avoidT = 0.9; }   // (not when it stopped at an edge on purpose)
           (this.stuckAt || (this.stuckAt = new THREE.Vector3())).copy(this.pos);
           this.stuckT = 0;
         }
@@ -1275,8 +1283,26 @@ export class Zombie {
       let sp = speed * along;
       // the edge of a drop ahead (more than a jump down): it stops there, and bellows across it
       // (felt for with the rest, five times a second)
-      if (this.feelT === 0.2) this.edgeAhead = phys.floorAt(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75, this.pos.y + 0.3, 0.2, 0.75) < this.pos.y - 1.5;
-      if (this.edgeAhead && this.goal === 'chase') { this.edgeT2 = (this.edgeT2 || 0) + dt; if (this.edgeT2 > 3.5) { this.edgeT2 = 0; this.goal = 'hunt'; this.aggro = false; this.lastSeen.copy(this.home); this.hasLast = true; } } else this.edgeT2 = 0;
+      if (this.feelT === 0.2) {
+        const y = this.pos.y;
+        this.edgeAhead = phys.floorAt(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75, y + 0.3, 0.2, 0.75) < y - 1.5;
+        // (narrow footing: a drop a metre to either side)
+        this.narrow = phys.floorAt(this.pos.x + f.z, this.pos.z - f.x, y + 0.3, 0.2, 0.75) < y - 1.5 || phys.floorAt(this.pos.x - f.z, this.pos.z + f.x, y + 0.3, 0.2, 0.75) < y - 1.5;
+      }
+      // one sent at you (rush) doesn't stop at an edge with footing beyond it: it leaps for it (and one
+      // in three falls short). With nothing to land on, it stops like the rest.
+      if (this.edgeAhead && this.rush > 0 && this.goal === 'chase' && !crawl && this.feet && this.air === 0 && dist > 2.2 && !this.pushV) {
+        let land = 0;
+        for (const dd of [2.6, 3.2, 3.8]) if (phys.floorAt(this.pos.x + f.x * dd, this.pos.z + f.z * dd, this.pos.y + 0.5, 0.2, 1.0) > this.pos.y - 1) { land = dd; break; }
+        if (land) {
+          this.state = 'jump'; this.play('jump', 0.1); owner.sound('groan', this.pos, true);
+          this.vy = 5.5; this.pos.y += 0.05; this.leapT = 0;
+          this.leapV = (land + 0.4) / 0.5 * (Math.random() < 0.34 ? 0.7 : 1);     // (half a second in the air)
+          return;
+        }
+      }
+      // held at an edge for long, it gives up, goes back, and won't come straight back to it
+      if (this.edgeAhead && this.goal === 'chase') { this.edgeT2 = (this.edgeT2 || 0) + dt; if (this.edgeT2 > 3.5) { this.edgeT2 = 0; this.goal = 'hunt'; this.aggro = false; this.lastSeen.copy(this.home); this.hasLast = true; this.balkT = owner.time + 15; } } else this.edgeT2 = Math.max(0, (this.edgeT2 || 0) - dt);   // (a glance aside doesn't start it over)
       if (!this.pushV && this.edgeAhead) {
         sp = 0;
         if ((this.edgeT = (this.edgeT || 0) - dt) < 0) { this.edgeT = 3 + Math.random() * 3; owner.sound('groan', this.pos, true); }
@@ -1494,6 +1520,11 @@ export class Zombies {
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
         if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
+        if (b.seg) {   // (a prop set at an angle: by its distance from the line, not its bounds)
+          const t = Math.max(0, Math.min(b.len, (x - b.ax) * b.ux + (z - b.az) * b.uz));
+          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half) { open = false; break; }
+          continue;
+        }
         if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
       }
       dg.walk[c] = open ? 1 : 0;
@@ -1565,7 +1596,7 @@ export class Zombies {
   alert(from, p, r = 14) {
     if (!p) return;
     for (const z of this.list) {
-      if (z === from || z.dead || z.gone || z.state === 'buried') continue;
+      if (z === from || z.dead || z.gone || z.state === 'buried' || z.balkT > this.time) continue;
       if (z.pos.distanceTo(from.pos) > r || Math.abs(z.pos.y - from.pos.y) > (z.dg?.sameY ?? 2.5)) continue;
       if (z.state === 'playdead') { if (z.pos.distanceTo(from.pos) < r * 0.5) z.wake(p); continue; }
       z.hunt(p, true);
@@ -1575,7 +1606,7 @@ export class Zombies {
   /** A noise at p (a clash of steel, a spell going off) carries `r` metres. */
   noise(p, r) {
     for (const z of this.list) {
-      if (z.dead || z.gone || z.state === 'buried') continue;
+      if (z.dead || z.gone || z.state === 'buried' || z.balkT > this.time) continue;
       const d = z.pos.distanceTo(p);
       if (d > r * (z.has('head') ? 1 : 1.4) || Math.abs(z.pos.y - p.y) > 3) continue;
       if (z.state === 'playdead') { if (d < r * 0.4) z.wake(p); continue; }

@@ -269,6 +269,7 @@ async function build() {
   console.info(`3D scatter models: ${ctx.scatter.count}; textures: ${lib.used.size}/${lib.surf.size} surfaces, ${lib.usedSprites.size}/${lib.spr.size} sprites in use; ${ctx.containers} containers`);
   flameList = [...props.lights, ...ctx.flames];
   flames = new Flames(scene, flameList);
+  ctx.flameFx = { fx: flames, list: flameList };   // (for the few flames that move: the bridge's lanterns)
   skyDome = new Sky(scene);
   shafts = new Shafts(scene, ctx.stained.shafts());
   const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
@@ -774,6 +775,7 @@ function light(dt, t) {
   const isDay = day.day > 0.02;
   sun.color.copy(isDay ? day.sunColor : MOON);
   sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
+  sun.shadow.autoUpdate = L.under < 0.95;   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here)
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
     _lx.crossVectors(new THREE.Vector3(0, 1, 0), ld).normalize();

@@ -310,7 +310,7 @@ export class Mason {
       rows[1].push([p[0] - sx * h + nx * d, p[1] - sy * h + ny * d, p[2] - sz * h + nz * d]);
       rows[2].push([p[0] + sx * h + nx * d, p[1] + sy * h + ny * d, p[2] + sz * h + nz * d]);
       rows[3].push([p[0] + sx * h, p[1] + sy * h, p[2] + sz * h]);
-      for (let r = 0; r < 4; r++) uvs[r].push([along, r * w / 3]);
+      for (let r = 0; r < 4; r++) uvs[r].push([along, [0, d, d + w, 2 * d + w][r]]);   // (true widths: no stretch)
     });
     const off = (p, v, k) => [p[0] + v[0] * k, p[1] + v[1] * k, p[2] + v[2] * k];
     this.sheet(mat, [rows[0], rows[1]], [uvs[0], uvs[1]], off(rows[0][0], s0, -1), 0.8);

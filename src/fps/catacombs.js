@@ -56,7 +56,8 @@ export function buildCatacombs(ctx) {
   // ---- how things are set about (props, the 3D scatter, flames that light the way)
   const flames = ctx.flames;
   const sprite = (id, x, y, z, sc = 1, rot = null) => { if (lib.spr.has(id)) { ctx.scatter.place(id, x, y, z, sc, rot); lib.usedSprites.add(id); } };
-  const burner = (id, x, y, z, sc = 1, size = 0.42) => { sprite(id, x, y, z, sc); const s = lib.sprite(id); if (s) flames.push([x, y + s.height_m * sc * 0.92 + 0.15, z, size, 1]); };
+  // (a burning thing: its model lights its own flame if it has one; only one without gets ours)
+  const burner = (id, x, y, z, sc = 1, size = 0.42) => { const n = flames.length; sprite(id, x, y, z, sc); if (flames.length > n) return; const s = lib.sprite(id); if (s) flames.push([x, y + s.height_m * sc * 0.92 + 0.15, z, size, 1]); };
   const torch = (x, y, z, nx, nz) => props.add('wall_torch', x + nx * 0.02, y, z + nz * 0.02, Math.atan2(nx, nz));
   // torches round a room's wall (none in front of an opening), `every` metres apart
   const roomTorches = (r, every, y = r.y, skip = null) => {
@@ -112,17 +113,17 @@ export function buildCatacombs(ctx) {
   // overlook leaves.
   // (the loculi: three tiers of them cut 0.75 m into each wall, a body bound in its shroud on each
   // shelf, some only bones now, some empty, robbed or never filled)
-  const shroudM = M('cloth_04_aged_cream_linen', 0.8, { tint: 0x8c7e68 }), boneM = M('castle_keep_ivory_chapel_marble', 0.4, { tint: 0xb4aa92 });
+  const shroudM = M('cloth_04_aged_cream_linen', 0.8, { tint: 0xb8ad98 }), cordM = M('cloth_02_stitched_charcoal', 0.8, { tint: 0x6a5e4a }), boneM = M('castle_keep_ivory_chapel_marble', 0.4, { tint: 0xb4aa92 });
   const NICHES = { w: 1.7, pier: 0.45, depth: 0.75, margin: 0.7, tiers: [[0.75, 0.62], [1.75, 0.62], [2.75, 0.62]],
     back: M('castle_soot', 1, { tint: 0x1a1612 }), shelf: M('catacombs_charcoal_flagstone', 1), inner: M(STONE.poor.wall, 2, { tint: 0x8a8078 }),
     fill: (at, u, n, k, seg, sgn, j) => {
       const kind = (seg * 7 + j * 3 + k * 2 + (sgn > 0 ? 1 : 0)) % 6, rot = Math.atan2(u[0], u[1]), sd = seg * 31 + j * 7 + k * 3 + (sgn > 0 ? 1 : 0);
       if (kind === 5) return;
       b.place(at[0], at[1], at[2], rot, 1, (o) => {
-        if (kind < 4) {                                              // bound in a shroud, head to the east
-          o.blob([0, 0.14, 0.08], [0.2, 0.14, 0.46], shroudM, { seed: sd, floor: 0, jitter: 0.05 });
-          o.blob([0, 0.11, -0.5], [0.15, 0.11, 0.36], shroudM, { seed: sd + 1, floor: 0, jitter: 0.05 });
-          o.blob([0, 0.11, 0.66], [0.12, 0.11, 0.13], shroudM, { seed: sd + 2, floor: 0 });
+        if (kind < 4) {                                              // bound in a shroud (one long tapering bundle), corded
+          o.blob([0, 0.14, -0.04], [0.2, 0.14, 0.7], shroudM, { seed: sd, floor: 0, jitter: 0.04 });
+          o.blob([0, 0.12, 0.56], [0.14, 0.12, 0.22], shroudM, { seed: sd + 1, floor: 0, jitter: 0.03 });
+          for (const zz of [-0.5, -0.18, 0.16, 0.46]) { const f = Math.sqrt(Math.max(0.05, 1 - (zz / 0.74) ** 2)); o.box([-0.2 * f - 0.012, 0.01, zz - 0.024], [0.2 * f + 0.012, 0.28 * f + 0.012, zz + 0.024], cordM, { solid: false }); }
         } else {                                                     // the shroud rotted away: bones
           o.blob([0.05, 0.1, 0.58], [0.1, 0.09, 0.11], boneM, { seed: sd, floor: 0 });
           for (const [x0, z0, x1, z1] of [[-0.08, -0.62, -0.02, 0.0], [0.06, -0.6, 0.1, -0.02], [-0.1, 0.05, 0.12, 0.3], [0.02, 0.12, 0.16, 0.42]]) o.cylinder([x0, 0.025, z0], [x1, 0.025, z1], 0.024, 5, boneM);
@@ -230,7 +231,7 @@ export function buildCatacombs(ctx) {
     const f = a / (Math.PI * 2 * BELL.turn);
     if (f > 1) return null;
     const slot = Math.floor(f * 30), step = slot < 14 ? slot + 1 : slot < 16 ? 14 : Math.min(28, slot - 1), h = Y4 + step * 0.25;   // (a landing half way)
-    return rr > BELL.R - 0.22 ? h + 0.55 : h;                      // (its outer edge a low parapet)
+    return rr > BELL.R - 0.22 && step > 5 ? h + 0.55 : h;          // (its outer edge a low parapet, from the sixth step up: the foot is open, stepped onto from the floor)
   };
   mason.feature(shrine, [BELL.x - BELL.R - 0.1, BELL.z - BELL.R - 0.1, BELL.x + BELL.R + 0.1, BELL.z + BELL.R + 0.1], spiralAt, (m) => bellPlinth(m));
 
@@ -485,7 +486,7 @@ export function buildCatacombs(ctx) {
   const effigies = [];
   // (each tomb in an arcosolium: an arch of the gallery's dark stone over it on the wall; the abbot
   // carved lying on its lid; a candle at its head)
-  const arcoM = M(STONE.abbots.trim, 1), chestM = M('castle_keep_sootdark_great_hall', 1.2), effM = M('castle_keep_ivory_chapel_marble', 0.8, { tint: 0x8a8274 });
+  const arcoM = M(STONE.abbots.trim, 1), chestM = M('castle_keep_sootdark_great_hall', 1.2), effM = M('castle_keep_ivory_chapel_marble', 0.8, { tint: 0xb0a898, emissive: 0x1c1812 });   // (a little light of its own: the torches graze it)
   for (const [i, d0] of [[1, 2.4], [6, 1.6]]) {
     const [ax, az, ay] = abbots.pts[i], [bx, bz] = abbots.pts[i + 1], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
     let d = d0;
@@ -494,10 +495,17 @@ export function buildCatacombs(ctx) {
       // the chest of dark stone, the abbot carved lying on its lid in a greyed marble, hands joined
       b.place(x, ay, z, Math.atan2(ux, uz), 1, (o) => {
         o.box([-0.5, 0, -1.05], [0.5, 0.72, 1.05], chestM, { solid: false, shade: 0.8 }); o.box([-0.57, 0.72, -1.12], [0.57, 0.84, 1.12], chestM, { solid: false, shade: 0.9 });
-        o.blob([0, 0.96, 0.76], [0.13, 0.12, 0.14], effM, { seed: effigies.length * 3, floor: 0.84 }); o.blob([0, 0.95, -0.05], [0.25, 0.12, 0.72], effM, { seed: effigies.length * 3 + 1, floor: 0.84 });
-        o.blob([0, 1.06, 0.35], [0.11, 0.07, 0.1], effM, { seed: effigies.length * 3 + 2 }); o.box([-0.18, 0.84, 0.9], [0.18, 0.92, 1.05], effM, { solid: false });
+        const sd = effigies.length * 5;
+        o.box([-0.2, 0.84, 0.6], [0.2, 0.9, 0.98], effM, { solid: false });                                  // the cushion under his head
+        o.blob([0, 0.96, 0.76], [0.13, 0.12, 0.14], effM, { seed: sd, floor: 0.84 });                         // his head, mitred
+        o.box([-0.12, 0.86, 0.86], [0.12, 1.08, 1.1], effM, { solid: false }); for (const mx of [-0.06, 0.06]) o.box([mx - 0.05, 0.88, 1.1], [mx + 0.05, 1.05, 1.22], effM, { solid: false });   // (a tall mitre, two-peaked)
+        o.blob([0, 0.95, -0.05], [0.25, 0.12, 0.72], effM, { seed: sd + 1, floor: 0.84 });                   // his robed body
+        o.blob([0, 1.11, 0.33], [0.06, 0.1, 0.08], effM, { seed: sd + 2 });                                   // hands joined in prayer
+        for (const tx of [-0.08, 0.08]) o.blob([tx, 1.02, -0.79], [0.05, 0.08, 0.05], effM, { seed: sd + 3 }); // his feet, toes up
+        o.cylinder([0.19, 1.0, -0.78], [0.13, 1.06, 0.62], 0.03, 5, effM);                                    // his crozier, its crook curled over his shoulder
+        o.cylinder([0.13, 1.06, 0.62], [0.16, 1.16, 0.74], 0.03, 5, effM); o.cylinder([0.16, 1.16, 0.74], [0.24, 1.14, 0.68], 0.03, 5, effM); o.blob([0.25, 1.1, 0.62], [0.045, 0.05, 0.045], effM, { seed: sd + 4 });
       }, { solid: false });
-      physics.add([x - 1.1, ay, z - 1.1], [x + 1.1, ay + 0.95, z + 1.1], 'prop');
+      physics.addSeg(x - ux * 0.55, z - uz * 0.55, x + ux * 0.55, z + uz * 0.55, ay, ay + 0.95, 1.15, 'prop');   // (along the tomb, at its angle: no invisible wall out into the gallery)
       mason.archRing(arcoM, [x - nx * 0.53, ay, z - nz * 0.53], [ux, uz], [nx, nz], 1.35, 1.25, ay);
       sprite('catacombs_vigil_candles', x + ux * 1.25, ay, z + uz * 1.25, 0.6);   // (its glow only: the gallery's torches light the tombs)
       effigies.push([x, ay, z, nx, nz]);
@@ -509,8 +517,17 @@ export function buildCatacombs(ctx) {
   // Cindermaw's Tomb: braziers round the sunken floor, his open tomb in the apse
   // (none before the door, south, nor before the abbot's tomb in the apse, north)
   for (const deg of [0, 40, 140, 180]) { const a = deg * DEG; burner('catacombs_incense_brazier', 46 + Math.cos(a) * 8.6, Y5, -396 + Math.sin(a) * 8.6, 1.1, 0.5); }
-  // (two great braziers either side of his dais, not before it: the open tomb between them)
-  for (const x of [41.0, 51.0]) burner('catacombs_incense_brazier', x, Y5, -402.6, 1.7, 0.7);
+  // (two great braziers either side of his dais, not before it: wide bronze bowls on drums of black
+  // stone, the open tomb between them)
+  { const st = M('catacombs_black_basalt', 1.2), bronze = M('met_04_tarnished_bronze', 0.8);
+    for (const x of [41.0, 51.0]) {
+      const z = -402.6;
+      b.lathe(x, z, [[0.62, 0], [0.62, 0.1], [0.5, 0.2], [0.44, 0.9], [0.56, 1.0], [0.56, 1.08], [0, 1.08]], 12, st, { y: Y5 });
+      b.lathe(x, z, [[0.22, 0], [0.75, 0.24], [0.98, 0.46], [0.92, 0.5], [0, 0.32]], 14, bronze, { y: Y5 + 1.08 });
+      b.blob([x, Y5 + 1.42, z], [0.74, 0.08, 0.74], ctx.scatter.P.coals, { seed: Math.round(x) });
+      flames.push([x, Y5 + 1.8, z, 0.78, 1]);
+      physics.add([x - 0.62, Y5, z - 0.62], [x + 0.62, Y5 + 1.58, z + 0.62], 'prop');
+    } }
   // (on the ring, the stumps of columns, each by a brazier's light: cover from what he throws)
   for (const deg of [18, 162, 198, 342, 252, 288]) { const a = deg * DEG; props.add('pillar_broken', 46 + Math.cos(a) * 8.05, Y5, -396 + Math.sin(a) * 8.05, deg * 0.1, 0.95); }
   const BOSS = [46, Y5 + 0.75, -404.4];
@@ -518,7 +535,26 @@ export function buildCatacombs(ctx) {
   const ROPE = { x: 46, y: Y5 + 0.75, z: -402.6 };
   const ringRope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 12, 6).translate(0, 6, 0), new THREE.MeshPhongMaterial({ color: 0x6a5236, shininess: 4 }));
   ringRope.position.set(ROPE.x, ROPE.y, ROPE.z); ringRope.visible = false; ctx.scene.add(ringRope);
-  sprite('catacombs_open_sarcophagus', 46, Y5 + 0.75, -404.9, 1.3, 0);
+  // his tomb: a chest of black stone with a bronze rim, standing open, the coals of him still burning
+  // in it and their smoke going up into the dark; its lid broken in two and thrown down into the
+  // arena; candles on the dais's steps
+  { const st = M('catacombs_black_basalt', 1), rim = M('met_04_tarnished_bronze', 0.8), y0 = Y5 + 0.75, cx = 46, cz = -404.9, hx = 0.78, hz = 1.3, h = 0.95, t = 0.13;
+    b.box([cx - hx, y0, cz - hz], [cx + hx, y0 + 0.2, cz + hz], st, { solid: false, shade: 0.8 });
+    for (const sx of [-1, 1]) b.box([sx < 0 ? cx - hx : cx + hx - t, y0, cz - hz], [sx < 0 ? cx - hx + t : cx + hx, y0 + h, cz + hz], st, { solid: false, shade: 0.85 });
+    for (const sz of [-1, 1]) b.box([cx - hx, y0, sz < 0 ? cz - hz : cz + hz - t], [cx + hx, y0 + h, sz < 0 ? cz - hz + t : cz + hz], st, { solid: false, shade: 0.85 });
+    for (const sx of [-1, 1]) b.box([cx + sx * (hx - t / 2) - 0.09, y0 + h, cz - hz - 0.03], [cx + sx * (hx - t / 2) + 0.09, y0 + h + 0.05, cz + hz + 0.03], rim, { solid: false });
+    for (const sz of [-1, 1]) b.box([cx - hx - 0.03, y0 + h, cz + sz * (hz - t / 2) - 0.09], [cx + hx + 0.03, y0 + h + 0.05, cz + sz * (hz - t / 2) + 0.09], rim, { solid: false });
+    b.blob([cx, y0 + 0.62, cz], [hx - 0.14, 0.3, hz - 0.14], ctx.scatter.P.coals, { seed: 9, jitter: 0.25 });   // (heaped to its rim: seen from the arena)
+    for (let k = 0; k < 5; k++) b.blob([cx + Math.sin(k * 2.3) * 0.35, y0 + 0.86, cz + Math.cos(k * 1.7) * 0.8], [0.14, 0.09, 0.16], ctx.scatter.P.coals, { seed: 20 + k });
+    flames.push([cx - 0.25, y0 + 0.95, cz + 0.45, 0.42, 1], [cx + 0.2, y0 + 0.9, cz - 0.5, 0.32]);
+    ctx.chimneys.push([cx, y0 + 1.3, cz]);
+    for (const [lx, lz, r] of [[44.2, -399.6, 0.5], [47.9, -399.1, -0.4]]) b.place(lx, Y5 - 1.2, lz, r, 1, (o) => o.box([-0.42, 0, -0.66], [0.42, 0.15, 0.66], st, { solid: false, shade: 0.8 }), { solid: false });
+    // (the candles: thin wax tapers in twos and threes up the steps either side, burning low)
+    for (const sx of [-1, 1]) for (const [r, deg, hh] of [[2.5, 28, 0.34], [2.55, 33, 0.22], [2.45, 38, 0.28], [3.1, 30, 0.18], [3.12, 36, 0.3], [3.05, 41, 0.14]]) {
+      const a = deg * DEG, lx = 46 + sx * Math.sin(a) * r, lz = -404.6 + Math.cos(a) * r, ly = daisAt(lx, lz) ?? Y5;
+      b.cylinder([lx, ly, lz], [lx, ly + hh, lz], 0.032, 6, ctx.scatter.P.wax, { shade: 0.95 });
+      flames.push([lx, ly + hh + 0.06, lz, 0.075, 1]);
+    } }
   column(43.3, Y5, -403.4, 6); column(48.7, Y5, -403.4, 6);
   props.add('treasure_chest', 48.0, Y5 + 0.75, -405.2, 0);
   flames.push([46, Y5 + 2.2, -403.2, 0.7, 1]);
@@ -612,7 +648,7 @@ export function buildCatacombs(ctx) {
     for (const [lvl, list] of Object.entries(plan)) {
       const dg = dgOf[lvl];
       Z.addUnder(dg);
-      const keep = lvl === 'deep' ? 1 : few(list.length) / list.length;
+      const keep = few(list.length) / list.length;      // (a phone: fewer of the standing and lying dead everywhere, the bell's horde too)
       list.forEach((e, n) => {
         if (keep < 1 && (e[0] === 'stand' || e[0] === 'lie') && Math.floor((n + 1) * keep) === Math.floor(n * keep)) return;     // (a phone: fewer, but every set piece kept)
         const [what] = e;
@@ -629,6 +665,7 @@ export function buildCatacombs(ctx) {
         const zb = Z.spawn(variant, x, z, { y, zone: 'dungeon', dg, kind, start });
         zb.yaw = Math.random() * Math.PI * 2;
         zb.room = null;
+        zb.quick = 1.6;            // (down here the dead scramble up: a set piece is on you in a second, not a cutscene)
         if (what === 'ambush') { zb.yaw = 0; out.ambush.push(zb); }
         if (what === 'erupt') out.erupt.push(zb);
         if (what === 'crawler') zb.cripple(['shinL', 'shinR']);
@@ -653,7 +690,7 @@ export function buildCatacombs(ctx) {
     if (active && out.ambush.length) {
       const L = bridge.locate(player.pos.x, player.pos.z);
       if (L && L.s > (bridge.gap[1] + 1) * bridge.span / bridge.N + 0.5 && Math.abs(L.u) < bridge.hw + 0.2 && Math.abs(player.pos.y - BY) < 3.5) {
-        out.ambush.forEach((z, i) => out.later(i * 0.6, () => { if (!z.dead) { z.wake(player.pos); z.rush = 12; } }));
+        out.ambush.forEach((z, i) => out.later(i * 0.3, () => { if (!z.dead) { z.wake(player.pos, 1.8); z.rush = 12; } }));
         out.ambush = [];
         ctx.sfx?.roar?.();
       }
@@ -669,10 +706,15 @@ export function buildCatacombs(ctx) {
       if (z.state !== 'buried') continue;
       const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
       if (d < 16 && Math.random() < dt * 1.5) zombies.dirt?.(z.pos, 0.2);
-      if (d < 7.5 && Math.abs(player.pos.y - z.pos.y) < 2) z.wake(player.pos);
+      // (woken far enough ahead that it is up in front of you however fast you come: 1.4 s to rise,
+      // so 13 m ahead at a walk, 18 at a run; close by, whichever way you face)
+      const vx = player.vel.x, vz = player.vel.z, sp = Math.hypot(vx, vz), ahead = (z.pos.x - player.pos.x) * vx + (z.pos.z - player.pos.z) * vz > 0;
+      if ((d < 3.5 || (ahead && d < 3 + sp * 1.6)) && Math.abs(player.pos.y - z.pos.y) < 2) z.wake(player.pos, 1.8);
     }
     // Cindermaw lies in his tomb till you come within reach of it
-    for (const z of zombies.list) if (z.champ?.key === 'abbot' && z.state === 'buried' && Math.hypot(player.pos.x - BOSS[0], player.pos.z - BOSS[2]) < 9 && Math.abs(player.pos.y - BOSS[1]) < 4) z.wake(player.pos);
+    // (from the arena's mouth: he is up out of the coals as you reach the sunken floor, not while you
+    // stand over him)
+    for (const z of zombies.list) if (z.champ?.key === 'abbot' && z.state === 'buried' && Math.hypot(player.pos.x - BOSS[0], player.pos.z - BOSS[2]) < 14.5 && Math.abs(player.pos.y - BOSS[1]) < 4) z.wake(player.pos, 1.5);
     // the grille: lifting once the bell has rung
     out.prompt = ''; out.act = null;
     if (!out.ropeDown) { const ab = zombies.list.find((z) => z.champ?.key === 'abbot'); if (ab?.dead) { out.ropeDown = true; ringRope.visible = true; remember('rope'); out.toast?.("A bell-rope drops into the abbot's apse: the ringers' way home"); } }
@@ -680,7 +722,7 @@ export function buildCatacombs(ctx) {
       out.prompt = "E — take the ringers' rope up to their crypt";
       out.act = () => { player.pos.set(5, Y1, -121.5); player.vel.set(0, 0, 0); player.yaw = 0; ctx.sfx?.toll?.(); };
     }
-    if (grilleBox.off) { if (grille.position.y < Y4 + GR.h - 0.3) grille.position.y += dt * 1.4; }
+    if (grilleBox.off) { if (grille.position.y < Y4 + GR.h - 0.3) grille.position.y += dt * 3.2; }   // (up in under two seconds)
     else if (Math.hypot(player.pos.x - GR.x, player.pos.z - GR.z) < 3.2 && Math.abs(player.pos.y - Y4) < 2) out.prompt = 'An iron grille bars the Abbots\' Gallery. It is chained to the First Bell above';
   };
   const remember = (k) => { try { localStorage.setItem('bm.taken.' + k, '1'); } catch { /* no storage */ } };
@@ -928,7 +970,8 @@ export function buildCatacombs(ctx) {
       fix(0, [0, 1, 0]); fix(18, [Math.sin(a0), 0, -Math.cos(a0)]); fix(36, [Math.cos(am), 0, Math.sin(am)]);
       b.raw(tread, P.slice(0, 36), U.slice(0, 24), 0.95);
       b.raw(wallM, P.slice(36), U.slice(24), 0.8);
-      // the low wall on its outer edge (the raster's lip): a parapet of the same stone
+      // the low wall on its outer edge (the raster's lip): a parapet of the same stone, from the sixth step
+      if (stepOf(k) <= 5) continue;
       const lipP = [], lipU = [], hh = y + 0.55, ri = BELL.R - 0.22;
       const q4 = (A, B, C, D) => { lipP.push(...A, ...B, ...C, ...A, ...C, ...D); for (const V of [A, B, C, A, C, D]) lipU.push(...uvOf(V, true)); };
       q4(pt(ri, a0, hh), pt(ri, a1, hh), pt(BELL.R, a1, hh), pt(BELL.R, a0, hh));
@@ -952,20 +995,26 @@ function makeBell(ctx, BELL, meshes, onRing = null, later = (t, fn) => fn()) {
   const prof = [[1.62, 0], [1.66, 0.12], [1.5, 0.34], [1.28, 0.9], [1.12, 1.7], [1.02, 2.5], [0.96, 3.0], [0.7, 3.35], [0.3, 3.5], [0, 3.52]];
   const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y - 3.5)), 32);
   const tex = lib.material('met_04_tarnished_bronze', { tile: 1.5 });
-  const mat = new THREE.MeshPhongMaterial({ map: tex.map, normalMap: tex.normalMap || null, color: 0xc89a5a, specular: 0x8a6a3a, shininess: 46, side: THREE.DoubleSide });
+  const mat = new THREE.MeshPhongMaterial({ map: tex.map, normalMap: tex.normalMap || null, normalScale: new THREE.Vector2(0.3, 0.3), color: 0xc89a5a, specular: 0x8a6a3a, shininess: 46, side: THREE.DoubleSide });
   const bell = new THREE.Mesh(g, mat);
-  const pivot = new THREE.Group();
-  const hangY = BELL.top + 6.05, crown = BELL.top + 5.3 + 2.1;   // (hung under the bell-cote's arch)
-  pivot.position.set(BELL.x, hangY, BELL.z);
-  pivot.add(bell);
-  bell.castShadow = true; bell.receiveShadow = true;
+  // (two smooth bands cast round it, its inscription's, at the shoulder and above the lip)
+  const bandM = new THREE.MeshPhongMaterial({ color: 0xb08850, specular: 0x9a7a48, shininess: 60 });
+  for (const [r, y] of [[1.43, -2.95], [1.0, -0.72]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.04, 6, 32).rotateX(Math.PI / 2), bandM); ring.position.y = y; bell.add(ring); }
+  // (it swings from the arch's crown, where its chains are made fast: chains, yoke, bell and clapper
+  // all hang from that one point, so the chains never leave the stone)
+  const pivot = new THREE.Group(), hung = new THREE.Group();
+  const hangY = BELL.top + 6.05, crown = BELL.top + 5.3 + 2.1, D = hangY - crown;
+  pivot.position.set(BELL.x, crown, BELL.z);
+  hung.position.y = D;
+  pivot.add(hung); hung.add(bell);
+  bell.castShadow = false; bell.receiveShadow = true;   // (the torches' shadow maps are drawn once: its swing would never show in them)
   // its yoke, a timber block bolted to its crown, and the two chains up to the arch
   const ironM = new THREE.MeshPhongMaterial({ color: 0x242220, specular: 0x4a4440, shininess: 30 });
   const yoke = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.6), new THREE.MeshPhongMaterial({ color: 0x3a2a1a, shininess: 6 }));
   yoke.position.y = 0.1;
-  pivot.add(yoke);
+  hung.add(yoke);
   { const link = new THREE.TorusGeometry(0.055, 0.016, 4, 8), M4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    const ends = [[-0.6, 0.3, -0.42, crown - hangY - 0.04], [0.6, 0.3, 0.42, crown - hangY - 0.04]], per = 12;
+    const ends = [[-0.6, D + 0.3, -0.42, -0.04], [0.6, D + 0.3, 0.42, -0.04]], per = 12;
     const chains = new THREE.InstancedMesh(link, ironM, ends.length * per);
     let i = 0;
     for (const [x0, y0, x1, y1] of ends) for (let k = 0; k < per; k++) {
@@ -980,13 +1029,13 @@ function makeBell(ctx, BELL, meshes, onRing = null, later = (t, fn) => fn()) {
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6).translate(0, -1.55, 0), ironM), ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), ironM);
   ball.position.y = -2.95;
   clapper.add(rod, ball); clapper.position.y = -0.1;
-  pivot.add(clapper);
+  hung.add(clapper);
   scene.add(pivot);
   meshes.push(pivot);
   const state = { pivot, swing: 0, v: 0, cool: 0, clap: 0, at: new THREE.Vector3(BELL.x, BELL.top, BELL.z) };
   state.update = (dt, player) => {
     state.v += -state.swing * 9 * dt; state.v *= Math.exp(-dt * 0.35); state.swing += state.v * dt;
-    pivot.rotation.x = state.swing; pivot.rotation.z = state.swing * 0.4;
+    pivot.rotation.x = state.swing; pivot.rotation.z = state.swing * 0.25;   // (sideways a little: clear of the cote's piers)
     state.clap += (-state.swing * 0.7 - state.clap) * Math.min(1, dt * 5); clapper.rotation.x = state.clap;
     state.cool -= dt;
     const under = Math.hypot(player.pos.x - BELL.x, player.pos.z - BELL.z) < 2.8 && Math.abs(player.pos.y - BELL.top) < 0.6;
@@ -994,13 +1043,16 @@ function makeBell(ctx, BELL, meshes, onRing = null, later = (t, fn) => fn()) {
   };
   state.ring = (zombies, sfx, hud) => {
     if (state.cool > 0) return;
-    state.cool = 6; state.v += 0.9;
+    state.cool = 6; state.v += 0.7;
     sfx?.toll?.();
     zombies.noise(state.at, 90);
     for (const z of zombies.list) {
       if (z.dg?.name !== 'The Deep Undercroft' || z.dead || z.gone || z.champ) continue;
+      if (z.dg.where?.(z.pos) === "Cindermaw's Tomb") continue;      // (his own keep their places round him)
       const d = z.pos.distanceTo(state.at);
-      later(d * 0.04, () => { if (z.state === 'playdead' || z.state === 'buried') z.wake(state.at); else z.hunt(state.at, true); z.rush = 8; });
+      // (all of them up within a second: a horde, not a trickle; rushing long enough to hurry all
+      // the way up the spiral)
+      later(Math.min(0.8, d * 0.03), () => { if (z.state === 'playdead' || z.state === 'buried') z.wake(state.at); else z.hunt(state.at, true); z.rush = 25; });
     }
     const opened = onRing?.();
     hud?.toast(opened ? "The First Bell tolls. Somewhere east a grille grinds up, and the dead are coming" : 'The First Bell tolls through the Deep Undercroft, and the dead come');
