@@ -4,7 +4,8 @@
 // place in the bag (mouse or finger); click to look at it; double-click (or right-click) to put
 // it on or take it off; drag it out of the window to drop it. Potions drink on double-click.
 // The spellbook is the second tab.
-import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue } from './gear.js';
+import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats } from './gear.js';
+import { ATTRS, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
 
 const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4],
   ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
@@ -264,6 +265,7 @@ export class Bag {
 
   iconOf(it, again) {
     if (it.type === 'potion') return pixelIcon('potion', TINT[it.kind] || TINT.life);
+    if (it.type === 'quest') return pixelIcon('ring', TINT.ringGold || TINT.tunic);
     if (it.kind === 'gauntlet') { const m = GAUNT_TINT[it.model] || '#7a5a3a'; return pixelIcon('gauntlet', { m, d: '#141010', l: '#e8e0d0', a: '#2a2420' }); }
     if (it.icon) return pixelIcon(PX[it.icon] ? it.icon : 'ring', TINT[it.icon] || TINT.tunic);
     return this.o.icon?.(it, again) || null;
@@ -384,12 +386,31 @@ export class Bag {
       ['Life Steal', `${st.lifeSteal.toFixed(1)}%`], ['Life Regen', `${st.lifeRegen.toFixed(1)}/s`],
       ['Mana Regen', `${st.manaRegen.toFixed(1)}/s`], ['Move Speed', `+${Math.round(st.moveSpeed)}%`],
     ];
-    let h = '<h3>The Wayfarer</h3><div class="stats-grid">';
+    const c = fitLevel(this.o.char()), need = xpToNext(c.level);
+    let h = `<h3>Tessariel <em>— level ${c.level}</em></h3>`;
+    h += `<div class="xpline"><i style="width:${c.level >= MAX_LEVEL ? 100 : Math.min(100, c.xp / need * 100).toFixed(1)}%"></i><span>${c.level >= MAX_LEVEL ? 'the highest level' : `${c.xp} / ${need} experience`}</span></div>`;
+    h += `<div class="attrs"><div class="dim small">${c.points ? `<b class="gold">${c.points}</b> point${c.points > 1 ? 's' : ''} to spend` : "No class: put each level's points where you like"}</div>`;
+    for (const [k, A] of Object.entries(ATTRS)) h += `<div class="attr" title="${A.desc}"><span>${A.name}</span><b>${c.attrs[k]}</b><button class="small plus" data-attr="${k}" ${c.points ? '' : 'disabled'}>+</button></div>`;
+    h += `<div class="dim small">${Object.values(ATTRS).map((A) => `${A.name}: ${A.desc}`).join('<br>')}</div>`;
+    h += `<button class="small respec" ${Object.values(c.attrs).some((v) => v) ? '' : 'disabled'}>Take the points back</button></div>`;
+    h += '<h3>Numbers</h3><div class="stats-grid">';
     for (const [k2, v] of rows) h += `<span class="dim">${k2}</span><span class="v">${v}</span>`;
     h += '</div>';
     const en = Object.entries(st.enchants).filter(([, v]) => v);
     if (en.length) h += '<h3>Shield</h3>' + en.map(([e, v]) => `<div class="tt-ench">${ENCHANTS[e].name}: ${esc(ENCHANTS[e].desc(v))}</div>`).join('');
     box.innerHTML = h;
+    // spend a point (or take them all back): the numbers follow at once
+    for (const b of box.querySelectorAll('button.plus')) b.onclick = () => {
+      const ch = this.o.char();
+      if (ch.points <= 0) return;
+      ch.points--; ch.attrs[b.dataset.attr]++;
+      this.changed();
+    };
+    box.querySelector('button.respec').onclick = () => {
+      const ch = this.o.char();
+      for (const k of Object.keys(ch.attrs)) { ch.points += ch.attrs[k]; ch.attrs[k] = 0; }
+      this.changed();
+    };
     return box;
   }
 
@@ -409,7 +430,7 @@ export class Bag {
       card.append(row);
       grid.append(card);
     }
-    this.body.append(el('h3', null, 'Spellbook <em>— set a spell to F or R, then press that key to cast</em>'), grid);
+    this.body.append(el('h3', null, 'Spellbook <em>— set a spell to F or R, then press that key to cast. Every spell is open to you, at any level, while Bellmourn is in beta</em>'), grid);
   }
 }
 
@@ -434,7 +455,8 @@ export function tooltip(it, { compare = null, hint = '' } = {}) {
       h += '<div class="tt-sep"></div>';
       for (const e of it.enchants) h += `<div class="tt-ench"><b>${ENCHANTS[e.e].name}</b>: ${esc(ENCHANTS[e.e].desc(e.v))}</div>`;
     }
-    h += `<div class="tt-price">Worth ${itemValue(it)} gold</div>`;
+    if (it.lore) h += `<div class="tt-sep"></div><div class="tt-lore">${esc(it.lore)}</div>`;
+    h += `<div class="tt-price">${it.unique ? '<span class="tt-uniq">Unique</span> · ' : ''}Worth ${itemValue(it)} gold</div>`;
   }
   if (hint) h += `<div class="dim small">${hint}</div>`;
   return h;

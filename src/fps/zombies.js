@@ -523,6 +523,26 @@ export class Zombie {
   get dead() { return this.state === 'dead'; }
   get slow() { return this.chillT > 0 ? 0.4 : 1; }
 
+  /** Made a champion (a quest's boss): bigger by C.scale, C.hp times as hard to kill, hitting
+   * C.dmg times as hard (main's hurtPlayer reads champ.dmg), glowing faintly in its tint. */
+  champion(C) {
+    const s = C.scale || 1.5, k = C.hp || 6;
+    this.champ = { key: C.key, name: C.name, dmg: C.dmg || 2, max: HP * k, xp: C.xp };
+    this.root.scale.setScalar(s); this.size = s;
+    this.radius = {}; this.tips = {};
+    for (const b of this.skel.bones) {
+      const kind = b.name.replace(/[LR]$/, '');
+      if (RADIUS[kind]) this.radius[b.name] = RADIUS[kind] * s;
+      if (TIP[kind]) this.tips[b.name] = TIP[kind] * s;
+    }
+    this.hp = this.champ.max;
+    for (const l of Object.keys(this.limbHp)) this.limbHp[l] *= k * 0.45;
+    this.kind = { ...this.kind, sight: 26, hear: 1.6, run: Math.max(this.kind.run || 0, 2.4) };
+    this.heft = 3;
+    for (const m of [this.mesh.material].flat()) if (m.emissive) { m.emissive.setRGB(...(C.tint || [1, 1, 1])).multiplyScalar(0.12); }
+    return this;
+  }
+
   /** Frost and fire from a shield's enchantments: chilled it moves slow, burning it smoulders. */
   afflict(dt) {
     if (this.chillT > 0) this.chillT -= dt;
@@ -844,6 +864,7 @@ export class Zombie {
   die() {
     this.state = 'dead';
     this.deadT = 0;
+    this.owner.onDeath?.(this);   // (experience, and the quests' counts)
     // the dead carried things into the ground with them, now and then
     const loot = this.owner.foes?.ctx?.loot;
     if (loot && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });

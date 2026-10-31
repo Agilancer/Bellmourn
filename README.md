@@ -46,16 +46,88 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Left click | right hand: swing, or shoot with a staff |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
-| E | open and close doors, search chests, crates, barrels, sacks and pots |
-| Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your numbers) and the spellbook |
+| E | speak with someone (and take or hand in their work); open and close doors, search chests, crates, barrels, sacks and pots |
+| Tab or I | inventory and character (after Velscour's: the paper doll, a 40-place bag, the item card, your level, attributes and numbers) and the spellbook |
 | 1 to 5 | quick-equip the first one-hander, two-hander, staff, round shield or kite shield in the bag |
 | Q, Z | drink a healing draught, a mana draught |
 | M | the map (the corner map is always up; below ground it charts what you've walked) |
-| Esc | pause (pixel size, look speed, graphics, time of day) |
+| L, T | the quest log; show or hide the quest tracker |
+| Esc | pause (save, load, the quest log, a new game; pixel size, look speed, graphics, time of day) |
 
-You set out with a plain sword and round shield in hand and a staff in the bag (with a
-greatsword, a kite shield and some draughts); a character saved before this is given the
-sword, shield and staff once, if it doesn't have them.
+### The coming of Tessariel
+
+The title offers **New Game**, **Continue** (the game you were playing, as it was kept as you
+played: `bm.char` and `bm.progress`) and **Load Game**. A new game opens with a cinematic played in
+the engine (`intro.js`): in the deep sky (`comet.js`'s `Space`: stars, a nebula band, the world
+below with its rim of air, the sun) a green star crosses over the world, and close alongside it a
+man in black smallclothes, curled up in a ball, spins inside the fire (`hero.js`: villager_m09
+stripped at load, his clothes turned to skin and the briefs drawn on in the bind pose, posed by
+turning each bone so its child lies along the curl). It streaks across the sunset over the
+Darkwood; one of Velscour's Sworn walks out of the wood behind the town, stops and looks up; the
+camera dives behind the star onto him; white. Out of the white: a smoking crater with nothing left
+of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
+bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
+staff, which can. The whole village screams at once (a synthesized crowd: `audio.js` `scream`).
+Black; then your own eyes, standing in the crater with nothing in your hands or your bag. The
+Canticle's verses run under it as captions. Esc (or the skip button) skips it.
+
+The crater (`crater.js`) is one height function added to the village's flat ground (so the
+physics, the map and everything else find the bowl), its own smooth mesh in the ground's material,
+whose shader chars it out past the lip and fuses its floor to green glass with glowing cracks
+(`lib.ground`'s `crater`). It lies flat until the star strikes (`formCrater`). Green shards,
+flames, embers and smoke stay in it, and the village has left candles, wreaths and flowers just past
+its char (`polish.js`).
+
+Then the village comes running: Sister Odile (the keeper of the holy texts, new to the roster),
+the Reeve, Mother Hesk, Garrow, Tobias, Wren and Elsie stand round you in the crater and tell you
+who you are: **Tessariel, the Sacred Flame**, whose coming their texts describe to the
+smallclothes, sent to kill the Demon Lord Velscour; and that his sycophants kill anyone who speaks
+the name. They give you armour, gauntlets, gold and draughts (whatever's free goes straight on).
+Since then the village talks of little else: `tessariel.js` holds 187 conversations between
+townsfolk (and 18 for Velscour's garrison, who never say the name; nobody says it with the garrison
+in earshot, and someone who does gets hushed), plus greetings, muttering, and what each calling
+says when you speak to them (E).
+
+### Quests
+
+After World of Warcraft (`quests.js`). A yellow **!** over someone's head means work for you:
+speak with them and they tell you about it. Take it and it turns to a grey **?**; finish it and
+the **?** turns yellow; hand it in and it's gone, unless they've more. Whoever has work for you
+waits at their post (by day and by night). Every quest is marked on the map and the corner map
+(a gold ring or star where it's done, an arrow on the corner map's rim when it's off it), the
+tracker under the corner map follows what you choose in the log (L), and T hides it.
+
+| From | Quest | What |
+|---|---|---|
+| Sister Odile | The Dead Beneath the Bell | destroy every one of the dead in the Undercroft (counted when you take it) |
+| Mother Hesk | Gravebloom | gather 6 gravebloom from the graves behind the cathedral |
+| Garrow | Sworn Steel | take 4 shards of Sworn steel from Velscour's knights |
+| Sergeant Brand | Dread on the Downs | kill 8 of the dread knights and sorcerers on the Green Downs |
+| Hild | The Old Watch's Standard | bring back the old watch's standard from the Old Watch Cellars, and destroy 8 of the dead there |
+| Idris | Lights of the Gloamhollow | gather 6 glowcaps in the Gloamhollow |
+| Tobias | The Drowned Mother | slay the Drowned Mother in the Drowned Grotto (boss) |
+| Reeve Osric | Saint Ivo's Reliquary | slay the Wight of Saint Ivo and bring back his reliquary from the Barrow (boss) |
+| Sister Odile | The Ember Abbot | slay Abbot Cindermaw and 12 of the dead in the Deep Undercroft (boss) |
+| Wren | The Trollhole King | slay Old Gnarlgut in the Trollhole (boss) |
+| Sister Odile | The Red Hand of Velscour | slay Ser Malgrave on the Red Throne of Blackvigil Keep (boss) |
+
+The bosses are champions: one of the dead grown huge, many times as hard to kill, hitting harder,
+with a bar of their own (`Zombie.champion`). Each quest pays experience, gold and one of the
+village's treasures (`uniques.js`): Bellwarden, the Censer of the Ninth Bell, Mother Hesk's
+Thornring, the Wall of the Watch, Hammerfall Grips, the Gloamstaff, Trollbane, the Drowned Mother's
+Pearl, the Halo of Saint Ivo, the Watchman's Striders and Tessariel's Brand, each with its own story
+and some with powers nothing else rolls (blows that set the dead burning, or chill them).
+
+### Levels and saves
+
+Bellmourn has no classes (`level.js`): everything you kill and every quest earns experience; each
+level adds life, mana, damage and armour, and gives three points to put into Might, Vigour, Arcana
+or Finesse (Tab, under your character; they can be taken back). Every spell is open from the
+start. **Save Game** and **Load Game** (on the pause screen, and Load on the title) keep ten slots,
+each with its date and time, level, place and gold (`saves.js`: `bm.save.1` to `bm.save.10`).
+
+A character saved before this is given the plain sword, shield and staff once, if it doesn't have
+them, and keeps them on Continue; the quests are open to it as they are to a new one.
 
 Holding a shield up (right click) spends its **Guard** (the bar under life and mana) on whatever
 it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops

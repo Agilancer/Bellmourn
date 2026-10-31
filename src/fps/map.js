@@ -222,8 +222,58 @@ export class WorldMap {
     const cx = this.zoom > 1 ? ppx - this.pan[0] * PX : this.W / 2 - this.pan[0] * PX, cz = this.zoom > 1 ? ppz - this.pan[1] * PX : this.H / 2 - this.pan[1] * PX;
     g.fillStyle = '#1a140c'; g.fillRect(0, 0, w, h);
     g.drawImage(this.chart, cx - w / 2 / fit, cz - h / 2 / fit, w / fit, h / fit, 0, 0, w, h);
+    this.drawPins(g, (x, z) => { const [a, b] = this.px(x, z); return [(a - cx) * fit + w / 2, (b - cz) * fit + h / 2]; }, fit / PX, w, h, true);
     this.arrow(g, (ppx - cx) * fit + w / 2, (ppz - cz) * fit + h / 2, p.yaw, 10);
     this.title.textContent = 'Bellmourn, the Darkwood and the Green Downs';
+  }
+
+  /** The quests on the map (quests.js pins): a yellow ! or ? over whoever has work for you (grey ?
+   * for work under way), and a gold ring or star where each followed quest is done. */
+  drawPins(g, to, k, w, h, big) {
+    const pins = this.pins?.() || [];
+    g.save();
+    for (const q of pins) {
+      const [x, y] = to(q.x, q.z);
+      if (x < -60 || y < -60 || x > w + 60 || y > h + 60) continue;
+      if (q.kind === 'area') {
+        g.strokeStyle = 'rgba(255, 210, 60, 0.95)'; g.fillStyle = 'rgba(255, 210, 60, 0.16)'; g.lineWidth = big ? 2.5 : 2;
+        if (q.r) { g.setLineDash([6, 4]); g.beginPath(); g.arc(x, y, Math.max(8, q.r * k), 0, Math.PI * 2); g.fill(); g.stroke(); g.setLineDash([]); }
+        this.star(g, x, y, big ? 9 : 6);
+        if (big) {
+          g.font = '700 12px Cinzel, Georgia, serif'; g.textAlign = 'center';
+          g.lineWidth = 3; g.strokeStyle = 'rgba(20, 12, 4, 0.9)'; g.strokeText(q.label, x, y - 14); g.fillStyle = '#ffd84a'; g.fillText(q.label, x, y - 14);
+        }
+      } else {
+        const glyph = q.kind === '!' ? '!' : '?';
+        g.font = `900 ${big ? 22 : 15}px "Cinzel Decorative", Cinzel, Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3.5; g.strokeStyle = '#1a1004'; g.strokeText(glyph, x, y);
+        g.fillStyle = q.kind === 'g' ? '#a8a296' : '#ffd21a'; g.fillText(glyph, x, y);
+        g.textBaseline = 'alphabetic';
+        if (big && k > 1.6) { g.font = '600 10px Cinzel, Georgia, serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(232, 220, 190, 0.85)'; g.strokeText(q.label, x, y + 18); g.fillStyle = INK; g.fillText(q.label, x, y + 18); }
+      }
+    }
+    g.restore();
+  }
+
+  star(g, x, y, r) {
+    g.save(); g.fillStyle = '#ffd84a'; g.strokeStyle = '#3a2204'; g.lineWidth = 1.5;
+    g.beginPath();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    g.closePath(); g.fill(); g.stroke(); g.restore();
+  }
+
+  /** On the corner map's rim: which way each followed quest lies, if it's off the map. */
+  edgePins(g, p, S) {
+    const k = S / 160, R = S / 2 - 7;
+    for (const q of (this.pins?.() || []).filter((x) => x.kind === 'area' || x.kind === '?')) {
+      const dx = (q.x - p.pos.x) * k, dz = (q.z - p.pos.z) * k, d = Math.hypot(dx, dz);
+      if (d < R - 4) continue;
+      const x = S / 2 + dx / d * R, y = S / 2 + dz / d * R;
+      g.save(); g.translate(x, y); g.rotate(Math.atan2(dz, dx));
+      g.fillStyle = q.kind === '?' ? '#ffd21a' : '#ffd84a'; g.strokeStyle = '#2a1804'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(6, 0); g.lineTo(-4, -5); g.lineTo(-2, 0); g.lineTo(-4, 5); g.closePath(); g.fill(); g.stroke();
+      g.restore();
+    }
   }
 
   /** The corner map, each frame (cheap: a crop of the chart). */
@@ -238,8 +288,11 @@ export class WorldMap {
       const [x, z] = this.px(p.pos.x, p.pos.z), span = 160 / PX;   // 160 m across
       g.imageSmoothingEnabled = false;
       g.drawImage(this.chart, x - span / 2, z - span / 2, span, span, 0, 0, S, S);
+      const k = S / 160;   // pixels a metre
+      this.drawPins(g, (wx, wz) => [S / 2 + (wx - p.pos.x) * k, S / 2 + (wz - p.pos.z) * k], k, S, S, false);
     }
     g.restore();
+    if (!this.under(p)) this.edgePins(g, p, S);
     this.arrow(g, S / 2, S / 2, p.yaw, 7);
     g.strokeStyle = '#8a7448'; g.lineWidth = 3; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.stroke();
     g.fillStyle = '#d8b870'; g.font = '700 11px Cinzel, serif'; g.textAlign = 'center'; g.fillText('N', S / 2, 13);

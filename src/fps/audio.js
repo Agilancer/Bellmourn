@@ -166,6 +166,111 @@ export class Sfx {
     } };
   }
 
+  /** The green star coming down: a roar of torn air and fire that swells and rises (set(k) from 0
+   * to 1 as it comes closer), with a low throb under it. */
+  roar() {
+    if (!this.ok) return { set() {}, stop() {} };
+    const c = this.ctx, t = c.currentTime;
+    const out = c.createGain(); out.gain.value = 0.0001; out.connect(this.out);
+    const src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300; lp.Q.value = 0.8;
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1.4;
+    const g1 = c.createGain(); g1.gain.value = 0.9; const g2 = c.createGain(); g2.gain.value = 0.25;
+    src.connect(lp); lp.connect(g1); g1.connect(out); src.connect(bp); bp.connect(g2); g2.connect(out);
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 38;
+    const og = c.createGain(); og.gain.value = 0.05; const ol = c.createBiquadFilter(); ol.type = 'lowpass'; ol.frequency.value = 160;
+    o.connect(ol); ol.connect(og); og.connect(out);
+    src.start(t); o.start(t);
+    return {
+      set: (k, near = 0) => {
+        const n = c.currentTime;
+        out.gain.setTargetAtTime(0.05 + 0.75 * k, n, 0.15);
+        lp.frequency.setTargetAtTime(200 + 1400 * k + 2000 * near, n, 0.2);
+        bp.frequency.setTargetAtTime(600 + 2400 * k, n, 0.2);
+        o.frequency.setTargetAtTime(34 + 40 * k, n, 0.3);
+      },
+      stop: (fade = 0.1) => {
+        const n = c.currentTime;
+        out.gain.cancelScheduledValues(n); out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), n); out.gain.exponentialRampToValueAtTime(0.0001, n + fade);
+        src.stop(n + fade + 0.05); o.stop(n + fade + 0.05);
+      },
+    };
+  }
+
+  /** The green star strikes: a crack, a huge low boom rolling away, and earth and stones raining down. */
+  impact() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.12, { type: 'highpass', f0: 2500, f1: 900, gain: 0.9, attack: 0.002 });
+    this._noise(t, 3.2, { type: 'lowpass', f0: 2400, f1: 40, gain: 1.0, attack: 0.004 });
+    this._tone(t, 2.6, { type: 'sine', f0: 62, f1: 24, gain: 0.7, attack: 0.01 });
+    this._tone(t + 0.05, 1.8, { type: 'triangle', f0: 120, f1: 30, gain: 0.25, attack: 0.01 });
+    for (let i = 0; i < 26; i++) this._noise(t + 0.6 + Math.random() * 2.8, 0.06 + Math.random() * 0.12, { type: 'lowpass', f0: 900 + Math.random() * 900, f1: 150, gain: 0.05 + Math.random() * 0.12, attack: 0.003 });
+  }
+
+  /** Every soul in the village screaming at once: a crowd of voices (men's and women's) through the
+   * vowel's formants, rising, held and breaking off, heard from across the meadow. */
+  scream(voices = 16, far = 0.6) {
+    if (!this.ok) return;
+    const c = this.ctx, t0 = c.currentTime;
+    const out = c.createGain(); out.gain.value = 0.55;
+    const tone = c.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 5200 - far * 2600;
+    // a little room: a short feedback echo off the houses
+    const dl = c.createDelay(1); dl.delayTime.value = 0.13; const fb = c.createGain(); fb.gain.value = 0.28;
+    out.connect(tone); tone.connect(this.out); tone.connect(dl); dl.connect(fb); fb.connect(dl); fb.connect(this.out);
+    const FORMANTS = [[[820, 1250, 2900], [1, 0.55, 0.25]], [[650, 1900, 2800], [1, 0.6, 0.3]], [[750, 1100, 2600], [1, 0.5, 0.2]]];
+    for (let i = 0; i < voices; i++) {
+      const woman = i % 3 !== 0, f0 = woman ? 560 + Math.random() * 300 : 240 + Math.random() * 170;
+      const t = t0 + Math.random() * 0.18, dur = 1.4 + Math.random() * 0.9;
+      const o = c.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f0 * 0.75, t);
+      o.frequency.exponentialRampToValueAtTime(f0 * (1.1 + Math.random() * 0.15), t + 0.22);
+      o.frequency.setValueAtTime(f0 * (1.1 + Math.random() * 0.1), t + dur * 0.65);
+      o.frequency.exponentialRampToValueAtTime(f0 * 0.62, t + dur);
+      const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 5 + Math.random() * 3; vg.gain.value = f0 * 0.035;
+      vib.connect(vg); vg.connect(o.frequency);
+      const env = c.createGain();
+      env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(0.1, t + 0.07);
+      env.gain.setValueAtTime(0.1, t + dur * 0.7); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+      if (pan) pan.pan.value = (Math.random() - 0.5) * 1.4;
+      const [fs, gs] = FORMANTS[i % FORMANTS.length];
+      for (let k = 0; k < 3; k++) {
+        const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fs[k] * (woman ? 1.12 : 1); bp.Q.value = 7 + k * 2;
+        const g = c.createGain(); g.gain.value = gs[k] * 1.6;
+        o.connect(bp); bp.connect(g); g.connect(env);
+      }
+      if (pan) { env.connect(pan); pan.connect(out); } else env.connect(out);
+      o.start(t); vib.start(t); o.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
+      // breath under the voice
+      this._noise(t, dur * 0.8, { type: 'bandpass', f0: 2400, f1: 1800, q: 2, gain: 0.02, attack: 0.08 });
+    }
+  }
+
+  /** A level gained: a rising peal. */
+  levelUp() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    [523, 659, 784, 1047, 1319].forEach((f, i) => this._tone(t + i * 0.09, 1.2, { type: 'triangle', f0: f, f1: f, gain: 0.07 }));
+    this._noise(t, 1.4, { type: 'highpass', f0: 6000, f1: 3000, gain: 0.05, attack: 0.2 });
+  }
+
+  /** A quest taken (low) or done (high): two notes and a bell. */
+  quest(done = false) {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime, b = done ? 660 : 440;
+    this._tone(t, 0.5, { type: 'triangle', f0: b, f1: b, gain: 0.07 });
+    this._tone(t + 0.14, 0.9, { type: 'triangle', f0: b * 1.5, f1: b * 1.5, gain: 0.07 });
+    if (done) this._tone(t + 0.28, 1.4, { type: 'sine', f0: b * 2, f1: b * 2, gain: 0.06 });
+  }
+
+  /** Coin counted into the purse. */
+  coin() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    for (let i = 0; i < 4; i++) this._tone(t + i * 0.05, 0.12, { type: 'triangle', f0: 2400 + Math.random() * 700, f1: 2200, gain: 0.03 });
+  }
+
   equip() {
     if (!this.ok) return;
     const t = this.ctx.currentTime;
