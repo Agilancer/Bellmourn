@@ -14,6 +14,8 @@ export class Builder {
 
   push(mat, geo) {
     if (!this.batches.has(mat)) this.batches.set(mat, new Map());
+    if (mat.userData.feather && !geo.attributes.edge)   // (a feathered overlay laid some other way: solid throughout)
+      geo.setAttribute('edge', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count).fill(1), 1));
     const p = geo.attributes.position.array, C = mat.userData.chunk || 32;
     let x = 0, y = 0, z = 0;
     const n = p.length / 3;
@@ -43,9 +45,105 @@ export class Builder {
     this.push(mat, g);
   }
 
-  /** A quad from four corners (counter-clockwise seen from the front), UVs in metres. */
+  /** A quad from four corners (counter-clockwise seen from the front), UVs in metres. A ground
+   * overlay with a feathered edge (lib.material `feather`) is laid as a feathered quad instead. */
   quad(mat, a, b, c, d, uvs, shade = 1) {
+    if (mat.userData.feather) { this.featherQuad(mat, a, b, c, d, uvs, shade); return; }
     this.mesh(mat, [a, b, c, d], uvs, [[0, 1, 2], [0, 2, 3]], shade);
+  }
+
+  // ------------------------------------------------------------ feathered ground overlays
+  // A road, a plaza, a yard laid over the ground has no hard straight edge: its edge is a band
+  // `feather` metres either side of where it was drawn, with an `edge` value running from 0 outside
+  // the band to 1 inside it, and the overlay's shader (lib.material) frays it there with noise and
+  // the texture's own light and dark (stones last, dirt between them first).
+
+  /** Triangles with an `edge` per vertex (0 .. 1), UVs in metres. */
+  edgeMesh(mat, pos, uv, edge, tris, shade = 1) {
+    const g = new THREE.BufferGeometry();
+    const tu = mat.userData.tileU || 1, tv = mat.userData.tileV || 1;
+    const P = new Float32Array(tris.length * 9), U = new Float32Array(tris.length * 6), E = new Float32Array(tris.length * 3);
+    tris.forEach(([a, b, c], i) => {
+      [a, b, c].forEach((v, j) => {
+        P.set(pos[v], i * 9 + j * 3);
+        U.set([uv[v][0] / tu, uv[v][1] / tv], i * 6 + j * 2);
+        E[i * 3 + j] = edge[v];
+      });
+    });
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+    g.setAttribute('edge', new THREE.BufferAttribute(E, 1));
+    g.computeVertexNormals();
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(tris.length * 9).fill(shade), 3));
+    this.push(mat, g);
+  }
+
+  /** A feathered quad: the four corners grown out and shrunk in by the feather (no more than 0.4 of
+   * its narrower side), its UVs carried on out from the corners'. */
+  featherQuad(mat, a, b, c, d, uvs, shade = 1) {
+    const P = [a, b, c, d].map((p) => new THREE.Vector3(...p));
+    const n = new THREE.Vector3().subVectors(P[1], P[0]).cross(new THREE.Vector3().subVectors(P[2], P[0])).normalize();
+    const side = Math.min(P[0].distanceTo(P[1]), P[1].distanceTo(P[2]), P[2].distanceTo(P[3]), P[3].distanceTo(P[0]));
+    const f = Math.min(mat.userData.feather, side * 0.4);
+    // UVs: affine in the quad's plane (the builders' UVs are world metres), from corners 0, 1, 3
+    const s = new THREE.Vector3().subVectors(P[1], P[0]).normalize(), t = new THREE.Vector3().crossVectors(n, s);
+    const flat = (p) => { const q = new THREE.Vector3().subVectors(p, P[0]); return [q.dot(s), q.dot(t)]; };
+    const [x1, y1] = flat(P[1]), [x3, y3] = flat(P[3]), det = x1 * y3 - x3 * y1 || 1e-9;
+    const uvAt = (p) => {
+      const [x, y] = flat(p), k1 = (x * y3 - x3 * y) / det, k3 = (x1 * y - x * y1) / det;
+      return [0, 1].map((i) => uvs[0][i] + (uvs[1][i] - uvs[0][i]) * k1 + (uvs[3][i] - uvs[0][i]) * k3);
+    };
+    // each corner moved along its mitre so both its sides move by f
+    const off = (i, k) => {
+      const p = P[i], prev = P[(i + 3) % 4], next = P[(i + 1) % 4];
+      const n1 = new THREE.Vector3().subVectors(p, prev).cross(n).normalize(), n2 = new THREE.Vector3().subVectors(next, p).cross(n).normalize();
+      const m = n1.clone().add(n2), den = 1 + n1.dot(n2);
+      return p.clone().addScaledVector(m, (k * f) / Math.max(den, 0.2));
+    };
+    const pts = [0, 1, 2, 3].map((i) => off(i, 1)).concat([0, 1, 2, 3].map((i) => off(i, -1)));
+    const edge = [0, 0, 0, 0, 1, 1, 1, 1], tris = [[4, 5, 6], [4, 6, 7]];
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tris.push([i, j, 4 + j], [i, 4 + j, 4 + i]); }
+    this.edgeMesh(mat, pts.map((p) => p.toArray()), pts.map(uvAt), edge, tris, shade);
+  }
+
+  /** A feathered patch of ground round (x, z) at height y: `outline` [[x, z]...] counter-clockwise
+   * seen from above (a ragged ring), its UVs world metres (x, -z). */
+  patch(mat, x, z, y, outline, shade = 1) {
+    const f = mat.userData.feather || 1, n = outline.length;
+    const pos = [[x, y, z]], edge = [1];
+    for (const k of [1, -1]) for (const [px, pz] of outline) {
+      const dx = px - x, dz = pz - z, r = Math.hypot(dx, dz) || 1, g = Math.max(0.2, (r + k * f) / r);
+      pos.push([x + dx * g, y, z + dz * g]); edge.push(k > 0 ? 0 : 1);
+    }
+    const tris = [];
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n, oi = 1 + i, oj = 1 + j, ii = 1 + n + i, ij = 1 + n + j;
+      tris.push([0, ij, ii], [oi, ii, ij], [oi, ij, oj]);
+    }
+    this.edgeMesh(mat, pos, pos.map((p) => [p[0], -p[2]]), edge, tris, shade);
+  }
+
+  /** A feathered road along `pts` [[x, z, w?, w2?]...] at height y, w metres either side of its line (a
+   * point's own w (and w2 for its other side), else `w`), frayed along its sides (and at its ends unless ends === false). Its
+   * UVs run along it (u: metres across, v: metres along), so ruts and setts follow the road. */
+  ribbon(mat, pts, w, y = 0.02, { ends = true, shade = 1 } = {}) {
+    const fmax = mat.userData.feather || 1, n = pts.length;
+    const pos = [], edge = [], uv = [], tris = [];
+    let along = 0;
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], [x, z] = pts[i], wi = pts[i][2] ?? w, wo = pts[i][3] ?? wi;
+      if (i) along += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]);
+      let dx = b[0] - a[0], dz = b[1] - a[1];
+      const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      const ox = -dz, oz = dx, f = Math.min(fmax, Math.min(wi, wo) * 0.8);
+      const e = ends && (i === 0 || i === n - 1) ? 0.5 : 1;   // (an end: half way out, frayed with the rest)
+      for (const [k, ev] of [[wi + f, 0], [wi - f, e], [-(wo - f), e], [-(wo + f), 0]]) { pos.push([x + ox * k, y, z + oz * k]); edge.push(ev); uv.push([k, along]); }
+    }
+    for (let i = 0; i + 1 < n; i++) for (let s = 0; s < 3; s++) {
+      const a = i * 4 + s, b = a + 1, c = a + 4, d = a + 5;
+      tris.push([a, c, b], [b, c, d]);
+    }
+    this.edgeMesh(mat, pos, uv, edge, tris, shade);
   }
 
   /** An axis-aligned box. mats: one material or {top, bottom, side}. Collides unless
@@ -408,12 +506,20 @@ export class Builder {
     for (const [mat, chunks] of this.batches) {
       mat.vertexColors = true;
       for (const geos of chunks.values()) {
-        const g = mergeGeometries(geos, false);
+        let g = mergeGeometries(geos, false);
+        if (mat.userData.feather) {   // a feathered overlay: its solid middle drawn without blending
+          const [band, solid] = splitFeather(g);
+          if (solid) meshes.push(this.addMesh(scene, solid, solidTwin(mat), -1000.5 + layerOf(solid)));
+          if (!band) continue;
+          g = band;
+        }
         g.computeBoundingSphere();
         const mesh = new THREE.Mesh(g, mat);
         mesh.matrixAutoUpdate = false;
         mesh.castShadow = !mat.userData.noCast;
         mesh.receiveShadow = true;
+        // feathered overlays blend over the ground (and over each other, the higher laid last)
+        if (mat.userData.feather) mesh.renderOrder = -1000 + layerOf(g);
         scene.add(mesh);
         meshes.push(mesh);
       }
@@ -421,4 +527,55 @@ export class Builder {
     this.batches.clear();
     return meshes;
   }
+
+  addMesh(scene, g, mat, renderOrder = 0) {
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.matrixAutoUpdate = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.renderOrder = renderOrder;
+    scene.add(mesh);
+    return mesh;
+  }
+}
+
+/** Where a feathered overlay was laid, as an order: how far above its ground (the builders lay the
+ * higher overlays a few millimetres up), in thousandths. */
+function layerOf(g) {
+  g.computeBoundingBox();
+  return Math.round(((g.boundingBox.min.y % 1) + 1) % 1 * 1000);
+}
+
+/** A feathered overlay's triangles split into its band (where its edge frays: blended) and its solid
+ * middle (all edge 1: drawn whole). Returns [band, solid] (either may be null). */
+function splitFeather(g) {
+  const e = g.attributes.edge.array, n = e.length / 3;
+  const keep = [[], []];
+  for (let t = 0; t < n; t++) keep[e[t * 3] > 0.999 && e[t * 3 + 1] > 0.999 && e[t * 3 + 2] > 0.999 ? 1 : 0].push(t);
+  return keep.map((tris) => {
+    if (!tris.length) return null;
+    const out = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(g.attributes)) {
+      const w = a.itemSize, src = a.array, dst = new src.constructor(tris.length * 3 * w);
+      tris.forEach((t, i) => dst.set(src.subarray(t * 3 * w, (t + 1) * 3 * w), i * 3 * w));
+      out.setAttribute(k, new THREE.BufferAttribute(dst, w));
+    }
+    return out;
+  });
+}
+
+/** The solid middle's material: the overlay's own, unblended and writing no depth, drawn in turn with
+ * the frayed bands after everything solid (renderOrder: each layer's middle just before its band,
+ * the higher-laid after the lower, so a plaza covers the roads' frayed edges under it). */
+function solidTwin(m) {
+  if (!m.userData.solid) {
+    const s = m.clone();
+    s.defines = { ...(m.defines || {}) };   // (clone() leaves them behind)
+    s.transparent = true; s.blending = THREE.NoBlending; s.depthWrite = false;
+    s.onBeforeCompile = m.onBeforeCompile; s.customProgramCacheKey = m.customProgramCacheKey;
+    s.userData = { ...m.userData, solid: null };
+    m.userData.solid = s;
+  }
+  return m.userData.solid;
 }

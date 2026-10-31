@@ -38,11 +38,55 @@ def bleed(rgb, mask, px=24):
     return out
 
 
-def main(src, out):
+def wraps(out, cols, size=512):
+    """zombie_wraps.png, three columns: twisted rope | grimy linen with frayed edges | hair strands.
+    Each column is tinted for its monster (cols: rope / linen / strand RGB)."""
+    rng = np.random.default_rng(17)
+    w3 = size // 3
+    yy, xx = np.mgrid[0:size, 0:w3].astype(np.float32)
+    img = np.zeros((size, size, 4), np.float32)
+    # rope: three twisted plies, fibres along each, dark between
+    ply = 0.5 + 0.5 * np.sin((xx / w3 * 3 + yy / size * 6) * 2 * np.pi)
+    fib = 0.85 + 0.15 * np.sin((xx * 0.9 + yy * 0.35) * 1.7)
+    rope = np.array(cols.get("rope", (0.36, 0.32, 0.25)))[None, None] * (0.45 + 0.55 * ply ** 0.6)[..., None] * fib[..., None]
+    fray = np.clip(fbm((size, w3), rng, 1.2) - 0.4, 0, 1)[..., None]       # pale frayed fibre whiskers
+    rope = rope * (1 - 0.5 * fray) + np.array([0.55, 0.5, 0.42]) * 0.5 * fray
+    rope *= (1 - 0.35 * fbm((size, w3), rng, 2.0))[..., None]
+    img[:, :w3, :3] = rope; img[:, :w3, 3] = 1
+    # linen: weave, grime, old blood and rot; frayed, holed edges in alpha
+    weave = 0.82 + 0.18 * np.sin(xx * 2.1) * np.sin(yy * 2.1)
+    lin = np.array(cols.get("linen", (0.72, 0.66, 0.52)))[None, None] * weave[..., None]
+    grime = fbm((size, w3), rng, 2.2)
+    lin *= (1 - 0.22 * np.clip(grime, 0, 1))[..., None]
+    blood = np.clip(fbm((size, w3), rng, 2.6) * 0.9 - 1.0, 0, 1)[..., None]
+    lin = lin * (1 - blood) + np.array([0.28, 0.08, 0.05]) * blood
+    edge = np.minimum(xx, w3 - 1 - xx) / w3
+    n1 = fbm((size, w3), rng, 1.4)
+    lin *= (1 - 0.15 * np.clip((0.22 - edge) / 0.22, 0, 1))[..., None]         # tea-stained, a little darker at the edges
+    la = ((edge > 0.07 + 0.1 * np.clip(n1, 0, 1)) & (fbm((size, w3), rng, 2.8) < 1.5)).astype(np.float32)
+    img[:, w3:2 * w3, :3] = lin; img[:, w3:2 * w3, 3] = la
+    # strands: fine wavy hairs, thinning to the tips (v = 0 root .. 1 tip, the image top is v = 1)
+    ws = size - 2 * w3
+    sy, sx = np.mgrid[0:size, 0:ws].astype(np.float32)
+    v = 1 - sy / size
+    cov = np.zeros((size, ws), np.float32)
+    for _ in range(40):                               # sparse clumps: scalp shows between them
+        x0 = rng.uniform(0, ws); amp = rng.uniform(0.5, 3.0); ph = rng.uniform(0, 6.3); end = rng.uniform(0.55, 1.0)
+        xc = x0 + amp * np.sin(v * rng.uniform(4, 11) + ph)
+        cov = np.maximum(cov, np.clip(1 - np.abs(sx - xc) / rng.uniform(1.8, 3.0), 0, 1) * np.clip((end - v) / 0.18, 0, 1))
+    hair = np.array(cols.get("strand", (0.62, 0.6, 0.56)))[None, None] * (0.7 + 0.3 * fbm((size, ws), rng, 1.8)[..., None])
+    img[:, 2 * w3:, :3] = hair; img[:, 2 * w3:, 3] = (cov > 0.5).astype(np.float32)
+    Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(os.path.join(out, "zombie_wraps.png"))
+
+
+def main(src, out, name=None):
     os.makedirs(out, exist_ok=True)
     im = np.asarray(Image.open(src).convert("RGB")).astype(np.float32) / 255.0
     lum = im @ np.array([0.299, 0.587, 0.114], np.float32)
-    mask = ndimage.binary_opening(lum > 0.055, iterations=2)
+    # islands vs the sheet's background (black on most sheets, tan / olive / grey on some)
+    border = np.concatenate([im[:3].reshape(-1, 3), im[-3:].reshape(-1, 3), im[:, :3].reshape(-1, 3), im[:, -3:].reshape(-1, 3)])
+    bg = np.median(border, 0)
+    mask = ndimage.binary_opening(np.linalg.norm(im - bg, axis=2) > 0.07, iterations=2)
     mask = ndimage.binary_fill_holes(mask)
     mask = ndimage.binary_erosion(mask, iterations=1)  # drop the dark anti-aliased rim
 
@@ -80,6 +124,12 @@ def main(src, out):
     low /= ndimage.gaussian_filter(mask.astype(np.float32), 5)[..., None] + 1e-4
     np.save(os.path.join(out, "zombie_low.npy"), bleed(low, mask).astype(np.float16))
     rags(out)
+    cols = {}
+    if name:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import monsters
+        cols = monsters.MONSTERS[name].get("extras", {}).get("cols", {})
+    wraps(out, cols)
     print("islands px", int(mask.sum()), "height std", float(height[mask].std()))
 
 
@@ -102,7 +152,7 @@ def rags(out, size=512):
     grime = np.clip((0.75 - v) * 1.4, 0, 1)                           # filthier toward the hem
     base = np.array([0.30, 0.26, 0.20])
     col = base[None, None] * (0.78 + 0.12 * weave[..., None] + 0.08 * streak[..., None] - 0.12 * blot[..., None])
-    col *= (1 - 0.45 * grime)[..., None]
+    col *= (1 - 0.3 * grime)[..., None]
     stain = np.clip(fbm((size, size), rng, 2.4) * 0.8 - 0.9, 0, 1)[..., None]
     col = col * (1 - stain) + np.array([0.20, 0.07, 0.05]) * stain       # old blood
     holes = fbm((size, size), rng, 2.8) + grime * 1.2 - 2.0
@@ -112,14 +162,18 @@ def rags(out, size=512):
     hem = 0.05 + 0.6 * np.sin(np.pi * u) ** 2 + 0.035 * n1 + 0.02 * n2
     phase = (u * 9 + 0.25 * n1) % 1.0
     slit = (np.abs(phase - 0.5) < 0.045 + 0.02 * n2) & (v < 0.6 + 0.06 * n1)   # torn into strips
-    split = (np.minimum(u, 1 - u) < 0.035 + 0.01 * n2) & (v < 0.72)    # a solid apron, torn into two flaps below
+    split = np.zeros_like(u, dtype=bool)    # a solid apron, torn into two flaps below
     alpha = ((v > hem) & ~slit & ~split & (holes < 0)).astype(np.float32)
-    alpha = ndimage.binary_opening(alpha > 0.5, iterations=1).astype(np.float32)
+    alpha = ndimage.binary_opening(alpha > 0.5, iterations=2).astype(np.float32)
     alpha = np.where(v > 0.985, 0.0, alpha)
+    lab, nl = ndimage.label(alpha > 0.5)                               # no floating specks below the hem
+    if nl > 1:
+        sizes = ndimage.sum(np.ones_like(alpha), lab, range(1, nl + 1))
+        alpha = np.where(np.isin(lab, 1 + np.flatnonzero(sizes >= 400)), alpha, 0.0)
     col *= (1 - 0.45 * np.clip((v - 0.9) / 0.04, 0, 1))[..., None]      # rolled, filthy top edge
     rgba = np.dstack([np.clip(col, 0, 1), alpha])
     Image.fromarray((rgba * 255 + 0.5).astype(np.uint8), "RGBA").save(os.path.join(out, "zombie_rags.png"))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)

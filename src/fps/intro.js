@@ -141,6 +141,13 @@ export class Intro {
       return p;
     };
     this.spawnKnight();
+    // the knight as he comes apart: a cut piece is drawn without skinning (other shaders, other shadow
+    // shaders), so each of his materials on a plain mesh too, under the crater where the sun's shadow
+    // (which follows you there) takes it in for these frames
+    const limbs = new THREE.Group();
+    this.knight.root.traverse((c) => { if (c.isSkinnedMesh) { const p = new THREE.Mesh(c.geometry, c.material); p.castShadow = true; p.frustumCulled = false; limbs.add(p); } });
+    limbs.position.set(STRIKE.x, -25, STRIKE.z);
+    o.scene.add(limbs);
     // the crater as it will be (its arms laid out, their models hung on), the knight out, every
     // villager out of doors: compiled, in the world and in the deep sky, with the comet in each
     formCrater(1);
@@ -152,8 +159,15 @@ export class Intro {
     this.knight.root.visible = true;
     this.comet.setScene(o.scene);
     this.comet.update(0.016, _v.set(STOP.x - 20, 30, STOP.z), _w.set(30, -30, 0), { camera: o.camera });
+    // the shockwave the strike throws out over the meadow, and the dust behind it (made now, so
+    // they're compiled with the rest)
+    const ring = (inner, mat) => { const m = new THREE.Mesh(new THREE.RingGeometry(inner, 1, 128, 1).rotateX(-Math.PI / 2), mat); m.position.set(CRATER.x, 0.35, CRATER.z); m.frustumCulled = false; o.scene.add(m); return m; };
+    this.wave ||= ring(0.84, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 1.9, 0.85), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
+    this.dust ||= ring(0.5, new THREE.MeshBasicMaterial({ color: 0x4a3c2c, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+    this.wave.visible = this.dust.visible = true;
     const done = compile(o.scene, o.camera);
     for (const [r, v] of vis) r.visible = v;
+    this.wave.visible = this.dust.visible = false;
     await done;
     this.comet.remove(); this.comet.setScene(this.space.scene);
     await compile(this.space.scene, this.space.camera);
@@ -194,10 +208,11 @@ export class Intro {
       o.calibrate(ms, gpu);
     }
     // and back as it was before it all
+    o.scene.remove(limbs);
     o.layArms?.([]);
     formCrater(0);
     this.knight.root.visible = false;
-    this.comet.remove(); this.comet.trail.clear(); this.comet.t = 0;
+    this.comet.remove(); this.comet.clear(); this.comet.t = 0;
     o.worldPass.scene = o.scene; o.worldPass.camera = o.camera;
     o.light.intensity = 0;
     this.shot = null; this.kClip = null;
@@ -421,6 +436,7 @@ export class Intro {
       fade = u < 0.45 ? 1 : 1 - ease((u - 0.45) / 0.55);
       if (u >= 0.45 && !this.handed) { this.handed = true; this.o.onControl?.(); }
     }
+    if (this.struck && !dry) this.shockwave(t - T_HIT);
     cam.updateProjectionMatrix();
     if (!dry) {
       this.fadeEl.style.background = white > fade ? '#fff' : '#000';
@@ -440,9 +456,20 @@ export class Intro {
       o.worldPass.scene = o.scene; o.worldPass.camera = o.camera;
       if (!this.struck) { this.comet.remove(); this.comet.setScene(o.scene); }
     }
-    if (name === 'sky') this.comet.trail.clear();
+    if (name === 'sky') this.comet.clear();
     if (this.knight) this.knight.root.visible = name === 'knight-out' || name === 'knight-look' || name === 'knight-fear' || name === 'dive';
-    if (name === 'dive') this.comet.trail.clear();
+    if (name === 'dive') this.comet.clear();
+  }
+
+  /** The ring of green fire the strike throws out across the meadow, and the dust after it (age:
+   * seconds since the strike). */
+  shockwave(age) {
+    const w = this.wave, d = this.dust;
+    if (!w) return;
+    const a = age / 4.5, b = age / 5;
+    w.visible = a < 1; d.visible = b < 1;
+    if (w.visible) { w.scale.setScalar(3 + 70 * (1 - (1 - a) ** 3)); w.material.opacity = (1 - a) ** 1.2; }
+    if (d.visible) { d.scale.setScalar(4 + 44 * (1 - (1 - b) ** 2)); d.material.opacity = 0.55 * (1 - b); }
   }
 
   /** The star strikes: white, the boom, the knight gone, the crater made, his things thrown about. */
@@ -460,8 +487,10 @@ export class Intro {
     if (P) {
       P.burst(at, [new THREE.Color('#5a4630'), new THREE.Color('#3a2c1e'), new THREE.Color('#7a6448')], 260, { speed: 16, size: 0.12, grav: 12, life: 4.5, drag: 0.4 });
       P.burst(at, [new THREE.Color('#9affb0'), new THREE.Color('#40ff70'), new THREE.Color('#e8ffe0')], 160, { speed: 22, size: 0.06, grav: 5, life: 3, drag: 0.6 });
+      P.burst(at, [new THREE.Color('#d8ffe0'), new THREE.Color('#7affa0'), new THREE.Color('#ffe9a0')], 220, { speed: 34, size: 0.07, grav: 3, life: 4.5, drag: 0.45 });   // (a fountain of green fire)
+      P.burst(at, [new THREE.Color('#ff9a30'), new THREE.Color('#ffd070'), new THREE.Color('#7a3a10')], 120, { speed: 12, size: 0.1, grav: 9, life: 5, drag: 0.3 });     // (glowing rock)
     }
-    for (let i = 0; i < 40; i++) o.smoke?.emit(new THREE.Vector3(CRATER.x + (Math.random() - 0.5) * 14, 0, CRATER.z + (Math.random() - 0.5) * 14),
+    for (let i = 0; i < 70; i++) o.smoke?.emit(new THREE.Vector3(CRATER.x + (Math.random() - 0.5) * 14, 0, CRATER.z + (Math.random() - 0.5) * 14),
       new THREE.Vector3((Math.random() - 0.5) * 4, 3 + Math.random() * 5, (Math.random() - 0.5) * 4), { life: 6, size: 3, grow: 3.5, alpha: 0.55, shade: 0.3 });
   }
 
@@ -504,7 +533,7 @@ export class Intro {
       o.geometry?.dispose?.();
       for (const m of [o.material].flat()) if (m) { for (const v of Object.values(m)) if (v?.isTexture && !v.userData?.shared) v.dispose?.(); m.dispose?.(); }
     });
-    free(this.space?.scene); free(this.comet?.group); free(this.comet?.trail.points);
+    free(this.space?.scene); free(this.comet?.group); free(this.comet?.trail.points); free(this.comet?.smoke.points); free(this.wave); free(this.dust); this.wave?.removeFromParent(); this.dust?.removeFromParent(); this.wave = this.dust = null;
     this.space = this.comet = null;
     this.el.remove();
     this.dropKnight();

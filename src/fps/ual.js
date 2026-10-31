@@ -95,6 +95,23 @@ export const RECIPES = {
   jump: { seq: [{ src: 'NinjaJump_Start', to: 0.45 }, { src: 'NinjaJump_Land', from: 0.15, to: 1.0 }], ground: true },
   leap: { seq: [{ src: 'Jump_Start', from: 0.4 }, { src: 'Jump_Land' }], ground: true },
   heavy: { src: 'Sword_Heavy_Combo', plant: true, hit: [15, 35, 54, 79], guard: [0.08, 0.15] },
+  // the rest of both libraries (not yet used by anyone's brain; hit frames still to find)
+  sword_combo: { src: 'Sword_Regular_Combo', plant: true, guard: [0.08, 0.15] },
+  shield_hit: { src: 'Shield_OneShot', plant: true },
+  carry_walk: { src: 'Walk_Carry_Loop', plant: true, gait: true },
+  punch3: { src: 'Melee_Hook', plant: true }, punch3_rec: { src: 'Melee_Hook_Rec', plant: true },
+  throw: { src: 'OverhandThrow', plant: true },
+  climb: { src: 'ClimbUp_1m' }, falling: { src: 'Jump_Loop' }, jump_hang: { src: 'NinjaJump_Idle_Loop' },
+  slide_start: { src: 'Slide_Start', ground: true }, slide: { src: 'Slide_Loop', ground: true }, slide_exit: { src: 'Slide_Exit', ground: true },
+  swim: { src: 'Swim_Fwd_Loop' }, swim_idle: { src: 'Swim_Idle_Loop' },
+  cast_ready: { src: 'Spell_Simple_Idle_Loop', plant: true },
+  idle_arms: { src: 'Idle_FoldArms_Loop', plant: true }, nod_yes: { src: 'Yes', plant: true }, nod_no: { src: 'Idle_No_Loop', plant: true },
+  lantern: { src: 'Idle_Lantern_Loop', plant: true }, rail: { src: 'Idle_Rail_Loop', plant: true }, rail_call: { src: 'Idle_Rail_Call', plant: true },
+  open_chest: { src: 'Chest_Open', plant: true }, consume: { src: 'Consume', plant: true },
+  harvest: { src: 'Farm_Harvest', plant: true }, plant: { src: 'Farm_PlantSeed', plant: true }, water: { src: 'Farm_Watering', plant: true },
+  chop: { src: 'TreeChopping_Loop', plant: true },
+  zombie_idle: { src: 'Zombie_Idle_Loop', plant: true }, zombie_walk: { src: 'Zombie_Walk_Fwd_Loop', plant: true, gait: true },
+  zombie_scratch: { src: 'Zombie_Scratch', plant: true },
 };
 const GUARD = ['clavicle_l', 'upperarm_l', 'lowerarm_l', 'hand_l'];   // the shield arm
 
@@ -109,7 +126,9 @@ export const CALM = {
 };
 /** The clips that go round and round (the rest play once and hold their end). */
 export const LOOPING = new Set(['idle', 'walk', 'run', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'block', 'guard',
-  'crouch', 'crouch_walk', 'torch', 'sit_idle', 'sit_talk', 'push', 'dance', 'dead', 'dead2']);
+  'crouch', 'crouch_walk', 'torch', 'sit_idle', 'sit_talk', 'push', 'dance', 'dead', 'dead2',
+  'carry_walk', 'falling', 'jump_hang', 'slide', 'swim', 'swim_idle', 'cast_ready', 'idle_arms', 'nod_no', 'lantern', 'rail', 'chop',
+  'zombie_idle', 'zombie_walk']);
 
 /** The villager's bones under the Sworn's names (the zombie body's; the rest keep their own: Body,
  * Torso, the fingers, the ends and the pole targets). */

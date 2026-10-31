@@ -3,24 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zombie Viewer</title>
+<title>Undead Viewer</title>
 <style>
   :root { --bg:#0d0f12; --panel:rgba(18,20,24,.88); --line:#2a2e35; --text:#d9d6cf; --dim:#8a877f; --hot:#b3242a; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.35 system-ui, sans-serif; overflow:hidden; }
   canvas { display:block; }
-  #side { position:fixed; top:12px; left:12px; bottom:12px; width:250px; display:flex; flex-direction:column; gap:8px;
+  #side { position:fixed; top:12px; left:12px; bottom:12px; width:260px; display:flex; flex-direction:column; gap:8px;
           background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
   h1 { font-size:15px; margin:0; letter-spacing:.04em; }
   #stats { color:var(--dim); font-size:12px; }
+  #pick { display:flex; gap:6px; }
+  #monster { flex:1; min-width:0; padding:6px 8px; background:#0b0c0f; border:1px solid var(--line); color:var(--text); border-radius:6px; font:inherit; }
   #filter { width:100%; padding:6px 8px; background:#0b0c0f; border:1px solid var(--line); color:var(--text); border-radius:6px; }
   #clips { flex:1; overflow:auto; margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
   #clips li { padding:5px 8px; cursor:pointer; border-radius:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #clips li.take { padding-left:22px; }
   #clips li:hover { background:#1d2027; }
   #clips li.on { background:var(--hot); color:#fff; }
   #clips li small { color:var(--dim); float:right; }
   #clips li.on small { color:#f3d0d0; }
-  #bar { position:fixed; left:274px; right:12px; bottom:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  #bar { position:fixed; left:284px; right:12px; bottom:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;
          background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
   button { background:#1d2027; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; }
   button:hover { border-color:#4a505a; }
@@ -37,9 +40,14 @@
 </style>
 </head>
 <body>
-<div id="msg">Loading zombie…</div>
+<div id="msg">Loading…</div>
 <div id="side">
-  <h1>ZOMBIE — UAL2 rig</h1>
+  <h1>UNDEAD — UAL2 rig</h1>
+  <div id="pick">
+    <button id="prev" title="[">‹</button>
+    <select id="monster" aria-label="Monster"></select>
+    <button id="next" title="]">›</button>
+  </div>
   <div id="stats"></div>
   <input id="filter" placeholder="Filter clips…" autocomplete="off">
   <ul id="clips"></ul>
@@ -66,8 +74,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-const MODEL = new URLSearchParams(location.search).get('model') || 'zombie_ual.glb';
+// every monster shares the UAL2 skeleton; the clips (with four extra takes of each zombie clip) live in one file
+const MONSTERS = [
+  ['zombie_ual', 'Zombie'], ['veinwretch', 'Veinwretch'], ['ropebound', 'Ropebound'], ['ancient', 'Ancient'],
+  ['cinder', 'Cinder'], ['maw', 'Maw'], ['mummy', 'Mummy'], ['shambler', 'Shambler'], ['drowned', 'Drowned'],
+  ['ghoul', 'Ghoul'], ['plague', 'Plague'],
+];
+const CLIPS = 'ual2_clips.glb';
 const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -117,31 +132,65 @@ function setLight() {
 }
 setLight();
 
-let mixer, root, action, clips = [], current = -1, playing = true;
+let mixer, root, action, clips = [], current = -1, playing = true, monster = -1, loadId = 0;
 const clock = new THREE.Clock();
+const loader = new GLTFLoader();
 
-new GLTFLoader().load(MODEL, (gltf) => {
-  root = gltf.scene;
+// base clips (zombie ones first), each followed by its takes _B.._E
+function order(list) {
+  const base = (n) => n.replace(/_[B-E]$/, '');
+  return list.slice().sort((a, b) =>
+    (base(b.name).startsWith('Zombie') - base(a.name).startsWith('Zombie')) ||
+    base(a.name).localeCompare(base(b.name)) || a.name.localeCompare(b.name));
+}
+
+for (const [file, name] of MONSTERS) $('monster').add(new Option(name, file));
+
+function dispose(obj) {   // phones: free the last monster before the next one arrives
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.dispose();
+    for (const m of [].concat(o.material)) {
+      for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
+      m.dispose();
+    }
+  });
+}
+
+async function show(i) {
+  i = (i + MONSTERS.length) % MONSTERS.length;
+  const id = ++loadId;
+  const [file, name] = MONSTERS[i];
+  $('monster').value = file;
+  $('msg').textContent = `Loading ${name}…`;
+  let gltf;
+  try {
+    gltf = await loader.loadAsync(file + '.glb', (e) => {
+      if (e.total && id === loadId) $('msg').textContent = `Loading ${name}… ${Math.round(e.loaded / e.total * 100)}%`;
+    });
+  } catch (err) { $('msg').textContent = `Could not load ${file}.glb — ${err.message}`; return; }
+  if (id !== loadId) { dispose(gltf.scene); return; }
+  const keep = current >= 0 ? clips[current].name : 'Zombie_Walk_Fwd_Loop';
+  if (root) { mixer.stopAllAction(); scene.remove(root); dispose(root); }
+  root = gltf.scene; monster = i;
   let tris = 0, bones = 0;
+  const wire = $('wire').classList.contains('on');
   root.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
       tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+      if (wire) [].concat(o.material).forEach((m) => { m.wireframe = true; });
     }
     if (o.isBone) bones++;
   });
   scene.add(root);
-  mixer = new THREE.AnimationMixer(root);
-  // zombie clips first, then the rest alphabetically
-  clips = gltf.animations.slice().sort((a, b) =>
-    (b.name.startsWith('Zombie') - a.name.startsWith('Zombie')) || a.name.localeCompare(b.name));
-  $('stats').textContent = `${Math.round(tris).toLocaleString()} triangles · ${bones} bones · ${clips.length} clips`;
-  buildList();
-  const start = clips.findIndex((c) => c.name === 'Zombie_Walk_Fwd_Loop');
-  play(start >= 0 ? start : 0);
-  $('msg').remove();
-}, (e) => { if (e.total) $('msg').textContent = `Loading zombie… ${Math.round(e.loaded / e.total * 100)}%`; },
-(err) => { $('msg').textContent = 'Could not load ' + MODEL + ' — ' + err.message; });
+  mixer = new THREE.AnimationMixer(root); action = null;
+  $('stats').textContent = `${name} · ${Math.round(tris).toLocaleString()} triangles · ${bones} bones · ${clips.length} clips`;
+  $('msg').textContent = '';
+  history.replaceState(null, '', '?m=' + file);
+  const k = clips.findIndex((c) => c.name === keep);
+  play(k >= 0 ? k : 0);
+}
 
 function buildList() {
   const ul = $('clips'); ul.innerHTML = '';
@@ -149,9 +198,11 @@ function buildList() {
   clips.forEach((c, i) => {
     if (f && !c.name.toLowerCase().includes(f)) return;
     const li = document.createElement('li');
-    li.innerHTML = `${c.name.replace(/_/g, ' ')} <small>${c.duration.toFixed(1)}s</small>`;
+    const take = /_[B-E]$/.test(c.name);
+    li.innerHTML = `${take ? 'take ' + c.name.slice(-1) : c.name.replace(/_/g, ' ')} <small>${c.duration.toFixed(1)}s</small>`;
+    li.title = c.name;
     li.dataset.i = i;
-    li.className = i === current ? 'on' : '';
+    li.className = (take ? 'take ' : '') + (i === current ? 'on' : '');
     li.onclick = () => play(i);
     ul.appendChild(li);
   });
@@ -165,13 +216,20 @@ function play(i) {
   action = next; current = i;
   setPlaying(true);
   for (const li of $('clips').children) li.classList.toggle('on', +li.dataset.i === i);
-  $('clips').querySelector('.on')?.scrollIntoView({ block: 'nearest' });
+  const ul = $('clips'), li = ul.querySelector('.on');   // keep the playing clip in view, inside the list only
+  if (li) {
+    const y = li.offsetTop - ul.offsetTop;
+    if (y < ul.scrollTop || y + li.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = y - ul.clientHeight / 3;
+  }
 }
 
 function setPlaying(p) {
   playing = p; $('play').textContent = p ? 'Pause' : 'Play';
 }
 
+$('monster').onchange = () => show(MONSTERS.findIndex(([f]) => f === $('monster').value));
+$('prev').onclick = () => show(monster - 1);
+$('next').onclick = () => show(monster + 1);
 $('play').onclick = () => setPlaying(!playing);
 $('rest').onclick = () => {
   mixer?.stopAllAction(); action = null; current = -1;
@@ -195,6 +253,9 @@ $('wire').onclick = () => {
 $('filter').oninput = buildList;
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+  if (e.target.tagName === 'SELECT') return;
+  if (e.code === 'BracketLeft') show(monster - 1);
+  if (e.code === 'BracketRight') show(monster + 1);
   if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
   if (e.code === 'ArrowDown' || e.code === 'ArrowRight') { e.preventDefault(); play((current + 1) % clips.length); }
   if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') { e.preventDefault(); play((current - 1 + clips.length) % clips.length); }
@@ -215,6 +276,13 @@ renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
 });
+
+try {
+  clips = order((await loader.loadAsync(CLIPS)).animations);
+} catch (err) { $('msg').textContent = 'Could not load ' + CLIPS + ' — ' + err.message; throw err; }
+buildList();
+const start = MONSTERS.findIndex(([f]) => f === (q.get('m') || (q.get('model') || '').replace(/\.glb$/, '')));
+show(start >= 0 ? start : 1);
 </script>
 </body>
 </html>

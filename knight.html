@@ -164,7 +164,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { Foes, FOES, SWORN, FITTINGS, STATS, DASH, shieldArm, shieldPoses } from './src/fps/foes.js';
-import { RECIPES, CALM, UAL_URL, loadUal, ualBody, VILLAGER_BONES } from './src/fps/ual.js';
+import { RECIPES, CALM, LOOPING, UAL_URL, loadUal, ualBody, VILLAGER_BONES } from './src/fps/ual.js';
 
 const $ = (id) => document.getElementById(id);
 const FPS = 30;
@@ -182,6 +182,36 @@ const DEF = (v) => FOES[v] || { kind: 'villager', title: NAMES[v], finish: ['wor
 /** What move `name` is made of on the body shown (one without a shield stands easy: CALM). */
 const recipeOf = (name) => (main?.meta.calm && CALM[name]) || RECIPES[name];
 const MOVES = {
+  sword_combo: ['Sword combination', 'The library\u2019s own three-cut chain in one clip.'],
+  shield_hit: ['Shield strike', 'A short punch with the shield where he stands.'],
+  carry_walk: ['Carrying walk', 'Walking with a load held before him.'],
+  punch3: ['Hook', 'A swinging hook.'],
+  punch3_rec: ['Hook, recovering', 'Back from the hook to his stance.'],
+  throw: ['Overhand throw', 'A throw from over the shoulder.'],
+  climb: ['Climbs up', 'Hauls himself up onto a ledge a metre high.'],
+  falling: ['Falling', 'In the air, round and round.'],
+  jump_hang: ['Hangs in the air', 'The high jump\u2019s moment at the top.'],
+  slide_start: ['Slide, in', 'Drops into a slide.'],
+  slide: ['Sliding', 'Down low, sliding.'],
+  slide_exit: ['Slide, out', 'Up out of the slide.'],
+  swim: ['Swims', 'Swimming forward (the floor here is the water’s surface).'],
+  swim_idle: ['Treads water', 'Keeping afloat in one place (the floor here is the water’s surface).'],
+  cast_ready: ['Spell held ready', 'A spell held in the hands, waiting to go.'],
+  idle_arms: ['Arms folded', 'Stands with arms folded (some villagers stand so).'],
+  nod_yes: ['Nods yes', 'A nod.'],
+  nod_no: ['Shakes no', 'A shake of the head.'],
+  lantern: ['Lantern held up', 'A lantern held up to see by.'],
+  rail: ['Leans on a rail', 'Leaning on a rail or a wall top.'],
+  rail_call: ['Calls from a rail', 'Leaning on a rail, calling out.'],
+  open_chest: ['Opens a chest', 'Bends to lift a lid (a merchant at the stall).'],
+  consume: ['Eats or drinks', 'Something to the mouth (at the well).'],
+  harvest: ['Harvests', 'Pulls up crops (at work).'],
+  plant: ['Plants seed', 'Sets seed in the ground (at work).'],
+  water: ['Waters', 'Waters the rows.'],
+  chop: ['Chops wood', 'Swings an axe at a tree.'],
+  zombie_idle: ['Zombie, standing', 'The library\u2019s shambler, swaying where it stands.'],
+  zombie_walk: ['Zombie, walking', 'The shambler\u2019s walk.'],
+  zombie_scratch: ['Zombie, clawing', 'The shambler\u2019s swipe.'],
   guard: ['Shield guard', 'The knight’s guard stance, kept for a body without a shield (it stands easy for its idle).'],
   wave: ['Wave', 'The villagers’ own wave (the library has none).'],
   idle: ['Guard', 'Stands in the shield guard: shield before his chest, blade ready.'],
@@ -242,16 +272,21 @@ const MOVES = {
   blink: ['Blink', 'Gone in a puff, and back some way off.'],
 };
 // what came from the first library (marked NEW)
-const NEW = new Set(['walk', 'run', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'leap', 'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest',
-  'death2', 'dead2', 'cast', 'crouch', 'crouch_walk', 'torch', 'sit', 'sit_idle', 'sit_talk', 'stand', 'interact', 'pickup', 'kneel', 'push', 'dance']);
+// the newest: the rest of both libraries (all but the pistols, driving, the phone call and the T-poses)
+const NEW = new Set(['sword_combo', 'shield_hit', 'carry_walk', 'punch3', 'punch3_rec', 'throw', 'climb', 'falling', 'jump_hang', 'slide_start', 'slide',
+  'slide_exit', 'swim', 'swim_idle', 'cast_ready', 'idle_arms', 'nod_yes', 'nod_no', 'lantern', 'rail', 'rail_call', 'open_chest', 'consume', 'harvest',
+  'plant', 'water', 'chop', 'zombie_idle', 'zombie_walk', 'zombie_scratch']);
 const GROUPS = [
-  ['Moving', ['idle', 'idle_calm', 'idle_talk', 'idle_sword', 'walk', 'patrol', 'run', 'sprint', 'jump', 'leap']],
-  ['Cuts', ['attack1', 'attack2', 'attack3', 'attack4', 'lunge', 'heavy', 'attack1_rec', 'attack2_rec']],
-  ['Shield and guard', ['bash', 'block', 'guard', 'parry', 'roll', 'guardbreak', 'hit', 'hit_head', 'hit_chest']],
-  ['Bare-handed', ['punch1', 'punch2']],
+  ['Moving', ['idle', 'idle_calm', 'idle_talk', 'idle_sword', 'walk', 'patrol', 'carry_walk', 'run', 'sprint', 'jump', 'leap', 'falling', 'jump_hang',
+    'climb', 'slide_start', 'slide', 'slide_exit', 'swim', 'swim_idle']],
+  ['Cuts', ['attack1', 'attack2', 'attack3', 'attack4', 'lunge', 'heavy', 'sword_combo', 'attack1_rec', 'attack2_rec']],
+  ['Shield and guard', ['bash', 'shield_hit', 'block', 'guard', 'parry', 'roll', 'guardbreak', 'hit', 'hit_head', 'hit_chest']],
+  ['Bare-handed', ['punch1', 'punch2', 'punch3', 'punch3_rec', 'throw']],
   ['Down', ['knockdown', 'getup', 'death', 'dead', 'death2', 'dead2']],
-  ['Casting (adepts)', ['cast', 'cast1', 'cast2', 'blink']],
-  ['Everyday (for the villagers next)', ['crouch', 'crouch_walk', 'torch', 'sit', 'sit_idle', 'sit_talk', 'stand', 'interact', 'pickup', 'kneel', 'push', 'dance', 'wave']],
+  ['Casting (adepts)', ['cast_ready', 'cast', 'cast1', 'cast2', 'blink']],
+  ['Everyday', ['idle_arms', 'nod_yes', 'nod_no', 'wave', 'crouch', 'crouch_walk', 'torch', 'lantern', 'sit', 'sit_idle', 'sit_talk', 'stand', 'rail', 'rail_call',
+    'interact', 'pickup', 'open_chest', 'consume', 'kneel', 'harvest', 'plant', 'water', 'chop', 'push', 'dance']],
+  ['Shambling (the library\u2019s zombie)', ['zombie_idle', 'zombie_walk', 'zombie_scratch']],
   ['Kept from his old clips', ['fall', 'collapse', 'crawl', 'crawl_attack', 'crawl_death', 'crawl_dead']],
 ];
 // how the game strings moves together (foes.js: combo, attacking, hit)
@@ -269,7 +304,7 @@ const COMBOS = [
   ['Rolls aside', 'Shieldless: he rolls out of your swing and comes back on guard.', [['idle_sword', 0.8], 'roll', ['idle_sword', 0.8]]],
   ['Sits a while', 'Down onto a seat, talks, and up again.', ['sit', ['sit_idle', 1.5], ['sit_talk', 2], 'stand']],
 ];
-const NEW_COMBOS = new Set([6, 7, 8, 9, 10, 11]);
+const NEW_COMBOS = new Set();
 // the old clip shown for a new one it has no namesake of
 const OLD_FOR = { lunge: 'attack3', attack1_rec: 'idle', attack2_rec: 'idle', guardbreak: 'hit', knockdown: 'death', parry: 'block', heavy: 'attack2',
   sprint: 'run', idle_calm: 'idle', idle_talk: 'idle', idle_sword: 'idle', patrol: 'walk', leap: 'jump', attack4: 'attack2', punch1: 'attack1', punch2: 'attack1',
@@ -442,8 +477,7 @@ class Figure {
     }
   }
 }
-const LOOPS = new Set(['idle', 'walk', 'run', 'block', 'crawl', 'dead', 'crawl_dead', 'sprint', 'idle_calm', 'idle_talk', 'idle_sword', 'patrol', 'dead2',
-  'crouch', 'crouch_walk', 'torch', 'sit_idle', 'sit_talk', 'push', 'dance']);
+const LOOPS = new Set([...LOOPING, 'crawl', 'crawl_dead']);
 
 /** The library's mannequin, with a plain sword and round shield where the knight has his. */
 function mannequin() {
@@ -543,7 +577,7 @@ function buildLists() {
   $('combos').innerHTML = COMBOS.map((c, i) => [c, i]).filter(([[, , q], i]) => q.every((x) => main.clips[[x].flat()[0]]) && (!only || NEW_COMBOS.has(i)))
     .map(([[t, d], i]) => `<li><button type="button" data-combo="${i}" aria-pressed="false"><b>${t}${NEW_COMBOS.has(i) ? '<span class="tag new">NEW</span>' : ''}</b><span>${d}</span></button></li>`).join('');
   const n = [...NEW].filter((k) => main.clips[k]).length;
-  $('newsCount').textContent = only ? `Showing the ${n} new ones: tap to see them all` : `${n} from the first library: tap to see only them`;
+  $('newsCount').textContent = only ? `Showing the ${n} new ones: tap to see them all` : `${n} more from the libraries: tap to see only them`;
   $('news').setAttribute('aria-pressed', String(!!only));
   $('lists').innerHTML = GROUPS.map(([g, names]) => {
     const have = names.filter((n) => main.clips[n] && !(n === 'heavy' && !DEF(S.v).boss) && (!only || NEW.has(n)));

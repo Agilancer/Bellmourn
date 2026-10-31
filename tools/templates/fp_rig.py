@@ -157,6 +157,20 @@ def pose_frame(f):
     return arms
 
 
+def shoulder(side, key):
+    """The key's shoulder: the rig's, or turned with the torso by `twist` degrees (positive
+    turns the chest to the left, bringing the right shoulder forward) about the spine."""
+    s = SHOULDER[side] + np.array([0.0, key.get("shrug", 0.0), 0.0])
+    tw = key.get("twist")
+    if not tw:
+        return s
+    r = math.radians(tw)  # (anims.mirror negates it for the left-handed copies)
+    spine = np.array([0.0, s[1], -0.16])  # the spine, behind the eyes
+    v = s - spine
+    c, n = math.cos(r), math.sin(r)
+    return spine + np.array([v[0] * c - v[2] * n, v[1], v[0] * n + v[2] * c])
+
+
 def _pose_open_hand(side, key):
     """An empty hand posed directly: `fing` is the way the fingers point and `palm` the way
     the palm faces (camera space, given for the right hand and mirrored for the left like
@@ -164,7 +178,7 @@ def _pose_open_hand(side, key):
     the spell leaves from in front of the palm."""
     g = from_screen(*key["S"])
     want_g = g
-    s = SHOULDER[side]
+    s = shoulder(side, key)
     pole = np.asarray(key.get("pole", POLE[side]), float)
     a = norm(key["fing"])
     k = norm(-np.asarray(key["palm"], float))  # back of the hand
@@ -193,7 +207,7 @@ def _pose_arm(side, key):
         return _pose_open_hand(side, key)
     g = np.array(key["G3"], float) if "G3" in key else from_screen(*key["S"])
     want_g = g
-    s = SHOULDER[side]
+    s = shoulder(side, key)
     pole = np.asarray(key.get("pole", POLE[side]), float)
     bend = np.asarray(key.get("bend", (0, 0, 0)), float)
     wrist = key.get("wrist")  # rigid wrist: the item sits at this fixed angle in the fist
@@ -238,7 +252,7 @@ def _pose_arm(side, key):
     k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
     return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)),
-                weapon=key.get("weapon"), shield=key.get("shield"),
+                weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"),
                 face=norm(key["face"]) if "face" in key else None)
 
 

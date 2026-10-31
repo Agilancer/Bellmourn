@@ -34,6 +34,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
+import { cullable, shareSkeletons, refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -238,8 +239,10 @@ float gore(inout vec4 col) {
 export function goreMaterial(src, lib, u = null) {
   const normals = goreMaterial.normals || (goreMaterial.normals = new Map());
   const map = src.map;
-  if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.NearestMipmapLinearFilter; map.needsUpdate = true; }
-  const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, specular: 0x2c1e1c, shininess: 30 });
+  refineTexture(map);   // (crisp texels, anti-aliased: engine.js)
+  // alpha to coverage on its cut-outs, as on every body made before play (engine.js refineScene), so a
+  // body that claws out of a grave mid-game draws with the shaders already made
+  const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true, specular: 0x2c1e1c, shininess: 30 });
   mat.name = src.name || '';   // (the Sworn's fittings find their pieces by it)
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
@@ -247,7 +250,7 @@ export function goreMaterial(src, lib, u = null) {
   }
   if (src.emissiveMap) {     // what glows: embers in the cracks, eyes
     const e = src.emissiveMap;
-    e.magFilter = THREE.NearestFilter; e.minFilter = THREE.NearestMipmapLinearFilter; e.needsUpdate = true;
+    refineTexture(e);
     mat.emissiveMap = e;
     mat.emissive = new THREE.Color(1.6, 1.6, 1.6);
   }
@@ -269,6 +272,7 @@ export function goreMaterial(src, lib, u = null) {
       .replace('#include <specularmap_fragment>', '#include <specularmap_fragment>\nspecularStrength = mix(0.15, 2.6, goreWet);');
   };
   mat.customProgramCacheKey = () => 'zombie-gore';
+  crisp(mat);
   return mat;
 }
 
@@ -324,6 +328,10 @@ class Gore {
     this.splats = new THREE.InstancedMesh(sg, new THREE.MeshPhongMaterial({ map: splatTexture(), alphaTest: 0.5, color: 0x8a8a8a,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, shininess: 60, specular: 0x401010 }), this.splatMax);
     this.splats.count = 0; this.splatNext = 0;
+    // drawn with the see-through things, after the roads and yards laid over the ground (which are
+    // drawn there too, and would cover blood drawn before them)
+    this.splats.material.transparent = true;
+    this.splats.renderOrder = 0.5;   // (and before water and glass, at 1)
     this.splats.receiveShadow = true;
     this.splats.frustumCulled = false;
     scene.add(this.splats);
@@ -501,7 +509,6 @@ export class Zombie {
     this.shared = Object.keys(geo.attributes);
     mesh.material = this.material(mesh.material, owner.lib);
     mesh.castShadow = true; mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
     this.u = [mesh.material].flat()[0].userData.u;
     // a body of several materials (the sworn's armour): which group each triangle draws in, so
     // the groups can be laid out again as limbs come off
@@ -523,6 +530,9 @@ export class Zombie {
     }
     this.index = geo.index.array.slice();
     this.alive = new Uint8Array(this.index.length / 3).fill(1);
+    // one skeleton for all its parts, and culled to what the camera and the sun can see (engine.js)
+    shareSkeletons(model);
+    cullable(model);
 
     this.mixer = new THREE.AnimationMixer(model);
     this.actions = {};
@@ -1021,7 +1031,7 @@ export class Zombie {
     this.owner.onDeath?.(this);   // (experience, and the quests' counts)
     // the dead carried things into the ground with them, now and then
     const loot = this.owner.foes?.ctx?.loot;
-    if (loot && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
+    if (loot && !this.owner.quiet && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
     this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
     const g = this.owner.gore;
     g.splat(this.pos.x, this.owner.floorY(this.pos.x, this.pos.z, this.pos.y), this.pos.z, 2.0, 0.18);
@@ -1764,6 +1774,7 @@ export class Zombies {
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
     const own = (src) => {
       const mat = src.clone();
+      mat.defines = { ...(src.defines || {}) };   // (clone() leaves them behind: the shader would differ, and be made mid-fight)
       mat.userData.u = z.u;
       mat.onBeforeCompile = src.onBeforeCompile;
       mat.customProgramCacheKey = src.customProgramCacheKey;

@@ -27,6 +27,12 @@ KEEP = [
     'Spell_Simple_Enter', 'Spell_Simple_Shoot', 'Spell_Simple_Exit',
     'Sitting_Enter', 'Sitting_Idle_Loop', 'Sitting_Talking_Loop', 'Sitting_Exit',
     'Interact', 'PickUp_Table', 'Fixing_Kneeling', 'Push_Loop', 'Dance_Loop',
+    # and the rest of both, for everyone (not the pistols, driving, the phone call or the T-poses)
+    'Jump_Loop', 'Spell_Simple_Idle_Loop', 'Swim_Fwd_Loop', 'Swim_Idle_Loop',
+    'Chest_Open', 'ClimbUp_1m', 'Consume', 'Farm_Harvest', 'Farm_PlantSeed', 'Farm_Watering', 'Idle_FoldArms_Loop',
+    'Idle_Lantern_Loop', 'Idle_No_Loop', 'Idle_Rail_Call', 'Idle_Rail_Loop', 'Melee_Hook', 'Melee_Hook_Rec',
+    'NinjaJump_Idle_Loop', 'OverhandThrow', 'Slide_Exit', 'Slide_Loop', 'Slide_Start', 'Sword_Regular_Combo',
+    'TreeChopping_Loop', 'Yes', 'Zombie_Idle_Loop', 'Zombie_Scratch', 'Zombie_Walk_Fwd_Loop',
 ]
 NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
 
