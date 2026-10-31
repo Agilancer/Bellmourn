@@ -355,12 +355,13 @@ export class Quests {
     const rooms = dg.roomList, e = rooms[0], cx = (r) => (r.x0 + r.x1) / 2, cz = (r) => (r.z0 + r.z1) / 2;
     const far = rooms.reduce((a, r) => (Math.hypot(cx(r) - cx(e), cz(r) - cz(e)) > Math.hypot(cx(a) - cx(e), cz(a) - cz(e)) ? r : a), e);
     const P = this.ctx.physics;
+    const fy = far.y ?? dg.y;      // (a room's own floor, where the place's floors aren't all one height)
     for (let t = 0; t < 40; t++) {
       const x = far.x0 + 1.5 + Math.random() * (far.x1 - far.x0 - 3), z = far.z0 + 1.5 + Math.random() * (far.z1 - far.z0 - 3);
-      const f = P.floorAt(x, z, dg.y + 0.3, 0.3, 0.45);
-      if (Math.abs(f - dg.y) < 0.1) return [x, dg.y + 0.45, z, far];
+      const f = P.floorAt(x, z, fy + 0.3, 0.3, 0.45);
+      if (Math.abs(f - fy) < 0.1) return [x, fy + 0.45, z, far];
     }
-    return [cx(far), dg.y + 0.45, cz(far), far];
+    return [cx(far), fy + 0.45, cz(far), far];
   }
 
   dungeonOf(place) {
@@ -378,9 +379,10 @@ export class Quests {
     const dg = this.dungeonOf(C.place), Z = this.o.zombies;
     if (!dg || !Z.gltf[C.variant]) return null;
     let at;
-    if (dg.spot) { const p = dg.spot(C.tag, 1.5); if (!p) return null; at = [p.x, p.y, p.z]; }
-    else { const r = this.deepest(C.place); if (!r) return null; at = [r[0], dg.y, r[2], r[3]]; }
-    const z = Z.spawn(C.variant, at[0], at[2], { y: at[1], zone: 'dungeon', dg, room: at[3] || null, kind: 'runner', start: 'stand' });
+    if (dg.bossSpot) at = [...dg.bossSpot];            // (a place that keeps its boss's tomb: he rises from it)
+    else if (dg.spot) { const p = dg.spot(C.tag, 1.5); if (!p) return null; at = [p.x, p.y, p.z]; }
+    else { const r = this.deepest(C.place); if (!r) return null; at = [r[0], r[1] - 0.45, r[2], r[3]]; }
+    const z = Z.spawn(C.variant, at[0], at[2], { y: at[1], zone: 'dungeon', dg, room: at[3] || null, kind: 'runner', start: dg.bossSpot ? 'buried' : 'stand' });
     z.champion?.({ ...C, key });
     this.champs.set(key, z);
     return z;

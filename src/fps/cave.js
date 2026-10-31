@@ -121,7 +121,7 @@ function feature(f, a, b, entryFloor = () => 0) {
   return { s: best - f.r, floor, h: f.h };
 }
 
-function rockTexture() {
+export function rockTexture() {
   const S = 128, cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const g = cv.getContext('2d'), img = g.createImageData(S, S);
@@ -146,7 +146,7 @@ function rockTexture() {
 }
 
 /** Rock wrapped round any surface without stretching (triplanar), darkened in its folds. */
-function rockMaterial(tex) {
+export function rockMaterial(tex) {
   // two-sided: the roof's top shows as a ledge over the mouth from outside
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x181a1c, shininess: 14, side: THREE.DoubleSide });
   m.onBeforeCompile = (sh) => {

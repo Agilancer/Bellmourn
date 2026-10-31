@@ -4,7 +4,7 @@
 // loaded:
 //   (await import('/tools/pathcheck.js')).check()
 // Each problem names the models in the way (kit colliders carry their model id as `src`).
-const R = 0.32, STEP = 0.42, H = 1.7;
+const R = 0.32, STEP = 0.42, H = 1.8;
 const IGNORE = new Set(['wall', 'door', 'floor']); // the building itself, not things in it
 
 const hits = (b, x0, z0, x1, z1) => b.max[0] > x0 && b.min[0] < x1 && b.max[2] > z0 && b.min[2] < z1;
@@ -15,13 +15,18 @@ const round = (v) => Math.round(v * 10) / 10;
 /** Boxes (not walls or doors) standing in the rectangle at floor height y. Built masonry ('solid'
  * boxes from geo.js) taller than a room counts as wall. */
 function inRect(physics, x0, z0, x1, z1, y, ignore = IGNORE) {
-  return [...physics.near(x0, z0, x1, z1)].filter((b) => !ignore.has(b.tag) && !(b.tag === 'solid' && b.max[1] - Math.max(b.min[1], y) > 2.6) && standing(b, y) && hits(b, x0, z0, x1, z1));
+  return [...physics.near(x0, z0, x1, z1)].filter((b) => !b.seg && !ignore.has(b.tag) && !(b.tag === 'solid' && b.max[1] - Math.max(b.min[1], y) > 2.6) && standing(b, y) && hits(b, x0, z0, x1, z1));
 }
 
 /** Can a player stand at (x, z) with feet at y? (doors count as open) */
 function free(physics, x, z, y) {
   for (const b of physics.near(x - R, z - R, x + R, z + R)) {
     if (b.tag === 'door' || !standing(b, y)) continue;
+    if (b.seg) {   // a wall at an angle (physics.addSeg)
+      const t = Math.max(0, Math.min(b.len, (x - b.ax) * b.ux + (z - b.az) * b.uz));
+      if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < R + b.half) return false;
+      continue;
+    }
     const cx = Math.max(b.min[0], Math.min(x, b.max[0])), cz = Math.max(b.min[2], Math.min(z, b.max[2]));
     if ((x - cx) ** 2 + (z - cz) ** 2 < R * R) return false;
   }
@@ -58,55 +63,58 @@ function walk(physics, start, bounds, { g = 0.25, inside = () => true, flat = nu
   return { reached: (x, z) => { const c = ci(x, z); return c >= 0 && !Number.isNaN(Y[c]); }, top: () => Y.reduce((a, v) => (v > a ? v : a), -Infinity), count };
 }
 
-// ------------------------------------------------------------------ the undercroft
+// ------------------------------------------------------------------ the catacombs (catacombs.js)
+const SOLID = new Set(['wall', 'door', 'floor', 'cave']);
+/** Walk the catacombs from the foot of the cathedral's stair: every space reached (the far side of
+ * the gulf only by jumping the bridge's gap, so the walk starts again from its far landing), the
+ * gulf's floor able to climb back out, nothing standing in an opening's apron or a passage's lane. */
 function undercroft(bm, out) {
-  const { physics, ctx } = bm, D = ctx.dungeon, { x0, z0, nx, nz, cell } = D.nav, Y = D.y;
-  const at = (i, k) => (i < 0 || k < 0 || i >= nx || k >= nz ? -1 : cell[k * nx + i]);
-  const TUNNEL = 2999, isHall = (v) => v >= 1000 && v !== TUNNEL;
-  // hallway mouths: room cells beside a hallway; their aprons run 3 m into the room, a cell either side
-  const apron = new Map(); // cell index -> room id
-  const mouths = [];
-  for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
-    const v = at(i, k);
-    if (v < 0 || v >= 1000) continue;
-    for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      if (!isHall(at(i + di, k + dk))) continue;
-      mouths.push({ room: v, x: x0 + i + 0.5, z: z0 + k + 0.5 });
-      for (let t = 0; t < 3; t++) for (let s = -1; s <= 1; s++) {
-        const ai = i - di * t + dk * s, ak = k - dk * t + di * s;
-        if (at(ai, ak) === v) apron.set(ak * nx + ai, v);
+  const { physics, ctx } = bm, C = ctx.catacombs;
+  if (!C) return;
+  const m = C.mason, sb = ctx.stairBottom, B = [m.x0, m.z0, m.x0 + m.nx * 0.25, m.z0 + m.nz * 0.25];
+  const inside = (x, z) => !!m.spaceAt(x, z) || C.gulf.floorAt(x, z) != null;
+  const near = walk(physics, { x: sb.x, z: sb.z - 1, y: -14 }, B, { g: 0.5, inside });
+  const far = walk(physics, { x: 12, z: -233, y: -19 }, B, { g: 0.5, inside });
+  const gulf = walk(physics, { x: 4, z: -214, y: C.gulf.floorAt(4, -214) }, B, { g: 0.5, inside });
+  const at = (x, z) => near.reached(x, z) || far.reached(x, z);
+  // (a spot counts as reached if somewhere within 0.8 m of it is: it may be a pillar's or a brazier's)
+  const reached = (x, z) => { for (const [dx, dz] of [[0, 0], [0.8, 0], [-0.8, 0], [0, 0.8], [0, -0.8], [0.6, 0.6], [-0.6, 0.6], [0.6, -0.6], [-0.6, -0.6]]) if (at(x + dx, z + dz)) return true; return false; };
+  if (near.reached(12, -233)) out.push({ area: 'undercroft', kind: 'the gap can be walked round', note: 'the far side reached without jumping' });
+  if (!gulf.reached(12, -193)) out.push({ area: 'undercroft', kind: 'no way out of the gulf', from: 'its floor' });
+  if (!far.reached(12, -230)) out.push({ area: 'undercroft', kind: 'far landing cut off' });
+  for (const s of m.spaces) {
+    if (s.type === 'room') {
+      let n = 0, ok = 0;
+      for (const [x, z] of s.poly) { const px = x + (s.cx - x) * 0.25, pz = z + (s.cz - z) * 0.25; n++; if (reached(px, pz)) ok++; }
+      if (ok / n < 0.75) out.push({ area: 'undercroft', kind: 'hard to reach', room: s.name, walkable: round(ok / n),
+        missed: s.poly.map(([x, z]) => [round(x + (s.cx - x) * 0.25), round(z + (s.cz - z) * 0.25)]).filter(([x, z]) => !reached(x, z)).slice(0, 6) });
+      // each opening's apron: 3 m into the room before it, as wide as the opening and a bit
+      for (const o of s.openings) {
+        const ed = s.edges[o.e], cx = ed.a[0] + ed.ux * o.t, cz = ed.a[1] + ed.uz * o.t;
+        for (let d = 0.4; d <= 3; d += 0.5) for (let w = -o.w / 2 - 0.3; w <= o.w / 2 + 0.3; w += 0.5) {
+          const x = cx + ed.nx * d + ed.ux * w, z = cz + ed.nz * d + ed.uz * w;
+          for (const b of inRect(physics, x - 0.25, z - 0.25, x + 0.25, z + 0.25, s.y, SOLID))
+            out.push({ area: 'undercroft', kind: 'mouth', room: s.name, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+        }
+      }
+    } else if (s.type === 'passage') {
+      for (let i = 0; i + 1 < s.pts.length; i++) {
+        const [ax, az, ay] = s.pts[i], [bx, bz, by] = s.pts[i + 1], L = Math.hypot(bx - ax, bz - az);
+        for (let t = 0.5; t < L; t += 1) {
+          const x = ax + (bx - ax) * t / L, z = az + (bz - az) * t / L, y = m.floorAt(x, z) ?? ay;
+          if (!reached(x, z)) { out.push({ area: 'undercroft', kind: 'passage cut off', where: s.name, at: [round(x), round(z)] }); break; }
+          const lane = s.w / 2 - 0.9;     // a lane down the middle kept clear (things may stand by the walls)
+          for (const b of inRect(physics, x - lane, z - lane, x + lane, z + lane, y, SOLID)) {
+            if (Math.hypot((b.min[0] + b.max[0]) / 2 - x, (b.min[2] + b.max[2]) / 2 - z) > lane + 0.3) continue;
+            out.push({ area: 'undercroft', kind: 'in a passage', where: s.name, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+          }
+        }
+        void by;
       }
     }
   }
-  const seen = new Set();
-  for (const [c, room] of apron) {
-    const i = c % nx, k = (c - i) / nx;
-    for (const b of inRect(physics, x0 + i, z0 + k, x0 + i + 1, z0 + k + 1, Y)) {
-      if (seen.has(b)) continue;
-      seen.add(b);
-      out.push({ area: 'undercroft', kind: 'mouth', room: `${room} ${D.roomList[room].kind}`, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
-    }
-  }
-  // anything standing in a hallway (not the foot of the stairs, where the flight itself comes down)
-  for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
-    if (!isHall(at(i, k)) || at(i, k) === 1999) continue;
-    for (const b of inRect(physics, x0 + i, z0 + k, x0 + i + 1, z0 + k + 1, Y)) {
-      if (seen.has(b)) continue;
-      seen.add(b);
-      out.push({ area: 'undercroft', kind: 'hallway', what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
-    }
-  }
-  // can every room be walked into from the foot of the stairs, through every one of its mouths?
-  const sb = ctx.stairBottom;
-  const w = walk(physics, { x: sb.x, z: sb.z - 1, y: Y }, [x0, z0, x0 + nx, z0 + nz], { flat: Y, inside: (x, z) => at(Math.floor(x - x0), Math.floor(z - z0)) >= 0 });
-  const byRoom = new Map();
-  for (const m of mouths) if (!w.reached(m.x, m.z)) { const r = byRoom.get(m.room) || []; r.push([round(m.x), round(m.z)]); byRoom.set(m.room, r); }
-  for (const [room, cells] of byRoom) out.push({ area: 'undercroft', kind: 'unreachable mouth', room: `${room} ${D.roomList[room].kind}`, cells: cells.length, at: cells[0] });
-  D.roomList.forEach((r, id) => {
-    let n = 0, ok = 0;
-    for (let x = r.x0 + 0.25; x < r.x1; x += 0.5) for (let z = r.z0 + 0.25; z < r.z1; z += 0.5) { n++; if (w.reached(x, z)) ok++; }
-    if (ok / n < 0.6) out.push({ area: 'undercroft', kind: 'cramped room', room: `${id} ${r.kind}`, walkable: round(ok / n) });
-  });
+  // the climbs: up the Founders' Tomb and the First Bell's stair
+  for (const [what, x, z] of [["the Founders' Tomb", 12, -269.6], ['the First Bell', 13.5, -356]]) if (!reached(x, z)) out.push({ area: 'undercroft', kind: 'cannot climb', what });
 }
 
 // ------------------------------------------------------------------ doors

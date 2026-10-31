@@ -75,23 +75,34 @@ const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', ne
   lowerarm_l: 'forearmL', lowerarm_r: 'forearmR', hand_l: 'handL', hand_r: 'handR',
   thigh_l: 'thighL', thigh_r: 'thighR', calf_l: 'shinL', calf_r: 'shinR', foot_l: 'footL', foot_r: 'footR' };
 const FPS = 30;
+const DI = [1, -1, 0, 0], DK = [0, 0, 1, -1];   // (the flow field's four ways)
 const HIT_AT = { attack1: 14, attack2: 14, attack3: 21, crawl_attack: 13 };   // frame the blow lands
 const ATTACK_DMG = { attack1: 9, attack2: 8, attack3: 14, crawl_attack: 7 };
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'death', 'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup', 'roar', 'hit']);
-// what can be cut off, and how much it takes (waist: the body cut in two at the hips)
-const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
-  upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
+// what can be cut off, and how much it takes (waist: the body cut in two at the hips). The legs
+// take a good deal more than the arms: a crawler should be earned, not the first thing a fight does
+const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 150, shinL: 120, footL: 70,
+  upper_armR: 52, forearmR: 36, handR: 22, thighR: 150, shinR: 120, footR: 70, waist: 150 };
 const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, shoulder: 0.07, upper_arm: 0.06,
   forearm: 0.052, hand: 0.05, thigh: 0.085, shin: 0.065, foot: 0.06 };
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
 const HP = 170;
 const WOUNDS = 16;
+const STAINS = 14;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
 // a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
 const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3, arcane: 2, missile: 2, void: 2 };
-// what lingering spells do to the skin's colour (frozen first, then burning, poisoned, chilled)
-const TINT = { frozen: [0.6, 0.86, 1.4], burn: [0.5, 0.36, 0.3], poison: [0.68, 1.0, 0.5], chill: [0.8, 0.93, 1.15] };
-// the chance a spell blows off what it hits, by where it hits (times the spell's own `blow`)
-const BLOW = { head: 0.4, upper_arm: 0.3, forearm: 0.35, hand: 0.35, thigh: 0.4, shin: 0.45, foot: 0.45, waist: 0.12 };
+// the mark a blow of each kind leaves on the skin about where it landed (STAINS: 0 blood, 1 char,
+// 2 rime, 3 poison). A body never changes colour as a whole: what a spell does shows where it took.
+const MARK = { fire: 1, lightning: 1, frost: 2, poison: 3 };
+// the chance a spell blows off what it hits, by where it hits (times the spell's own `blow`). The
+// legs are thick and hard to take: a spell rarely blows one off, and never off anything big
+const BLOW = { head: 0.4, upper_arm: 0.3, forearm: 0.35, hand: 0.35, thigh: 0.08, shin: 0.1, foot: 0.08, waist: 0.05 };
+const LEG = /^(thigh|shin|foot)|^waist$/;
+// how much harder the legs are to cut through on something big (heft: a champion 3, the lord 5)
+const legToughness = (heft = 1) => 1 + Math.max(0, heft - 1) * 1.6;
+// how fast one drags itself along the ground: after you (a base and a share for each arm it still
+// has), going to look, and wandering; and how quickly it turns
+const CRAWL = { chase: [0.26, 0.27], hunt: 0.42, wander: 0.32, turn: 1.9 };
 // temperaments: walking speed, sprint speed (0: never runs), how far it sees, how well it hears
 const KINDS = {
   shambler: { walk: 0.8, run: 0, sight: 20, hear: 1.0, turn: 2.4 },
@@ -104,6 +115,9 @@ uniform vec4 uWound[${WOUNDS}];
 uniform vec4 uWoundD[${WOUNDS}];
 uniform vec3 uWoundB[${WOUNDS}];
 uniform float uWoundN;
+uniform vec4 uStain[${STAINS}];
+uniform float uStainT[${STAINS}];
+uniform float uStainN;
 varying vec3 vBind;
 float gHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float gNoise(vec3 x) {
@@ -114,6 +128,45 @@ float gNoise(vec3 x) {
 // wounds (w > 0: a hole torn in the skin), cuts (w < 0: a severed joint), slashes (uWoundD
 // .w = 1: a gash along the segment w.xyz +- uWoundD.xyz, w.w wide, the blood running from it)
 // and spells' round holes (uWoundD.w = 2: burned, 3: frozen; w.w their radius)
+// Marks on the skin where it was struck, never the whole body: blood thrown over it (uStainT 0:
+// a ragged splash with spatter round it and runs down from it), char where fire took (1), rime
+// where frost took (2), a sick dark weeping where poison took (3). uStain: centre and radius.
+float stains(inout vec3 c) {
+  float wet = 0.0;
+  for (int i = 0; i < ${STAINS}; i++) {
+    if (float(i) >= uStainN) break;
+    vec4 s = uStain[i];
+    vec3 q = vBind - s.xyz;
+    float d = length(q) / s.w;
+    if (d > 3.2) continue;
+    float t = uStainT[i], seed = float(i) * 13.7;
+    float edge = d + (gNoise(vBind * 38.0 + seed) - 0.5) * 0.9 + (gNoise(vBind * 110.0 + seed) - 0.5) * 0.35;
+    float drop = step(0.83, gNoise(vBind * 260.0 + seed)) * step(d, 2.6) * step(0.9, edge);   // the spatter round it
+    if (t < 0.5) {
+      // and the runs: down from the splash (bind space is the body standing), thinning as they go
+      float below = -q.y / s.w, across = length(q.xz) / s.w;
+      float run = step(0.0, below) * step(below, 3.0) * step(0.62, gNoise(vec3(vBind.x * 90.0, 0.0, vBind.z * 90.0) + seed)) * step(across, 0.95 - below * 0.22);
+      float k = max(max(step(edge, 1.0), drop), run * 0.85);
+      if (k > 0.0) {
+        vec3 blood = mix(vec3(0.26, 0.012, 0.016), vec3(0.45, 0.03, 0.03), gNoise(vBind * 70.0 + seed));
+        c = mix(c, mix(c * vec3(0.45, 0.04, 0.04), blood, 0.65), k);
+        wet = max(wet, 0.85 * k);
+      }
+    } else if (t < 1.5) {
+      float k = smoothstep(1.15, 0.7, edge);
+      c = mix(c, c * mix(0.06, 0.32, gNoise(vBind * 55.0 + seed)), k);
+    } else if (t < 2.5) {
+      float k = smoothstep(1.2, 0.75, edge);
+      c = mix(c, mix(vec3(0.78, 0.88, 0.98), vec3(0.95, 0.98, 1.0), gNoise(vBind * 90.0 + seed)), k * 0.85);
+      wet = max(wet, k);
+    } else {
+      float k = max(smoothstep(1.1, 0.7, edge), drop);
+      c = mix(c, c * vec3(0.3, 0.42, 0.16), k);
+      wet = max(wet, 0.6 * k);
+    }
+  }
+  return wet;
+}
 float gore(inout vec4 col) {
   float hole = 99.0, cut = 99.0, gash = 99.0, run = 0.0, burn = 99.0, ice = 99.0;
   for (int i = 0; i < ${WOUNDS}; i++) {
@@ -159,6 +212,7 @@ float gore(inout vec4 col) {
     float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
     col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
     float wet = (1.0 - soak) * 0.7;
+    wet = max(wet, stains(col.rgb));
     if (sp < 1.9) {
       bool frozen = ice < burn;
       // the rim: a glowing edge gone to char (frost: white rime), then soot (a blue chill) fading out
@@ -203,6 +257,9 @@ export function goreMaterial(src, lib, u = null) {
   u ||= { uWound: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4(0, -99, 0, 0.001)) },
     uWoundD: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector4()) },
     uWoundB: { value: Array.from({ length: WOUNDS }, () => new THREE.Vector3()) }, uWoundN: { value: 0 } };
+  u.uStain ||= { value: Array.from({ length: STAINS }, () => new THREE.Vector4(0, -99, 0, 0.001)) };
+  u.uStainT ||= { value: new Array(STAINS).fill(0) };
+  u.uStainN ||= { value: 0 };
   mat.userData.u = u;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
@@ -385,6 +442,7 @@ const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3
 const normals = new Map();   // texture -> its normal map, made once per body
 const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
+const FROST = new THREE.Color(0.85, 0.94, 1.0);
 
 // The monsters carry the same hair, eye and body-detail images byte for byte: one copy of each
 // serves them all (with a copy of the hair per monster, they alone ran past half a gigabyte of
@@ -521,7 +579,7 @@ export class Zombie {
     const start = o.start || 'stand';
     if (start === 'buried') { this.state = 'buried'; root.visible = false; }
     else if (start === 'rise') this.beginRise();
-    else if (start === 'playdead') { this.state = 'playdead'; this.play('dead', 0); }
+    else if (start === 'playdead') { this.state = 'playdead'; this.play('dead', 0); this.mixer.update(0); }   // (posed at once: lying, not standing in its bind pose till you come near)
     else { this.play('idle', 0); this.mixer.update(Math.random() * 2); }
     owner.scene.add(root);
     this.sync();
@@ -549,12 +607,13 @@ export class Zombie {
     for (const l of Object.keys(this.limbHp)) this.limbHp[l] *= k * 0.45;
     this.kind = { ...this.kind, sight: 26, hear: 1.6, run: Math.max(this.kind.run || 0, 2.4) };
     this.heft = 3;
-    for (const m of [this.mesh.material].flat()) if (m.emissive) { m.emissive.setRGB(...(C.tint || [1, 1, 1])).multiplyScalar(0.12); }
+    // its glow shows in what already glows (an ember husk's cracks): a body is never lit up whole
+    for (const m of [this.mesh.material].flat()) if (m.emissive && m.emissiveMap) { m.emissive.setRGB(...(C.tint || [1, 1, 1])).multiplyScalar(1.4); }
     return this;
   }
 
   /** Frost and fire from a shield's enchantments: chilled it moves slow, burning it smoulders. */
-  afflict(dt) {
+  afflictShield(dt) {
     if (this.chillT > 0) this.chillT -= dt;
     this.mixer.timeScale = this.chillT > 0 ? 0.45 : 1;
     if (this.burnT > 0 && !this.dead) {
@@ -595,18 +654,19 @@ export class Zombie {
     this.root.rotation.y = this.yaw;
   }
 
-  beginRise() {
+  /** Up out of the ground; `speed` > 1 scrambles out (a set piece's dead: zb.quick). */
+  beginRise(speed = this.quick || 1) {
     this.state = 'rise';
     this.root.visible = true;
-    this.play('rise', 0);
+    this.play('rise', 0, speed);
     this.riseT = 0;
     this.owner.dirt(this.pos, 1.0);
     this.owner.sound('dirt', this.pos);
   }
 
-  wake(target) {
-    if (this.state === 'playdead') { this.state = 'getup'; this.play('getup', 0.1); }
-    else if (this.state === 'buried') this.beginRise();
+  wake(target, speed = this.quick || 1) {
+    if (this.state === 'playdead') { this.state = 'getup'; this.play('getup', 0.1, speed); }
+    else if (this.state === 'buried') this.beginRise(speed);
     this.hunt(target, true);
   }
 
@@ -682,6 +742,39 @@ export class Zombie {
     this.writeWounds();
   }
 
+  /** A mark on the skin at a world point, carried by bone b: blood (type 0), char (1), rime (2) or
+   * poison (3), `r` metres across its middle. Only ever where something struck. */
+  mark(point, bone, r, type = 0) {
+    const c = this.toBind(point, bone);
+    (this.marks ||= []).push({ v: new THREE.Vector4(c.x, c.y, c.z, r), t: type });
+    while (this.marks.length > STAINS) this.marks.shift();
+    this.writeMarks();
+  }
+
+  writeMarks() {
+    const S = this.u.uStain, T = this.u.uStainT, m = this.marks || [];
+    if (!S) return;
+    m.forEach((s, i) => { S.value[i].copy(s.v); T.value[i] = s.t; });
+    this.u.uStainN.value = m.length;
+  }
+
+  /** The marks of one kind wear off (the rime, as it thaws). */
+  unmark(type) {
+    if (!this.marks?.some((s) => s.t === type)) return;
+    this.marks = this.marks.filter((s) => s.t !== type);
+    this.writeMarks();
+  }
+
+  /** Marks of a kind on a few places about the body (frost over a frozen one, char on a burning one). */
+  markAbout(type, n, r) {
+    const at = ['chest', 'head', 'upper_armL', 'upper_armR', 'thighL', 'thighR', 'spine', 'forearmL', 'forearmR', 'shinL', 'shinR'];
+    for (let i = 0, k = Math.floor(Math.random() * at.length); i < n; i++, k += 3) {
+      const b = this.bones[at[k % at.length]];
+      if (!b || this.cutAway(b.name)) continue;
+      this.mark(b.getWorldPosition(_t).add(_u.set((Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.12)), b, r * (0.8 + Math.random() * 0.4), type);
+    }
+  }
+
   /** A blade's gash across the body where it bit: from a to b (world), `width` wide, the blow
    * coming along `dir` (world: the gash is measured across it, so it follows the body round). */
   slash(a, b, bone, width, dir) {
@@ -726,23 +819,32 @@ export class Zombie {
     for (let i = 0; i < (heavy ? 7 : 4); i++) g.gib(p, _w.copy(dir).multiplyScalar(2 + Math.random() * 2).add(_u.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3)));
     g.splat(p.x, owner.floorY(p.x, p.z, p.y), p.z, 0.35 + Math.random() * 0.3);
     owner.sound('squelch', p, heavy);
-    // damage: limbs come off, the trunk dies
+    // the blood (or char, or rime) thrown over the skin about the blow: a splash where it landed and
+    // a smaller one or two flung on along it
+    this.mark(p, b, (heavy ? 0.11 : 0.085) * (0.85 + Math.random() * 0.3), MARK[kind] ?? 0);
+    for (let i = 0; i < (heavy ? 2 : 1); i++) {
+      _t.copy(p).addScaledVector(dir, 0.05).add(_u.set((Math.random() - 0.5) * 0.22, (Math.random() - 0.4) * 0.22, (Math.random() - 0.5) * 0.22));
+      this.mark(_t, b, 0.04 + Math.random() * 0.03, 0);
+    }
+    // damage: limbs come off, the trunk dies. The legs are thick: an edge bites them no deeper than
+    // anything else, and something big is a good deal harder again to bring down to the ground
     const limb = this.limbOf(b);
     if (limb && !this.lost.has(limb)) {
-      this.limbHp[limb] -= dmg * (kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
+      const leg = LEG.test(limb);
+      this.limbHp[limb] -= dmg * (leg ? (kind === 'blade' ? 0.85 : 0.5) / legToughness(this.heft) : kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
+      const big = (this.heft || 1) >= 1.6 || this.champ || this.def?.boss;
       if (this.limbHp[limb] <= 0) this.sever(limb, dir);
-      else if (blow && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')]) this.blowOff(limb, dir, rim);
+      else if (blow && !(leg && big) && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')] / (leg ? this.heft || 1 : 1)) this.blowOff(limb, dir, rim);
     } else {
       this.hp -= dmg;
     }
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
-    // shoved back along the blow (it carries on for a moment: see ground())
-    const shove = (push || (heavy ? 0.8 : 0.45)) * (this.mode === 'crawl' ? 0.4 : 1) / (this.heft || 1);
-    const fl = Math.hypot(dir.x, dir.z) || 1;
-    this.knock = (this.knock || new THREE.Vector3()).set(dir.x / fl, 0, dir.z / fl).multiplyScalar(shove * 9);
+    // (a blow doesn't throw the body back: it takes it where it stands. Only the shield's repel
+    // enchantment, and the spells that are themselves a force, move it: see knock and shove)
+    void push;
     if (!this.dead) {
       if (this.state === 'move' || this.state === 'attack') {
         if (this.state === 'move') this.stagger = heavy ? 0.55 : 0.32;
@@ -812,6 +914,32 @@ export class Zombie {
     }
   }
 
+  /** Without its legs from the start (it fell, long ago): the legs' triangles gone and the stumps
+   * shown cut, but none of a fresh wound's spray, pieces or cries. It drags itself from the first. */
+  cripple(names = ['shinL', 'shinR']) {
+    const set = new Set();
+    for (const name of names) this.bones[name]?.traverse((c) => { if (c.isBone) set.add(this.skel.bones.indexOf(c)); });
+    const idx = this.index, keep = [], keptT = [], goneT = [];
+    for (let t = 0; t < this.alive.length; t++) {
+      if (!this.alive[t]) continue;
+      const a = idx[t * 3], b = idx[t * 3 + 1], c = idx[t * 3 + 2];
+      if (set.has(this.dom[a]) + set.has(this.dom[b]) + set.has(this.dom[c]) >= 2) { this.alive[t] = 0; goneT.push(t); } else { keep.push(a, b, c); keptT.push(t); }
+    }
+    this.mesh.geometry.setIndex(keep);
+    if (this.triGroup) this.regroup(this.mesh.geometry, keptT, goneT);
+    this.root.updateMatrixWorld(true);
+    for (const name of names) {
+      const bone = this.bones[name];
+      if (!bone) continue;
+      this.lost.add(name);
+      const jb = this.toBind(bone.getWorldPosition(new THREE.Vector3()), bone.parent);
+      this.cuts.push(new THREE.Vector4(jb.x, jb.y, jb.z, -0.075));
+    }
+    this.writeWounds();
+    this.mode = 'crawl'; this.state = 'move';
+    this.play('crawl', 0);
+  }
+
   /** The body's material groups laid out again over the triangles it keeps (`kept` and `gone` are
    * triangle numbers in their first order, so each group's still sit together); returns the groups
    * of the piece cut off, as [start, count, material]. */
@@ -831,15 +959,30 @@ export class Zombie {
   }
 
   // -------------------------------------------------------------- spells that linger
-  /** Frozen solid for t seconds: nothing moves, the skin rimed blue-white. */
-  freeze(t) { if (!this.dead) { this.frozen = Math.max(this.frozen || 0, t); this.burning = 0; } }
+  /** Frozen solid for t seconds: nothing moves, rime over it in patches (never a body gone blue). */
+  freeze(t) {
+    if (this.dead) return;
+    if (!(this.frozen > 0)) this.markAbout(2, 5, 0.15);
+    this.frozen = Math.max(this.frozen || 0, t); this.burning = 0;
+  }
   /** Slowed to a crawl by cold (or choking smoke) for t seconds. */
   chill(t) { if (!this.dead) this.chilled = Math.max(this.chilled || 0, t); }
-  /** Set alight: `dps` a second for t seconds (ice puts it out). */
-  ignite(t, dps = 6) { if (this.dead) return; this.burning = Math.max(this.burning || 0, t); this.burnDps = Math.max(this.burnDps || 0, dps); this.frozen = 0; }
-  poison(t, dps = 5) { if (this.dead) return; this.poisoned = Math.max(this.poisoned || 0, t); this.poisonDps = Math.max(this.poisonDps || 0, dps); }
-  /** A shove (m/s), worn off by friction; a frozen one slides like a statue on ice. */
+  /** Set alight: `dps` a second for t seconds (ice puts it out): char where it took, and embers. */
+  ignite(t, dps = 6) {
+    if (this.dead) return;
+    if (!(this.burning > 0)) this.markAbout(1, 2, 0.1);
+    this.burning = Math.max(this.burning || 0, t); this.burnDps = Math.max(this.burnDps || 0, dps); this.frozen = 0;
+    this.unmark(2);
+  }
+  poison(t, dps = 5) {
+    if (this.dead) return;
+    if (!(this.poisoned > 0)) this.markAbout(3, 2, 0.1);
+    this.poisoned = Math.max(this.poisoned || 0, t); this.poisonDps = Math.max(this.poisonDps || 0, dps);
+  }
+  /** A shove (m/s) from a spell that is itself a force, worn off by friction; a frozen one slides
+   * like a statue on ice. One down on the ground isn't moved: it lies where it fell. */
   shove(x, z, up = 0) {
+    if (this.mode === 'crawl' || this.state === 'collapse' || this.dead) return;
     (this.pushV ||= new THREE.Vector3()).x += x; this.pushV.z += z;
     if (up > 0 && !this.dead) { this.pos.y += 0.05; this.vy = Math.max(this.vy, up); }
   }
@@ -851,8 +994,10 @@ export class Zombie {
     else this.hunt(this.owner.player?.pos, true);
     if (this.hp <= 0) this.die();
   }
-  /** The lingering spells' clocks: returns how fast it moves this frame (0: frozen). */
+  /** The lingering spells' clocks: returns how fast it moves this frame (0: frozen). Run once a
+   * frame, by the horde's update (with the shield's enchantments' afflictions). */
   afflict(dt) {
+    if (this.chillT > 0 || this.burnT > 0) this.afflictShield(dt);
     if (!(this.frozen || this.chilled || this.burning || this.poisoned || this.pushV)) return 1;
     if (this.dead) this.frozen = this.chilled = this.burning = this.poisoned = 0;
     if (this.burning > 0) { this.burning -= dt; this.harm(this.burnDps * dt); }
@@ -865,8 +1010,17 @@ export class Zombie {
       v.multiplyScalar(Math.exp(-dt * (this.frozen > 0 ? 1.2 : 3)));
       if (this.frozen > 0 || this.dead) this.sync();
     } else this.pushV = null;
-    const t = this.frozen > 0 ? TINT.frozen : this.burning > 0 ? TINT.burn : this.poisoned > 0 ? TINT.poison : this.chilled > 0 ? TINT.chill : null;
-    for (const m of [this.mesh.material].flat()) m.color.setRGB(...(t || [1, 1, 1]));
+    // what a lingering spell does shows on the body where it took (see mark), and in what comes off
+    // it: embers and smoke off the burning, a cold mist off the frozen. The skin is never re-coloured.
+    const g = this.owner.gore;
+    if (this.burning > 0 && Math.random() < dt * 22) {
+      const b = this.bones[['chest', 'spine', 'head', 'upper_armL', 'upper_armR'][Math.floor(Math.random() * 5)]];
+      if (b && !this.cutAway(b.name)) g.drop(b.getWorldPosition(_t).add(_u.set((Math.random() - 0.5) * 0.25, 0, (Math.random() - 0.5) * 0.25)),
+        _w.set((Math.random() - 0.5) * 0.4, 1.1 + Math.random() * 0.8, (Math.random() - 0.5) * 0.4), 0.012, EMBER[Math.floor(Math.random() * 3)]);
+    }
+    if (this.frozen > 0 && Math.random() < dt * 10) g.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.3 + Math.random() * 1.3, (Math.random() - 0.5) * 0.5)),
+      _w.set((Math.random() - 0.5) * 0.2, -0.3, (Math.random() - 0.5) * 0.2), 0.01, FROST);
+    if (this.frozen <= 0 && this.marks?.some((s) => s.t === 2)) this.unmark(2);   // thawed: the rime goes
     if (!(this.frozen > 0 || this.chilled > 0 || this.burning > 0 || this.poisoned > 0)) this.frozen = this.chilled = this.burning = this.poisoned = 0;
     return this.frozen > 0 ? 0 : this.chilled > 0 ? 0.4 : 1;
   }
@@ -892,7 +1046,7 @@ export class Zombie {
     const d = this.dist = Math.hypot(dx, dz);
     this.canSee = false;
     if (!active) return;
-    const same = Math.abs(player.pos.y - this.pos.y) < 2.6;
+    const same = Math.abs(player.pos.y - this.pos.y) < (this.dg?.sameY ?? 2.6);
     const eyes = this.has('head');
     if (eyes && same && d < this.kind.sight * (this.zone === 'dungeon' ? 0.8 : 1)) {
       const facing = (Math.sin(this.yaw) * dx + Math.cos(this.yaw) * dz) / Math.max(d, 1e-3);
@@ -908,6 +1062,8 @@ export class Zombie {
     // you running carries far, walking less, standing still hardly at all; blind, it listens harder
     const loud = player.speed > 7 ? 15 : player.speed > 1 ? 7.5 : 2.2;
     const heard = same && d < loud * this.kind.hear * (eyes ? 1 : 1.6);
+    // (it gave up at an edge it can't cross and is going back: unless you are right there beside it)
+    if (this.balkT > owner.time) { if (this.canSee && d < 5 && Math.abs(player.pos.y - this.pos.y) < 1) this.balkT = 0; else return; }
     if (this.canSee) {
       if (!this.aggro) {
         this.aggro = true; owner.sound('groan', this.pos, true); owner.alert(this, player.pos, 18);
@@ -939,7 +1095,6 @@ export class Zombie {
       if (this.dead) this.corpse(dt);
       return;
     }
-    this.afflict(dt);
     // animation (every third frame when far off, every sixth when unseen but still hunting you)
     this.mixAcc += dt;
     if (!mid || ++this.frame % (far ? 6 : 3) === 0) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
@@ -1001,8 +1156,11 @@ export class Zombie {
       if (this.done()) { this.state = 'move'; this.cool = 0.35 + Math.random() * 0.4; }
     } else if (this.state === 'jump') {
       const f = this.forward();
-      this.pos.addScaledVector(f, 2.3 * dt);
-      if (this.done()) { this.state = 'move'; phys.slide(this.pos, 0, 0, 0.3, 1.6, 0.45); }
+      this.pos.addScaledVector(f, (this.leapV ?? 2.3) * dt);
+      // (a hop ends with its clip; a leap when it comes down)
+      this.leapT = (this.leapT || 0) + dt;
+      const over = this.leapV ? (this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6 : this.done();
+      if (over) { this.state = 'move'; this.leapV = null; phys.slide(this.pos, 0, 0, 0.3, 1.6, 0.45); }
     } else {
       this.steer(dt, player, active, dist, facingErr);
     }
@@ -1022,6 +1180,7 @@ export class Zombie {
     const crawl = this.mode === 'crawl';
     this.cool = Math.max(0, this.cool - dt);
     this.stagger = Math.max(0, this.stagger - dt);
+    if (this.rush > 0) this.rush -= dt;
     this.holdT = Math.max(0, (this.holdT || 0) - dt);
     this.lungeCool -= dt;
     let target = null, speed = 0, routed = false;
@@ -1031,19 +1190,21 @@ export class Zombie {
         this.jitter += dt;
         target.x += Math.sin(this.jitter * 0.9) * Math.min(3, dist * 0.35);
         target.z += Math.cos(this.jitter * 0.7) * Math.min(3, dist * 0.35);
-      } else if (this.flank && dist > 2.4 && dist < 10 && owner.chasers > 2) {
-        // with company it comes at you from the side, so they close round you
+      } else if (this.flank && !this.narrow && dist > 2.4 && dist < 10 && owner.chasers > 2) {
+        // with company it comes at you from the side, so they close round you (not on a bridge's
+        // deck or a ledge, where the side is a drop)
         const s = this.flank * Math.min(2.6, dist * 0.45) / dist;
         target.x += -toZOf(player, this) * s; target.z += toXOf(player, this) * s;
       }
-      if (this.zone === 'dungeon' && !this.canSee && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
-      if (crawl) speed = 0.12 + 0.2 * this.arm('L') + 0.2 * this.arm('R');
+      if (this.zone === 'dungeon' && (!this.canSee || Math.abs(player.pos.y - this.pos.y) > 0.8) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      if (crawl) speed = CRAWL.chase[0] + CRAWL.chase[1] * (this.arm('L') + this.arm('R'));
       else if (!this.feet) speed = 0.65;
-      else speed = kind.run && dist < 13 && dist > 1.7 && this.has('head') ? kind.run : kind.walk * 1.05;
+      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.7 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
-      if (this.zone === 'dungeon' && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
-      speed = crawl ? 0.25 : kind.walk;
+      // (the corridors' flow leads to you: not for one going back from an edge it gave up at)
+      if (this.zone === 'dungeon' && !(this.balkT > owner.time) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
+      speed = crawl ? CRAWL.hunt : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
       this.searchT -= dt; this.wanderT -= dt;
@@ -1051,19 +1212,27 @@ export class Zombie {
         this.wanderT = 2.5 + Math.random() * 2;
         this.wander = this.lastSeen.clone().add(_u.set((Math.random() - 0.5) * 8, 0, (Math.random() - 0.5) * 8));
       }
-      if (this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? 0.25 : kind.walk * 0.9; }
+      if (this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? CRAWL.hunt : kind.walk * 0.9; }
       if (this.searchT < 0) { this.aggro = false; this.goal = 'wander'; }
     } else {
       this.wanderT -= dt;
       if (this.wanderT < 0) {
         this.wanderT = 5 + Math.random() * 7;
-        if (Math.random() < 0.65) {
+        this.wander = null;
+        if (Math.random() < 0.65) for (let t = 0; t < 6; t++) {
           const r = this.room;
-          this.wander = r ? new THREE.Vector3(r.x0 + 1 + Math.random() * (r.x1 - r.x0 - 2), this.pos.y, r.z0 + 1 + Math.random() * (r.z1 - r.z0 - 2))
+          const w = r ? new THREE.Vector3(r.x0 + 1 + Math.random() * (r.x1 - r.x0 - 2), this.pos.y, r.z0 + 1 + Math.random() * (r.z1 - r.z0 - 2))
             : this.home.clone().add(_u.set((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12));
-        } else this.wander = null;
+          const nav = this.dg?.nav, walk = this.dg?.walk;
+          if (nav && walk) {
+            const c = Math.floor(w.z - nav.z0) * nav.nx + Math.floor(w.x - nav.x0);
+            if (c < 0 || c >= walk.length || !walk[c] || (nav.h && Math.abs(nav.h[c] - this.pos.y) > 0.6)) continue;
+          }
+          this.wander = w;
+          break;
+        }
       }
-      if (this.wander && this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? 0.22 : kind.walk * 0.85; }
+      if (this.wander && this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? CRAWL.wander : kind.walk * 0.85; }
     }
     if (!crawl && this.has('head') === false) speed = Math.min(speed, kind.walk * 1.1);
     speed *= this.pace * this.slow;
@@ -1071,7 +1240,7 @@ export class Zombie {
     if (target) {
       if (this.avoidT > 0) this.avoidT -= dt;
       const want = Math.atan2(target.x - this.pos.x, target.z - this.pos.z) + (this.avoidT > 0 ? this.avoid : 0);
-      const turn = (crawl ? 1.4 : kind.turn) * dt;
+      const turn = (crawl ? CRAWL.turn : kind.turn) * dt;
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
     // attacks: in reach and facing you; runners and lurkers pounce from a little further off
@@ -1115,15 +1284,41 @@ export class Zombie {
         // stuck on something for a second: sidestep
         this.stuckT = (this.stuckT || 0) + 0.2;
         if (this.stuckT >= 1) {
-          if (this.stuckAt && this.stuckAt.distanceTo(this.pos) < 0.15 * speed) { this.avoid = Math.random() < 0.5 ? 1.3 : -1.3; this.avoidT = 0.9; }
+          if (this.stuckAt && this.stuckAt.distanceTo(this.pos) < 0.15 * speed && !this.edgeAhead) { this.avoid = Math.random() < 0.5 ? 1.3 : -1.3; this.avoidT = 0.9; }   // (not when it stopped at an edge on purpose)
           (this.stuckAt || (this.stuckAt = new THREE.Vector3())).copy(this.pos);
           this.stuckT = 0;
         }
       }
       const along = Math.max(0.25, Math.cos(Math.min(Math.PI / 2, Math.abs(wrap((target ? Math.atan2(target.x - this.pos.x, target.z - this.pos.z) : this.yaw) - this.yaw)))));
-      const sp = speed * along;
+      let sp = speed * along;
+      // the edge of a drop ahead (more than a jump down): it stops there, and bellows across it
+      // (felt for with the rest, five times a second)
+      if (this.feelT === 0.2) {
+        const y = this.pos.y;
+        this.edgeAhead = phys.floorAt(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75, y + 0.3, 0.2, 0.75) < y - 1.5;
+        // (narrow footing: a drop a metre to either side)
+        this.narrow = phys.floorAt(this.pos.x + f.z, this.pos.z - f.x, y + 0.3, 0.2, 0.75) < y - 1.5 || phys.floorAt(this.pos.x - f.z, this.pos.z + f.x, y + 0.3, 0.2, 0.75) < y - 1.5;
+      }
+      // one sent at you (rush) doesn't stop at an edge with footing beyond it: it leaps for it (and one
+      // in three falls short). With nothing to land on, it stops like the rest.
+      if (this.edgeAhead && this.rush > 0 && this.goal === 'chase' && !crawl && this.feet && this.air === 0 && dist > 2.2 && !this.pushV) {
+        let land = 0;
+        for (const dd of [2.6, 3.2, 3.8]) if (phys.floorAt(this.pos.x + f.x * dd, this.pos.z + f.z * dd, this.pos.y + 0.5, 0.2, 1.0) > this.pos.y - 1) { land = dd; break; }
+        if (land) {
+          this.state = 'jump'; this.play('jump', 0.1); owner.sound('groan', this.pos, true);
+          this.vy = 5.5; this.pos.y += 0.05; this.leapT = 0;
+          this.leapV = (land + 0.4) / 0.5 * (Math.random() < 0.34 ? 0.7 : 1);     // (half a second in the air)
+          return;
+        }
+      }
+      // held at an edge for long, it gives up, goes back, and won't come straight back to it
+      if (this.edgeAhead && this.goal === 'chase') { this.edgeT2 = (this.edgeT2 || 0) + dt; if (this.edgeT2 > 3.5) { this.edgeT2 = 0; this.goal = 'hunt'; this.aggro = false; this.lastSeen.copy(this.home); this.hasLast = true; this.balkT = owner.time + 15; } } else this.edgeT2 = Math.max(0, (this.edgeT2 || 0) - dt);   // (a glance aside doesn't start it over)
+      if (!this.pushV && this.edgeAhead) {
+        sp = 0;
+        if ((this.edgeT = (this.edgeT || 0) - dt) < 0) { this.edgeT = 3 + Math.random() * 3; owner.sound('groan', this.pos, true); }
+      }
       phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, 0.45);
-      if (crawl) this.play('crawl', 0.3, Math.max(0.35, speed / 0.5));
+      if (crawl) this.play('crawl', 0.3, Math.max(0.45, speed / 0.55));
       else if (speed > 2) this.play('run', 0.25, speed / 3.0);
       else this.play('walk', 0.3, Math.max(0.5, speed / 0.85));
     } else {
@@ -1134,6 +1329,7 @@ export class Zombie {
   /** Stand on whatever is below; fall when there's nothing. (And slide on with a shove.) */
   ground(dt) {
     const phys = this.owner.physics;
+    if (this.mode === 'crawl' || this.dead) this.knock = null;   // (one on the ground lies where it is)
     if (this.knock && this.knock.lengthSq() > 1e-4) {
       phys.slide(this.pos, this.knock.x * dt, this.knock.z * dt, 0.3, 1.6, 0.45);
       this.knock.multiplyScalar(Math.exp(-9 * dt));
@@ -1141,11 +1337,21 @@ export class Zombie {
     const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, 0.45);
     if (fl === -Infinity) return;
     if (this.pos.y > fl + 0.02) {
+      if (!this.air) this.fallFrom = this.pos.y;
       this.vy -= 22 * dt;
       this.pos.y = Math.max(fl, this.pos.y + this.vy * dt);
       this.air += dt;
       if (this.air > 0.25 && !this.dead && this.mode === 'stand' && this.state === 'move') this.play('fall', 0.15);
     } else {
+      // a long fall (off the bridge, into the gulf) bursts it on the rock
+      if (this.air && (this.fallFrom ?? fl) - fl > 7 && !this.dead) {
+        const g = this.owner.gore;
+        g.spray(_t.copy(this.pos).add(_u.set(0, 0.3, 0)), _w.set(0, 1, 0), 220, { speed: 5, spread: 1.2, size: 0.02 });
+        for (let i = 0; i < 16; i++) g.gib(this.pos, _w.set((Math.random() - 0.5) * 5, 2 + Math.random() * 3, (Math.random() - 0.5) * 5));
+        g.splat(this.pos.x, fl, this.pos.z, 1.8, 0.2);
+        this.owner.sound('sever', this.pos);
+        this.hp = 0; this.die();
+      }
       this.pos.y = fl;
       this.vy = 0;
       this.air = 0;
@@ -1324,6 +1530,11 @@ export class Zombies {
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
         if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
+        if (b.seg) {   // (a prop set at an angle: by its distance from the line, not its bounds)
+          const t = Math.max(0, Math.min(b.len, (x - b.ax) * b.ux + (z - b.az) * b.uz));
+          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half) { open = false; break; }
+          continue;
+        }
         if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
       }
       dg.walk[c] = open ? 1 : 0;
@@ -1395,8 +1606,8 @@ export class Zombies {
   alert(from, p, r = 14) {
     if (!p) return;
     for (const z of this.list) {
-      if (z === from || z.dead || z.gone || z.state === 'buried') continue;
-      if (z.pos.distanceTo(from.pos) > r || Math.abs(z.pos.y - from.pos.y) > 2.5) continue;
+      if (z === from || z.dead || z.gone || z.state === 'buried' || z.balkT > this.time) continue;
+      if (z.pos.distanceTo(from.pos) > r || Math.abs(z.pos.y - from.pos.y) > (z.dg?.sameY ?? 2.5)) continue;
       if (z.state === 'playdead') { if (z.pos.distanceTo(from.pos) < r * 0.5) z.wake(p); continue; }
       z.hunt(p, true);
     }
@@ -1405,7 +1616,7 @@ export class Zombies {
   /** A noise at p (a clash of steel, a spell going off) carries `r` metres. */
   noise(p, r) {
     for (const z of this.list) {
-      if (z.dead || z.gone || z.state === 'buried') continue;
+      if (z.dead || z.gone || z.state === 'buried' || z.balkT > this.time) continue;
       const d = z.pos.distanceTo(p);
       if (d > r * (z.has('head') ? 1 : 1.4) || Math.abs(z.pos.y - p.y) > 3) continue;
       if (z.state === 'playdead') { if (d < r * 0.4) z.wake(p); continue; }
@@ -1430,9 +1641,18 @@ export class Zombies {
     if (!dg) return;
     const nav = dg.nav;
     const ci = Math.floor(p.x - nav.x0), ck = Math.floor(p.z - nav.z0);
-    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz || nav.cell[ck * nav.nx + ci] < 0) { this.flow = null; this.flowKey = -1; return; }
+    if (ci < 0 || ck < 0 || ci >= nav.nx || ck >= nav.nz) { this.flow = null; this.flowKey = -1; return; }
     const walk = dg.walk;
-    const key = ck * nav.nx + ci;
+    let key = ck * nav.nx + ci;
+    if (!walk[key]) {         // (on a ledge's lip, the top of a stair's wall: from the open cell nearest)
+      let best = -1;
+      for (let r = 1; r <= 2 && best < 0; r++) for (let dk = -r; dk <= r; dk++) for (let di = -r; di <= r; di++) {
+        const a = ci + di, b = ck + dk;
+        if (a >= 0 && b >= 0 && a < nav.nx && b < nav.nz && walk[b * nav.nx + a]) { best = b * nav.nx + a; break; }
+      }
+      if (best < 0) { this.flow = null; this.flowKey = -1; return; }
+      key = best;
+    }
     if (key === this.flowKey && this.flowT > 0) return;
     this.flowKey = key; this.flowT = 0.5;
     const N = nav.nx * nav.nz;
@@ -1443,10 +1663,10 @@ export class Zombies {
     dist[key] = 0; q[t++] = key;
     while (h < t) {
       const c = q[h++], d = dist[c];
-      if (d >= 400) continue;
+      if (d >= 260) continue;
       const i = c % nav.nx, k = (c - i) / nav.nx;
-      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const ni = i + di, nk = k + dk;
+      for (let s = 0; s < 4; s++) {
+        const ni = i + DI[s], nk = k + DK[s];
         if (ni < 0 || nk < 0 || ni >= nav.nx || nk >= nav.nz) continue;
         const n = nk * nav.nx + ni;
         if (dist[n] >= 0 || !walk[n]) continue;

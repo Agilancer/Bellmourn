@@ -3,6 +3,11 @@
 // below it (box tops, or the outdoor ground while above it). The ground is y = 0 except where
 // a terrain function gives a height (the hills); terrain too steep to step up blocks the way
 // like a wall. A box with `off` set (an open door) is ignored.
+//
+// Besides boxes: segment walls (addSeg), straight walls at any angle with a thickness, for rooms
+// that aren't boxes (the catacombs' octagons, curves and chamfers); and moving surfaces
+// (`dynamic`: the rope bridge), each {x0, z0, x1, z1, floorAt(x, z, y, r, step), slide(p, r, h, step)},
+// asked for a floor under you and to hold you on them.
 
 const CELL = 8;
 const key = (i, k) => i * 73856093 ^ k * 19349663;
@@ -14,13 +19,22 @@ export class Physics {
     this.ground = 0;       // the outdoor ground height where there is no terrain
     this.terrain = null;   // (x, z) -> height, or null to use `ground`
     this.groundHoles = []; // [x0, z0, x1, z1]: no outdoor ground here (stairwells)
+    this.dynamic = [];     // moving surfaces (see the head of the file)
   }
 
-  groundAt(x, z) { return this.terrain ? this.terrain(x, z) : this.ground; }
+  /** A straight wall `thick` metres through, from (ax, az) to (bx, bz) at any angle, y0..y1 (its
+   * ends rounded). It sits in the same spatial hash as the boxes; `min`/`max` are its bounds. */
+  addSeg(ax, az, bx, bz, y0, y1, thick = 0.5, tag = 'wall') {
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+    if (len < 1e-4) return null;
+    const h = thick / 2;
+    const s = { seg: true, ax, az, bx, bz, ux: dx / len, uz: dz / len, len, half: h, tag,
+      min: [Math.min(ax, bx) - h, y0, Math.min(az, bz) - h], max: [Math.max(ax, bx) + h, y1, Math.max(az, bz) + h] };
+    this.index(s);
+    return s;
+  }
 
-  add(min, max, tag = 'solid') {
-    const b = { min: [...min], max: [...max], tag };
-    this.boxes.push(b);
+  index(b) {
     const i0 = Math.floor(b.min[0] / CELL), i1 = Math.floor(b.max[0] / CELL);
     const k0 = Math.floor(b.min[2] / CELL), k1 = Math.floor(b.max[2] / CELL);
     for (let i = i0; i <= i1; i++) for (let k = k0; k <= k1; k++) {
@@ -28,6 +42,24 @@ export class Physics {
       if (!this.grid.has(h)) this.grid.set(h, []);
       this.grid.get(h).push(b);
     }
+  }
+
+  /** Is a cylinder of radius r at (x, z), feet at y, height h, clear of everything solid? (what
+   * a path check or a spawn asks: boxes and segment walls alike) */
+  clear(x, z, y, r, h, step = 0) {
+    for (const b of this.near(x - r, z - r, x + r, z + r)) {
+      if (b.max[1] <= y + step || b.min[1] >= y + h) continue;
+      if (b.seg ? segDist(b, x, z) < r + b.half : circleBox(x, z, r, b)) return false;
+    }
+    return true;
+  }
+
+  groundAt(x, z) { return this.terrain ? this.terrain(x, z) : this.ground; }
+
+  add(min, max, tag = 'solid') {
+    const b = { min: [...min], max: [...max], tag };
+    this.boxes.push(b);
+    this.index(b);
     return b;
   }
 
@@ -53,7 +85,12 @@ export class Physics {
     if (this.hasGround(x, z)) { const g = this.groundAt(x, z); if (g <= y + step) best = g; }
     for (const b of this.near(x - r, z - r, x + r, z + r)) {
       if (b.max[1] > y + step || b.max[1] < best) continue;
-      if (circleBox(x, z, r * 0.7, b)) best = b.max[1];
+      if (b.seg ? segDist(b, x, z) < r * 0.7 + b.half : circleBox(x, z, r * 0.7, b)) best = b.max[1];
+    }
+    for (const d of this.dynamic) {
+      if (x < d.x0 - r || x > d.x1 + r || z < d.z0 - r || z > d.z1 + r) continue;
+      const f = d.floorAt(x, z, y, r, step);
+      if (f > best && f <= y + step) best = f;
     }
     return best;
   }
@@ -76,6 +113,16 @@ export class Physics {
         let moved = false;
         for (const b of this.near(p.x - r, p.z - r, p.x + r, p.z + r)) {
           if (b.max[1] <= p.y + step || b.min[1] >= p.y + h) continue; // stepped onto / overhead
+          if (b.seg) {   // a wall at an angle: out along the line from its middle to you
+            const t = Math.max(0, Math.min(b.len, (p.x - b.ax) * b.ux + (p.z - b.az) * b.uz));
+            let ox = p.x - (b.ax + b.ux * t), oz = p.z - (b.az + b.uz * t);
+            const d = Math.hypot(ox, oz), need = r + b.half;
+            if (d >= need) continue;
+            if (d < 1e-6) { ox = -b.uz; oz = b.ux; } else { ox /= d; oz /= d; }
+            p.x += ox * (need - d); p.z += oz * (need - d);
+            moved = true;
+            continue;
+          }
           const cx = Math.max(b.min[0], Math.min(p.x, b.max[0]));
           const cz = Math.max(b.min[2], Math.min(p.z, b.max[2]));
           let ox = p.x - cx, oz = p.z - cz;
@@ -94,6 +141,7 @@ export class Physics {
         }
         if (!moved) break;
       }
+      for (const d of this.dynamic) if (p.x > d.x0 - r && p.x < d.x1 + r && p.z > d.z0 - r && p.z < d.z1 + r) d.slide?.(p, r, h, step);
     }
   }
 
@@ -101,7 +149,7 @@ export class Physics {
   ceilingAt(x, z, y, r) {
     let best = Infinity;
     for (const b of this.near(x - r, z - r, x + r, z + r))
-      if (b.min[1] >= y && b.min[1] < best && circleBox(x, z, r * 0.7, b)) best = b.min[1];
+      if (b.min[1] >= y && b.min[1] < best && (b.seg ? segDist(b, x, z) < r * 0.7 + b.half : circleBox(x, z, r * 0.7, b))) best = b.min[1];
     return best;
   }
 
@@ -117,7 +165,7 @@ export class Physics {
       for (const b of this.near(x - CELL * 0.5, z - CELL * 0.5, x + CELL * 0.5, z + CELL * 0.5)) {
         if (seen.has(b)) continue;
         seen.add(b);
-        const hit = rayBox(o, d, b);
+        const hit = b.seg ? raySeg(o, d, b) : rayBox(o, d, b);
         if (hit && hit.t <= far && (!best || hit.t < best.t)) best = { ...hit, box: b };
       }
       if (best && best.t < t - CELL) break;
@@ -153,6 +201,25 @@ export class Physics {
 function circleBox(x, z, r, b) {
   const cx = Math.max(b.min[0], Math.min(x, b.max[0])), cz = Math.max(b.min[2], Math.min(z, b.max[2]));
   return (x - cx) ** 2 + (z - cz) ** 2 < r * r;
+}
+
+/** How far (x, z) is from a segment wall's middle line. */
+function segDist(s, x, z) {
+  const t = Math.max(0, Math.min(s.len, (x - s.ax) * s.ux + (z - s.az) * s.uz));
+  return Math.hypot(x - s.ax - s.ux * t, z - s.az - s.uz * t);
+}
+
+/** A ray against a segment wall: the slab test in the wall's own frame (along it, up, across it). */
+function raySeg(o, d, s) {
+  const mx = (s.ax + s.bx) / 2, mz = (s.az + s.bz) / 2, nx = -s.uz, nz = s.ux;
+  const ox = o[0] - mx, oz = o[2] - mz;
+  const lo = [ox * s.ux + oz * s.uz, o[1], ox * nx + oz * nz], ld = [d[0] * s.ux + d[2] * s.uz, d[1], d[0] * nx + d[2] * nz];
+  const lb = { min: [-s.len / 2, s.min[1], -s.half], max: [s.len / 2, s.max[1], s.half] };
+  const hit = rayBox(lo, ld, lb);
+  if (!hit) return null;
+  const [a, y, c] = hit.normal;   // back to the world
+  hit.normal = [a * s.ux + c * nx, y, a * s.uz + c * nz];
+  return hit;
 }
 
 function rayBox(o, d, b) {

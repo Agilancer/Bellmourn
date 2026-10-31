@@ -2,7 +2,9 @@
 // yaw and pitch. Fast like Heretic/Hexen, with a little acceleration so it never feels icy.
 import * as THREE from 'three';
 
-const R = 0.32, HEIGHT = 1.7, EYE = 1.58, STEP = 0.42;
+// (a tall man: the eye 1.72 m up, the head 1.8; the dead stand about 1.8 m, so you meet them eye to eye)
+const R = 0.32, HEIGHT = 1.8, STEP = 0.42;
+export const EYE = 1.72;
 const WALK = 6.2, RUN = 9.4, ACCEL = 60, FRICTION = 12, GRAVITY = 24, JUMP = 7.4;
 
 export class Player {
@@ -25,6 +27,8 @@ export class Player {
     this.speedMul = 1;          // from what's worn
     this.lifeRegen = 0.4; this.manaRegen = 6;
     this.healing = 0;           // life still to come from a draught
+    this.onFall = null;         // (damage) a long drop hurts when you land
+    this.roll = 0;              // a lean of the view (a swaying bridge under you)
   }
 
   update(dt, input) {
@@ -63,7 +67,9 @@ export class Player {
     const ceil = this.physics.ceilingAt(p.x, p.z, p.y + 0.5, R);
     if (p.y + HEIGHT > ceil) { p.y = ceil - HEIGHT; this.vel.y = Math.min(0, this.vel.y); }
     if (p.y <= floor) {
-      // snap down stairs when walking off a step (but not off ledges)
+      // snap down stairs when walking off a step (but not off ledges); a long drop hurts (about
+      // five metres before it does, a deadly forty)
+      if (!wasOn && this.vel.y < -16) this.onFall?.((-this.vel.y - 16) * 2.6);
       p.y = floor; this.vel.y = 0; this.onGround = true;
     } else if (this.onGround && p.y - floor < STEP + 0.05 && this.vel.y <= 0) {
       p.y = floor; this.vel.y = 0;
@@ -94,7 +100,7 @@ export class Player {
     if (this.onGround) this.bob += this.speed * dt * 1.7;
     const bobY = Math.sin(this.bob * 2) * 0.045 * Math.min(1, this.speed / WALK);
     this.camera.position.set(p.x, p.y + EYE + lag + bobY, p.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    this.camera.rotation.set(this.pitch, this.yaw, this.roll || 0, 'YXZ');
     this.mana = Math.min(this.maxMana, this.mana + dt * this.manaRegen);
     const h = Math.min(this.healing, dt * 30);
     this.healing -= h;
