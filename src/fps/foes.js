@@ -104,8 +104,10 @@ export const STATS = {
   lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
     dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
-const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 62, shinL: 46, footL: 26,
-  upper_armR: 52, forearmR: 36, handR: 22, thighR: 62, shinR: 46, footR: 26, waist: 88 };
+// (as the zombies': the legs take far more than the arms, and zombies.js makes them harder still on
+// anything heavy, so a knight or the lord is seldom brought down to crawl)
+const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 150, shinL: 120, footL: 70,
+  upper_armR: 52, forearmR: 36, handR: 22, thighR: 150, shinR: 120, footR: 70, waist: 150 };
 const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 'cast2', 'blink', 'hit', 'shriek', 'death',
   'collapse', 'crawl_attack', 'crawl_death', 'rise', 'getup',
   'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
@@ -389,12 +391,7 @@ class Foe extends Zombie {
     super.hit(h, { ...opts, dmg: opts.dmg * this.kind.armor });
     if (this.dead || this.mode !== 'stand' || this.state === 'collapse') return;
     if (this.state === 'ambush') { this.state = 'move'; }
-    // a heavy blow can throw one of the Sworn off his feet (not their lord); he gets up again
-    if (this.ual && opts.heavy && !this.def.boss && this.feet && ['move', 'block', 'attack', 'hit'].includes(wasState) && Math.random() < 0.35) {
-      this.state = 'down'; this.play('knockdown', 0.08); this.comboQ = null; this.parrying = false;
-      this.foes.voice(this, 'hurt');
-      return;
-    }
+    // (a heavy blow no longer throws the Sworn back off their feet: a body takes a blow where it stands)
     if ((wasState === 'move' || wasState === 'block' || wasState === 'ambush') && (opts.heavy || Math.random() < this.kind.flinch)) {
       this.state = 'hit'; this.play('hit', 0.06);
     }
@@ -472,7 +469,7 @@ class Foe extends Zombie {
     if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) this.root.visible = false;
     this.mixAcc += dt;
     if (!mid || ++this.frame % (far ? 6 : 3) === 0) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
-    this.afflict(dt);
+    // (its afflictions run once a frame, in the horde's update)
     if (this.dead) return;
     this.bleed(dt);
     // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
