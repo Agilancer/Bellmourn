@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Builder } from './geo.js';
 import { detailedHouse } from './buildings.js';
-import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, buildWater, streamAt } from './terrain.js';
+import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, streamAt, riverAt } from './terrain.js';
+import { buildWater } from './water.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -43,7 +44,7 @@ export function buildRegion(ctx, M, hm) {
     [[604, -10], [640, -24], [672, -34], [684, -36]],
   ];
   const downsMat = buildTerrain(ctx, lib, paths);
-  ctx.water = buildWater(ctx, lib);
+  ctx.water = buildWater(ctx);
   const H = (x, z) => terrainHeight(x, z);
 
   // ---------------------------------------------------------------- the farm
@@ -87,7 +88,7 @@ export function buildRegion(ctx, M, hm) {
   const clearOf = (x, z, pad) => !homes.some((h) => Math.hypot(x - h.x, z - h.z) < Math.max(h.w, h.d) + pad)
     && Math.hypot(x - farm.x, z - farm.z) > 24 + pad && Math.hypot(x - barn.x, z - barn.z) > 20 + pad && Math.hypot(x - mill.x, z - mill.z) > 12 + pad
     && !fields.some((f) => Math.abs(x - f.x) < f.w / 2 + pad && Math.abs(z - f.z) < f.d / 2 + pad)
-    && streamAt(x, z).d > 10 + pad * 0.5 && Math.hypot(x - POOL.x, z - POOL.z) > POOL.r + 8;
+    && streamAt(x, z).d > 10 + pad * 0.5 && Math.hypot(x - POOL.x, z - POOL.z) > POOL.r + 8 && riverAt(x, z).d > 9 + pad * 0.5;
   let made = 0;
   for (let i = 0; i < 400 && made < 16; i++) { // outcrops on the hilltops
     const x = REGION.x0 + 60 + R() * (CLIFF.x - REGION.x0 - 80), z = REGION.z0 + 30 + R() * (REGION.z1 - REGION.z0 - 60);
@@ -139,6 +140,7 @@ export function buildRegion(ctx, M, hm) {
     const x = side === 2 ? REGION.x1 - R() * 14 : REGION.x0 + 20 + t * (REGION.x1 - REGION.x0 - 20);
     const z = side === 0 ? REGION.z0 + R() * 16 : side === 1 ? REGION.z1 - R() * 16 : REGION.z0 + t * (REGION.z1 - REGION.z0);
     const tr = edgeTrees[i % edgeTrees.length];
+    if (riverAt(x, z).d < 8) continue;   // (the river runs in from the back of the plateau)
     bill.add(tr.id, x, H(x, z), z, 1.0 + R() * 0.6, 0.8 + R() * 0.3);
     if (i % 4 === 0) ctx.trees3d.add(['pine', 'cedar', 'oak', 'forest'][i % 4 === 0 ? (i / 4) % 4 : 0], x + 4, H(x + 4, z), z, 1 + R() * 0.4);
   }
@@ -150,6 +152,7 @@ export function buildRegion(ctx, M, hm) {
     if (st.d < 4.5 || Math.hypot(x - POOL.x, z - POOL.z) < POOL.r + 2) continue;
     const y = H(x, z);
     if (x > CLIFF.x - 12 && x < CLIFF.x + 8) continue; // not on the cliff face
+    if (riverAt(x, z).d < 6) continue;                  // nor in the river
     const s = veg[(st.d < 14 && i % 3 === 0) ? veg.findIndex((v) => /reeds/.test(v.id)) : i % veg.length];
     bill.add(s.id, x, y, z, 0.6 + R() * 0.5, 0.85 + R() * 0.25);
   }

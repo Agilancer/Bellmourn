@@ -6,7 +6,7 @@ buildings you can walk into, the Cathedral of the Mourning Bell, the walled grav
 and the Undercroft under it: go through the door behind the pulpit into the office, then through
 the stair-house door and down to its 24 rooms, and on down the stairwell in its stair hall to the
 15 rooms of the Deep Undercroft. East of the village a trail runs through the forest to the Green
-Downs: open grass hills with rock outcrops, a waterfall into a pool, a stream with a bridge,
+Downs: open grass hills with rock outcrops, a river over the plateau that falls into a pool, a stream with a bridge,
 Millhaven farm, a windmill, and a hamlet of homes to explore. West of the village the Vigil Road
 runs through the Darkwood to Blackvigil Keep, held by Lord Velscour's Sworn: a curtain wall with
 corner towers and a gatehouse, a courtyard, and the keep's hall, barracks, armoury, chapel and
@@ -126,7 +126,11 @@ sprites of category `banner`) each have an allegiance: `velscour` (his V) hang o
 are, `holy` (the T) in the cathedral and holy places, `town` in the village and among good folk.
 Both come in with `python tools/world/import_banners_stone.py` (see its docstring). Scatter art that isn't a
 plant is built as 3D models (`scatter3d.js`); plants stay 2D billboards. `trees3d.js` makes 3D
-trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs. The
+trees from VectorClad's bark and leaves, and `terrain.js` / `region.js` build the downs.
+`water.js` is Brightwater's water: the river across the plateau, the falls (three sheets whose
+streaks speed up as they drop), spray, mist and foam at their foot, and the pool and stream,
+their ripples carried along by the current, tinted by depth, soft at the shore and mirroring
+the sky, with flecks of foam riding them. The
 Quaternius-kit world (`realm.js`, `wilds.js`, `land.js`, `houses.js`, `crypt.js`, `cave.js`,
 `kitdoors.js`) is kept but not built; `kit.js` loads only its props bundle, for what lies on the
 ground and the villagers' tools.

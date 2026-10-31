@@ -8,7 +8,8 @@
 import * as THREE from 'three';
 import { house, H } from './houses.js';
 import { worldHeight, flatten, biomeAt, BIOMES, WORLD, CORE_R, fbm } from './land.js';
-import { REGION, POOL, addPad, buildWater, streamAt } from './terrain.js';
+import { REGION, POOL, addPad, streamAt } from './terrain.js';
+import { buildWater } from './water.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -114,7 +115,7 @@ export function buildWilds(ctx, { planOnly = true } = {}) {
     const lair = (biome, x, z, r, kind, extra = {}) => { (ctx.biomes[biome] ||= { name: BIOMES[biome]?.name || biome, lairs: [] }).lairs.push({ x, z, y: Hh(x, z), r, kind, ...extra }); };
     const interior = (zone, biome) => { ctx.zones.push(zone); ctx.interiors.push({ ...zone, biome }); return zone; };
     // ---------------------------------------------------------------- the downs
-    ctx.water = buildWater(ctx, ctx.kit);
+    ctx.water = buildWater(ctx);
     interior(house(ctx, { name: 'farmhouse', title: 'Millhaven Farmhouse', x: farm.x, z: farm.z, y: farm.y, w: 4, d: 6, rot: 0, storeys: 2, door: 'x', furnish: 'home', porch: true, dormers: 2, roofVariant: 'moss' }), 'downs');
     interior(house(ctx, { name: 'barn', title: 'Millhaven Barn', x: barn.x, z: barn.z, y: barn.y, w: 4, d: 7, rot: 1, storeys: 1, open: true, door: 'z', furnish: 'stable', roofVariant: 'rust', plaster: 'ochre' }), 'downs');
     // the windmill: a round of brick, three storeys, its sails of crossed roof logs
