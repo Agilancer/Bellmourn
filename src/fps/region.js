@@ -35,15 +35,26 @@ export function buildRegion(ctx, M, hm) {
     { name: 'weaver', title: "The Weaver's House", x: 498, z: -90, w: 12, d: 10, door: 'e', wall: 'town_wall_dressed_limestone', upper: 'town_wall_wattle_daub', roof: 'town_roof_terracotta', floor: 'vc_planks_05', chimney: [-3, -2] },
   ];
   for (const h of homes) h.y = addPad(h.x, h.z, Math.max(h.w, h.d) * 0.75);
+  // the paths: in from the trail to the farm; on to Brookside's door (north of the rocks on the
+  // way); from the farmhouse's door, west and south of the barn, to the windmill's; from Brookside
+  // over the bridge to the Miller's door; from the bridge past the Shepherd's door to the Weaver's;
+  // and from the Miller's, round the back of the house, to the falls
   const paths = [
     [[REGION.x0 - 2, 0], [330, 6], [370, 26], [404, 52], [430, 68]],
-    [[430, 68], [470, 72], [520, 76], [556, 78], [560, 76]],
-    [[440, 92], [470, 128], [500, 146], [516, 156]],
-    [[560, 76], [586, 52], [592, 30], [596, 8], [600, -10]],
-    [[592, 30], [572, 4], [548, -34], [520, -62], [504, -84]],
-    [[604, -10], [640, -24], [672, -34], [684, -36]],
+    [[430, 68], [466, 64], [520, 76], [556, 78], [560, 76]],
+    [[430, 87], [434, 104], [442, 128], [470, 128], [500, 146], [512, 164], [520, 166.5]],
+    [[560, 76], [570, 79], [594.5, 44], [592, 30], [596, 8], [598, -10]],   // (onto the bridge square)
+    [[592, 30], [572, 4], [551, -34], [550, -51], [540, -51.5], [520, -64], [508, -82], [507.5, -89]],
+    [[598, -10], [598, -17.5], [614, -18.5], [640, -24], [672, -34], [684, -36]],
   ];
+  const onPath = (x, z, pad) => paths.some((pl) => pl.some((p, i) => {
+    const q = pl[i + 1];
+    if (!q) return false;
+    const dx = q[0] - p[0], dz = q[1] - p[1], t = Math.max(0, Math.min(1, ((x - p[0]) * dx + (z - p[1]) * dz) / (dx * dx + dz * dz)));
+    return Math.hypot(x - p[0] - dx * t, z - p[1] - dz * t) < pad;
+  }));
   const downsMat = buildTerrain(ctx, lib, paths);
+  ctx.paths?.push(...paths.map((pts) => ({ pts, w: 3 })));   // (worn to dirt about 1.5 m either side)
   ctx.water = buildWater(ctx);
   const H = (x, z) => terrainHeight(x, z);
 
@@ -80,7 +91,7 @@ export function buildRegion(ctx, M, hm) {
   M, { ...hm, ...hm.perHouse(3 + i) }));
   for (const h of homes) { // a little clutter by each home
     S(['town_scatter_16_firewood_stack', 'town_scatter_01_closed_barrel', 'town_scatter_31_vegetable_basket', 'town_scatter_17_workbench'][homes.indexOf(h)], h.x + h.w / 2 + 2, h.z - 2);
-    S('town_scatter_36_water_bucket', h.x - h.w / 2 - 1.5, h.z + 1);
+    S('town_scatter_36_water_bucket', h.x + (h.door === 'w' ? 1 : -1) * (h.w / 2 + 1.5), h.z + 1);   // (not by a door)
   }
   bridge(ctx, [592, 30], hm);
 
@@ -120,19 +131,22 @@ export function buildRegion(ctx, M, hm) {
     const s = 0.6 + R() * 1.4;
     b.place(x, H(x, z) - 0.3, z, R() * 6.28, 1, (B) => B.blob([0, s * 0.5, 0], [s * 1.3, s, s], rock[i % 4], { seed: 500 + i }), { tag: 'rock' });
   }
-  // big broadleaf trees across the downs, conifer groves under the cliff and on the plateau
+  // big broadleaf trees across the downs, conifer groves under the cliff and on the plateau (none on
+  // the paths: what would grow there is drawn for and not planted, so the rest stand as they did)
   const broad = ['oak', 'elm', 'beech', 'maple', 'forest', 'mossy'];
   for (let i = 0, n = 0; i < 2000 && n < 110; i++) {
     const x = REGION.x0 + 30 + R() * (CLIFF.x - REGION.x0 - 40), z = REGION.z0 + 10 + R() * (REGION.z1 - REGION.z0 - 20);
     if (!clearOf(x, z, 6)) continue;
-    ctx.trees3d.add(broad[n % broad.length], x, H(x, z) - 0.15, z, 1.3 + R() * 0.8);
+    const s = 1.3 + R() * 0.8;
+    if (!onPath(x, z, 3)) ctx.trees3d.add(broad[n % broad.length], x, H(x, z) - 0.15, z, s);
     n++;
   }
   for (let i = 0, n = 0; i < 1500 && n < 90; i++) {
     const onTop = R() < 0.45;
     const x = onTop ? CLIFF.x + 18 + R() * (REGION.x1 - CLIFF.x - 22) : CLIFF.x - 60 + R() * 50, z = REGION.z0 + 10 + R() * (REGION.z1 - REGION.z0 - 20);
     if (!clearOf(x, z, 4)) continue;
-    ctx.trees3d.add(['pine', 'cedar', 'redwood', 'pine'][n % 4], x, H(x, z) - 0.2, z, 0.9 + R() * 0.4);
+    const s = 0.9 + R() * 0.4;
+    if (!onPath(x, z, 3)) ctx.trees3d.add(['pine', 'cedar', 'redwood', 'pine'][n % 4], x, H(x, z) - 0.2, z, s);
     n++;
   }
   // dense forest along the north and south edges and round the back of the plateau

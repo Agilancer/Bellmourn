@@ -17,6 +17,16 @@ export const WORLD_R = 300;     // the forest goes on to here; the player stays 
 export const CATHEDRAL = { x0: -12, x1: 12, z0: -98, z1: -52, floor: 0.6 };
 export const GRAVEYARD = { x0: -48, x1: 48, z0: -182, z1: -122 };
 export const STAIRS = { x: 5.0, z: -93.6 }; // top of the stairs, in the stair-house in the cathedral office
+// the village's streets (gravel) and lanes (packed dirt), [x0, z0, x1, z1] (the map draws them too).
+// The high street runs from the cathedral's forecourt through the plaza to the Town Hall, round it
+// either side and on south out of the guildhall gate; the east-west road crosses it at the plaza
+export const STREETS = [[-4, -48, 4, 29], [-18, 29, 18, 35.5], [-18, 35.5, -12, 50.5], [12, 35.5, 18, 50.5], [-18, 50.5, 18, 56.5],
+  [-4, 56.5, 4, VILLAGE_R + 20], [-VILLAGE_R - 20, -4, VILLAGE_R + 20, 4]];
+// the lane to the graveyard (off the forecourt, round the bell tower and up past the chancel to
+// the gate), and the dirt by the houses (the alchemist's and the general store's either side of them)
+export const LANES = [[16, -50, 26, -44], [20, -116, 26, -50], [14, -126, 26, -116], [-60, 30, -48, 33], [44, 30, 58, 33],
+  [-36, -13.5, -24, -4], [-36, -32, -24, -22.5], [24, -13, 36, -4], [24, -32, 36, -23]];
+const onStreet = (x, z, pad) => [...STREETS, ...LANES].some(([x0, z0, x1, z1]) => x > x0 - pad && x < x1 + pad && z > z0 - pad && z < z1 + pad);
 // where the outdoor ground is left out: under the cathedral and the delves' stair-houses
 const GROUND_CUTS = [[CATHEDRAL.x0, CATHEDRAL.z0, CATHEDRAL.x1, CATHEDRAL.z1], ...DELVES.map(delveFootprint),
   [CRATER.x - CRATER.reach, CRATER.z - CRATER.reach, CRATER.x + CRATER.reach, CRATER.z + CRATER.reach]];   // (the crater builds its own)
@@ -84,17 +94,22 @@ export function buildWorld(ctx) {
   const paving = M('town_limestone_paving', 2.5, { overlay: true });
   const strip = (mat, x0, z0, x1, z1, y = 0.02) => b.quad(mat, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0],
     [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
-  strip(road, -4, -48, 4, VILLAGE_R + 20);            // north-south high street
-  strip(road, -VILLAGE_R - 20, -4, VILLAGE_R + 20, 4); // east-west road
+  for (const s of STREETS) strip(road, ...s);
   strip(cobble, -20, -20, 20, 20, 0.03);               // the plaza
   strip(paving, -16, -52, 16, -40, 0.03);              // the cathedral forecourt
-  // the lane to the graveyard: off the forecourt's east side, round the bell tower (it stands
-  // at the cathedral's south-east corner), up past the chancel and across to the gate
-  strip(dirt, 16, -50, 26, -44, 0.02);
-  strip(dirt, 20, -116, 26, -50, 0.021);
-  strip(dirt, 14, -126, 26, -116, 0.02);
-  for (const [x0, z0, x1, z1] of [[-60, 30, -48, 33], [44, 30, 58, 33], [-36, -32, -24, -4], [24, -32, 36, -4]])
-    strip(dirt, x0, z0, x1, z1, 0.02);
+  LANES.forEach((s, i) => strip(dirt, ...s, i === 1 ? 0.021 : 0.02));
+  // the roads' middles and widths, for tools/pathcheck.js (which keeps them clear): [{ pts, w }]
+  ctx.paths = [];
+  const way = (w, ...pts) => ctx.paths.push({ pts, w });
+  way(8, [0, -48], [0, 32.25]);                                                        // the high street to the Town Hall's door,
+  way(6, [0, 32.25], [-15, 32.25], [-15, 53.5], [15, 53.5], [15, 32.25], [0, 32.25]);  // round the hall
+  way(8, [0, 53.5], [0, VILLAGE_R + 20]);                                              // and on south
+  way(8, [-VILLAGE_R - 20, 0], [VILLAGE_R + 20, 0]);
+  way(6, [16, -47], [23, -47], [23, -119], [17, -119], [17, -124]);
+  way(3, [-60, 31.5], [-48, 31.5]); way(3, [44, 31.5], [58, 31.5]);
+  way(12, [-30, -4], [-30, -11.5]); way(12, [-30, -24.5], [-30, -32]); way(12, [30, -4], [30, -11]); way(12, [30, -25], [30, -32]);
+  // (and in the graveyard, from the gate to the mausoleum's door: see groundPatches)
+  way(3, [17, -124], [17, -163.5], [-8, -163.5]);
   props.add('well', 0, 0.03, 0, 0, 1.2);
   // gateways on the three roads out of the village (the town pack's): fieldstone east, where
   // the trail to the downs begins, a timber market gate west, the guildhall gate south
@@ -130,9 +145,9 @@ export function buildWorld(ctx) {
       furnish: [['table', 0, 1, 0], ['table', 0, 3, 0], ['pew', -4, -2, Math.PI], ['pew', 4, -2, Math.PI], ['candelabrum', -8.5, -5], ['candelabrum', 8.5, -5], ['bookshelf', -6, 5.6, Math.PI], ['bookshelf', 6, 5.6, Math.PI], ['treasure_chest', 0, 5.5, Math.PI]] },
     { name: 'barracks', shop: 'armorer', doorArt: 'town_smith_iron', title: "The Watch Barracks", x: 52, z: 44, w: 16, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_wattle_daub', roof: 'castle_roof_black', floor: 'town_dark_pine', door: 'n', chimney: [6, 2],
       furnish: [['bed', -5, 2], ['bed', -2.5, 2], ['bed', 0, 2], ['bed', 2.5, 2], ['table', 4.5, -2, 0], ['stool', 4.5, -0.8], ['crate', -6.5, -3.8], ['treasure_chest', 6.5, 3.8, -Math.PI / 2]] },
-    { name: 'stable', shop: 'stables', title: "The Stables", x: 58, z: -6, w: 12, d: 14, h: 4.4, storeys: 1, timber: true, wall: 'town_wall_pine_siding', roof: 'town_roof_straw_thatch', floor: 'town_stable_yard', door: 'w', openFront: true,
+    { name: 'stable', shop: 'stables', title: "The Stables", x: 58, z: -12, w: 12, d: 14, h: 4.4, storeys: 1, timber: true, wall: 'town_wall_pine_siding', roof: 'town_roof_straw_thatch', floor: 'town_stable_yard', door: 'w', openFront: true,
       furnish: [['barrel', 4, -5.5], ['crate', 4, 5.5], ['crate', 3, 5.5], ['table', -2, 5, 0]] },
-    { name: 'bakery', shop: 'bakery', title: "The Bakehouse", x: -58, z: -8, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', chimney: [-3, 2], sign: 1,
+    { name: 'bakery', shop: 'bakery', title: "The Bakehouse", x: -58, z: -9.5, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', chimney: [-3, 2], sign: 1,
       furnish: [['table', 1, 0, Math.PI / 2], ['barrel', -4, -3.5], ['barrel', -4, 3.5], ['crate', -3, 3.6], ['stool', 2, 1.5]] },
     { name: 'healer', shop: 'apothecary', title: "House of Mending", x: 44, z: -48, w: 12, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
       furnish: [['bed', 3, -2, Math.PI / 2], ['bed', 3, 2, Math.PI / 2], ['bookshelf', -1, -3.6, 0], ['table', -2.5, 1.5, 0], ['candelabrum', 5, 0]] },
@@ -210,7 +225,7 @@ function groundPatches(ctx, M, R, houses) {
   placeAll(grass, 18, 26, 95, 6);
   placeAll(earth, 14, 22, 90, 3.5);
   // work yards behind the smithy, the bakery, the stable and the barracks
-  [[-40, 14], [-68, -4], [68, -2], [62, 52], [-40, 22], [70, -16]].forEach(([x, z], i) => blob(take(lime, i), x, z, 3.2, 0.024, 8));
+  [[-40, 14], [-68, -5.5], [68, -8], [62, 52], [-40, 22], [70, -22]].forEach(([x, z], i) => blob(take(lime, i), x, z, 3.2, 0.024, 8));
   // paths in the graveyard: from the gate to the mausoleum, and round it
   const G = GRAVEYARD;
   const gy = /^cathedral_graveyard_(muddy_path|grave_gravel|moss_cobbles|nave_flagstone|limestone_squares|choir_slate|terracotta_nave)$/;
@@ -267,18 +282,18 @@ function villageDetail(ctx, M, hm, houses) {
     bill.add('town_scatter_18_stone_bench', Math.cos(a) * 17.5, 0.03, Math.sin(a) * 17.5, 0.9);
   }
   cart(ctx, 20, -25, 0, hm);
-  cart(ctx, 49, -15, 1, hm);
+  cart(ctx, 49, -21, 1, hm);
   cart(ctx, -20, 26, 2, hm);
   // hay bales by the stable
   const straw = M('town_roof_straw_thatch', 1.2);
-  for (const [x, z] of [[66, -14], [66, -12.6], [66.6, -13.3]]) b.cylinder([x - 0.6, 0.62, z], [x + 0.6, 0.62, z], 0.6, 10, straw);
-  ctx.physics.add([65.3, 0, -14.7], [67.3, 1.3, -11.9], 'prop');
-  // fenced gardens behind the houses
+  for (const [x, z] of [[66, -20], [66, -18.6], [66.6, -19.3]]) b.cylinder([x - 0.6, 0.62, z], [x + 0.6, 0.62, z], 0.6, 10, straw);
+  ctx.physics.add([65.3, 0, -20.7], [67.3, 1.3, -17.9], 'prop');
+  // fenced gardens behind the houses (the bakehouse's kept off the road)
   fence(ctx, [[40, 11], [48, 11], [48, 25], [40, 25]], hm);
   fence(ctx, [[-38, 11], [-46, 11], [-46, 25], [-38, 25]], hm);
-  fence(ctx, [[-66, -15], [-72, -15], [-72, -1], [-66, -1]], hm);
+  fence(ctx, [[-66, -19.5], [-72, -19.5], [-72, -5.5], [-66, -5.5]], hm);
   fence(ctx, [[52, -55], [58, -55], [58, -41], [52, -41]], hm);
-  for (const [x0, z0, x1, z1] of [[40, 11, 48, 25], [-46, 11, -38, 25], [-72, -15, -66, -1], [52, -55, 58, -41]]) {
+  for (const [x0, z0, x1, z1] of [[40, 11, 48, 25], [-46, 11, -38, 25], [-72, -19.5, -66, -5.5], [52, -55, 58, -41]]) {
     const soil = M('town_rooty_dirt', 2, { overlay: true });
     b.quad(soil, [x0, 0.02, z1], [x1, 0.02, z1], [x1, 0.02, z0], [x0, 0.02, z0], [[x0, -z1], [x1, -z1], [x1, -z0], [x0, -z0]]);
     for (let x = x0 + 1; x < x1 - 0.5; x += 1.4) for (let z = z0 + 1; z < z1 - 0.5; z += 2.2)
@@ -594,6 +609,9 @@ function graveyard(ctx, M, R) {
   const earth = ['settled_grave', 'fresh_burial_earth', 'old_grave_mound', 'weedy_grave_soil', 'rooted_grave_soil', 'buried_slab', 'dead_ivy', 'funeral_petals', 'broken_cross', 'burial_fragments']
     .filter((id) => lib.surf.has('cathedral_graveyard_decal_' + id)).map((id) => M('cathedral_graveyard_decal_' + id, 1.5, { overlay: true }));
   const kinds = ['gravestone_round', 'gravestone_round', 'gravestone_cross', 'gravestone_cross', 'gravestone_obelisk'];
+  // the paths from the gate to the mausoleum's door (groundPatches lays them) stay clear: what
+  // would stand on them is drawn for and left out, so the rest of the yard comes out as it always has
+  const onPath = (x, z, pad) => (Math.abs(x - gx) < 1.5 + pad && z < G.z1 && z > G.z0 + 17 - pad) || (x > -8 - pad && x < 18.5 + pad && z > G.z0 + 17 - pad && z < G.z0 + 20 + pad);
   for (let z = G.z1 - 6; z > G.z0 + 4; z -= 3.6) {
     for (let x = G.x0 + 4; x < G.x1 - 4; x += 3.2) {
       if (Math.abs(x - (G.x0 + gate - 3)) < 2.5) continue;            // the path from the gate
@@ -601,9 +619,13 @@ function graveyard(ctx, M, R) {
       if (Math.abs(x - 34) < 3 && Math.abs(z - G.z0 - 24) < 6) continue; // the cloister ruin
       if (Math.abs(x + 24) < 4 && z < G.z0 + 6) continue;             // the back gate
       if (R() < 0.18) continue;
-      const px = x + (R() - 0.5) * 0.8, pz = z + (R() - 0.5) * 0.5, rot = (R() - 0.5) * 0.25;
-      props.add(kinds[Math.floor(R() * kinds.length)], px, 0, pz, rot);
-      if (earth.length && R() < 0.75) b.decal(earth[Math.floor(R() * earth.length)], px - Math.sin(rot) * 1.05, 0.021 + R() * 0.002, pz + Math.cos(rot) * 1.05, 1.5, rot);
+      const px = x + (R() - 0.5) * 0.8, pz = z + (R() - 0.5) * 0.5, rot = (R() - 0.5) * 0.25, kind = kinds[Math.floor(R() * kinds.length)];
+      const keep = !onPath(px, pz, 1.2);
+      if (keep) props.add(kind, px, 0, pz, rot);
+      if (earth.length && R() < 0.75) {
+        const e = earth[Math.floor(R() * earth.length)], y = 0.021 + R() * 0.002;
+        if (keep) b.decal(e, px - Math.sin(rot) * 1.05, y, pz + Math.cos(rot) * 1.05, 1.5, rot);
+      }
     }
   }
   for (let i = 0; i < 6; i++) props.add('sarcophagus', -30 + i * 12 + (R() - 0.5) * 3, 0, G.z0 + 8 + R() * 4, R() * 0.4);
@@ -632,14 +654,16 @@ function graveyard(ctx, M, R) {
   const scen = lib.sprites('scatter', (s) => s.id.startsWith('cathedral_graveyard_') && !CHURCH.test(s.id)).map((s) => s.id);
   for (let i = 0; i < 70; i++) {
     const x = G.x0 + 3 + R() * (G.x1 - G.x0 - 6), z = G.z0 + 3 + R() * (G.z1 - G.z0 - 6);
-    if (x > -12 && x < 12 && z < G.z0 + 22) continue;
+    if ((x > -12 && x < 12 && z < G.z0 + 22) || onPath(x, z, 1.6)) continue;
     bill.add(scen[i % scen.length], x, 0, z, 1.1);
   }
   const dead = ['town_tree_18_large_storm_deadwood', 'town_tree_12_medium_dead_oak', 'town_tree_06_small_dead_thorn'];
   for (let i = 0; i < 14; i++) {
     const x = G.x0 + 2 + R() * (G.x1 - G.x0 - 4), z = G.z0 + 2 + R() * (G.z1 - G.z0 - 4);
     if (x > -12 && x < 12 && z < G.z0 + 22) continue;
-    bill.add(dead[i % dead.length], x, 0, z, 0.9 + R() * 0.4);
+    const s = 0.9 + R() * 0.4;
+    if (onPath(x, z, 1)) continue;
+    bill.add(dead[i % dead.length], x, 0, z, s);
     ctx.physics.add([x - 0.35, 0, z - 0.35], [x + 0.35, 6, z + 0.35], 'tree');
   }
 }
@@ -655,6 +679,9 @@ function trail(ctx, M, R) {
     for (const [w, m, y] of [[2.6, verge, 0.018], [1.6, dirt, 0.024]])
       b.quad(m, [x, y, z0 + w], [x + 2, y, z1 + w], [x + 2, y, z1 - w], [x, y, z0 - w], [[x, -(z0 + w)], [x + 2, -(z1 + w)], [x + 2, -(z1 - w)], [x, -(z0 - w)]]);
   }
+  const pts = [];
+  for (let x = 116; x < REGION.x0 + 2; x += 4) pts.push([x, zAt(x)]);
+  ctx.paths?.push({ pts: [...pts, [REGION.x0 + 2, zAt(REGION.x0 + 2)]], w: 3.2 });
   const S = (id, x, z, s = 1, rot) => ctx.scatter.place(id, x, 0, z, s, rot);
   S('dark_forest_trail_sign', 118, 4.2, 1, Math.PI / 2);
   S('town_scatter_40_arrow_milestone', REGION.x0 - 4, 4.5, 1, Math.PI / 2);
@@ -692,9 +719,9 @@ function forestRing(ctx, R, houses) {
     if (!inVillage && r < VILLAGE_R + 14 && R() > 0.35) continue; // a ragged forest edge
     const t = (inVillage ? live : trees)[Math.floor(R() * (inVillage ? live : trees).length)];
     const sc = 0.8 + R() * 0.6;
-    // Blackvigil Keep's ground stays open: what would grow there is drawn for and not planted,
-    // so the rest of the forest stands as it always has
-    const open = keepClear(x, z);
+    // Blackvigil Keep's ground and the village's streets stay open: what would grow there is drawn
+    // for and not planted, so the rest of the forest stands as it always has
+    const open = keepClear(x, z) || onStreet(x, z, 1);
     if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
       const s3 = 0.9 + R() * 0.5;
       if (!open) ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, s3);

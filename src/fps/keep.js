@@ -67,6 +67,9 @@ export function buildKeep(ctx) {
     for (const [w, m, y] of [[3.2, verge, 0.018], [2.1, gravel, 0.024]])
       b.quad(m, [x - 2, y, z1 + w], [x, y, z0 + w], [x, y, z0 - w], [x - 2, y, z1 - w], [[x - 2, -(z1 + w)], [x, -(z0 + w)], [x, -(z0 - w)], [x - 2, -(z1 - w)]]);
   }
+  const way = [];
+  for (let x = ROAD.x0; x > ROAD.x1; x -= 4) way.push([x, roadZ(x)]);
+  (ctx.paths ??= []).push({ pts: [...way, [ROAD.x1, roadZ(ROAD.x1)]], w: 4.2 });   // (for tools/pathcheck.js)
   S('dark_forest_trail_sign', ROAD.x0 - 2, -4.6, 1, -Math.PI / 2);
   for (let x = ROAD.x0 - 18, k = 0; x > ROAD.x1 + 10; x -= 22, k++) S('dark_forest_lantern_stake', x, roadZ(x) + (k % 2 ? 3.6 : -3.6), 1, k % 2 ? Math.PI : 0);
   // the Sworn's warnings along the last of it: skulls heaped on the verge, a gibbet's chains

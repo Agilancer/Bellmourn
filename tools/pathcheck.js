@@ -217,10 +217,14 @@ function roads(bm, out) {
   const { physics, ctx } = bm, seen = new Set();
   for (const p of ctx.paths || []) {
     const lane = Math.min(p.w * 0.5, 1.4); // the middle of the road, wide enough to walk unhindered
+    // the floor underfoot, carried along the road as the player walks it: up onto a bridge's deck
+    // and over (not down on the stream bed, where the deck would be in the way)
+    let y = physics.groundAt(...p.pts[0]);
     for (let i = 0; i + 1 < p.pts.length; i++) {
       const [ax, az] = p.pts[i], [bx, bz] = p.pts[i + 1], len = Math.hypot(bx - ax, bz - az);
       for (let t = 0; t <= len; t += 0.8) {
-        const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len, y = physics.groundAt(x, z);
+        const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len, f = physics.floorAt(x, z, y, R, STEP);
+        y = Number.isFinite(f) ? f : physics.groundAt(x, z);
         for (const b of physics.near(x - lane, z - lane, x + lane, z + lane)) {
           if (seen.has(b) || b.tag === 'door' || !standing(b, y)) continue;
           const cx = Math.max(b.min[0], Math.min(x, b.max[0])), cz = Math.max(b.min[2], Math.min(z, b.max[2]));
