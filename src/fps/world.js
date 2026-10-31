@@ -125,7 +125,8 @@ export function buildWorld(ctx) {
   // the lane to the graveyard: off the forecourt's east side, round the bell tower (it stands
   // at the cathedral's south-east corner), up past the chancel and across to the gate
   const lane = [[13.5, -46.5, 3.2], [18, -46.8, 3.2], [21.5, -48.6, 3.1], [23, -52, 3]];
-  for (let z = -56; z >= -108; z -= 4) lane.push([23.3 + 0.55 * Math.sin(z * 0.09) + 0.25 * Math.sin(z * 0.23), z, 2.9 + 0.25 * Math.sin(z * 0.13)]);
+  for (let z = -56; z >= -108; z -= 2) lane.push([23.3 + 0.55 * Math.sin(z * 0.09) + 0.25 * Math.sin(z * 0.23), z,
+    2.9 + 0.45 * Math.sin(z * 0.47) + 0.2 * Math.sin(z * 0.81), 2.9 + 0.45 * Math.sin(z * 0.53 + 2) + 0.2 * Math.sin(z * 0.77 + 1)]);   // (each side its own wander)
   lane.push([22.6, -112, 3.1], [20.8, -116.5, 3.3], [18.6, -120, 3.5], [17.2, -124.5, 3.2]);
   b.ribbon(dirt, lane, 3, 0.021);
   T?.verge(lane, 3, 1.4, { clear: (x, z) => z < -51 });
@@ -134,12 +135,12 @@ export function buildWorld(ctx) {
   const cartway = M('town_wheel_worn_gravel', 3, { overlay: true, feather: 1.0 });
   for (const [x0, x1, z] of [[-61, -47, 31.5], [43, 59, 31.5]]) {
     const pts = [];
-    for (let x = x0; x <= x1 + 1e-6; x += 2) pts.push([x, z + 0.35 * Math.sin(x * 0.4), 1.5 + 0.15 * Math.sin(x * 0.7)]);
+    for (let x = x0; x <= x1 + 1e-6; x += 1) pts.push([x, z + 0.35 * Math.sin(x * 0.4), 1.5 + 0.3 * Math.sin(x * 0.9), 1.5 + 0.3 * Math.sin(x * 1.1 + 2)]);
     b.ribbon(cartway, pts, 1.5, 0.02);
     T?.verge(pts, 1.5, 1.0);
   }
   const lot = M('town_packed_dirt', 3, { overlay: true, feather: 2.4 });
-  for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(lot, x, -18, 0.02, roundRect(x, -18, 6.3, 14.3, 2.6, 1.5, k, 64));
+  for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(lot, x, -18, 0.02, roundRect(x, -18, 5.4, 13.6, 2.1, 1.7, k, 64));   // (oval: not squared to the walls)
   props.add('well', 0, 0.03, 0, 0, 1.2);
   // gateways on the three roads out of the village (the town pack's): fieldstone east, where
   // the trail to the downs begins, a timber market gate west, the guildhall gate south
@@ -267,13 +268,13 @@ function groundPatches(ctx, M, R, houses) {
   const gy = /^cathedral_graveyard_(muddy_path|grave_gravel|moss_cobbles|nave_flagstone|limestone_squares|choir_slate|terracotta_nave)$/;
   const pathMat = M(take(gy, 0), 2.2, { overlay: true, feather: 0.9 });
   const gp = [];
-  for (let z = G.z1 + 1; z >= G.z0 + 20; z -= 2) gp.push([17 + 0.3 * Math.sin(z * 0.3), z, 1.5 + 0.12 * Math.sin(z * 0.5)]);
+  for (let z = G.z1 + 1; z >= G.z0 + 20; z -= 1) gp.push([17 + 0.3 * Math.sin(z * 0.3), z, 1.5 + 0.3 * Math.sin(z * 0.9), 1.5 + 0.3 * Math.sin(z * 1.1 + 2)]);
   b.ribbon(pathMat, gp, 1.5, 0.025);
   const dead = [1.05, 0.88, 0.7];   // (the graveyard's tufts: dry and pale)
   ctx.tufts?.verge(gp, 1.5, 0.9, { tint: dead, clear: (x, z) => z < G.z1 - 1 });
   const ring = M(take(gy, 1), 2, { overlay: true, feather: 0.9 });
   const rp = [];
-  for (let x = 18.5; x >= -8; x -= 2) rp.push([x, G.z0 + 18.5 + 0.3 * Math.sin(x * 0.35), 1.5]);
+  for (let x = 18.5; x >= -8; x -= 1) rp.push([x, G.z0 + 18.5 + 0.3 * Math.sin(x * 0.35), 1.5 + 0.3 * Math.sin(x * 0.95), 1.5 + 0.3 * Math.sin(x * 1.05 + 1)]);
   b.ribbon(ring, rp, 1.5, 0.026);
   ctx.tufts?.verge(rp, 1.5, 0.9, { tint: dead, clear: (x) => x < 15 });
   for (let i = 0; i < 5; i++) blob(take(gy, i + 2), G.x0 + 8 + i * 18, G.z0 + 30 + (i % 2) * 14, 2.4, 0.024, 8, 1.0);
