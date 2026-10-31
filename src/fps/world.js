@@ -88,9 +88,9 @@ export function buildWorld(ctx) {
   props.add('well', 0, 0.03, 0, 0, 1.2);
   // gateways on the three roads out of the village (the town pack's): fieldstone east, where
   // the trail to the downs begins, a timber market gate west, the guildhall gate south
-  ctx.cutouts?.place('town_fieldstone_round', VILLAGE_R - 8, 0, 0, Math.PI / 2, 6.4, 0.9);
-  ctx.cutouts?.place('town_timber_market', -(VILLAGE_R - 8), 0, 0, -Math.PI / 2, 6.4, 0.7);
-  ctx.cutouts?.place('town_limestone_guildhall', 0, 0, VILLAGE_R - 8, 0, 5.6, 0.9);
+  ctx.cutouts?.place('town_fieldstone_round', VILLAGE_R - 8, 0, 0, Math.PI / 2, 6.4, 0.9, 'wall');
+  ctx.cutouts?.place('town_timber_market', -(VILLAGE_R - 8), 0, 0, -Math.PI / 2, 6.4, 0.7, 'wall');
+  ctx.cutouts?.place('town_limestone_guildhall', 0, 0, VILLAGE_R - 8, 0, 5.6, 0.9, 'wall');
   // and inside each gate the village's own banners (the town ones: never Velscour's V, nor the
   // church's T) on a pole either side of the road, facing the way in and out
   const town = lib.sprites('banner', (s) => s.allegiance === 'town').map((s) => s.id);
@@ -456,7 +456,7 @@ function cathedral(ctx, M) {
   props.add('candelabrum', -3, F + 0.6, chZ0 + 1.5); props.add('candelabrum', 3, F + 0.6, chZ0 + 1.5);
   props.add('candelabrum', -10, F, chZ1 + 2); props.add('candelabrum', 10, F, chZ1 + 2);
   // the chancel arch over the step: the graveyard pack's triumphal arch
-  if (chancelArch) ctx.cutouts.place('cathedral_graveyard_nave_triumphal', 0, F + 0.6, chZ1 - 0.42, 0, 5.5, 0.8);
+  if (chancelArch) ctx.cutouts.place('cathedral_graveyard_nave_triumphal', 0, F + 0.6, chZ1 - 0.42, 0, 5.5, 0.8, 'wall');
   // the floor: a carpet runner up the aisle, a mosaic before the chancel step, the altar stone,
   // memorial brasses and slabs let into the side aisles, wax under the candles (the graveyard
   // pack's one-off floor tiles)
@@ -563,12 +563,12 @@ function graveyard(ctx, M, R) {
       b.box([Math.min(x0, x1) + inX - (x0 === x1 ? 0.005 : 0), 0, Math.min(z0, z1) + inZ - (z0 === z1 ? 0.005 : 0)],
         [Math.max(x0, x1) + inX + (x0 === x1 ? 0.005 : 0), 2.4, Math.max(z0, z1) + inZ + (z0 === z1 ? 0.005 : 0)], back, { solid: false, faces: { top: false, bottom: false } });
     }
-    const arch = ctx.cutouts.place('cathedral_graveyard_processional_cemetery', gx, 0, G.z1, 0, 4.0, 0.9);
+    const arch = ctx.cutouts.place('cathedral_graveyard_processional_cemetery', gx, 0, G.z1, 0, 4.0, 0.9, 'wall');
     const half = arch ? arch.width / 2 - 0.3 : 2;
     for (const [x0, x1] of [[G.x0, gx - half], [gx + half, G.x1]]) b.box([x0, 0, G.z1 - 0.05], [x1, 2.5, G.z1 + 0.05], rail, { faces: { top: false, bottom: false } });
     ctx.doors?.add({ hinge: [gx - 2, 0, G.z1], along: 0, width: 4, height: 3.4, thick: 0.08, double: true, opens: -1, name: 'graveyard gate', design: 'cathedral_graveyard_cemetery_gate' });
     // a back gate through the north wall to the forest, and a ruined cloister arch in the grass
-    ctx.cutouts.place('cathedral_graveyard_churchyard_cross', -24, 0, G.z0, Math.PI, 2.6, 0.9);
+    ctx.cutouts.place('cathedral_graveyard_churchyard_cross', -24, 0, G.z0, Math.PI, 2.6, 0.9, 'wall');
     ctx.cutouts.place('cathedral_graveyard_ruined_cloister', 34, 0, G.z0 + 24, -Math.PI / 2, 3.4, 0.7);
   } else {
     const wallMat = M('castle_rubble', 2.5), cap = M('castle_slatestone', 2);

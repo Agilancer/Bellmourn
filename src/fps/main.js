@@ -207,7 +207,7 @@ async function build() {
   const b = new Builder(physics);
   bill = new Billboards(lib, scene);
   bill.shadows = HI;
-  const props = new Props(scene, physics, lib);
+  const props = await new Props(scene, physics, lib).load(); // (its sizes, for what is set down clear of the ways)
   ctx = { lib, kit, b, props, bill, scene, physics, flames: [], chimneys: [], sfx, animated: [] };
   ctx.stained = await new StainedGlass(ctx).load(); // the windows, and the light through them
   ctx.cutouts = await new Cutouts(ctx).load();      // the biome packs' arches and gateways
