@@ -138,4 +138,7 @@ code = (
     "s.save(sys.argv[1])"
 )
 subprocess.run(["python", "-c", code, SHEET] + paths, check=True)
+if len(argv) > 2:   # optional scale for a lighter sheet
+    subprocess.run(["python", "-c", "import sys;from PIL import Image;im=Image.open(sys.argv[1]);f=float(sys.argv[2]);"
+                    "im.resize((int(im.width*f),int(im.height*f))).save(sys.argv[1])", SHEET, argv[2]], check=True)
 print("[review] sheet", SHEET)

@@ -27,6 +27,8 @@ mat = bpy.data.materials["ZombieSkin"]
 for nd in mat.node_tree.nodes:
     if nd.type == "TEX_IMAGE" and nd.image and "atlas" in nd.image.name:
         nm = nd.image.name.replace("_atlas", "")
+        if not os.path.exists(os.path.join(TEX, nm)):
+            continue
         cs = nd.image.colorspace_settings.name
         nd.image = bpy.data.images.load(os.path.join(TEX, nm)); nd.image.colorspace_settings.name = cs
     if nd.type in ("UVMAP", "NORMAL_MAP"):
