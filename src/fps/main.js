@@ -39,7 +39,7 @@ import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, 
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM } from './terrain.js';
 import { SPOTS } from './region.js';
-import { Sfx } from './audio.js';
+import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
 import { Zombies } from './zombies.js';
 import { Foes } from './foes.js';
 import { Villagers } from './villagers.js';
@@ -49,7 +49,7 @@ import { StainedGlass } from './glass.js';
 import { Crater, CRATER, CRATER_ARMS, formCrater } from './crater.js';
 import { Intro } from './intro.js';
 import { Quests, GIVERS } from './quests.js';
-import { SaveMenu } from './saves.js';
+import { SaveMenu, SLOT_COUNT, readSlot } from './saves.js';
 import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
 import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
@@ -118,7 +118,7 @@ scene.add(cometLight);
 const lantern = new THREE.PointLight(0xffd2a0, 0, 7, 2);
 scene.add(lantern);
 
-const sfx = new Sfx();
+const sfx = title.sfx;
 // A phone that runs out of memory is killed and reloaded by the browser with no word of why (Safari's
 // "A problem repeatedly occurred"), so each run notes how far it has got; if it never closed cleanly,
 // the next shows where it stopped, under the title.
@@ -139,7 +139,6 @@ let quests = null, saves = null, intro = null, introBusy = false, holdHour = fal
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
-const FIRST = (() => { try { return !localStorage.getItem('bm.char'); } catch { return true; } })();   // never played here
 let progress = (() => { try { return JSON.parse(localStorage.getItem(PROGRESS) || 'null'); } catch { return null; } })();
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried), and more spread through the Undercroft and the Deep Undercroft (the delves and
@@ -228,7 +227,7 @@ async function build() {
   const mark = async (k) => {
     times.push([k, Math.round(performance.now() - T0)]);
     run.step = `built ${k}`; trace();
-    if (LOADED[k]) { hud.loading(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
+    if (LOADED[k]) { title.progress(LOADED[k]); await new Promise((r) => setTimeout(r)); } // let it paint
   };
   physics = new Physics();
   // the world is built from the Velscour texture library, its sprites and props; the kit's
@@ -383,9 +382,11 @@ async function build() {
   villagers.quests = quests;
   map.pins = () => quests.pins(villagers);
   zombies.onDeath = onDeath;
-  saves = new SaveMenu({ ui, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
-    onClose: () => { if (paused || !started) return; if (!touch) lockPointer(); } });
+  // (the save slots open over the title and the pause screen alike: in the title's layer)
+  saves = new SaveMenu({ ui: title.modal, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
+    onClose: () => { title.refresh(); if (paused || !started) return; if (!touch) lockPointer(); } });
   hud.onMenu = menu;
+  title.onMenu = menu;
   vm.on(onEvent);
   resize();
   await prepare(mark);
@@ -480,7 +481,7 @@ async function prepare(mark) {
   // smooth-edged leaves, hair and lashes
   const r1 = refineScene(scene), r2 = refineScene(vm.scene);
   const tex = texturesOf(vm.scene, texturesOf(scene));
-  await upload(renderer, tex, (k) => hud.loading(Math.round(86 + 6 * k)));
+  await upload(renderer, tex, (k) => title.progress(Math.round(86 + 6 * k)));
   await mark('uploaded');
   await compile(renderer, [[scene, camera], [vm.scene, vm.camera]], composer.readBuffer);
   await mark('compiled');
@@ -1000,6 +1001,7 @@ function begin() {
   if (!ready) return;
   started = true;
   paused = false;
+  title.hide();
   hud.showOverlay(null);
   if (touch) {
     hud.showTouch(true);
@@ -1039,6 +1041,21 @@ document.addEventListener('pointerlockchange', () => {
 // ------------------------------------------------------------------ a new game, a game picked up, saved and loaded
 const hasGame = () => { try { return !!localStorage.getItem('bm.char'); } catch { return false; } };
 
+/** The newest game there is to pick up: the one that keeps itself as you play ({auto}), or a save
+ * slot's ({slot, data}), whichever was made last (null: none). A game kept before the time was noted
+ * counts as the newest: it was written every few seconds as you played. */
+function latestSave() {
+  let best = hasGame() && progress?.arrived ? { auto: true, at: progress.at ?? Infinity } : null;
+  for (let i = 1; i <= SLOT_COUNT; i++) {
+    const d = readSlot(i);
+    if (d?.char && (!best || (d.at || 0) > best.at)) best = { slot: i, data: d, at: d.at || 0 };
+  }
+  return best;
+}
+const anySlot = () => { for (let i = 1; i <= SLOT_COUNT; i++) if (readSlot(i)?.char) return true; return false; };
+/** What the title's menu can do: Continue needs a game to pick up, Load a slot to load. */
+const titleState = () => ({ continue: !!latestSave(), load: anySlot() });
+
 /** The title's and the pause screen's buttons. */
 function menu(a) {
   sfx.start();
@@ -1047,6 +1064,7 @@ function menu(a) {
   else if (a === 'load') saves.show('load');
   else if (a === 'save') saves.show('save');
   else if (a === 'resume') begin();
+  else if (a === 'settings' || a === 'howto') title.panel(a);
   else if (a === 'log') { paused = false; hud.showOverlay(null); if (touch) hud.showTouch(true); quests.showLog(true); }
 }
 
@@ -1054,7 +1072,7 @@ function menu(a) {
 function makeProgress() {
   const p = player.pos;
   // (welcomed: the village has had its say at the edge of town, and gifts: what they've given so far)
-  return { arrived: true, welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
+  return { arrived: true, at: Date.now(), welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
     player: { x: p.x, y: p.y, z: p.z, yaw: player.yaw, pitch: player.pitch } };
 }
 function saveProgress() {
@@ -1100,7 +1118,7 @@ async function restore(d) {
   if (intro?.running) intro.skip();
   char = fitLevel(fitCharacter(JSON.parse(JSON.stringify(d.char))));
   saveCharacter(char);
-  progress = d.progress;
+  progress = { ...d.progress, at: Date.now() };   // (now the game being played: Continue's, newer than the slot)
   try { localStorage.setItem(PROGRESS, JSON.stringify(progress)); } catch { /* private window */ }
   applyProgress(progress);
   await applyGear(true);
@@ -1110,8 +1128,11 @@ async function restore(d) {
   else { paused = false; hud.showOverlay(null); if (touch) hud.showTouch(true); else lockPointer(); }
 }
 
-/** Pick up the game where it was left (bm.char and bm.progress). */
+/** Pick up the newest game: where it was left (bm.char and bm.progress), or the newest save slot. */
 function continueGame() {
+  const s = latestSave();
+  if (!s) return;
+  if (s.slot) { restore(s.data); return; }
   applyProgress(progress);
   applyGear(true);
   begin();
@@ -1179,11 +1200,24 @@ function reward({ xp = 0, gold = 0, items = [], title = '' }) {
 
 // ------------------------------------------------------------------ the opening, and the village coming to the crater
 /** Start over as Tessariel: nothing in your hands, nothing in your bag, and the green star coming down. */
+let starting = false;
 async function newGame() {
-  if ((!FIRST || progress?.arrived) && !confirm('Start a new game? Anything not saved in a slot is lost.')) return;
-  if (introBusy) return;
-  hud.showOverlay('loading', touch); hud.overlay.querySelector('.go').textContent = 'The sky is opening…';
+  if (introBusy || starting) return;
+  // asked on the screen, in the game's own box: a journey under way is lost unless it's in a slot
+  const lose = started || (hasGame() && progress?.arrived);
+  if ((lose || anySlot()) && !(await title.confirm({ title: 'Begin a New Game?',
+    text: lose ? 'Are you sure? The journey you are on will be lost, unless it is kept in a save slot.' : 'Are you sure? Your saved games will be kept.',
+    yes: 'Begin', no: 'Go Back' }))) return;
+  if (introBusy || starting) return;
+  starting = true;
+  try { await startOver(); } finally { starting = false; }
+}
+
+async function startOver() {
   saves.show(null); quests.close(); bag.show(false); map.show(false);
+  hud.showOverlay(null);
+  if (touch) hud.showTouch(false);
+  await title.show('The sky is opening…');   // (black over the world before anything in it moves)
   char = newCharacter(true);
   fitCharacter(char); saveCharacter(char);
   quests.load({});
@@ -1203,7 +1237,7 @@ async function newGame() {
   if (touch) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   else lockPointer();
   if (!intro) {
-    const say = (text) => { hud.overlay.querySelector('.go').textContent = text; };
+    const say = (text) => title.status(text);
     intro = new Intro({ ui, scene, camera, worldPass, renderer, sfx, foes, ctx, villagers, light: cometLight, smoke, particles: magic.particles,
       // a frame drawn as the game draws one (hands: with your arms in it)
       render: (hands = false) => { showUnder(); const was = vmPass.enabled; vmPass.enabled = hands; composer.render(1 / 60); vmPass.enabled = was; },
@@ -1262,7 +1296,7 @@ async function newGame() {
       onDone: () => { introBusy = false; setCinema(false); saveProgress(); const done = intro; intro = null; setTimeout(() => done.dispose(), 500); } });
     await intro.prepare(say);
   }
-  hud.showOverlay(null);
+  title.hide();   // (it fades off the opening's first shot)
   intro.start(touch);
 }
 
@@ -1540,31 +1574,33 @@ function tick(dt) {
 // ------------------------------------------------------------------ go
 hud = new Hud(ui, { spells: SPELLS, items: ITEMS });
 try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); } catch { /* first visit */ }
-hud.showOverlay('loading', touch);
-if (lastRun) hud.lastRun(lastRun);
+// (the title screen is up already, and shows how the loading goes: title.js)
+if (lastRun) title.lastRun(lastRun);
 gameInput = new Input(canvas, ui);
 // a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
 canvas.addEventListener('webglcontextlost', () => {
   lost = true; ready = false;
   bag?.show(false); hud.showTouch(false);
+  title.hide(true);
   hud.showOverlay('lost', touch);
 });
 canvas.addEventListener('mousedown', () => sfx.start());
-// the title and pause screens' menus (hud.onMenu), and a click on the pause screen resumes
-hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
-hud.overlay.addEventListener('touchend', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; e.preventDefault(); if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
-const optRes = ui.querySelector('#optRes'), optTex = ui.querySelector('#optTex'), optSens = ui.querySelector('#optSens');
-const optGfx = ui.querySelector('#optGfx'), optTime = ui.querySelector('#optTime');
+// the pause screen's menu (hud.onMenu), and a click elsewhere on it resumes
+hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
+hud.overlay.addEventListener('touchend', (e) => { if (e.target.closest('.menu')) return; e.preventDefault(); if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
+// the settings (in the title's Settings window, which the pause screen opens too)
+const $ = (id) => document.getElementById(id);
+const optRes = $('optRes'), optTex = $('optTex'), optSens = $('optSens'), optGfx = $('optGfx'), optTime = $('optTime');
 optRes.value = String(res.choice);
 optRes.onchange = () => { res.choice = Number(optRes.value); localStorage.setItem('bm.res', optRes.value); resize(); };
 optTex.value = TEXELS;
-optTex.onchange = () => { localStorage.setItem('bm.texels', optTex.value); location.reload(); };   // (the shaders are made with it)
+optTex.onchange = () => { localStorage.setItem('bm.texels', optTex.value); saveProgress(); title.reload(); };   // (the shaders are made with it)
 optSens.value = localStorage.getItem('bm.sens') || '1';
 const sens = () => { gameInput.sensitivity = 0.0022 * Number(optSens.value); gameInput.touchLook = 0.006 * Number(optSens.value); };
 optSens.oninput = () => { localStorage.setItem('bm.sens', optSens.value); sens(); };
 sens();
 optGfx.value = QUALITY;
-optGfx.onchange = () => { localStorage.setItem('bm.quality', optGfx.value); location.reload(); };
+optGfx.onchange = () => { localStorage.setItem('bm.quality', optGfx.value); saveProgress(); title.reload(); };
 optTime.value = timeMode;
 optTime.onchange = () => {
   timeMode = optTime.value; localStorage.setItem('bm.time', timeMode);
@@ -1572,14 +1608,13 @@ optTime.onchange = () => {
 };
 resize();
 build().then(() => {
-  hud.showOverlay('start', touch, { canContinue: !FIRST || !!progress });
+  title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster };
-  document.getElementById('boot')?.remove();
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;
-  hud.overlay.querySelector('.go').textContent = 'Failed to load: ' + e.message;
+  title.status('Failed to load: ' + e.message);
 });
 frame();

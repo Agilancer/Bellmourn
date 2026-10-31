@@ -792,6 +792,7 @@ export class Villagers {
 class Bubbles {
   constructor() {
     const c = this.canvas = document.createElement('canvas');
+    c.className = 'bubbles';   // (hidden under the title screen: index.html)
     Object.assign(c.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none' });
     const game = document.getElementById('game');
     if (game && game.parentNode) game.parentNode.insertBefore(c, game.nextSibling); else document.body.appendChild(c);
