@@ -189,7 +189,7 @@ export class Villagers {
     const clips = Object.fromEntries((set?.clips || gltf.animations).map((c) => [c.name, c]));
     const home = this.homeFor(p, k), nd = this.graph[home];
     const x = nd.x + rand(-1, 1), z = nd.z + rand(-1, 1);
-    const a = { ...p, call: p.call || p.name, root, model, head, mixer, actions, clips, ual: !!set, gait: set?.gaits || null, cur: null,
+    const a = { ...p, call: p.call || p.name, root, model, head, mixer, actions, clips, ual: !!set, gait: set?.gaits || null, rest: set && Math.random() < 0.3 ? 'idle_arms' : 'idle', cur: null,
       pos: new THREE.Vector3(x, 0, z), yaw: rand(0, 6.28), want: null, path: [], goal: null, node: this.nearestNode(x, z), home,
       speed: p.tags.includes('old') ? 0.8 : rand(1.0, 1.25), busy: false, inside: false, flee: 0, faceTo: null, gesture: 0,
       talk: null, greeted: -99, frame: k % 4, acc: 0, stuck: 0, last: new THREE.Vector3(x, 0, z), nextT: rand(0, 3), occT: 0, hidden: false };
@@ -209,9 +209,12 @@ export class Villagers {
     return act;
   }
 
-  /** What they do with their hands at a job: on the knight's clips, more than the one reach. */
-  chore(a, well = false) {
-    return a.ual ? pick(well ? ['interact', 'pickup'] : ['interact', 'interact', 'pickup', 'kneel']) : 'interact';
+  /** What they do with their hands at a job (at work, a stall or the well): on the library's clips,
+   * more than the one reach. */
+  chore(a, at = 'work') {
+    if (!a.ual) return 'interact';
+    return pick({ work: ['interact', 'interact', 'pickup', 'kneel', 'harvest', 'plant'], stall: ['interact', 'pickup', 'open_chest'],
+      well: ['interact', 'pickup', 'consume'] }[at]);
   }
 
   play(a, name, speed = 1) {
@@ -494,7 +497,7 @@ export class Villagers {
     const until = this.time + rand(25, 50);
     while (this.time < until && !this.night) {
       if (chance(0.3)) yield* this.line(a, pick(BARKS.merchant), 0, 2);
-      if (chance(0.3)) this.gesture(a, this.chore(a));
+      if (chance(0.3)) this.gesture(a, this.chore(a, 'stall'));
       yield rand(4, 8);
     }
     a.tending = null;
@@ -530,7 +533,7 @@ export class Villagers {
     const n = this.graph.find((q) => q.what === 'well');
     yield this.go(a, n.x + rand(-0.6, 0.6), n.z + rand(-0.6, 0.6));
     a.faceTo = this.faceFor(a, n);
-    yield this.gesture(a, this.chore(a, true)) || 2;
+    yield this.gesture(a, this.chore(a, 'well')) || 2;
     if (chance(0.5)) yield* this.line(a, pick(WELL), 0, 2);
     yield rand(2, 5);
   }
@@ -764,7 +767,7 @@ export class Villagers {
         if (moving) a.gesture = 0;
         const run = a.flee > 0 || a.hurry, gait = run ? 'run' : 'walk';
         if (moving) this.play(a, gait, a.gait?.[gait] ? Math.max(0.3, a.sp / a.gait[gait]) : run ? 1 : a.speed / 1.05);   // (the feet don't slide)
-        else this.play(a, a.ual && a.talk && a.talk.t > 0 ? 'idle_talk' : 'idle');   // (talking with their hands while their words are up)
+        else this.play(a, a.ual && a.talk && a.talk.t > 0 ? 'idle_talk' : a.rest);   // (talking with their hands while their words are up; some stand arms folded)
       }
       // speech ages
       if (a.talk) { a.talk.t -= dt; a.talk.age += dt; if (a.talk.t <= 0) a.talk = null; }
