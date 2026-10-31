@@ -13,6 +13,7 @@ sys.path.insert(0, HERE)
 
 import arm  # noqa: E402,F401  (puts tools/templates on the path)
 import anims  # noqa: E402
+import dress  # noqa: E402
 import fp_rig as R  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -28,23 +29,30 @@ def item_kind(key):
     return KIND.get(key.get("weapon") or key.get("shield"))
 
 
+def variants(meta, folder):
+    """{finish id: texture path} for a model's other finishes (swap the map: same UVs)."""
+    return {v["id"]: folder + v["file"] for v in meta.get("variants", [])}
+
+
 def write():
     arms = [dict(id="bare", name="bare arm", R="arms/arm_bare_R.glb", L="arms/arm_bare_L.glb")]
     for path in sorted(glob.glob(os.path.join(MODELS, "gauntlets", "*", "*_R.glb"))):
         gid = os.path.basename(os.path.dirname(path))
         info = os.path.join(os.path.dirname(path), "info.json")
-        name = json.load(open(info))["name"] if os.path.exists(info) else gid
-        arms.append(dict(id=gid, name=name, R=f"gauntlets/{gid}/{gid}_R.glb",
-                         L=f"gauntlets/{gid}/{gid}_L.glb"))
+        meta = json.load(open(info)) if os.path.exists(info) else {}
+        arms.append(dict(id=gid, name=meta.get("name", gid), R=f"gauntlets/{gid}/{gid}_R.glb",
+                         L=f"gauntlets/{gid}/{gid}_L.glb",
+                         variants=variants(meta, f"gauntlets/{gid}/")))
     items, sets = {}, {}
     for path in sorted(glob.glob(os.path.join(MODELS, "items", "*", "*", "*.glb"))):
         kind = os.path.basename(os.path.dirname(os.path.dirname(path)))
         iid = os.path.basename(os.path.dirname(path))
         info = os.path.join(os.path.dirname(path), "info.json")
         meta = json.load(open(info)) if os.path.exists(info) else {}
+        rel = os.path.relpath(path, MODELS).replace("\\", "/")
         items.setdefault(kind, []).append(dict(id=iid, name=meta.get("name", iid),
-                                               set=meta.get("set", iid),
-                                               path=os.path.relpath(path, MODELS).replace("\\", "/")))
+                                               set=meta.get("set", iid), path=rel,
+                                               variants=variants(meta, rel.rsplit("/", 1)[0] + "/")))
         sets.setdefault(meta.get("set", iid), meta.get("set_name", meta.get("set", iid)))
     anim_map, starts, events = {}, {}, {}
     for aid, a in anims.ANIMS.items():
@@ -60,6 +68,7 @@ def write():
         ev["duration"] = round(t, 6)
         events[aid] = ev
     out = dict(view_scale=R.REST_SCALE, tic=1 / 35, arms=arms, items=items,
+               finishes=[dict(id=k, name=v[0]) for k, v in dress.FINISHES.items()],
                item_sets=[dict(id=k, name=v) for k, v in sets.items()] or
                [dict(id="none", name="(none yet)")], anims=anim_map, frame_starts=starts,
                events=events,

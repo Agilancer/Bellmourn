@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A mage's fingerless violet glove and robe sleeve, silver bands carved with runes around the forearm, and a pale blue focus crystal set in a silver mount on the back of the hand.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2192,
  "files": [
   "runebound_R.glb",
   "runebound_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/runebound_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/runebound_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/runebound_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/runebound_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/runebound_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/runebound_frostbound.png"
+  }
  ],
  "parts": [
   {

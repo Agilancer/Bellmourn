@@ -1,0 +1,76 @@
+{
+ "id": "tombstone",
+ "name": "Tombstone",
+ "kind": "two-handed weapon",
+ "description": "A chipped, moss-stained grave slab worn as a blade, clamped in an iron collar and bound with iron bands, on a leather grip with a grave-ring pommel.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 704,
+ "files": [
+  "tombstone.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/tombstone_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/tombstone_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/tombstone_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/tombstone_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/tombstone_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/tombstone_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "grave slab"
+  },
+  {
+   "number": 2,
+   "name": "collar"
+  },
+  {
+   "number": 3,
+   "name": "iron band 1"
+  },
+  {
+   "number": 4,
+   "name": "iron band 2"
+  },
+  {
+   "number": 5,
+   "name": "grip"
+  },
+  {
+   "number": 6,
+   "name": "butt cap"
+  },
+  {
+   "number": 7,
+   "name": "grave ring"
+  }
+ ],
+ "set": "set15",
+ "set_name": "model 15"
+}

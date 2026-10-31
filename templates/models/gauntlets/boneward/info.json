@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Tribal: bleached bone plates bound to a dark hide glove with sinew, bone ribs lashed around a hide bracer, a bone elbow cap, and a shaggy brown fur sleeve.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2588,
  "files": [
   "boneward_R.glb",
   "boneward_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/boneward_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/boneward_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/boneward_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/boneward_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/boneward_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/boneward_frostbound.png"
+  }
  ],
  "parts": [
   {

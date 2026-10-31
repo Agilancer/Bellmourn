@@ -362,3 +362,24 @@ def posed_triangles(model, mats, side):
                 tris.append(v[t])
                 cols.append(part.color)
     return tris, cols
+
+
+def posed_mesh(model, mats, side):
+    """Like posed_triangles, for textured previews: per triangle its camera-space corners,
+    corner UVs (0..1, from the packed layout) and corner normals."""
+    bind = {n: o for n, _, o in bones(side)}
+    tris, uvs, nrms = [], [], []
+    for part in model.parts:
+        for isl in part.islands:
+            b0, b1, w = part.skin(isl)
+            m0, m1 = mats[b0], mats[b1]
+            v0 = (isl.v - bind[b0]) @ m0[:3, :3].T + m0[:3, 3]
+            v1 = (isl.v - bind[b1]) @ m1[:3, :3].T + m1[:3, 3]
+            v = v0 * (1 - w)[:, None] + v1 * w[:, None]
+            n = (isl.n @ m0[:3, :3].T) * (1 - w)[:, None] + (isl.n @ m1[:3, :3].T) * w[:, None]
+            n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+            for t in isl.t:
+                tris.append(v[t])
+                uvs.append(isl.px[t] / model.tex)
+                nrms.append(n[t])
+    return tris, uvs, nrms

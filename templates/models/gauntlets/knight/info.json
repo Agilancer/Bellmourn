@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Full plate: an hourglass cuff that flares over the wrist, broad steel finger lames, knuckle bar and hand plate, a steel vambrace and a winged elbow couter over chain mail.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2832,
  "files": [
   "knight_R.glb",
   "knight_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/knight_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/knight_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/knight_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/knight_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/knight_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/knight_frostbound.png"
+  }
  ],
  "parts": [
   {

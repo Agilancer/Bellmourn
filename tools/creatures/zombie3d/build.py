@@ -1,19 +1,23 @@
-"""Build the 3D zombie (three.js .glb) from the Poly Pizza warrior_03.fbx.
+"""Build the 3D zombies (three.js .glb) from the Poly Pizza low-poly characters.
 
 Run headless:
-  blender -b --factory-startup --python build.py -- <warrior_03.fbx> <out_dir> <variant a|b|c> [rigcheck]
+  blender -b --factory-startup --python build.py -- <bundle_dir> <out_dir> <variant a-g> [rigcheck]
 
-The warrior is one welded mesh in an A-pose with a crested helmet and no rig or texture. This:
-  1. scales it to Bellmourn metres (feet on the ground, facing -Y) and cuts the helmet and
-     crest off at the chin, plugging the neck;
-  2. starves the body (thinner limbs, waist and neck);
+<bundle_dir> is the "Low Poly Characters Bundle" folder. Each source is one welded mesh in an
+A-pose with no rig or texture: the warrior (a crested helmet; variants a, b, c), the female
+fighter (crop top, shorts, ponytail; d, e) and the male fighter (shirt and shorts; f, g). This:
+  1. scales it to Bellmourn metres (feet on the ground, facing -Y) and cuts the head (and
+     helmet, crest or ponytail) off at the chin, closing the neck;
+  2. starves the body (thinner limbs, sunken belly, sloped shoulders, thin neck);
   3. models a new bald zombie head (sunken eye sockets, collapsed nose, hollow cheeks, an open
-     hanging jaw, crooked teeth, eyes, optional stringy hair);
+     hanging jaw, crooked teeth, eyes, stringy hair);
   4. rigs it with a humanoid skeleton (automatic weights; the head is rigid on `head`);
   5. stores the A-pose position/normal, head coordinates, part id and ambient occlusion on the
      mesh, unwraps it and paints a palette-locked texture from them (paint.py);
   6. straightens the arms into a T-pose, makes that the rest pose, keys the clips in anims.py
      and exports the .glb.
+Every region rule (here and in paint.py) is written in the warrior's heights; the fighters are
+read through MARKS, which maps their landmarks onto his.
 """
 import json
 import math
@@ -32,41 +36,99 @@ import anims  # noqa: E402
 import paint  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-HEIGHT = 1.8          # the warrior's full height (crest included) in metres
-NECK_CUT = 1.455      # everything above this is helmet
-HEAD_C = Vector((0.0, -0.045, 1.525))   # head centre
-HEAD_R = (0.088, 0.106, 0.121)          # half sizes: side, forward, up
 TEX = 512
 
 # part ids (face attribute "part")
 BODY, HEAD, TEETH, EYE, HAIR = 0, 1, 2, 3, 4
 
-# A-pose joints (+X is the zombie's left, -Y is forward); .R mirrors .L
-J = {
-    "root": ((0, 0, 0), (0, 0, 0.2), None),
-    "hips": ((0, 0, 0.92), (0, 0, 1.04), "root"),
-    "spine": ((0, 0, 1.04), (0, 0, 1.2), "hips"),
-    "chest": ((0, 0, 1.2), (0, -0.01, 1.38), "spine"),
-    "neck": ((0, -0.01, 1.38), (0, -0.03, 1.47), "chest"),
-    "head": ((0, -0.03, 1.47), (0, -0.03, 1.7), "neck"),
-    "shoulder.L": ((0.03, 0, 1.36), (0.16, 0.0, 1.33), "chest"),
-    "upper_arm.L": ((0.16, 0.0, 1.33), (0.31, -0.01, 1.16), "shoulder.L"),
-    "forearm.L": ((0.31, -0.01, 1.16), (0.42, -0.09, 1.06), "upper_arm.L"),
-    "hand.L": ((0.42, -0.09, 1.06), (0.52, -0.32, 0.93), "forearm.L"),
-    "thigh.L": ((0.09, 0, 0.92), (0.15, 0.0, 0.5), "hips"),
-    "shin.L": ((0.15, 0, 0.5), (0.195, 0.0, 0.1), "thigh.L"),
-    "foot.L": ((0.195, 0, 0.1), (0.2, -0.17, 0.02), "shin.L"),
+# landmark heights (ground, ankle, knee, hip, shoulder, chin, crown) in the warrior's metres
+WARRIOR_MARKS = [0, 0.1, 0.5, 0.92, 1.33, 1.455, 1.7]
+FILES = {"warrior": "Warrior/warrior_03.fbx", "female": "Female Fighter/female_fighter_01.fbx",
+         "male": "Male Fighter/male_fighter_03.fbx"}
+# A-pose joints, left side (+X is the zombie's left, -Y is forward); .R mirrors .L
+SOURCES = {
+    "warrior": dict(
+        height=1.8, neck_cut=1.455, head_c=(0.0, -0.045, 1.525), head_r=(0.088, 0.106, 0.121),
+        neck=(1.36, 0.19, 0.068), skirt=True, marks=WARRIOR_MARKS, joints={
+            "hips": ((0, 0, 0.92), (0, 0, 1.04), "root"),
+            "spine": ((0, 0, 1.04), (0, 0, 1.2), "hips"),
+            "chest": ((0, 0, 1.2), (0, -0.01, 1.38), "spine"),
+            "neck": ((0, -0.01, 1.38), (0, -0.03, 1.47), "chest"),
+            "head": ((0, -0.03, 1.47), (0, -0.03, 1.7), "neck"),
+            "shoulder.L": ((0.03, 0, 1.36), (0.16, 0.0, 1.33), "chest"),
+            "upper_arm.L": ((0.16, 0.0, 1.33), (0.31, -0.01, 1.16), "shoulder.L"),
+            "forearm.L": ((0.31, -0.01, 1.16), (0.42, -0.09, 1.06), "upper_arm.L"),
+            "hand.L": ((0.42, -0.09, 1.06), (0.52, -0.32, 0.93), "forearm.L"),
+            "thigh.L": ((0.09, 0, 0.92), (0.15, 0.0, 0.5), "hips"),
+            "shin.L": ((0.15, 0, 0.5), (0.195, 0.0, 0.1), "thigh.L"),
+            "foot.L": ((0.195, 0, 0.1), (0.2, -0.17, 0.02), "shin.L"),
+        }),
+    "female": dict(
+        height=1.8, neck_cut=1.6, head_c=(0.0, -0.05, 1.69), head_r=(0.084, 0.102, 0.117),
+        neck=(1.46, 0.2, 0.062), skirt=False, marks=[0, 0.1, 0.48, 0.93, 1.46, 1.6, 1.84], joints={
+            "hips": ((0, 0, 0.93), (0, 0, 1.06), "root"),
+            "spine": ((0, 0, 1.06), (0, 0, 1.24), "hips"),
+            "chest": ((0, 0, 1.24), (0, -0.01, 1.47), "spine"),
+            "neck": ((0, -0.01, 1.47), (0, -0.03, 1.6), "chest"),
+            "head": ((0, -0.03, 1.6), (0, -0.03, 1.84), "neck"),
+            "shoulder.L": ((0.04, 0, 1.46), (0.17, 0.0, 1.45), "chest"),
+            "upper_arm.L": ((0.17, 0.0, 1.45), (0.31, -0.01, 1.28), "shoulder.L"),
+            "forearm.L": ((0.31, -0.01, 1.28), (0.43, -0.08, 1.17), "upper_arm.L"),
+            "hand.L": ((0.43, -0.08, 1.17), (0.53, -0.32, 1.02), "forearm.L"),
+            "thigh.L": ((0.1, 0, 0.93), (0.145, -0.02, 0.48), "hips"),
+            "shin.L": ((0.145, -0.02, 0.48), (0.19, -0.02, 0.1), "thigh.L"),
+            "foot.L": ((0.19, -0.02, 0.1), (0.2, -0.2, 0.02), "shin.L"),
+        }),
+    "male": dict(
+        height=1.8, neck_cut=1.6, head_c=(0.0, -0.05, 1.695), head_r=(0.09, 0.108, 0.122),
+        neck=(1.46, 0.2, 0.07), skirt=False, marks=[0, 0.1, 0.48, 0.94, 1.46, 1.6, 1.84], joints={
+            "hips": ((0, 0, 0.94), (0, 0, 1.07), "root"),
+            "spine": ((0, 0, 1.07), (0, 0, 1.25), "hips"),
+            "chest": ((0, 0, 1.25), (0, -0.01, 1.47), "spine"),
+            "neck": ((0, -0.01, 1.47), (0, -0.03, 1.6), "chest"),
+            "head": ((0, -0.03, 1.6), (0, -0.03, 1.84), "neck"),
+            "shoulder.L": ((0.04, 0, 1.46), (0.18, 0.0, 1.45), "chest"),
+            "upper_arm.L": ((0.18, 0.0, 1.45), (0.32, -0.01, 1.28), "shoulder.L"),
+            "forearm.L": ((0.32, -0.01, 1.28), (0.43, -0.07, 1.18), "upper_arm.L"),
+            "hand.L": ((0.43, -0.07, 1.18), (0.54, -0.35, 1.04), "forearm.L"),
+            "thigh.L": ((0.1, 0, 0.94), (0.16, -0.01, 0.48), "hips"),
+            "shin.L": ((0.16, -0.01, 0.48), (0.21, -0.01, 0.1), "thigh.L"),
+            "foot.L": ((0.21, -0.01, 0.1), (0.215, -0.2, 0.02), "shin.L"),
+        }),
 }
-for k in [k for k in J if k.endswith(".L")]:
-    h, t, p = J[k]
-    J[k[:-2] + ".R"] = ((-h[0], h[1], h[2]), (-t[0], t[1], t[2]), p[:-2] + ".R" if p.endswith(".L") else p)
-BONES = list(J)
+VARIANTS = {"a": ("warrior", 11), "b": ("warrior", 23), "c": ("warrior", 37),
+            "d": ("female", 41), "e": ("female", 53), "f": ("male", 61), "g": ("male", 71)}
+HAIR_SPEC = {"a": (7, 0.06, 0.13), "b": (12, 0.06, 0.13), "c": (4, 0.06, 0.13), "d": (18, 0.12, 0.26),
+             "e": (26, 0.14, 0.32), "f": (6, 0.05, 0.1), "g": (0, 0, 0)}   # strands, length range
+
+
+def configure(source):
+    """Point the module-level settings at one source body."""
+    global SRC, HEIGHT, NECK_CUT, HEAD_C, HEAD_R, J, BONES
+    SRC = SOURCES[source]
+    HEIGHT, NECK_CUT = SRC["height"], SRC["neck_cut"]
+    HEAD_C, HEAD_R = Vector(SRC["head_c"]), SRC["head_r"]
+    J = {"root": ((0, 0, 0), (0, 0, 0.2), None)}
+    J.update(SRC["joints"])
+    for k in [k for k in J if k.endswith(".L")]:
+        h, t, p = J[k]
+        J[k[:-2] + ".R"] = ((-h[0], h[1], h[2]), (-t[0], t[1], t[2]), p[:-2] + ".R" if p.endswith(".L") else p)
+    BONES = list(J)
+
+
+def zn(z):
+    """A height on this body -> the same place on the warrior."""
+    return np.interp(z, SRC["marks"], WARRIOR_MARKS)
+
+
+configure("warrior")
 
 
 def load(fbx):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.fbx(filepath=fbx)
     o = [o for o in bpy.data.objects if o.type == "MESH"][0]
+    o.animation_data_clear()           # some carry baked object animations
     for x in list(bpy.data.objects):
         if x is not o:
             bpy.data.objects.remove(x)
@@ -89,7 +151,7 @@ def cut_helmet(o):
     bm.from_mesh(o.data)
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z > NECK_CUT], context="VERTS")
     # close the collar opening the cut leaves; the head brings its own neck
-    rim = [e for e in bm.edges if e.is_boundary and min(v.co.z for v in e.verts) > 1.3]
+    rim = [e for e in bm.edges if e.is_boundary and min(v.co.z for v in e.verts) > NECK_CUT - 0.16]
     bmesh.ops.holes_fill(bm, edges=rim, sides=0)
     other = [e for e in bm.edges if e.is_boundary]
     print("BOUNDARY edges left", len(other))
@@ -119,7 +181,7 @@ def starve(o):
             h, t, _ = J[f"{name}.{side}"]
             tt, d, c = seg(P, h, t)
             m = (d < best) & (d < 0.085)
-            if name == "thigh":
+            if name == "thigh" and SRC["skirt"]:
                 m &= P[:, 2] < 0.62          # the tunic skirt keeps its width
             if name in ("upper_arm", "forearm", "hand"):
                 m &= np.abs(P[:, 0]) > 0.15
@@ -129,7 +191,7 @@ def starve(o):
             out[m] = new[m]
             best[m] = d[m]
     # a sunken belly
-    z = P[:, 2]
+    z = zn(P[:, 2])
     torso = (np.abs(P[:, 0]) < 0.17)
     w = np.clip(1 - np.abs(z - 1.09) / 0.12, 0, 1) * torso
     out[:, 1] += 0.02 * w * (P[:, 1] < -0.02)
@@ -249,17 +311,17 @@ def make_head(variant, seed):
             tooth(c, up, rng.uniform(0.009, 0.013), rng.uniform(0.012, 0.022), rng.uniform(-0.3, 0.3))
 
     # stringy hair
-    nh = {"a": 7, "b": 12, "c": 4}[variant]
+    nh, l0, l1 = HAIR_SPEC[variant]
     for i in range(nh):
-        a = rng.uniform(0.6, 2.6) * (1 if i % 2 else -1)   # around the sides and back
-        el = rng.uniform(0.15, 0.6)
+        a = rng.uniform(0.6, 2.9) * (1 if i % 2 else -1)   # around the sides and back
+        el = rng.uniform(0.15, 0.6 if l1 < 0.2 else 0.85)
         u = nrm([[math.sin(a), math.cos(a) * 0.8 - 0.3, el]])[0]
         p0 = head_shape(u[None])[0] * 1.01
         out = nrm([[p0[0], min(p0[1], 0) * 0.5, 0]])[0]
-        L = rng.uniform(0.06, 0.13)
+        L = rng.uniform(l0, l1)
         pts, qs = [], []
         side = np.array([-out[1], out[0], 0]) if abs(out[0]) < 0.99 else np.array([0, 1, 0])
-        n = 4
+        n = 4 if L < 0.15 else 6
         for k in range(n + 1):
             t = k / n
             c = p0 + out * (0.012 * math.sin(t * 2.5)) + np.array([0, 0, -L * t]) + rng.normal(0, 0.003, 3)
@@ -274,8 +336,9 @@ def make_head(variant, seed):
     neck_rows = []
     for r in range(rows):
         t = r / (rows - 1)
-        c = np.array([0, -0.005 - 0.04 * t, 1.36 + 0.19 * t])
-        rad = 0.068 - 0.02 * t
+        z0, length, r0 = SRC["neck"]
+        c = np.array([0, -0.005 - 0.04 * t, z0 + length * t])
+        rad = r0 - 0.02 * t
         neck_rows.append([(c[0] + rad * 0.95 * math.cos(2 * math.pi * k / ring),
                            c[1] + rad * math.sin(2 * math.pi * k / ring), c[2]) for k in range(ring)])
     pts = [p for row in neck_rows for p in row]
@@ -507,11 +570,12 @@ def make_material(o, rgba, name):
 def main():
     global OUT
     a = sys.argv[sys.argv.index("--") + 1:]
-    fbx, OUT, variant = a[0], a[1], a[2]
+    bundle, OUT, variant = a[0], a[1], a[2]
     check = len(a) > 3 and a[3] == "rigcheck"
     os.makedirs(OUT, exist_ok=True)
-    seed = {"a": 11, "b": 23, "c": 37}[variant]
-    body = load(fbx)
+    source, seed = VARIANTS[variant]
+    configure(source)
+    body = load(os.path.join(bundle, FILES[source]))
     cut_helmet(body)
     starve(body)
     me = body.data
@@ -533,6 +597,7 @@ def main():
     T = texel_data(body, dom)
     T["bones"] = BONES
     T["joints"] = J
+    T["marks"] = (SRC["marks"], WARRIOR_MARKS)
     rgba = paint.paint(T, variant, seed, os.path.join(ROOT, "templates", "style", "bellmourn_palette.json"))
     make_material(body, rgba, f"zombie_{variant}")
     if not check:

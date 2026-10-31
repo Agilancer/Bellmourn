@@ -1,0 +1,76 @@
+{
+ "id": "butchers_axe",
+ "name": "Butcher's Axe",
+ "kind": "one-handed weapon",
+ "description": "A long forward-raked cleaver blade on a short haft bound with blackened iron bands, a top spike and a hanging hook.",
+ "texture_size": 128,
+ "skin_size": 1024,
+ "triangles": 946,
+ "files": [
+  "butchers_axe.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/butchers_axe_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/butchers_axe_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/butchers_axe_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/butchers_axe_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/butchers_axe_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/butchers_axe_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "cleaver blade"
+  },
+  {
+   "number": 2,
+   "name": "haft"
+  },
+  {
+   "number": 3,
+   "name": "grip wrap"
+  },
+  {
+   "number": 4,
+   "name": "bands"
+  },
+  {
+   "number": 5,
+   "name": "butt cap"
+  },
+  {
+   "number": 6,
+   "name": "top spike"
+  },
+  {
+   "number": 7,
+   "name": "hook"
+  }
+ ],
+ "set": "set13",
+ "set_name": "model 13"
+}

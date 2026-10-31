@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "Overlapping rows of green drake scales down the forearm and over the fingers, bronze hand plate and elbow cap, horn studs on the knuckles, a dark red sleeve.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2780,
  "files": [
   "drake_R.glb",
   "drake_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/drake_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/drake_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/drake_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/drake_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/drake_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/drake_frostbound.png"
+  }
  ],
  "parts": [
   {

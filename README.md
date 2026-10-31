@@ -20,12 +20,12 @@ Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 | Key | Action |
 |---|---|
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
-| Left click | right hand: swing, or shoot with a wand or staff |
-| Right click | left hand: hold a shield up, swing, or shoot a wand |
+| Left click | right hand: swing, or shoot with a staff |
+| Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
 | E | open and close doors (the interact key) |
 | Tab or I | inventory: one of each weapon type, the gauntlets, the spellbook |
-| 1 to 6 | quick-equip sword, greatsword, wand, staff, round shield, kite shield |
+| 1 to 5 | quick-equip sword, greatsword, staff, round shield, kite shield |
 | Esc | pause (pixel size, look speed, graphics, time of day) |
 
 On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,

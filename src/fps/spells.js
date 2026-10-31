@@ -1,11 +1,17 @@
 // Magic and effects: the spellbook, projectiles that are real moving lights (the brightest
 // cast shadows), bursts with fireballs, shockwaves, sparks, smoke, scorch and frost marks,
 // lightning that arcs to the walls around it, the follow-me wisp, healing runes, and the
-// flickering flames on every torch and candle.
+// flickering flames on every torch and candle. The second spellbook's workings (walls, beams,
+// novas, storms and the rest) are in arcana.js.
 import * as THREE from 'three';
 import { Decals, Waves, Arcs } from './effects.js';
+import { Arcana } from './arcana.js';
 
-// hands: 1 = cast from one free hand, 2 = both hands (whatever they hold is lowered)
+const FIRE = ['#fff6c0', '#ffb040', '#e0501c', '#701c10'], ICE = ['#ffffff', '#bfe8ff', '#5aa8e8', '#23407a'];
+const ARCANE = ['#ffffff', '#d8a0ff', '#9050e0', '#3a1060'];
+// hands: 1 = cast from one free hand, 2 = both hands (whatever they hold is lowered).
+// cast: how arcana.js works it ('bolt' flies like a firebolt; land: what it does where it lands).
+// channel: held down (the key), costing `mana` to begin and `drain` a second while it lasts.
 export const SPELLS = {
   firebolt: { name: 'Firebolt', kind: 'fire', hands: 1, mana: 8, speed: 34, size: 0.55, charge: 2.0,
     colors: ['#fff6c0', '#ffb040', '#e0501c', '#701c10'], light: 0xff7a30, power: 30, burst: 90, desc: 'Gathers in the hand for two seconds, then roars away and bursts where it lands.' },
@@ -17,11 +23,47 @@ export const SPELLS = {
     colors: ['#ffffff', '#d8ffb0', '#6ad860', '#1c6a30'], light: 0x9cff8a, power: 30, desc: 'A circle of light closes your wounds (restores 35 health).' },
   wisp: { name: 'Wisp Light', kind: 'wisp', hands: 1, mana: 15, self: 'wisp', duration: 90,
     colors: ['#ffffff', '#fff2c0', '#ffd070', '#a06a20'], light: 0xffe8b0, power: 16, desc: 'A spirit-light that follows you for 90 seconds.' },
+  wallfire: { name: 'Wall of Fire', kind: 'fire', cast: 'wall', hands: 2, mana: 30, range: 24, length: 9, duration: 8, dps: 14, burn: 7,
+    colors: FIRE, light: 0xff7a30, power: 14, desc: 'Raises a wall of fire nine paces long where you look, for eight seconds. The dead that cross it go up in flames.' },
+  missiles: { name: 'Magic Missiles', kind: 'arcane', cast: 'swarm', channel: true, hands: 1, mana: 8, drain: 16, minHold: 0.25,
+    volley: 5, every: 0.2, interval: 0.5, max: 24, dmg: 14, size: 0.12,
+    colors: ['#ffffff', '#ffb0f0', '#d050ff', '#5a1a8a'], light: 0xe070ff, power: 10,
+    desc: 'Hold: spinning missiles fan out and hang in the air before you, more the longer you hold (it drinks mana fast). One every half second darts off to seek one of the dead.' },
+  arcaneblast: { name: 'Arcane Blast', kind: 'arcane', cast: 'cone', hands: 2, mana: 24, range: 9, angle: 0.6, dmg: 50, force: 17, size: 0.6,
+    colors: ARCANE, light: 0xb070ff, power: 30, desc: 'A thunderclap of raw force from both hands: everything in a cone before you is torn at and hurled back.' },
+  firebeam: { name: 'Fire Beam', kind: 'fire', cast: 'beam', channel: true, hands: 2, mana: 6, drain: 18, minHold: 0.3, range: 18, dmg: 8,
+    colors: FIRE, light: 0xff7a30, power: 26, desc: 'Hold: a roaring jet of flame pours from your hands, searing and setting alight whatever it plays across.' },
+  chain: { name: 'Chain Lightning', kind: 'lightning', cast: 'chain', channel: true, hands: 1, mana: 6, drain: 15, minHold: 0.3, range: 26, jumps: 5, reach: 8, dmg: 9,
+    colors: ['#ffffff', '#d8d0ff', '#8a70ff', '#3a2490'], light: 0xa890ff, power: 28,
+    desc: 'Hold: lightning streams from your hand, and from whatever it strikes it leaps to the nearest of the others, and on, up to five times.' },
+  nova: { name: 'Frost Nova', kind: 'frost', cast: 'nova', hands: 2, mana: 32, radius: 10, freeze: 5, dmg: 12,
+    colors: ICE, light: 0x8fc8ff, power: 30, desc: 'Ice bursts out from where you stand: all the dead within ten paces are frozen solid for five seconds, and take half again from every blow.' },
+  meteor: { name: 'Meteor', kind: 'fire', cast: 'meteor', hands: 2, mana: 45, range: 60, fall: 1.3, radius: 5.5, dmg: 95,
+    colors: FIRE, light: 0xff6a20, power: 60, desc: 'Calls a burning stone down on where you look, out of the sky (or the ceiling), leaving the ground on fire.' },
+  blizzard: { name: 'Blizzard', kind: 'frost', cast: 'storm', hands: 2, mana: 38, range: 38, radius: 5, duration: 7, dmg: 6,
+    colors: ICE, light: 0x8fc8ff, power: 12, desc: 'Ice shards rain on the ground you mark for seven seconds, cutting and slowing all beneath.' },
+  drain: { name: 'Life Drain', kind: 'drain', cast: 'drain', channel: true, hands: 1, mana: 4, drain: 10, minHold: 0.3, range: 18, dmg: 7, heal: 0.7,
+    colors: ['#ffd0d0', '#ff6070', '#c01828', '#3a0610'], light: 0xff3040, power: 14,
+    desc: 'Hold: a red thread fastens on the nearest of the dead before you and pulls its stolen life into yours.' },
+  blink: { name: 'Blink', kind: 'arcane', cast: 'blink', hands: 1, mana: 18, range: 14, dmg: 22,
+    colors: ARCANE, light: 0xb070ff, power: 20, desc: 'Vanish and step out up to fourteen paces ahead, tearing through any of the dead in the way.' },
+  lance: { name: 'Bone Lance', kind: 'bone', cast: 'bolt', land: 'stick', mesh: 'lance', hands: 1, mana: 16, speed: 48, size: 0.3, pierce: true, dmg: 55, blow: 1.1,
+    colors: ['#ffffff', '#e8f0d0', '#90c8a0', '#2a5040'], light: 0xc0ffd8, power: 16, burst: 40,
+    desc: 'A spear of sharpened bone that runs through every body in its line, taking limbs as it goes, and sticks quivering in the wall.' },
+  well: { name: 'Gravity Well', kind: 'void', cast: 'bolt', land: 'well', mesh: 'void', hands: 2, mana: 34, speed: 13, size: 0.7, fuse: 1.4, dmg: 20, radius: 10, duration: 3.2,
+    colors: ['#ffffff', '#c8a0ff', '#5a20b0', '#100020'], light: 0x9a60ff, power: 24, burst: 60,
+    desc: 'A mote of darkness that hangs where it lands, dragging the dead (and the dead-again) in from ten paces round, then bursts.' },
+  plague: { name: 'Plague Flask', kind: 'poison', cast: 'bolt', land: 'cloud', mesh: 'flask', hands: 1, mana: 20, speed: 17, size: 0.3, grav: 12, lift: 0.2,
+    radius: 4.2, duration: 9, dps: 7, dmg: 10, colors: ['#f0ffc0', '#a8f040', '#4a9a20', '#1a3a10'], light: 0x9aff50, power: 10, burst: 40,
+    desc: 'A lobbed flask that bursts in a choking green cloud: for nine seconds everything inside it rots and slows.' },
+  blades: { name: 'Spirit Blades', kind: 'blade', cast: 'blades', hands: 2, mana: 35, count: 4, duration: 20, dmg: 16, radius: 1.6,
+    colors: ['#ffffff', '#b0f8ff', '#40c8e0', '#106070'], light: 0x70e8ff, power: 8, desc: 'Four ghostly swords wheel round you for twenty seconds, hacking at anything that comes near.' },
+  spikes: { name: 'Earthsplitter', kind: 'stone', cast: 'spikes', hands: 2, mana: 28, count: 13, step: 1.15, dmg: 45,
+    colors: ['#e8dcc8', '#a89c8c', '#6f665c', '#2a2622'], light: 0xffc890, power: 6,
+    desc: 'Spikes of stone burst from the ground in a line before you, impaling the dead and flinging them into the air.' },
 };
-// what wands and staves shoot (left mouse button)
+// what staves shoot (left mouse button)
 export const BOLTS = {
-  wand: { name: 'Arcane Missile', kind: 'arcane', mana: 3, speed: 44, size: 0.24, spiral: 1,
-    colors: ['#ffffff', '#ffc8ff', '#c050e8', '#4a1870'], light: 0xd070ff, power: 10, burst: 26 },
   staff: { name: 'Staff Bolt', kind: 'staff', mana: 5, speed: 30, size: 0.46, spiral: 2,
     colors: ['#ffffff', '#c0fff0', '#30c8b0', '#10504a'], light: 0x50ffd8, power: 18, burst: 50 },
 };
@@ -217,10 +259,10 @@ export class Magic {
     this.physics = physics;
     this.sfx = sfx;
     this.smoke = smoke;
-    this.particles = new Particles(scene);
+    this.particles = new Particles(scene, 6000);
     this.decals = new Decals(scene);
     this.waves = new Waves(scene);
-    this.arcs = new Arcs(scene);
+    this.arcs = new Arcs(scene, 96);
     this.flying = [];
     this.burning = [];   // fires left where firebolts land
     this.flashes = [];   // big short-lived sprites (fireballs, lightning flashes)
@@ -242,6 +284,7 @@ export class Magic {
     this.vmFlash = { color: new THREE.Color(), amount: 0 };
     this.screen = { color: new THREE.Color(), amount: 0 }; // a full-screen flash for big bursts
     this.shake = 0;
+    this.arcana = new Arcana(this, Flames);
   }
 
   texture(def) {
@@ -328,9 +371,17 @@ export class Magic {
     this.chargeOrb = null;
   }
 
-  /** Launch a projectile spell (or wand/staff bolt) from origin along dir. */
+  /** A spell leaving the hand: a projectile, a spell on yourself, or one of arcana.js's. */
+  cast(def, origin, dir, player, camera) {
+    if (def.self) this.selfCast(def, player, camera);
+    else if (def.cast && def.cast !== 'bolt') this.arcana.cast(def, origin, dir, player, camera);
+    else this.launch(def, origin, dir);
+  }
+
+  /** Launch a projectile spell (or staff bolt) from origin along dir. */
   launch(def, origin, dir) {
     const shots = def.shards || 1;
+    if (def.lift) dir = dir.clone().add(new THREE.Vector3(0, def.lift, 0)).normalize();   // lobbed
     for (let s = 0; s < shots; s++) {
       const d = dir.clone();
       if (shots > 1) {
@@ -338,7 +389,7 @@ export class Magic {
         d.addScaledVector(side, (s - (shots - 1) / 2) * def.spread).addScaledVector(rnd(), 0.01).normalize();
       }
       const shot = { def, pos: origin.clone(), vel: d.clone().multiplyScalar(def.speed * (shots > 1 ? 0.92 + Math.random() * 0.16 : 1)),
-        age: 0, trail: 0, phase: Math.random() * 6 };
+        age: 0, trail: 0, phase: Math.random() * 6, pierced: def.pierce ? new Set() : null };
       shot.core = this.sprite(def, def.size, 3.2);
       shot.halo = this.sprite(def, def.size * 2.6, 0.7);
       if (def.kind === 'frost') { // a real crystal, pointing where it flies
@@ -346,7 +397,7 @@ export class Magic {
           new THREE.MeshBasicMaterial({ color: hdr('#d8f4ff', 2.2) }));
         shot.mesh.scale.set(1, 1, 4.2);
         this.scene.add(shot.mesh);
-      }
+      } else if (def.mesh) shot.mesh = this.arcana.shotMesh(def);
       if (s === Math.floor(shots / 2)) {
         shot.light = this.grabLight(shot, true);
         shot.light.light.color.set(def.light);
@@ -391,7 +442,9 @@ export class Magic {
     this.flashes.push({ s: fb, age: 0, life: 0.25 + def.size * 0.35, to: 1 + def.size * 5 });
     if (s.light) { this.release(s.light, 1.6, at); s.light = null; }
     else this.flashAt(at, def.light, 1.2);
-    if (flesh) { // no scorch marks or fires left hanging in the air
+    if (def.land) { // a lance sticks, a well opens, a flask breaks
+      this.arcana.landed(s, at, n, flesh);
+    } else if (flesh) { // no scorch marks or fires left hanging in the air
     } else if (def.kind === 'fire') {
       this.decals.add('scorch', at, nrm, 1.6 + Math.random() * 0.6, { life: 40 });
       for (let i = 0; i < 10; i++) this.smoke?.emit(at.clone().addScaledVector(rnd(), 0.3), new THREE.Vector3(0, 0.8 + Math.random(), 0).addScaledVector(nrm, 0.6),
@@ -424,12 +477,21 @@ export class Magic {
     const live = [];
     for (const s of this.flying) {
       s.age += dt;
+      if (s.def.grav) s.vel.y -= s.def.grav * dt;
       const p = s.pos;
       const speed = s.vel.length(), step = speed * dt;
       const d = s.vel.clone().divideScalar(speed);
       const hit = this.physics.ray([p.x, p.y, p.z], [d.x, d.y, d.z], step);
       const cols = s.def.colors.slice(0, 3).map((c) => new THREE.Color(c));
-      const flesh = this.hitTest?.(p, d, step);   // something alive (or undead) in the way
+      if (s.pierced) { // it runs through every body in its way
+        const through = (this.hitAll?.(p, d, step) || []).filter((h) => !s.pierced.has(h.z) && (!hit || h.t < hit.t)).sort((a, b) => a.t - b.t);
+        for (const h of through) {
+          s.pierced.add(h.z);
+          this.onHit?.(s.def, h.point.clone(), d.clone(), h);
+          this.particles.burst(h.point, cols, 16, { speed: 4, size: 0.05, grav: 9 });
+        }
+      }
+      const flesh = !s.pierced && this.hitTest?.(p, d, step);   // something alive (or undead) in the way
       if (flesh && (!hit || flesh.t < hit.t)) {
         p.addScaledVector(d, flesh.t);
         this.onHit?.(s.def, p.clone(), d.clone(), flesh);
@@ -438,7 +500,7 @@ export class Magic {
         if (s.mesh) { this.scene.remove(s.mesh); s.mesh.geometry.dispose(); }
         continue;
       }
-      if (hit || s.age > 5) {
+      if (hit || s.age > (s.def.fuse || 5)) {
         if (hit) p.addScaledVector(d, hit.t);
         const n = hit ? new THREE.Vector3(...hit.normal) : null;
         this.impact(s, n ? p.clone().addScaledVector(n, 0.06) : p.clone(), n);
@@ -447,7 +509,7 @@ export class Magic {
         continue;
       }
       p.addScaledVector(s.vel, dt);
-      // the visible orb wobbles about the true path; spirals for wand and staff bolts
+      // the visible orb wobbles about the true path; spirals for staff bolts
       const side = new THREE.Vector3(-d.z, 0, d.x).normalize(), up = side.clone().cross(d);
       const vis = p.clone();
       if (s.def.spiral) {
@@ -579,6 +641,7 @@ export class Magic {
       if (l.flash > 0) { l.light.intensity = 36 * l.flash; l.light.distance = 14; l.flash -= dt * 3.5; }
       else l.light.intensity = 0;
     }
+    this.arcana.update(dt, camera, height, player);
     this.vmFlash.amount = Math.max(0, this.vmFlash.amount - dt * 5);
     this.screen.amount = Math.max(0, this.screen.amount - dt * 2.5);
     this.shake = Math.max(0, this.shake - dt * 3);

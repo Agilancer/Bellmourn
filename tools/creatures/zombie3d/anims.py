@@ -11,7 +11,7 @@ carried by its parents (forward kinematics). So for every bone, whatever its par
 
 Clips (in place; the game moves the zombie): idle, walk, run, jump, attack1 (right-hand
 overhead rake), attack2 (left backhand), attack3 (two-handed grab and bite), fall, death,
-dead. HITS gives the frame of each attack where the blow lands.
+dead, rise (clawing up out of a grave) and getup (from lying on its back). HITS gives the frame of each attack where the blow lands.
 """
 import math
 
@@ -270,10 +270,44 @@ def crawl_dead():
     return [(0, PRONE_DEAD), (30, PRONE_DEAD)]
 
 
+def rise():
+    # out of the grave: a hand breaks the soil, then the other, it hauls its chest out, gets a
+    # knee onto the ground and stands (the ground hides everything below it)
+    buried = pose(move=(0, 0, -1.9), spine=(10, 0, 0), head=(-30, 0, 0),
+                  upper_arm_L=(0, -82, -12), forearm_L=(0, 0, -10), upper_arm_R=(0, -60, -30), forearm_R=(0, 0, -40))
+    hand = pose(move=(0, 0, -1.45), spine=(14, 0, 4), head=(-36, 0, 10),
+                upper_arm_L=(0, -86, -8), forearm_L=(0, 0, -14), hand_L=(0, 0, -30),
+                upper_arm_R=(0, -70, -16), forearm_R=(0, 0, -26))
+    claw = pose(move=(0, 0.05, -1.1), spine=(30, 0, -6), chest=(10, 0, 0), head=(-30, 0, -8),
+                upper_arm_L=(0, 30, -70), forearm_L=(0, 0, -60), hand_L=(0, 0, -20),
+                upper_arm_R=(0, -40, -50), forearm_R=(0, 0, -30), hand_R=(0, 0, -30))
+    haul = pose(move=(0, -0.05, -0.72), spine=(44, 0, 6), chest=(16, 0, 0), neck=(10, 0, 0), head=(-36, 0, 0),
+                upper_arm_B=(0, 54, -48), forearm_B=(0, 0, -50), hand_B=(-20, 0, -20),
+                thigh_B=(-40, 0, 0), shin_B=(70, 0, 0))
+    knee = pose(move=(0, -0.1, -0.42), spine=(40, 0, 0), chest=(14, 0, 0), head=(-30, 0, 0),
+                upper_arm_B=(0, 66, -30), forearm_B=(0, 0, -30),
+                thigh_L=(-86, 0, 0), shin_L=(96, 0, 0), foot_L=(-10, 0, 0),
+                thigh_R=(-6, 0, 0), shin_R=(110, 0, 0), foot_R=(30, 0, 0))
+    stand = over(STANCE, move=(0, -0.04, -0.12), spine=(24, 0, 0), thigh_L=(-30, 0, 0), shin_L=(40, 0, 0))
+    return [(0, buried), (12, hand), (24, claw), (38, haul), (50, knee), (62, stand), (72, STANCE)]
+
+
+def getup():
+    # from lying on its back: rolls up to sit, plants a hand, gets its feet under it
+    sit = pose(move=(0, 0.3, -0.72), hips=(-20, 0, 0), spine=(30, 0, 0), chest=(14, 0, 0), head=(-20, 0, 0),
+               upper_arm_L=(0, 70, 30), forearm_L=(0, 0, -10), upper_arm_R=(0, 40, -40),
+               thigh_B=(-80, 0, 0), shin_B=(60, 0, 0), foot_B=(20, 0, 0))
+    crouch = pose(move=(0, 0.1, -0.45), spine=(46, 0, 0), chest=(14, 0, 0), head=(-34, 0, 0),
+                  upper_arm_B=(0, 62, -30), forearm_B=(0, 0, -20),
+                  thigh_B=(-84, 0, 0), shin_B=(118, 0, 0), foot_B=(-30, 0, 0))
+    return [(0, LYING), (12, sit), (24, crouch), (36, STANCE)]
+
+
 HITS["crawl_attack"] = 13
 CLIPS = {"idle": idle, "walk": walk, "run": run, "jump": jump, "attack1": attack1, "attack2": attack2,
          "attack3": attack3, "fall": fall, "death": death, "dead": dead, "collapse": collapse,
-         "crawl": crawl, "crawl_attack": crawl_attack, "crawl_death": crawl_death, "crawl_dead": crawl_dead}
+         "crawl": crawl, "crawl_attack": crawl_attack, "crawl_death": crawl_death, "crawl_dead": crawl_dead,
+         "rise": rise, "getup": getup}
 
 
 def bake(ao):

@@ -7,24 +7,29 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const ROOT = 'templates/models/';
+// the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
+// (the upright carry shows the flat); it turns back as it rises to upright again
+const ROLL_2H = { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 };
+// the two-handed blades that turn like it; axes, hammers and polearms keep their head leading
+const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloodletter',
+  'penitents_greatsword', 'tombstone']);
+// the kinds whose model can be chosen in the inventory (every model of that kind in the manifest)
+const MODEL_TYPE = { onehand: 'one-handed weapon', twohand: 'two-handed weapon' };
 export const ITEMS = {
   onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
-  // the greatsword turns a quarter in the hands as the swing lifts it, so it cuts with the edge
-  // (the upright carry shows the flat); it turns back as it rises to upright again
   twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
-    roll: { clip: 'r2h_swing_3d', angle: Math.PI / 2, in: [0.04, 0.2], out: 0.22 } },
-  wand: { id: 'crystal_wand', name: 'Crystal Wand', type: 'wand', hands: ['R', 'L'], tip: 0.34 },
+    roll: ROLL_2H },
   staff: { id: 'gnarled_staff', name: 'Gnarled Crystal Staff', type: 'staff', hands: ['R'], tip: 0.62 },
   shield_round: { id: 'ironbound', name: 'Iron-Bound Roundshield', type: 'round shield', hands: ['L'] },
   shield_kite: { id: 'knights_kite', name: "Knight's Kite", type: 'kite shield', hands: ['L'] },
 };
 const WALK = {
-  R: { onehand: 'r1h_walk_3d', twohand: 'r2h_walk_3d', wand: 'r1w_walk', staff: 'r1s_walk', null: 'r1c_walk' },
-  L: { onehand: 'l1h_walk_3d', shield_round: 'lsh_walk', shield_kite: 'lks_walk', wand: 'l1w_walk', null: 'l1c_walk' },
+  R: { onehand: 'r1h_walk_3d', twohand: 'r2h_walk_3d', staff: 'r1s_walk', null: 'r1c_walk' },
+  L: { onehand: 'l1h_walk_3d', shield_round: 'lsh_walk', shield_kite: 'lks_walk', null: 'l1c_walk' },
 };
 const ACT = {
-  R: { onehand: 'r1h_swing_3d', twohand: 'r2h_swing_3d', wand: 'r1w_cast', staff: 'r1s_cast' },
-  L: { onehand: 'l1h_swing_3d', wand: 'l1w_cast', shield_round: 'lsh_block', shield_kite: 'lks_block' },
+  R: { onehand: 'r1h_swing_3d', twohand: 'r2h_swing_3d', staff: 'r1s_cast' },
+  L: { onehand: 'l1h_swing_3d', shield_round: 'lsh_block', shield_kite: 'lks_block' },
 };
 
 /**
@@ -152,6 +157,21 @@ export class ViewModel {
     return this.itemCache.get(kind).clone();
   }
 
+  /** The models `kind` can be ([{id, name}]; none for kinds without a choice). */
+  models(kind) {
+    return MODEL_TYPE[kind] ? (this.manifest.items[kind] || []).map((e) => ({ id: e.id, name: e.name })) : [];
+  }
+
+  /** Make `kind` that model (dropping a loot drop's power) and re-arm the hands. */
+  async setModel(kind, id) {
+    const e = this.models(kind).find((m) => m.id === id);
+    if (!e) return;
+    Object.assign(ITEMS[kind], { id, name: e.name, type: MODEL_TYPE[kind], power: undefined });
+    if (ITEMS[kind].both) ITEMS[kind].roll = ROLLED.has(id) ? ROLL_2H : undefined;
+    this.itemCache.delete(kind);
+    await this.applyEquip();
+  }
+
   /** A retro-filtered, lit material for a model's skin: steel and gilt catch the light. */
   skin(o, item) {
     o.frustumCulled = false;
@@ -239,7 +259,7 @@ export class ViewModel {
     return kind;
   }
 
-  /** The left hand's action (RMB): shields block while held; wands cast; swords swing. */
+  /** The left hand's action (RMB): shields block while held; swords swing. */
   actLeft(held) {
     const kind = this.equip.L;
     if (this.equip.R && ITEMS[this.equip.R].both) return null;

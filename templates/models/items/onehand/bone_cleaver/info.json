@@ -4,9 +4,42 @@
  "kind": "one-handed weapon",
  "description": "A brutal butcher's cleaver with a dark wood handle, brass collar and iron ring.",
  "texture_size": 128,
+ "skin_size": 1024,
  "triangles": 208,
  "files": [
   "bone_cleaver.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/bone_cleaver_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/bone_cleaver_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/bone_cleaver_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/bone_cleaver_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/bone_cleaver_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/bone_cleaver_frostbound.png"
+  }
  ],
  "parts": [
   {

@@ -1,0 +1,80 @@
+{
+ "id": "reliquary_blade",
+ "name": "Reliquary Blade",
+ "kind": "one-handed weapon",
+ "description": "A flame-edged sword of dark etched steel with a bright honed edge, a gilded spiked guard set with relic garnets, oxblood grip bound in gold wire.",
+ "texture_size": 128,
+ "skin_size": 512,
+ "triangles": 1054,
+ "files": [
+  "reliquary_blade.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/reliquary_blade_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/reliquary_blade_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/reliquary_blade_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/reliquary_blade_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/reliquary_blade_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/reliquary_blade_frostbound.png"
+  }
+ ],
+ "parts": [
+  {
+   "number": 1,
+   "name": "blade"
+  },
+  {
+   "number": 2,
+   "name": "honed edge"
+  },
+  {
+   "number": 3,
+   "name": "guard"
+  },
+  {
+   "number": 4,
+   "name": "pommel"
+  },
+  {
+   "number": 5,
+   "name": "grip"
+  },
+  {
+   "number": 6,
+   "name": "grip wire"
+  },
+  {
+   "number": 7,
+   "name": "relic"
+  },
+  {
+   "number": 8,
+   "name": "relic back"
+  }
+ ],
+ "set": "set14",
+ "set_name": "model 14"
+}

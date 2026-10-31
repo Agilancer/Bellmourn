@@ -4,10 +4,43 @@
  "kind": "gauntlet (a first-person arm: sleeve, elbow, bracer and gloved hand)",
  "description": "A soft brown leather glove with a short cuff, the forearm bound in pale linen wraps over a thin leather bracer, a mossy green wool sleeve. Worn, stitched, practical.",
  "texture_size": 256,
+ "skin_size": 1024,
  "triangles": 2284,
  "files": [
   "hunter_R.glb",
   "hunter_L.glb"
+ ],
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/hunter_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/hunter_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/hunter_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/hunter_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/hunter_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/hunter_frostbound.png"
+  }
  ],
  "parts": [
   {

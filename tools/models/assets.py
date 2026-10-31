@@ -3,6 +3,7 @@ placeholder texture, info.json and a ready-to-paste PROMPT.md."""
 import json
 import os
 
+import dress
 import texkit
 
 PROMPT = """# Texture prompt: {name}
@@ -49,12 +50,20 @@ def write(folder, model_id, name, kind, desc, models_and_files, sheet_model, not
     os.makedirs(folder, exist_ok=True)
     if any(i.px is None for _, i in sheet_model.islands()):
         sheet_model.pack()
-    try:  # painted from the texture library; flat colours if the library is missing
-        import autotexture
-        tex = autotexture.paint(sheet_model)
+    try:  # painted from the texture library (or dressed in material swatches, dress.py);
+        import autotexture  # flat colours if the library is missing
+        tex = autotexture.paint(sheet_model, dressed=model_id)
     except (OSError, StopIteration, KeyError, json.JSONDecodeError) as e:
         print(f"  ({model_id}: no library texture, using flat colours: {e})")
         tex = texkit.placeholder_texture(sheet_model)
+    variants = []
+    if tex.width > sheet_model.tex:  # dressed in material swatches: every finish as well
+        os.makedirs(os.path.join(folder, "variants"), exist_ok=True)
+        for key, (vname, _) in dress.FINISHES.items():
+            fname = f"variants/{model_id}_{key}.png"
+            autotexture.paint(sheet_model, dressed=model_id, finish=key).save(
+                os.path.join(folder, fname))
+            variants.append(dict(id=key, name=vname, file=fname))
     tris = 0
     for model, fname, export in models_and_files:
         tris = export(model, os.path.join(folder, fname), tex)
@@ -72,8 +81,10 @@ def write(folder, model_id, name, kind, desc, models_and_files, sheet_model, not
             extra = (part_notes or {}).get(part.name, "")
             lines.append(f"  {numbers[part.name]:>2}. {part.label}{(' - ' + extra) if extra else ''}")
     info = dict(id=model_id, name=name, kind=kind, description=desc,
-                texture_size=sheet_model.tex, triangles=tris,
+                texture_size=sheet_model.tex, skin_size=tex.width, triangles=tris,
                 files=[f for _, f, _ in models_and_files],
+                # the same model in other finishes: swap the texture (same UV layout)
+                variants=variants,
                 parts=[dict(number=n, name=k) for k, n in numbers.items()])
     with open(os.path.join(folder, "info.json"), "w") as f:
         json.dump(info, f, indent=1)

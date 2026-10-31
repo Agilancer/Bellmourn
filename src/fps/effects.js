@@ -217,11 +217,11 @@ export class Smoke {
     this.mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, uniforms: { scale: { value: 300 }, light: { value: new THREE.Color(1, 1, 1) } },
       vertexShader: /* glsl */`
-        attribute vec4 pdata; uniform float scale; varying vec2 vA;
-        void main() { vA = pdata.yz; vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        attribute vec4 pdata; uniform float scale; varying vec2 vA; varying float vT;
+        void main() { vA = pdata.yz; vT = pdata.w; vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_PointSize = pdata.x * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
       fragmentShader: /* glsl */`
-        uniform vec3 light; varying vec2 vA;
+        uniform vec3 light; varying vec2 vA; varying float vT;
         void main() {
           vec2 q = gl_PointCoord - 0.5;
           float d = length(q) * 2.0;
@@ -229,7 +229,9 @@ export class Smoke {
           // a soft lumpy puff: radial falloff broken up by a few lobes
           float lobes = 0.82 + 0.18 * sin(atan(q.y, q.x) * 5.0 + vA.y * 17.0);
           float a = vA.x * smoothstep(1.0, 0.15, d / lobes);
-          gl_FragColor = vec4(light * vA.y, a * 0.8);
+          // a tint (pdata.w): 1 plague green, 2 arcane violet, 3 frost blue
+          vec3 tint = vT < 0.5 ? vec3(1.0) : vT < 1.5 ? vec3(0.62, 1.0, 0.32) : vT < 2.5 ? vec3(0.75, 0.45, 1.0) : vec3(0.7, 0.88, 1.15);
+          gl_FragColor = vec4(light * vA.y * tint, a * 0.8);
         }`,
     });
     this.points = new THREE.Points(g, this.mat);
@@ -239,9 +241,9 @@ export class Smoke {
     this.emitters = [];
   }
 
-  emit(p, v, { life = 4, size = 0.6, grow = 1.2, alpha = 0.35, shade = 0.55 } = {}) {
+  emit(p, v, { life = 4, size = 0.6, grow = 1.2, alpha = 0.35, shade = 0.55, tint = 0 } = {}) {
     if (this.list.length >= this.max) this.list.shift();
-    this.list.push({ p: p.clone(), v: v.clone(), age: 0, life, size, grow, alpha, shade });
+    this.list.push({ p: p.clone(), v: v.clone(), age: 0, life, size, grow, alpha, shade, tint });
   }
 
   addEmitter(x, y, z, rate = 3) { this.emitters.push({ p: new THREE.Vector3(x, y, z), rate, acc: Math.random() }); }
@@ -264,7 +266,7 @@ export class Smoke {
     live.forEach((s, i) => {
       this.pos.set([s.p.x, s.p.y, s.p.z], i * 3);
       const k = s.age / s.life;
-      this.data.set([s.size + s.grow * s.age, s.alpha * Math.min(1, s.age * 4) * (1 - k), s.shade, 0], i * 4);
+      this.data.set([s.size + s.grow * s.age, s.alpha * Math.min(1, s.age * 4) * (1 - k), s.shade, s.tint || 0], i * 4);
     });
     this.geo.setDrawRange(0, live.length);
     this.geo.attributes.position.needsUpdate = true;
@@ -316,10 +318,10 @@ export class Decals {
     };
   }
 
-  add(kind, p, normal, size, { life = 25, glow = false, spin = 0 } = {}) {
+  add(kind, p, normal, size, { life = 25, glow = false, spin = 0, color = null } = {}) {
     const m = new THREE.MeshBasicMaterial({ map: this.tex[kind], transparent: true, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8,
-      blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, color: glow ? new THREE.Color(2, 2, 2) : 0xffffff });
+      blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, color: color || (glow ? new THREE.Color(2, 2, 2) : 0xffffff) });
     const q = new THREE.Mesh(new THREE.PlaneGeometry(size, size), m);
     q.position.copy(p).addScaledVector(normal, 0.02);
     q.lookAt(p.clone().add(normal));
@@ -328,6 +330,7 @@ export class Decals {
     this.scene.add(q);
     this.list.push({ q, age: 0, life, spin });
     if (this.list.length > this.max) this.remove(this.list.shift());
+    return q;
   }
 
   remove(d) { this.scene.remove(d.q); d.q.geometry.dispose(); d.q.material.dispose(); }

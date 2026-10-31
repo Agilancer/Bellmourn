@@ -77,6 +77,25 @@
   .card .ty { font-size: 11px; color: #9a8a6a; }
   .card .ds { font-size: 11px; color: #b8aa90; font-family: Georgia, serif; }
   .hb { display: flex; gap: 6px; margin-top: 6px; }
+  .card select.mdl { margin-top: 4px; width: 100%; font: 12px Cinzel, serif; background: #241c18; color: #e8dcc0; border: 1px solid var(--edge); }
+  /* the bag, and a container being searched beside it */
+  .grid.bag { grid-template-columns: repeat(auto-fill, 58px); gap: 5px; }
+  .bslot { position: relative; width: 58px; height: 58px; box-sizing: border-box; background: #0d0a0e; border: 1px solid #3a3028; touch-action: none; user-select: none; }
+  .bslot.full { cursor: grab; background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--tint, #000) 55%, transparent), #120e14 70%); }
+  .bslot.full:hover { border-color: var(--gold-dim); }
+  .bslot.lifted { opacity: .3; }
+  .bslot img, .bghost img { width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
+  .bslot b, .bghost b { position: absolute; right: 3px; bottom: 1px; font-size: 12px; color: #fff4d0; text-shadow: 0 1px 2px #000, 0 0 3px #000; pointer-events: none; }
+  #ui .bghost { position: fixed; width: 58px; height: 58px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9;
+                background: radial-gradient(circle, color-mix(in srgb, var(--tint, #000) 55%, transparent), transparent 70%); }
+  .binfo { min-height: 1.3em; margin-top: 6px; font: 12px Georgia, serif; color: #b8aa90; }
+  .binfo b { font: 700 12px Cinzel, serif; color: #e8dcc0; }
+  .panel h3 .gold { float: right; color: #e8c060; letter-spacing: .06em; }
+  .inv.looting { left: calc(50% + 8px); top: 12vh; transform: none; width: min(400px, 47vw); }
+  .inv.looting .more { display: none; }
+  .lootp { left: calc(50% - 8px); top: 12vh; transform: translate(-100%, 0); width: min(400px, 47vw); }
+  .lootp .takeall { margin-top: 10px; width: 100%; padding: 9px; font-size: 14px; }
+  .lempty { padding: 8px 0 0; font: italic 13px Georgia, serif; color: #8a7a60; }
   button { font: 700 12px Cinzel, serif; color: #e8dcc0; background: #241c18; border: 1px solid var(--edge); padding: 6px 10px; min-width: 40px; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--gold); }
   button.sel { background: #5a4420; border-color: var(--gold); color: #fff4d0; }

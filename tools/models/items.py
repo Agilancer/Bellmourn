@@ -742,3 +742,9 @@ ITEMS = {
              "jingle rings.", monk_staff),
     ],
 }
+
+# the weapons remodelled from the free packs (remodels.py), after the hand-built ones
+import remodels  # noqa: E402
+
+for _r in remodels.REMODELS:
+    ITEMS[_r["kind"]].append(_r)
