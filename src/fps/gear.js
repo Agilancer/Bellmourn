@@ -6,7 +6,8 @@
 // and Block (how much of a blow it stops); the better ones last longer and stop more, and from
 // Rare up they come enchanted: thorns, frost, fire, holy light, a ward against spells, a shove.
 //
-// The character (equipment, bag, gold, potions) lives in localStorage under bm.char.
+// The character (equipment, bag, gold, potions, level) lives in localStorage under bm.char.
+import { levelStats, fitLevel } from './level.js';
 
 export const RARITY = [
   { id: 0, name: 'Common', color: '#e8e8e8', weight: 70, affixes: [0, 0], finish: 'worn', mul: 1 },
@@ -99,6 +100,8 @@ const STAT_LABEL = {
   armorPct: (v) => `+${v}% Armour`, life: (v) => `+${v} Life`, mana: (v) => `+${v} Mana`, lifeRegen: (v) => `+${v} Life a second`,
   manaRegen: (v) => `+${v} Mana a second`, moveSpeed: (v) => `+${v}% Movement Speed`, guard: (v) => `+${v} Guard`,
   guardRegen: (v) => `+${v}% Guard Recovery`, blockPct: (v) => `+${v}% Blocked`, thorns: (v) => `Thorns: ${v} damage to whatever strikes your shield`,
+  burnHit: (v) => `Your blows set the dead burning (${v} a second)`, chillHit: (v) => `Your blows chill the dead to a crawl for ${v} seconds`,
+  xpPct: (v) => `+${v}% Experience`,
 };
 export const statLabel = (s, v) => (STAT_LABEL[s] ? STAT_LABEL[s](v) : `${s} ${v}`);
 
@@ -221,8 +224,10 @@ export function itemValue(it) {
 // the plain arm of each kind you set out with
 const STARTER = { onehand: 'arming_sword', twohand: 'greatsword', staff: 'gnarled_staff', shield_round: 'ironbound', shield_kite: 'knights_kite' };
 
-export function newCharacter() {
-  const c = { equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true };
+/** The character you set out with; `bare`: Tessariel as he came down, with nothing at all. */
+export function newCharacter(bare = false) {
+  const c = fitLevel({ equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true });
+  if (bare) return c;
   const g = (o) => makeGear({ ilvl: 1, rarity: 0, ...o });
   c.equip.weapon = g({ kind: 'onehand', model: STARTER.onehand });
   c.equip.offhand = g({ kind: 'shield_round', model: STARTER.shield_round });
@@ -264,7 +269,7 @@ export function loadCharacter() {
     if (c && c.equip && Array.isArray(c.bag)) {
       for (const s of SLOTS) if (!(s in c.equip)) c.equip[s] = null;
       while (c.bag.length < BAG_SIZE) c.bag.push(null);
-      return c;
+      return fitLevel(c);
     }
   } catch { /* a damaged save: start again */ }
   return newCharacter();
@@ -287,7 +292,7 @@ export function addToBag(c, it) {
 /** The character's numbers from what it wears. */
 export function computeStats(c) {
   const st = { dmgPct: 0, dmg: 0, crit: 5, critDmg: 50, lifeSteal: 0, spellPct: 0, armor: 0, armorPct: 0, life: 0, mana: 0,
-    lifeRegen: 0.4, manaRegen: 6, moveSpeed: 0, guard: 0, guardRegen: 0, blockPct: 0, thorns: 0, enchants: {} };
+    lifeRegen: 0.4, manaRegen: 6, moveSpeed: 0, guard: 0, guardRegen: 0, blockPct: 0, thorns: 0, burnHit: 0, chillHit: 0, xpPct: 0, enchants: {} };
   for (const s of SLOTS) {
     const it = c.equip[s];
     if (!it) continue;
@@ -295,6 +300,7 @@ export function computeStats(c) {
     for (const a of [...(it.implicit || []), ...(it.affixes || [])]) st[a.s] = (st[a.s] || 0) + a.v;
     if (s === 'offhand') for (const e of it.enchants || []) st.enchants[e.e] = (st.enchants[e.e] || 0) + e.v;
   }
+  levelStats(c, st);   // what the level and the attributes bring
   st.armor = Math.round(st.armor * (1 + st.armorPct / 100));
   const w = c.equip.weapon, sh = c.equip.offhand;
   st.weapon = w?.dmg ? w.dmg : [6, 9];                    // fists

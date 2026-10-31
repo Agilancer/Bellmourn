@@ -5,6 +5,7 @@
 // it, textured by slope (rock), wetness (mud and gravel by the water, sand round the pool),
 // height (old snow on the plateau) and paths. The water itself is water.js's.
 import * as THREE from 'three';
+import { craterHeight } from './crater.js';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
@@ -99,7 +100,7 @@ function natural(x, z) {
 }
 
 export function terrainHeight(x, z) {
-  if (x < REGION.x0 - 2) return 0;
+  if (x < REGION.x0 - 2) return craterHeight(x, z);   // flat but for where Tessariel came down
   let h = natural(x, z);
   for (const p of pads) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r + 10) h = h + (p.y - h) * (1 - smooth(p.r, p.r + 10, d)); }
   return h;

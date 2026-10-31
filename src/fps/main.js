@@ -32,7 +32,7 @@ import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM } from './terrain.js';
 import { SPOTS } from './region.js';
@@ -43,8 +43,17 @@ import { Villagers } from './villagers.js';
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
+import { Crater, CRATER, CRATER_ARMS, formCrater } from './crater.js';
+import { Intro } from './intro.js';
+import { Quests, GIVERS } from './quests.js';
+import { SaveMenu } from './saves.js';
+import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
+import { makeUnique } from './uniques.js';
+import { Fireflies } from './polish.js';
 
 const touch = TOUCH;
+// the mouse captured for looking (a refusal, say from a window in the background, is no matter)
+const lockPointer = () => { try { document.getElementById('game').requestPointerLock?.()?.catch?.(() => {}); } catch { /* not now */ } };
 const QUALITY = localStorage.getItem('bm.quality') || (touch ? 'low' : 'high');
 const HI = QUALITY === 'high';
 
@@ -95,6 +104,10 @@ for (let i = 0; i < TORCHES; i++) {
   torchPool.push(l);
 }
 
+// the green star's light: it rides the comet down in the opening, then glows in the crater
+const cometLight = new THREE.PointLight(0x50ff80, 0, 30, 1.4);
+scene.add(cometLight);
+
 const sfx = new Sfx();
 // A phone that runs out of memory is killed and reloaded by the browser with no word of why (Safari's
 // "A problem repeatedly occurred"), so each run notes how far it has got; if it never closed cleanly,
@@ -112,6 +125,12 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
+let quests = null, saves = null, intro = null, introBusy = false, holdHour = false;
+// the game under way (besides the character): whether he has come down yet, the quests, where you
+// stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
+const PROGRESS = 'bm.progress';
+const FIRST = (() => { try { return !localStorage.getItem('bm.char'); } catch { return true; } })();   // never played here
+let progress = (() => { try { return JSON.parse(localStorage.getItem(PROGRESS) || 'null'); } catch { return null; } })();
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried), and more spread through the Undercroft and the Deep Undercroft (the delves and
 // caves fill their own: delves.js)
@@ -256,6 +275,11 @@ async function build() {
     { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]) });
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
+  // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
+  ctx.crater = new Crater(ctx);
+  ctx.crater.smokers = ctx.crater.smokeSpots.map(([x, y, z]) => { smoke.addEmitter(x, y, z, 1.6); return smoke.emitters[smoke.emitters.length - 1]; });
+  ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));
+  ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
   useManifest(manifest);
@@ -267,7 +291,7 @@ async function build() {
   Object.assign(ctx.loot.hooks, {
     models: lootModel,
     zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
-    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); saveCharacter(char); bag.render(); },
+    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); autoEquip(it); saveCharacter(char); bag.render(); },
     full: () => hud.toast('Your bag is full'),
   });
   await mark('arms');
@@ -304,7 +328,8 @@ async function build() {
   ctx.foes = foes;
   foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
   // Velscour's Sworn come in behind, while you're on the road (a phone starts once the village is up)
-  setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e)), touch ? 6000 : 0);
+  foes.swornReady = new Promise((done) => setTimeout(() => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep))
+    .catch((e) => console.warn('the Sworn', e)).finally(done), touch ? 6000 : 0));
   // the people of the village (tools/villagers' men and women), fewer on a phone; they load in the
   // background and walk out of their doors as they arrive
   villagers = new Villagers(scene, ctx);
@@ -334,6 +359,16 @@ async function build() {
   });
   hud.refresh(vm.equip, book);
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
+  // the quests (quests.js): who gives them, what's done, the tracker, the log
+  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
+    onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
+    onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
+  villagers.quests = quests;
+  map.pins = () => quests.pins(villagers);
+  zombies.onDeath = onDeath;
+  saves = new SaveMenu({ ui, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
+    onClose: () => { if (paused || !started) return; if (!touch) lockPointer(); } });
+  hud.onMenu = menu;
   vm.on(onEvent);
   resize();
   ready = true; run.step = 'loaded';
@@ -534,7 +569,8 @@ function castSlot(slot) {
  * the shield is down). Its enchantments answer whoever struck it. Armour takes its share of
  * whatever gets through. If it kills you, you wake in the village. */
 function hurtPlayer(dmg, by = null, kind = 'melee') {
-  let d = dmg;
+  if (introBusy) return;
+  let d = dmg * (by?.champ?.dmg || 1);   // a quest's champion hits harder
   const sh = st.shield;
   let front = true;
   if (by?.pos) {
@@ -662,6 +698,9 @@ function melee(reach, heavy, side = 'R') {
     const blunt = BLUNT.test(it?.id || '');
     const dmg = stats.meleeDamage(heavy, side);
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) });
+    // a treasure's powers: the dead set burning, or chilled to a crawl
+    if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); }
+    if (st.chillHit && !flesh.z.dead) flesh.z.chilled = Math.max(flesh.z.chilled || 0, st.chillHit);
     zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
@@ -695,6 +734,7 @@ function zoneAt(p) {
   const keep = ctx.keep.place(p);
   if (keep) return { name: keep, kind: 'out' };
   if (p.x > GRAVEYARD.x0 && p.x < GRAVEYARD.x1 && p.z > GRAVEYARD.z0 && p.z < GRAVEYARD.z1) return { name: 'The Bellmourn Graveyard', kind: 'out' };
+  if (CRATER.k && Math.hypot(p.x - CRATER.x, p.z - CRATER.z) < CRATER.reach) return { name: 'Where the Green Star Fell', kind: 'out' };
   if (Math.hypot(p.x, p.z) > VILLAGE_R + 10) return { name: 'The Darkwood', kind: 'out' };
   return { name: 'Bellmourn', kind: 'out' };
 }
@@ -704,7 +744,7 @@ const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3();
 let day = dayState(hour);
 function light(dt, t) {
-  if (timeMode === 'cycle') hour = (hour + dt / 60) % 24; // an hour a minute
+  if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
   day = dayState(hour);
   const z = zoneAt(player.pos);
   hud.zone(z.name);
@@ -808,7 +848,7 @@ function begin() {
     hud.showTouch(true);
     document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   } else {
-    canvas.requestPointerLock?.();
+    lockPointer();
   }
 }
 
@@ -816,7 +856,7 @@ function setMap(on) {
   map.show(on, player);
   if (on && bag.open) bag.show(false);
   if (touch) { gameInput.release(); }
-  else if (on) document.exitPointerLock?.(); else canvas.requestPointerLock?.();
+  else if (on) document.exitPointerLock?.(); else lockPointer();
 }
 
 function setInventory(on) {
@@ -824,23 +864,253 @@ function setInventory(on) {
   bag.show(on);
   if (touch) { hud.showTouch(!on); gameInput.release(); } // the thumb controls would lie over the bag
   if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book); }
-  else if (!touch) canvas.requestPointerLock?.();
+  else if (!touch) lockPointer();
 }
 
 function pause() {
+  if (introBusy) return;
   paused = true;
-  bag?.show(false); map?.show(false);
+  bag?.show(false); map?.show(false); quests?.close(); saves?.show(null);
   hud.showOverlay('pause', touch);
   if (touch) { hud.showTouch(false); gameInput.release(); }
 }
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && started && !bag?.open && !map?.open) pause();
+  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !introBusy) pause();
 });
+
+// ------------------------------------------------------------------ a new game, a game picked up, saved and loaded
+const hasGame = () => { try { return !!localStorage.getItem('bm.char'); } catch { return false; } };
+
+/** The title's and the pause screen's buttons. */
+function menu(a) {
+  sfx.start();
+  if (a === 'new') newGame();
+  else if (a === 'continue') continueGame();
+  else if (a === 'load') saves.show('load');
+  else if (a === 'save') saves.show('save');
+  else if (a === 'resume') begin();
+  else if (a === 'log') { paused = false; hud.showOverlay(null); if (touch) hud.showTouch(true); quests.showLog(true); }
+}
+
+/** Where things stand, beyond the character: kept as you play (Continue) and in each save. */
+function makeProgress() {
+  const p = player.pos;
+  return { arrived: true, quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
+    player: { x: p.x, y: p.y, z: p.z, yaw: player.yaw, pitch: player.pitch } };
+}
+function saveProgress() {
+  if (!quests || !player || introBusy || !started) return;
+  progress = makeProgress();
+  try { localStorage.setItem(PROGRESS, JSON.stringify(progress)); } catch { /* private window */ }
+  saveCharacter(char);
+}
+addEventListener('pagehide', () => saveProgress());
+
+/** A save slot's worth: who you are, where, and everything to pick it up again. */
+function snapshot() {
+  if (!started || introBusy || !quests) return null;
+  return { level: char.level, gold: char.gold, place: zoneAt(player.pos).name, quests: Object.values(quests.state).filter((q) => q.s === 'done').length,
+    char: JSON.parse(JSON.stringify(char)), progress: makeProgress() };
+}
+
+/** Put a game in progress back: the crater, the quests, the hour, where you stood, the knight's arms
+ * if they still lie in the crater. */
+function applyProgress(pr) {
+  formCrater(1);
+  holdHour = false;
+  quests.load(pr?.quests || {});
+  if (pr?.hour != null && timeMode === 'cycle') hour = pr.hour;
+  if (pr?.book) { Object.assign(book, pr.book); hud.refresh(vm.equip, book); }
+  const P = pr?.player;
+  if (P && Number.isFinite(P.x)) { player.pos.set(P.x, P.y, P.z); player.yaw = P.yaw || 0; player.pitch = P.pitch || 0; } else player.pos.set(0, 0, 12);
+  player.vel.set(0, 0, 0);
+  layArms(pr?.arms || []);
+  zombies.forget();
+  villagers.postAt = quests.status('undercroft') === 'available' && pr?.arrived ? villagers.postAt : null;
+}
+
+/** Load a save (from a slot). */
+async function restore(d) {
+  if (intro?.running) intro.skip();
+  char = fitLevel(fitCharacter(JSON.parse(JSON.stringify(d.char))));
+  saveCharacter(char);
+  progress = d.progress;
+  try { localStorage.setItem(PROGRESS, JSON.stringify(progress)); } catch { /* private window */ }
+  applyProgress(progress);
+  await applyGear(true);
+  bag.render();
+  hud.toast('Game loaded');
+  if (!started) begin();
+  else { paused = false; hud.showOverlay(null); if (touch) hud.showTouch(true); else lockPointer(); }
+}
+
+/** Pick up the game where it was left (bm.char and bm.progress). */
+function continueGame() {
+  applyProgress(progress);
+  applyGear(true);
+  begin();
+}
+
+/** The knight's sword, shield and staff, lying in the crater (those of `ids` still there). */
+function layArms(ids = ['vigilsword', 'vigilshield', 'vigilstaff']) {
+  const L = ctx.loot;
+  for (const it of [...L.list]) if (/^vigil/.test(it.item.unique || '')) { L.group.remove(it.holder); L.list.splice(L.list.indexOf(it), 1); }
+  const of = { onehand: 'vigilsword', shield: 'vigilshield', staff: 'vigilstaff' };
+  for (const [dx, dz, k] of CRATER_ARMS) {
+    const id = of[k];
+    if (!ids.includes(id)) continue;
+    const x = CRATER.x + dx, z = CRATER.z + dz;
+    L.spawn(makeUnique(id), x, physics.groundAt(x, z) + 0.9, z, { pop: true });
+  }
+}
+const armsLying = () => (ctx?.loot.list || []).filter((it) => /^vigil/.test(it.item.unique || '')).map((it) => it.item.unique);
+
+/** Gear taken up goes straight on if its hand or place is free. */
+function autoEquip(it) {
+  if (it?.type !== 'gear') return;
+  const i = char.bag.indexOf(it);
+  if (i < 0) return;
+  const slot = slotFor(char.equip, it);
+  if (char.equip[slot]) return;
+  if (slot === 'offhand' && char.equip.weapon?.kind === 'twohand') return;
+  if (slot === 'weapon' && it.kind === 'twohand' && char.equip.offhand) return;
+  bag.equipFromBag(i, slot);
+}
+
+/** Experience: from what you kill and the work you do. A level brings a peal, a banner, a column of
+ * gold about you, full life and mana, and points to spend. */
+function gainXp(n) {
+  const up = grantXp(char, n * (1 + (st.xpPct || 0) / 100));
+  if (up) {
+    sfx.levelUp();
+    hud.announce(`Level ${char.level}`, `${char.points} point${char.points === 1 ? '' : 's'} to spend · Tab, then your character`);
+    applyGear().then(() => { player.health = player.maxHealth; player.mana = player.maxMana; });
+    const at = player.pos.clone().add(new THREE.Vector3(0, 0.2, 0));
+    magic.particles.burst(at, [new THREE.Color('#fff2b0'), new THREE.Color('#ffc840'), new THREE.Color('#ffffff')], 90, { speed: 2.5, size: 0.05, grav: -3, life: 1.6, drag: 1 });
+    bag.render();
+  }
+  saveCharacter(char);
+}
+
+/** Every death in the world: experience, the quests' counts, and a champion's hoard. */
+function onDeath(z) {
+  if (introBusy) return;
+  gainXp(xpFor(z));
+  quests?.onKill(z);
+  if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
+}
+
+/** A quest handed in: its experience, coin and treasures (into the bag, or at your feet if it's full). */
+function reward({ xp = 0, gold = 0, items = [], title = '' }) {
+  if (gold) { char.gold += gold; sfx.coin(); }
+  for (const it of items) if (!addToBag(char, it)) { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
+  hud.announce('Quest complete', title);
+  hud.toast(`${xp} experience${gold ? `, ${gold} gold` : ''}${items.length ? ` · ${items.map((i) => i.name).join(', ')}` : ''}`);
+  gainXp(xp);
+  saveCharacter(char);
+  bag.render();
+}
+
+// ------------------------------------------------------------------ the opening, and the village coming to the crater
+/** Start over as Tessariel: nothing in your hands, nothing in your bag, and the green star coming down. */
+async function newGame() {
+  if ((!FIRST || progress?.arrived) && !confirm('Start a new game? Anything not saved in a slot is lost.')) return;
+  if (introBusy) return;
+  hud.showOverlay('loading', touch); hud.overlay.querySelector('.go').textContent = 'The sky is opening…';
+  saves.show(null); quests.close(); bag.show(false); map.show(false);
+  char = newCharacter(true);
+  fitCharacter(char); saveCharacter(char);
+  quests.load({});
+  progress = { arrived: false };
+  try { localStorage.removeItem(PROGRESS); } catch { /* no storage */ }
+  if (timeMode === 'cycle') hour = 18.3;      // sundown (held there till the village has met you)
+  holdHour = true;
+  await applyGear(true);
+  zombies.forget();
+  layArms([]);
+  started = true; paused = false; introBusy = true;
+  setCinema(true);
+  if (touch) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  else lockPointer();
+  if (!intro) {
+    intro = new Intro({ ui, scene, camera, worldPass, sfx, foes, ctx, light: cometLight, smoke, particles: magic.particles,
+      knight: async () => { await Promise.race([foes.swornReady, new Promise((r) => setTimeout(r, 15000))]); return foes.gltf.sworn_m ? 'sworn_m' : 'knight_a'; },
+      onImpact: () => layArms(),
+      onPlace: placeInCrater,
+      onControl: () => { introBusy = false; setCinema(false); if (!touch && !document.pointerLockElement) pause(); },
+      onDone: () => { introBusy = false; setCinema(false); saveProgress(); const done = intro; intro = null; setTimeout(() => done.dispose(), 500); } });
+    await intro.prepare();
+  }
+  hud.showOverlay(null);
+  intro.start(touch);
+}
+
+/** The opening hides the HUD and the marks over heads; the game has them back after. */
+function setCinema(on) {
+  hud.hud.classList.toggle('hidden', on);
+  villagers.bubbles.hidden = on;
+  if (touch) { hud.showTouch(!on); gameInput.release(); }
+  if (!on) hud.refresh(vm.equip, book);
+}
+
+// who comes to the crater (and where they stand round you, at the angle given: 0 is east, toward
+// the town), and what they say, in turn
+const WELCOME_CAST = [['Odile', 0], ['Osric', -26], ['Hesk', 26], ['Garrow', -52], ['Tobias', 52], ['Wren', -76], ['Elsie', 76]];
+const WELCOME = [
+  { name: 'Elsie', text: "It's a man! In his smallclothes!" },
+  { name: 'Odile', text: 'Green fire out of the vault of heaven. Curled as a child in the womb. Girded in black.' },
+  { name: 'Odile', text: 'The Canticle of Embers, seven, twelve. It is him. Tessariel. The Sacred Flame.' },
+  { name: 'Osric', text: 'Forty years she has read us that verse. I thought it was about the weather.' },
+  { name: 'Hesk', text: "Hush, all of you! Say that name where the garrison can hear and they'll hang the lot of us." },
+  { name: 'Tobias', text: "Velscour's lickspittles kill anyone who speaks it. Whisper it, Flame, if you must." },
+  { name: 'Garrow', text: "You flattened one of his Sworn with your face. Here: you'll want more than smallclothes.", gift: 'armor' },
+  { name: 'Wren', text: 'Wraps for your hands. His sword and shield are lying about the crater: take them.', gift: 'gloves' },
+  { name: 'Tobias', text: "And forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
+  { name: 'Hesk', text: 'Draughts, dear. Red for the blood, blue for the mind. Drink them before you need to.', gift: 'potions' },
+  { name: 'Osric', text: 'The Book says you will put an end to the Demon Lord Velscour. We will help you how we can.', wave: true },
+  { name: 'Odile', text: 'Speak with me, Flame. There is work for you beneath the cathedral.' },
+];
+
+/** In the black after the white: you stand in the crater's middle, facing the town, and the village
+ * has come running. */
+function placeInCrater() {
+  const x = CRATER.x + 0.6, z = CRATER.z;
+  player.pos.set(x, physics.groundAt(x, z), z); player.vel.set(0, 0, 0);
+  player.yaw = -Math.PI / 2; player.pitch = 0.06;
+  player.health = player.maxHealth; player.mana = player.maxMana;
+  camera.position.set(player.pos.x, player.pos.y + 1.58, player.pos.z);
+  camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+  const ring = (deg, r) => [CRATER.x + Math.cos(deg * Math.PI / 180) * r, CRATER.z + Math.sin(deg * Math.PI / 180) * r];
+  const cast = WELCOME_CAST.map(([name, deg]) => ({ name, at: ring(deg, 7 + Math.abs(deg) * 0.012), from: ring(deg, 19 + Math.random() * 3) }));
+  const [ox, oz] = ring(0, 7);
+  villagers.postAt = { Odile: [ox, oz, -Math.PI / 2] };   // she waits by the crater till you take her work
+  const done = () => { holdHour = false; hud.toast('Sister Odile has work for you: walk up to her and press E'); };
+  if (!villagers.welcome(player, cast, WELCOME, gift, done)) { for (const w of WELCOME) if (w.gift) gift(w.gift, null); done(); }
+  progress = { ...(progress || {}), arrived: true };
+}
+
+/** The village's gifts. */
+function gift(kind, from) {
+  const who = from?.call || '';
+  const g = (o) => makeGear({ ilvl: 1, rarity: 0, ...o });
+  const give = (items, say) => {
+    for (const it of items) { if (addToBag(char, it)) autoEquip(it); }
+    hud.toast(say);
+    sfx.equip();
+  };
+  if (kind === 'armor') give([g({ slot: 'body', base: 'Gambeson' }), g({ slot: 'legs', base: 'Padded Chausses' }), g({ slot: 'feet', base: 'Riding Boots' }), g({ slot: 'head', base: 'Leather Cap' })],
+    `${who || 'Garrow'} gives you a gambeson, padded chausses, riding boots and a leather cap`);
+  else if (kind === 'gloves') give([g({ slot: 'hands', model: 'wayfarer' })], `${who || 'Wren'} gives you a wayfarer's gauntlet`);
+  else if (kind === 'gold') { char.gold += 40; sfx.coin(); hud.toast(`${who || 'Tobias'} gives you 40 gold`); }
+  else if (kind === 'potions') give([makePotion('life', 4), makePotion('mana', 3)], `${who || 'Mother Hesk'} gives you 4 healing and 3 mana draughts`);
+  saveCharacter(char);
+  bag.render();
+}
 
 // ------------------------------------------------------------------ the loop
 const clock = new THREE.Clock();
-let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0;
+let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0, saveT = 10;
 const QUICK = { Digit1: 'onehand', Digit2: 'twohand', Digit3: 'staff', Digit4: 'shield_round', Digit5: 'shield_kite' };
 
 let lastFrame = performance.now();
@@ -862,11 +1132,21 @@ function tick(dt) {
   t += dt;
   if (!ready) return;
   const inp = gameInput;
-  const active = started && !paused && !bag.open && !map.open;
+  if (intro?.running) {   // the opening has the camera: Esc (or a click or tap) skips it
+    intro.update(dt);
+    if (inp.was('Escape') || inp.was('Space')) intro.skip();
+  }
+  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !introBusy;
 
-  if (started && (inp.was('Tab') || inp.was('KeyI'))) setInventory(!bag.open);
-  if (started && !paused && inp.was('KeyM')) setMap(!map.open);
-  if (started && inp.was('Escape')) { if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause(); }
+  if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { quests.close(); setInventory(!bag.open); }
+  if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
+  if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); quests.showLog(!quests.open); }
+  if (started && !paused && !introBusy && inp.was('KeyT')) quests.toggleTracker();
+  if (started && !introBusy && inp.was('Escape')) {
+    if (quests.open) quests.close();
+    else if (saves.open) { saves.show(null); if (!paused && !touch) lockPointer(); }
+    else if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause();
+  }
   if (active) {
     player.update(dt, inp);
     for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
@@ -897,7 +1177,7 @@ function tick(dt) {
       camera.rotation.y += (Math.random() - 0.5) * 0.012 * sh;
       shake = Math.max(0, shake - dt * 5);
     }
-  } else if (!started) { // a slow drift round the plaza behind the title
+  } else if (!started && !intro?.running) { // a slow drift round the plaza behind the title
     camera.position.set(Math.sin(t * 0.05) * 22, 6, 30 + Math.cos(t * 0.05) * 6);
     camera.lookAt(0, 6, -60);
   }
@@ -921,7 +1201,13 @@ function tick(dt) {
   }
   // doors: the one you're looking at, and E to open or close it
   // and the chest, crate, barrel or sack you're looking at, to search with E
-  if (active) {
+  // and the person in front of you, to speak with (and take work from)
+  const who = active ? villagers.aimed(camera) : null;
+  if (who) {
+    const mark = quests.markOf(who.name);
+    hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
+    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else { villagers.stopScenes(who); villagers.face(who, player); } }
+  } else if (active) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
@@ -950,15 +1236,26 @@ function tick(dt) {
   ctx.doors.update(dt);
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
+  ctx.crater.update(dt, t, camera);
+  ctx.fireflies.update(dt, t, camera, 1 - day.day, L.under > 0.5 || camera.position.y < physics.groundAt(camera.position.x, camera.position.z) - 1);
+  // the crater's glow (the opening has the light while it runs)
+  if (!intro?.running) {
+    const fl = 0.8 + 0.2 * Math.sin(t * 7.1) * Math.sin(t * 3.3);
+    cometLight.position.set(CRATER.x, physics.groundAt(CRATER.x, CRATER.z) + 1.4, CRATER.z);
+    cometLight.distance = 24; cometLight.intensity = CRATER.k ? 7 * fl * (0.4 + 0.6 * (1 - day.day)) : 0;
+  }
   // what's under the ground: only from below it, or from the head of the stairs down to it
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
-  for (const m of ctx.builtUnder) m.visible = cp.y < 0.5 || atStairs;
+  for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   foes.update(dt, player);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
-  hud.boss(foes.bossBar(player));
+  hud.boss(foes.bossBar(player) || quests.bossBar(player));
+  if (active || started) quests.update(dt, player);
+  hud.xp(char.level, char.xp, char.level >= MAX_LEVEL ? 0 : xpToNext(char.level));
+  if ((saveT -= dt) <= 0 && started && !introBusy) { saveT = 10; saveProgress(); }
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, { camera, height: H, sun, hemi, day });
   magic.update(dt, camera, H, player);
@@ -968,7 +1265,7 @@ function tick(dt) {
   hud.update(player, book);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
-  vmPass.enabled = started; // no arms behind the title screen
+  vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
   if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
   composer.render(dt);
   if (++run.frames % 30 === 1) trace();
@@ -988,8 +1285,9 @@ canvas.addEventListener('webglcontextlost', () => {
   hud.showOverlay('lost', touch);
 });
 canvas.addEventListener('mousedown', () => sfx.start());
-hud.overlay.addEventListener('click', (e) => { if (!e.target.closest('.opts')) begin(); });
-hud.overlay.addEventListener('touchend', (e) => { if (!e.target.closest('.opts')) { e.preventDefault(); begin(); } });
+// the title and pause screens' menus (hud.onMenu), and a click on the pause screen resumes
+hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
+hud.overlay.addEventListener('touchend', (e) => { if (e.target.closest('.opts') || e.target.closest('.menu')) return; e.preventDefault(); if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
 const optPix = ui.querySelector('#optPix'), optSens = ui.querySelector('#optSens');
 const optGfx = ui.querySelector('#optGfx'), optTime = ui.querySelector('#optTime');
 optPix.value = String(pix);
@@ -1007,8 +1305,9 @@ optTime.onchange = () => {
 };
 resize();
 build().then(() => {
-  hud.showOverlay('start', touch);
+  hud.showOverlay('start', touch, { canContinue: !FIRST || !!progress });
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+    quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster };
   document.getElementById('boot')?.remove();
 }).catch((e) => {
