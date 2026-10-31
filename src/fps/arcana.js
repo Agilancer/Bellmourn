@@ -214,7 +214,7 @@ export class Arcana {
         s.mesh = null;
         m.position.copy(at).addScaledVector(s.vel.clone().normalize(), 0.3);
         this.stuck.push({ m, q: m.quaternion.clone(), t: 0, life: 12 });
-        this.sfx?.clang(true);
+        this.sfx?.clang?.(true);
       }
     } else if (def.land === 'well') {
       this.well(def, at, n);
@@ -230,7 +230,7 @@ export class Arcana {
     if (!p.ch) {
       p.ch = { acc: 0, tick: 0, lights: [], loop: null };
       this.channels.add(p);
-      this.sfx?.cast(p.def.kind);
+      this.sfx?.cast?.(p.def.kind);
       this.hands(p.def, 2);
     }
     const how = { swarm: this.swarmHold, beam: this.beamHold, chain: this.chainHold, drain: this.drainHold }[p.def.cast];
@@ -276,7 +276,7 @@ export class Arcana {
     this.missiles.push({ def, slot, state: 'out', pos: at.clone(), vel: rnd().multiplyScalar(2.5).addScaledVector(fwd, 5), mesh, halo,
       age: 0, hoverT: 0, spin: rnd(), target: null });
     this.m.particles.burst(at, this.cols(def), 8, { speed: 2, size: 0.025, grav: 0, life: 0.3 });
-    this.sfx?.chime();
+    this.sfx?.chime?.();
   }
 
   /** A missile's place in the fan: three rows of eight, curving round you at chest height. */
@@ -321,7 +321,7 @@ export class Arcana {
           const to = tgt ? this.chest(tgt) : this.aim(camera, 60).p;
           ms.vel.copy(to.sub(ms.pos).normalize()).multiplyScalar(7);
           this.swarmT = ms.def.interval;
-          this.sfx?.chime(true);
+          this.sfx?.chime?.(true);
         }
       }
     }
@@ -392,7 +392,7 @@ export class Arcana {
     this.m.waves.add(at, n, ms.def.light, { size: 0.7, life: 0.25, sphere: !n });
     this.m.flashAt(at, ms.def.light, 0.35);
     this.scene.remove(ms.mesh); this.scene.remove(ms.halo); ms.halo.material.dispose();
-    this.sfx?.boom(0.06);
+    this.sfx?.boom?.(0.06);
   }
 
   /** Fire beam: the jet, its light at both ends, scorch where it plays on stone. */
@@ -402,7 +402,7 @@ export class Arcana {
         { r: 0.34, tail: 0.25, core: hdr('#ffb040', 1.4), edge: hdr('#e0501c', 0.9), alpha: 0.7, wave: 0.03 }]);
       ch.lights = [this.m.grabLight('beam', true), this.m.grabLight('beam')];
       for (const l of ch.lights) l.light.color.set(def.light);
-      ch.loop = this.sfx?.loop('fire', 0.9);
+      ch.loop = this.sfx?.loop?.('fire', 0.9);
       ch.scorch = 0;
     }
     const hit = this.physics.ray([at.x, at.y, at.z], [dir.x, dir.y, dir.z], def.range);
@@ -443,7 +443,7 @@ export class Arcana {
     if (!ch.loop) {
       ch.lights = [this.m.grabLight('chain', true), this.m.grabLight('chain')];
       for (const l of ch.lights) l.light.color.set(def.light);
-      ch.loop = this.sfx?.loop('lightning');
+      ch.loop = this.sfx?.loop?.('lightning');
       ch.nodes = [];
     }
     if ((ch.tick -= dt) <= 0) {
@@ -475,7 +475,7 @@ export class Arcana {
           this.strike(z, j ? this.chest(ch.nodes[j - 1]) : at, def, def.dmg * Math.pow(0.85, j), { heavy: false, blow: 0.06 });
           z.chill(0.3);   // locked rigid while it runs through them
         });
-        this.sfx?.zap();
+        this.sfx?.zap?.();
         this.m.noise?.(this.chest(first), 18);
       } else if (hit && Math.random() < 0.5) this.m.decals.add('scorch', ch.end, ch.wall, 0.5 + Math.random() * 0.4, { life: 20 });
     }
@@ -519,7 +519,7 @@ export class Arcana {
         { r: 0.13, tail: 0.6, core: hdr('#ff6070', 1.1), edge: hdr('#c01828', 0.8), alpha: 0.55, wave: 0.14 }]);
       ch.lights = [this.m.grabLight('drain', true)];
       ch.lights[0].light.color.set(def.light);
-      ch.loop = this.sfx?.loop('drain');
+      ch.loop = this.sfx?.loop?.('drain');
       ch.tick = 0.25;
     }
     let z = ch.target;
@@ -569,7 +569,7 @@ export class Arcana {
       if (y === null || Math.abs(y - c.y) > 2.2) continue;
       pts.push([x, y, z, row ? 0.9 + Math.random() * 0.5 : 1.4 + Math.random() * 0.7]);
     }
-    if (!pts.length) { this.sfx?.fizzle(); return; }
+    if (!pts.length) { this.sfx?.fizzle?.(); return; }
     const half = def.length / 2 + 0.4;
     const zone = (p) => { const dx = p.x - c.x, dz = p.z - c.z; return Math.abs(dx * side.x + dz * side.z) < half && Math.abs(dx * fwd.x + dz * fwd.z) < 0.9 && Math.abs(p.y - c.y) < 2.5; };
     this.fire(def, pts, def.duration, zone, [c.clone().addScaledVector(side, -def.length / 4), c.clone().addScaledVector(side, def.length / 4)]);
@@ -581,7 +581,7 @@ export class Arcana {
     }
     this.m.waves.add(c.clone().setY(c.y + 0.1), UP, def.light, { size: def.length * 0.6, life: 0.4 });
     this.hands(def);
-    this.sfx?.boom(0.6);
+    this.sfx?.boom?.(0.6);
     this.m.noise?.(c, 20);
   }
 
@@ -594,7 +594,7 @@ export class Arcana {
       return { l, p: p.clone().add(new THREE.Vector3(0, 1, 0)) };
     });
     this.fires.push({ def, pts, flames, base: Float32Array.from(pts.map((q) => q[3])), t: 0, life, zone, lights, tick: 0,
-      touched: new Set(), loop: this.sfx?.loop('fire', 0.45) });
+      touched: new Set(), loop: this.sfx?.loop?.('fire', 0.45) });
   }
 
   updateFires(dt, camera, height) {
@@ -657,7 +657,7 @@ export class Arcana {
     this.m.flashAt(from.clone().addScaledVector(d, 1.5), def.light, 1.4);
     this.screen(def.light, 0.45, 0.9);
     this.hands(def, 3);
-    this.sfx?.boom(0.8);
+    this.sfx?.boom?.(0.8);
     this.m.noise?.(from, 22);
   }
 
@@ -691,7 +691,7 @@ export class Arcana {
     this.m.flashAt(c.clone().setY(c.y + 1), def.light, 1.6, true);
     this.screen(def.light, 0.5, 0.7);
     this.hands(def, 3);
-    this.sfx?.freeze(); this.sfx?.boom(0.5);
+    this.sfx?.freeze?.(); this.sfx?.boom?.(0.5);
     this.m.noise?.(c, 18);
   }
 
@@ -760,7 +760,7 @@ export class Arcana {
     this.m.decals.add('rune', T.clone().setY(T.y + 0.02), UP, def.radius * 1.3, { life: fall + 0.8, glow: true, spin: 1.4, color: new THREE.Color(2.6, 0.9, 0.3) });
     this.meteors.push({ def, S, T, fall, t: 0, rock, core: this.m.sprite(def, 2.2, 3.2), halo: this.m.sprite(def, 5, 0.8), light, ring: 0 });
     this.hands(def, 2);
-    this.sfx?.chargeUp(fall);
+    this.sfx?.chargeUp?.(fall);
   }
 
   updateMeteors(dt) {
@@ -815,7 +815,7 @@ export class Arcana {
     }
     if (pts.length) this.fire({ ...def, dps: 10, burn: 6, power: 16 }, pts, 7, (p) => Math.hypot(p.x - T.x, p.z - T.z) < 3.8 && Math.abs(p.y - T.y) < 2.5, [T]);
     this.screen(def.light, 0.9, 2.8);
-    this.sfx?.boom(1.6);
+    this.sfx?.boom?.(1.6);
   }
 
   /** A blizzard on the ground you mark. */
@@ -825,7 +825,7 @@ export class Arcana {
     const top = roof ? Math.max(2.2, roof.t - 0.2) : 10;
     const light = this.m.grabLight('storm');
     light.light.color.set(def.light);
-    this.storms.push({ def, c, top, t: 0, acc: 0, tick: 0, light, shards: [], loop: this.sfx?.loop('wind', 0.8) });
+    this.storms.push({ def, c, top, t: 0, acc: 0, tick: 0, light, shards: [], loop: this.sfx?.loop?.('wind', 0.8) });
     this.m.decals.add('frost', c.clone().setY(c.y + 0.02), UP, def.radius * 2.2, { life: def.duration + 6 });
     this.hands(def);
   }
@@ -901,7 +901,7 @@ export class Arcana {
       to = start.clone().addScaledVector(f, dist);
       if (!inside || !surface || inside(to.x, to.z)) break;
     }
-    if (dist <= 0.4) { this.sfx?.fizzle(); return; }
+    if (dist <= 0.4) { this.sfx?.fizzle?.(); return; }
     const fl = this.physics.floorAt(to.x, to.z, start.y + 0.6, 0.32, 1.0);
     if (fl !== -Infinity && fl > start.y - 3) to.y = fl;
     const a = start.clone().setY(start.y + 1), b = to.clone().setY(to.y + 1);
@@ -923,14 +923,14 @@ export class Arcana {
     player.vel.x += f.x * 3; player.vel.z += f.z * 3;
     this.screen(def.light, 0.55);
     this.hands(def, 3);
-    this.sfx?.whoosh();
+    this.sfx?.whoosh?.();
     this.m.noise?.(to, 12);
   }
 
   /** Spirit blades: four swords wheeling round you. */
   bladesCast(def, from, dir, player) {
     this.hands(def, 2.6);
-    this.sfx?.whoosh();
+    this.sfx?.whoosh?.();
     this.m.waves.add(player.pos.clone().setY(player.pos.y + 1), UP, def.light, { size: def.radius * 1.4, life: 0.4 });
     if (this.blades) { this.blades.t = Math.min(this.blades.t, 0.5); this.blades.life = def.duration + this.blades.t; return; }
     const mat = new THREE.MeshBasicMaterial({ color: hdr(def.colors[1], 2), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -991,7 +991,7 @@ export class Arcana {
         this.m.particles.burst(best.point, cols, 10, { speed: 3, size: 0.04, grav: 4, life: 0.4 });
       }
     }
-    if ((b.swish -= dt) <= 0) { b.swish = 0.9; if (k > 0.3) this.sfx?.swing(false); }
+    if ((b.swish -= dt) <= 0) { b.swish = 0.9; if (k > 0.3) this.sfx?.swing?.(false); }
     b.light.light.position.set(player.pos.x, player.pos.y + 1.1, player.pos.z);
     b.light.light.intensity = def.power * k * (0.85 + 0.15 * Math.sin(this.time * 9)); b.light.light.distance = 7;
     if (b.t < b.life) return;
@@ -1032,9 +1032,9 @@ export class Arcana {
       this.scene.add(g);
       this.spikes.push({ def, p, t: -i * 0.05, h, g, f, hit, up: false, i });
     }
-    if (!this.spikes.length) { this.sfx?.fizzle(); return; }
+    if (!this.spikes.length) { this.sfx?.fizzle?.(); return; }
     this.hands(def, 2);
-    this.sfx?.boom(0.5);
+    this.sfx?.boom?.(0.5);
   }
 
   updateSpikes(dt) {
@@ -1049,7 +1049,7 @@ export class Arcana {
           new THREE.Vector3((Math.random() - 0.5), 0.6, (Math.random() - 0.5)), { life: 2.5, size: 0.6, grow: 0.9, alpha: 0.35, shade: 0.45 });
         this.m.shake = Math.max(this.m.shake, 0.35);
         this.m.smash?.(s.p, 1, 40);
-        if (s.i % 3 === 0) this.sfx?.boom(0.3);
+        if (s.i % 3 === 0) this.sfx?.boom?.(0.3);
         for (const z of this.foes()) {
           if (s.hit.has(z) || Math.hypot(z.pos.x - s.p.x, z.pos.z - s.p.z) > 1.1 || Math.abs(z.pos.y - s.p.y) > 1.6) continue;
           s.hit.add(z);
@@ -1081,8 +1081,8 @@ export class Arcana {
     });
     const light = this.m.grabLight('well', true);
     light.light.color.set(def.light);
-    this.wells.push({ def, c, t: 0, core, rings, halo: this.m.sprite(def, 3, 0.9), light, loop: this.sfx?.loop('drain', 0.8) });
-    this.sfx?.boom(0.4);
+    this.wells.push({ def, c, t: 0, core, rings, halo: this.m.sprite(def, 3, 0.9), light, loop: this.sfx?.loop?.('drain', 0.8) });
+    this.sfx?.boom?.(0.4);
   }
 
   updateWells(dt) {
@@ -1120,7 +1120,7 @@ export class Arcana {
       this.m.particles.burst(c, cols, 260, { speed: 14, size: 0.07, grav: 2, life: 0.9 });
       this.m.decals.add('scorch', c.clone().setY(this.floorY(c.x, c.z, c.y) ?? c.y - 1), UP, 3.5, { life: 40 });
       this.screen(def.light, 0.6, 1.6);
-      this.sfx?.boom(1.1);
+      this.sfx?.boom?.(1.1);
       this.scene.remove(w.core);
       for (const r of w.rings) { this.scene.remove(r); r.material.dispose(); }
       this.scene.remove(w.halo); w.halo.material.dispose();
@@ -1143,7 +1143,7 @@ export class Arcana {
     const light = this.m.grabLight('plague');
     light.light.color.set(def.light);
     this.clouds.push({ def, c, t: 0, tick: 0, light });
-    this.sfx?.shatter('pot');
+    this.sfx?.shatter?.('pot');
   }
 
   updateClouds(dt) {
@@ -1201,7 +1201,7 @@ export class Arcana {
       } else if (z.wasFrozen) {
         z.wasFrozen = false;
         this.m.particles.burst(_a.set(z.pos.x, z.pos.y + tall * 0.6, z.pos.z), ice, 40, { speed: 3, size: 0.05, grav: 9, floor: z.pos.y, life: 0.9 });
-        this.sfx?.shatter('pot');
+        this.sfx?.shatter?.('pot');
       }
       if (z.burning > 0) {
         for (let i = 0; i < 3; i++) if (Math.random() < dt * 22) this.emit(at(), _b.set((Math.random() - 0.5) * 0.4, 1.2 + Math.random(), (Math.random() - 0.5) * 0.4), fire[i], { life: 0.35 + Math.random() * 0.3, size: 0.06, grav: -1, drag: 2 });
