@@ -39,7 +39,7 @@ function feathered(m, f) {
   m.depthWrite = false;
   m.userData.feather = f;
   m.userData.noCast = true;
-  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '');
+  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '') + (m.userData.tracks ? '-tracks' + m.userData.tracks : '');
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float edge; varying float vEdge; varying vec2 vFeatherP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvEdge = edge; vFeatherP = (modelMatrix * vec4(transformed, 1.0)).xz;');
@@ -52,8 +52,19 @@ function feathered(m, f) {
       }`)
       .replace('#include <map_fragment>', `
       #ifdef USE_MAP
-        // its repeat hidden (engine.js untiled: a road's ruts keep their way)
+        // its repeat hidden (engine.js untiled: laid slabs keep their way)
         vec4 sampledDiffuseColor = untiled( map, vMapUv, dFdx( vMapUv ), dFdy( vMapUv ), untileMask( vFeatherP, 11.0 ), ${m.userData.grain ? 'true' : 'false'} );
+        ${m.userData.tracks ? `{
+          // a road's two wheel tracks (ribbon UVs: u metres across, v along): darker, packed smooth
+          // (a coarser mip), wandering a little; a lighter crown between them
+          float across = vMapUv.x * ${m.userData.tileU.toFixed(3)}, along = vMapUv.y * ${m.userData.tileV.toFixed(3)};
+          float wan = sin(along * 0.31) * 0.12 + sin(along * 0.083 + 1.7) * 0.18;
+          float d = abs(abs(across - wan) - ${m.userData.tracks.toFixed(2)});
+          float tr = 1.0 - smoothstep(0.12, 0.42, d + (fNoise(vec2(along * 0.9, across * 3.0)) - 0.5) * 0.12);
+          vec4 packed = textureLod( map, vMapUv, 3.5 );
+          sampledDiffuseColor = mix( sampledDiffuseColor, packed * 0.7, tr * 0.75 );
+          sampledDiffuseColor.rgb *= 1.0 + 0.07 * (1.0 - smoothstep(0.3, 0.6, abs(across - wan) / ${m.userData.tracks.toFixed(2)}));
+        }` : ''}
         diffuseColor *= sampledDiffuseColor;
       #endif
       {
@@ -204,8 +215,8 @@ export class Library {
 
   /** A lit material for a library surface. `tile` = metres per repeat (the builders put world
    * metres in the UVs and divide by this). */
-  material(id, { tile = 2, tint = 0xffffff, emissive = 0x000000, side = THREE.FrontSide, overlay = false, bump = 1, feather = 0 } = {}) {
-    const k = `${id}|${tile}|${tint}|${emissive}|${side}|${overlay}|${bump}|${feather}`;
+  material(id, { tile = 2, tint = 0xffffff, emissive = 0x000000, side = THREE.FrontSide, overlay = false, bump = 1, feather = 0, tracks = 0 } = {}) {
+    const k = `${id}|${tile}|${tint}|${emissive}|${side}|${overlay}|${bump}|${feather}|${tracks}`;
     if (this.mats.has(k)) return this.mats.get(k);
     const s = this.surf.get(id);
     if (!s) throw new Error('no such surface: ' + id);
@@ -224,7 +235,8 @@ export class Library {
       m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4;
     }
     if (feather) {
-      if (/wheel_worn|cart_rut|paving|flagstone|setts|slab/.test(id)) m.userData.grain = true;   // (ruts, laid slabs: turned half round, never a quarter)
+      if (/wheel_worn|cart_rut|paving|flagstone|setts|slab/.test(id)) m.userData.grain = true;   // (ruts, laid slabs: mirrored along, never turned)
+      if (tracks) m.userData.tracks = tracks;
       feathered(m, feather);
     }
     // `tile` metres per repeat vertically; across, scaled by the texture's own aspect so
@@ -264,7 +276,7 @@ export class Library {
     // sparkles at middle distance)
     const L = (i, rot) => {
       const c = new THREE.Color(layers[i][2] ?? 0xffffff), tint = [c.r, c.g, c.b].map((v) => v.toFixed(3)).join(', '), soft = i < 3 ? ' * 1.6' : '';
-      return `gTex(gT${i}, gp, gdx${soft}, gdy${soft}, ${layers[i][1].toFixed(2)}, ${rot}) * vec3(${tint})`;
+      return `gTex(gT${i}, gp, gdx${soft}, gdy${soft}, ${layers[i][1].toFixed(2)}, ${rot}, gUm) * vec3(${tint})`;
     };
     m.onBeforeCompile = (sh) => {
       tex.forEach((t, i) => { sh.uniforms['gT' + i] = { value: t }; });
@@ -288,12 +300,13 @@ export class Library {
         // one layer at its own scale and turn, and again turned half round and shifted, switched by a
         // slow noise so its tiling never lines up into rows (the second only where it shows). dx, dy:
         // the world position's screen gradients, worked out once for every layer
-        vec3 gTex(sampler2D t, vec2 p, vec2 dx, vec2 dy, float tile, float rot) {
+        vec3 gTex(sampler2D t, vec2 p, vec2 dx, vec2 dy, float tile, float rot, float k) {
           mat2 R = mat2(cos(rot), -sin(rot), sin(rot), cos(rot)) / tile;
-          return untiled(t, R * p, R * dx, R * dy, untileMask(p, rot * 7.0), false).rgb;
+          return untiled(t, R * p, R * dx, R * dy, k, false).rgb;
         }`)
         .replace('#include <map_fragment>', `
         vec2 gp = vGround.xz, gdx = dFdx(gp), gdy = dFdy(gp);
+        float gUm = untileMask(gp, 0.0);   // (where the second copies show: one mask for every layer)
         float r = length(gp);
         float n1 = gFbm(gp * 0.03), n2 = gFbm(gp * 0.09 + 17.0), n3 = gFbm(gp * 0.05 + 41.0);
         float village = 1.0 - smoothstep(${(village - 14).toFixed(1)}, ${(village + 12).toFixed(1)}, r + (n1 - 0.5) * 40.0);

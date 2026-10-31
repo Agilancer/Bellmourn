@@ -61,7 +61,7 @@ export function buildKeep(ctx) {
 
   // ------------------------------------------------------------ the Vigil Road
   // gravelled, with trodden earth either side (the ground sheets', darkened for the Darkwood)
-  const gravel = M('ground_gravel_07', 1.4, { overlay: true, tint: 0x969798, feather: 1.0 }), verge = M('ground_dirt_05', 1.6, { overlay: true, tint: 0x72737e, feather: 1.5 });
+  const gravel = M('ground_gravel_07', 1.4, { overlay: true, tint: 0x969798, feather: 1.0, tracks: 0.8 }), verge = M('ground_dirt_05', 1.6, { overlay: true, tint: 0x72737e, feather: 1.5 });
   const line = [];   // (east to west: one continuous ribbon each, frayed along its sides)
   for (let x = ROAD.x0 + 2; x > ROAD.x1 - 4; x -= 2) line.push([x, roadZ(x)]);
   b.ribbon(verge, line, 3.2, 0.018);

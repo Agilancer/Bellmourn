@@ -274,7 +274,7 @@ class Gore {
     // drawn with the see-through things, after the roads and yards laid over the ground (which are
     // drawn there too, and would cover blood drawn before them)
     this.splats.material.transparent = true;
-    this.splats.renderOrder = 1;
+    this.splats.renderOrder = 0.5;   // (and before water and glass, at 1)
     this.splats.receiveShadow = true;
     this.splats.frustumCulled = false;
     scene.add(this.splats);
@@ -877,7 +877,7 @@ export class Zombie {
     this.owner.onDeath?.(this);   // (experience, and the quests' counts)
     // the dead carried things into the ground with them, now and then
     const loot = this.owner.foes?.ctx?.loot;
-    if (loot && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
+    if (loot && !this.owner.quiet && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
     this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
     const g = this.owner.gore;
     g.splat(this.pos.x, this.owner.floorY(this.pos.x, this.pos.z, this.pos.y), this.pos.z, 2.0, 0.18);

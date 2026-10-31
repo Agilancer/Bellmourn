@@ -94,20 +94,24 @@ export function buildWorld(ctx) {
   // roads and the plaza: overlays drawn over the ground, their edges frayed into the grass rather
   // than ruled straight (`feather`, metres: lib.js feathered). The roads wander a little and widen
   // where they meet the plaza; the plaza, the forecourt and the lots are rounded, uneven patches.
-  const road = M('town_wheel_worn_gravel', 3, { overlay: true, feather: 2.6 });
+  const road = M('town_muddy_gravel', 3, { overlay: true, feather: 2.6, tracks: 1.1 });   // (two wheel tracks: lib.js)
   const dirt = M('town_packed_dirt', 3, { overlay: true, feather: 1.8 });
   const cobble = M('town_grey_cobbles', 2.5, { overlay: true, feather: 1.8 });
   const paving = M('town_limestone_paving', 2.5, { overlay: true, feather: 1.6 });
   const flare = (d) => (d < 0 ? 1 : d < 9 ? (1 - d / 9) ** 2 : 0);   // (a road opening out into the plaza)
-  const street = (along, cross, at) => {   // a road along one axis: [along, across, w] points
+  // a road along one axis: [along, across, w left, w right] points every 2 m, its two edges each
+  // wandering on their own (no ruled verge)
+  const street = (along, cross, at) => {
     const pts = [];
-    for (let u = along[0]; u <= along[1] + 1e-6; u += 4) {
+    for (let u = along[0]; u <= along[1] + 1e-6; u += 2) {
       const v = cross + 0.45 * Math.sin(u * 0.043 + at) + 0.25 * Math.sin(u * 0.117 + at * 2);
-      pts.push([u, v, 4 * (1 + 0.06 * Math.sin(u * 0.071 + at)) + 2.6 * flare(Math.abs(u) - 20)]);
+      const w = 4 * (1 + 0.06 * Math.sin(u * 0.071 + at)) + 2.6 * flare(Math.abs(u) - 20);
+      pts.push([u, v, w + 0.7 * (0.6 * Math.sin(u * 0.45 + at) + 0.4 * Math.sin(u * 0.71 + at * 3)),
+        w + 0.7 * (0.6 * Math.sin(u * 0.52 + at * 5) + 0.4 * Math.sin(u * 0.63 + at * 7))]);
     }
     return pts;
   };
-  const NS = street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, w]) => [x, z, w]), EW = street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4);
+  const NS = street([-48, VILLAGE_R + 20], 0, 1.3).map(([z, x, wl, wr]) => [x, z, wr, wl]), EW = street([-VILLAGE_R - 20, VILLAGE_R + 20], 0, 0.4);
   const plaza = roundRect(0, 0, 20.5, 20.5, 4, 1.2, 1, 80), forecourt = roundRect(0, -47.5, 16.3, 7.8, 3.5, 1.0, 2, 64);
   b.ribbon(road, NS, 4);                        // north-south high street
   b.ribbon(road, EW, 4);                        // east-west road
@@ -125,14 +129,17 @@ export function buildWorld(ctx) {
   lane.push([22.6, -112, 3.1], [20.8, -116.5, 3.3], [18.6, -120, 3.5], [17.2, -124.5, 3.2]);
   b.ribbon(dirt, lane, 3, 0.021);
   T?.verge(lane, 3, 1.4, { clear: (x, z) => z < -51 });
-  // footpaths to the back doors, and the trodden lots beside the alchemist's and the store
+  // cart lanes to the back doors (a tile of the wheel-worn gravel across: its two bands, two ruts),
+  // and the trodden lots beside the alchemist's and the store
+  const cartway = M('town_wheel_worn_gravel', 3, { overlay: true, feather: 1.0 });
   for (const [x0, x1, z] of [[-61, -47, 31.5], [43, 59, 31.5]]) {
     const pts = [];
     for (let x = x0; x <= x1 + 1e-6; x += 2) pts.push([x, z + 0.35 * Math.sin(x * 0.4), 1.5 + 0.15 * Math.sin(x * 0.7)]);
-    b.ribbon(dirt, pts, 1.5, 0.02);
+    b.ribbon(cartway, pts, 1.5, 0.02);
     T?.verge(pts, 1.5, 1.0);
   }
-  for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(dirt, x, -18, 0.02, roundRect(x, -18, 6.3, 14.3, 4, 0.6, k, 40));
+  const lot = M('town_packed_dirt', 3, { overlay: true, feather: 2.4 });
+  for (const [x, k] of [[-30, 3], [30, 4]]) b.patch(lot, x, -18, 0.02, roundRect(x, -18, 6.3, 14.3, 2.6, 1.5, k, 64));
   props.add('well', 0, 0.03, 0, 0, 1.2);
   // gateways on the three roads out of the village (the town pack's): fieldstone east, where
   // the trail to the downs begins, a timber market gate west, the guildhall gate south
@@ -214,21 +221,27 @@ function groundPatches(ctx, M, R, houses) {
   const { b, lib } = ctx;
   const take = (re, salt) => lib.take((s) => re.test(s.id), salt);
   // an irregular blob of ground round (x, z) with a ragged, frayed edge
-  const blob = (id, x, z, r, y = 0.022, n = 10, feather = 1.4) => {
+  const blob = (id, x, z, r, y = 0.022, n = 10, feather = 2.0) => {
     const m = M(id, 2.5, { overlay: true, feather });
     const pts = Array.from({ length: n }, (_, k) => {
       const a = k / n * Math.PI * 2, rr = r * (0.7 + 0.3 * R()) * (1 + 0.22 * wob(a, x * 0.37 + z * 0.11));   // (no stamped circles)
       return [x + Math.cos(a) * rr, z + Math.sin(a) * rr];
     });
-    b.patch(m, x, z, y, pts);
+    // (a point between each two, nudged: an outline of 2n points from the same n draws)
+    const fine = pts.flatMap((p, k) => {
+      const q = pts[(k + 1) % n], a = (k + 0.5) / n * Math.PI * 2, rr = (Math.hypot(p[0] - x, p[1] - z) + Math.hypot(q[0] - x, q[1] - z)) / 2 * (1 + 0.12 * wob(a * 3, x + z));
+      return [p, [x + Math.cos(a) * rr, z + Math.sin(a) * rr]];
+    });
+    b.patch(m, x, z, y, fine);
   };
   const yard = /^town_(irregular_flagstone|slate_paving|brick_street|granite_setts|moss_pavers|fine_gravel|coarse_gravel|limestone_gravel|pebble_gravel)$/;
   houses.forEach((h, i) => { // the yard in front of each door
     const out = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[h.door];
     const cx = h.x + out[0] * (h.w / 2 + 2.2), cz = h.z + out[1] * (h.d / 2 + 2.2);
     const hw = out[0] ? 1.8 : 3, hd = out[0] ? 3 : 1.8;
-    const m = M(take(yard, i), 2, { overlay: true, feather: 1.0 });
-    const outline = roundRect(cx, cz, hw + 0.4, hd + 0.4, 3, 0.3, i + 5, 28);
+    const id = take(yard, i), loose = /gravel/.test(id);
+    const m = M(id, 2, { overlay: true, feather: loose ? 1.5 : 1.1 });
+    const outline = roundRect(cx, cz, hw + 0.4, hd + 0.4, loose ? 2.4 : 3, loose ? 0.7 : 0.5, i + 5, 36);
     b.patch(m, cx, cz, 0.025, outline);
     ctx.tufts?.ring(outline, 0.8, { clear: (x, z) => !houses.some((q) => Math.abs(x - q.x) < q.w / 2 + 0.4 && Math.abs(z - q.z) < q.d / 2 + 0.4) });
   });
@@ -693,7 +706,7 @@ function graveyard(ctx, M, R) {
  * downs, with a sign at the start, lanterns along it, and a camp or two beside it. */
 function trail(ctx, M, R) {
   const { b } = ctx;
-  const dirt = M('dark_forest_gravel_path', 2.4, { overlay: true, feather: 0.9 }), verge = M('dark_forest_packed_mud', 2.6, { overlay: true, feather: 1.4 });
+  const dirt = M('dark_forest_gravel_path', 2.4, { overlay: true, feather: 0.9, tracks: 0.7 }), verge = M('dark_forest_packed_mud', 2.6, { overlay: true, feather: 1.4 });
   const zAt = (x) => Math.sin(x * 0.045) * 2.2 + Math.sin(x * 0.11) * 0.8;
   const line = [];
   for (let x = 116; x <= REGION.x0 + 4; x += 2) line.push([x, zAt(x)]);

@@ -412,7 +412,9 @@ async function rehearse() {
       castSlot('F');
       await step(8);
     }
-    // one of the dead, cut and burnt and blasted at every part of it until it comes apart
+    // one of the dead, cut and burnt and blasted at every part of it until it comes apart (and
+    // dropping nothing: zombies.quiet)
+    zombies.quiet = true;
     const z = zombies.spawn(null, at.x, at.z - 3.2, { zone: 'wild' });
     await step(2);
     const kinds = [['blade', true], ['blunt', true], ['fire', true], ['lightning', true], ['frost', false]];
@@ -430,6 +432,7 @@ async function rehearse() {
     if (magic.wisp) magic.wisp.t = 0;   // (the wisp would follow you for a minute and a half: sent off)
     await step(10);
   } catch (e) { console.warn('the rehearsal', e); }
+  zombies.quiet = false;
   for (const s of ['R', 'L']) pending[s] = null;
   magic.endCharge(); magic.arcana.endChannels();
   Object.assign(book, was.book);

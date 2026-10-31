@@ -123,21 +123,21 @@ export class Builder {
     this.edgeMesh(mat, pos, pos.map((p) => [p[0], -p[2]]), edge, tris, shade);
   }
 
-  /** A feathered road along `pts` [[x, z, w?]...] at height y, w metres either side of its line (a
-   * point's own w, else `w`), frayed along its sides (and at its ends unless ends === false). Its
+  /** A feathered road along `pts` [[x, z, w?, w2?]...] at height y, w metres either side of its line (a
+   * point's own w (and w2 for its other side), else `w`), frayed along its sides (and at its ends unless ends === false). Its
    * UVs run along it (u: metres across, v: metres along), so ruts and setts follow the road. */
   ribbon(mat, pts, w, y = 0.02, { ends = true, shade = 1 } = {}) {
     const fmax = mat.userData.feather || 1, n = pts.length;
     const pos = [], edge = [], uv = [], tris = [];
     let along = 0;
     for (let i = 0; i < n; i++) {
-      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], [x, z] = pts[i], wi = pts[i][2] ?? w;
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], [x, z] = pts[i], wi = pts[i][2] ?? w, wo = pts[i][3] ?? wi;
       if (i) along += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]);
       let dx = b[0] - a[0], dz = b[1] - a[1];
       const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-      const ox = -dz, oz = dx, f = Math.min(fmax, wi * 0.8);
+      const ox = -dz, oz = dx, f = Math.min(fmax, Math.min(wi, wo) * 0.8);
       const e = ends && (i === 0 || i === n - 1) ? 0.5 : 1;   // (an end: half way out, frayed with the rest)
-      for (const [k, ev] of [[wi + f, 0], [wi - f, e], [-(wi - f), e], [-(wi + f), 0]]) { pos.push([x + ox * k, y, z + oz * k]); edge.push(ev); uv.push([k, along]); }
+      for (const [k, ev] of [[wi + f, 0], [wi - f, e], [-(wo - f), e], [-(wo + f), 0]]) { pos.push([x + ox * k, y, z + oz * k]); edge.push(ev); uv.push([k, along]); }
     }
     for (let i = 0; i + 1 < n; i++) for (let s = 0; s < 3; s++) {
       const a = i * 4 + s, b = a + 1, c = a + 4, d = a + 5;

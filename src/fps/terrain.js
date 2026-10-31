@@ -243,8 +243,9 @@ function downsMaterial(lib) {
       // the world position's screen gradients, worked out once (so a layer can be skipped where it
       // doesn't show, and the texture sampled inside the branch)
       vec3 dPX, dPY;
+      float dUm;   // (where the second copies show: one mask a pixel, for every layer)
       vec3 dTex(sampler2D t, vec2 p, float tile) {   // (and again turned and shifted by a slow noise: no rows of tiles)
-        return untiled(t, p / tile, dPX.xz / tile, dPY.xz / tile, untileMask(p, 3.0), false).rgb;
+        return untiled(t, p / tile, dPX.xz / tile, dPY.xz / tile, dUm, false).rgb;
       }
       vec3 dTex2(sampler2D t, vec2 p, mat2 R, vec2 o, float tile) {   // (turned by R and shifted)
         vec2 uv = (R * p + o) / tile;
@@ -261,6 +262,7 @@ function downsMaterial(lib) {
       .replace('#include <map_fragment>', `
       vec2 gp = vDP.xz;
       dPX = dFdx(vDP); dPY = dFdy(vDP);
+      dUm = untileMask(vDP.xz, 3.0);
       float n1 = dNoise(gp * 0.035), n2 = dNoise(gp * 0.11 + 7.0), n3 = dNoise(gp * 0.06 + 31.0);
       // every layer drawn only where it shows
       float slope = 1.0 - normalize(vDN).y;
