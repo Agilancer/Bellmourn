@@ -3,7 +3,6 @@
 // with blades drawn pixel by pixel on a small canvas (crisp and low resolution, like everything
 // else), all of them one instanced draw, nodding a little in the wind and lit as the ground is.
 import * as THREE from 'three';
-import { refineTexture } from './engine.js';
 
 function rng(seed) {
   return () => {
@@ -30,10 +29,20 @@ function tuftTexture() {
       x += lean * (k / h) * 0.9;
     }
   }
-  const t = new THREE.CanvasTexture(c);
+  // into a texture whose clear pixels carry the grass's colour (a canvas keeps them black, and
+  // filtering and mipmaps would bleed that black into every one-pixel blade), rows flipped for WebGL
+  const src = g.getImageData(0, 0, S, S).data, data = new Uint8Array(S * S * 4);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = (y * S + x) * 4, o = ((S - 1 - y) * S + x) * 4;
+    if (src[i + 3]) data.set([src[i], src[i + 1], src[i + 2], 255], o);
+    else data.set([90, 104, 50, 0], o);
+  }
+  const t = new THREE.DataTexture(data, S, S);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  refineTexture(t);
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true; t.anisotropy = THREE.Texture.DEFAULT_ANISOTROPY;
+  t.needsUpdate = true;
   return t;
 }
 
