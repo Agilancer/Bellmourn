@@ -472,6 +472,7 @@ export class Sfx {
   /** A quest taken (low) or done (high): two notes and a bell. */
   quest(done = false) {
     if (!this.ok) return;
+    if (done) this.stinger?.('triumph');
     const t = this.ctx.currentTime, b = done ? 660 : 440;
     this._tone(t, 0.5, { type: 'triangle', f0: b, f1: b, gain: 0.07 });
     this._tone(t + 0.14, 0.9, { type: 'triangle', f0: b * 1.5, f1: b * 1.5, gain: 0.07 });

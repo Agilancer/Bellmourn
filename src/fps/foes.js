@@ -417,7 +417,7 @@ class Foe extends Zombie {
       _v.set(Math.random() - 0.5, Math.random() * 0.8, Math.random() - 0.5).multiplyScalar(5).addScaledVector(opts.dir, -2);
       g.drop(p, _v, 0.008 + Math.random() * 0.01, sp[i % 3]);
     }
-    sfx?.clang?.(false);
+    sfx?.clang?.(false, p);   // (heard from the shield)
     this.foes.flash(p, 0xffd080, 0.25);
     this.blockT = Math.min(this.blockT, 0.25);
     this.hunt(this.owner.player?.pos, true);
@@ -1351,6 +1351,10 @@ export class Foes {
     const k = Math.max(0, 1 - d / 40);
     if (k <= 0) return;
     const t = s.ctx.currentTime;
+    if (kind === 'swing' && s.play('sword_attack', { at: p, far: 40, vol: 0.95, rate: extra === 'knight' ? 0.9 : 1.05 })) return;
+    if (kind === 'cast' && s.play(extra === 'frost' || extra === 'ice' ? 'ice_throw' : extra === 'blood' || extra === 'venom' ? 'firebuff' : 'fireball', { at: p, far: 45, vol: 0.9, rate: extra === 'venom' ? 0.8 : 1 })) return;
+    if (kind === 'burst' && s.play('spell_impact', { at: p, far: 45, vol: 1, rate: 0.9 })) { s._tone(t, 0.25, { type: 'sine', f0: 220, f1: 60, gain: 0.2 * k }); return; }
+    if (kind === 'erupt' && s.play('rock_wall', { at: p, far: 50, vol: 1.1 })) return;
     if (kind === 'swing') {
       s._noise(t, 0.18, { type: 'bandpass', f0: extra === 'knight' ? 1800 : 1200, f1: 400, q: 2, gain: 0.25 * k, attack: 0.02 });
     } else if (kind === 'cast') {

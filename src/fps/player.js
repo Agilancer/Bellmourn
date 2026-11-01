@@ -54,7 +54,7 @@ export class Player {
       const f = Math.max(0, 1 - FRICTION * dt);
       this.vel.x *= f; this.vel.z *= f;
     }
-    if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; }
+    if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; this.onJump?.(); }
     this.vel.y -= GRAVITY * dt;
 
     const p = this.pos, ox = p.x, oz = p.z, oy = p.y, wasOn = this.onGround;
@@ -72,6 +72,7 @@ export class Player {
       // snap down stairs when walking off a step (but not off ledges); a long drop hurts (about
       // five metres before it does, a deadly forty)
       if (!wasOn && this.vel.y < -16) this.onFall?.((-this.vel.y - 16) * 2.6);
+      if (!wasOn && this.vel.y < -3) this.onLand?.(Math.min(1, (-this.vel.y - 3) / 13));   // (a landing: how hard, 0..1)
       p.y = floor; this.vel.y = 0; this.onGround = true;
     } else if (this.onGround && p.y - floor < STEP + 0.05 && this.vel.y <= 0) {
       p.y = floor; this.vel.y = 0;

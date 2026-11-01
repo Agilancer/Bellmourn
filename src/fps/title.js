@@ -10,6 +10,7 @@
 // moment: the compositor and the audio thread play them, so they keep time with each other however
 // hard the loading holds the main thread.
 import { Sfx } from './audio.js';
+import { Music } from './music.js';
 import { TOUCH } from './input.js';
 
 const LOGOS = {
@@ -41,6 +42,8 @@ const SETTINGS = `
   <h2>Settings</h2><div class="t-rule"></div>
   <div class="t-set">
     <label><span>Volume</span><input id="optVol" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <label><span>Music</span><input id="optMusic" type="range" min="0" max="1" step="0.05" value="0.7"></label>
+    <label><span>Ambience</span><input id="optAmb" type="range" min="0" max="1" step="0.05" value="0.8"></label>
     <label><span>Look speed</span><input id="optSens" type="range" min="0.5" max="2.5" step="0.1" value="1"></label>
     <label><span>Resolution</span><select id="optRes"><option value="1" selected>Full</option><option value="0.75">75%</option><option value="0.5">Half</option></select></label>
     <label><span>Graphics</span><select id="optGfx"><option value="high">High (shadows)</option><option value="low">Low</option></select></label>
@@ -135,6 +138,7 @@ function impulse(c, secs, decay) {
 export class Title {
   constructor() {
     this.sfx = new Sfx();
+    this.music = new Music(this.sfx);   // (the title's song, the opening's, and the world's music: music.js)
     try { const v = parseFloat(localStorage.getItem('bm.volume')); if (Number.isFinite(v)) this.sfx.volume = v; } catch { /* no storage */ }
     this.mode = 'boot';          // boot | gate | splash | main | loading | hidden
     this.isReady = false; this.logoIn = false; this.menuOn = false;
@@ -201,10 +205,15 @@ export class Title {
       try { localStorage.setItem('bm.volume', vol.value); } catch { /* no storage */ }
     };
     vol.onchange = () => this.tick(1.6);
+    // and the music's and the ambience's, under it
+    for (const [id, key, set, now] of [['#optMusic', 'bm.music', 'setMusicVolume', this.sfx.musicVolume], ['#optAmb', 'bm.ambience', 'setAmbVolume', this.sfx.ambVolume]]) {
+      const r = this.settings.querySelector(id);
+      r.value = String(now);
+      r.oninput = () => { this.sfx[set](Number(r.value)); try { localStorage.setItem(key, r.value); } catch { /* no storage */ } };
+    }
     // the voices: natural (neural, a computer's default), the browser's own (a phone's), or none
     const vo = this.settings.querySelector('#optVoice'), get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-    const touch = matchMedia('(pointer: coarse)').matches;
-    vo.value = get('bm.voices') === '0' ? 'off' : get('bm.neural') === '1' || (get('bm.neural') !== '0' && !touch) ? 'neural' : 'basic';
+    vo.value = get('bm.voices') === '0' ? 'off' : get('bm.neural') === '0' ? 'basic' : 'neural';
     vo.onchange = () => {
       try {
         localStorage.setItem('bm.voices', vo.value === 'off' ? '0' : '1');
@@ -244,9 +253,15 @@ export class Title {
   async boot() {
     let skip = false;
     try { skip = sessionStorage.getItem('bm.skipSplash') === '1'; sessionStorage.removeItem('bm.skipSplash'); } catch { /* no storage */ }
-    // the pictures in hand (and their edges found) before anything fades in
+    // the pictures in hand (and their edges found), and the title's song fetched and decoded, before
+    // anything fades in: it's booked to start the instant Bellmourn's logo does (music.js)
+    this.sfx.start();
+    const song = this.music.preloadTitle();
     const imgs = Object.entries(LOGOS).map(([k, src]) => { const i = new Image(); i.src = src; return [k, i]; });
-    await Promise.race([Promise.all(imgs.map(([, i]) => i.decode().catch(() => {}))), wait(6000)]);
+    await Promise.race([Promise.all([...imgs.map(([, i]) => i.decode().catch(() => {})), song]), wait(20000)]);
+    // (a song slower than that is booked when it comes, from then; then the effects come in)
+    song.then((ok) => { if (ok && this.mainAt != null && !this.music.titleSong) this.music.bookTitle(Math.max(this.mainAt, this.sfx.ctx.currentTime)); })
+      .finally(() => { this.sfx.loadBank(); this.music.preloadIntro(); });
     for (const [k, i] of imgs) this.edges[k] = edgesOf(i);
     // a browser plays no sound till it's been clicked (or a key pressed), unless it trusts the site
     this.sfx.start();
@@ -317,6 +332,9 @@ export class Title {
     const glints = L.querySelector('.t-glints');
     glints.querySelectorAll('.t-glint').forEach((g) => g.remove());
     if (this.bus) this.toll(this.bus, at0 + at + 0.05);
+    // the title's song, from the logo's first moment
+    this.mainAt = at0 + at;
+    if (this.sfx.ctx) this.music.bookTitle(this.mainAt);   // (booked on a context not yet let run, it plays once it is)
     MAIN_GLINTS.forEach((d, i) => {
       const [x, y] = this.spot('bellmourn', ZONES[i], taken);
       glints.append(this.glint(x, y, at + d, 1.15));
