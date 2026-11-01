@@ -10,7 +10,7 @@
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
 import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
-import { fogNode } from './nodes.js';
+import { fogNode, SKY } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
@@ -1136,6 +1136,7 @@ let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0), WHITE = new THREE.Color(1, 1, 1), WISP = new THREE.Color(0xffe8b0);
+const _sp = new THREE.Vector3(), _cd = new THREE.Vector3();
 let day = dayState(hour);
 function light(dt, t) {
   if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
@@ -1170,6 +1171,15 @@ function light(dt, t) {
     sun.position.copy(_c).addScaledVector(ld, 300);
     sunShadows?.update();   // (WebGPU: the moving things' map follows; the world's is kept: sunshadow.js)
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
+  if (WEBGPU) {   // the sky's light, for the haze's glow toward it and the god rays (nodes.js SKY, post.js)
+    SKY.dir.value.copy(ld);
+    SKY.color.value.copy(sun.color);
+    SKY.glow.value = (isDay ? 0.25 + 0.75 * day.day : 0.35) * surface;
+    _sp.copy(camera.position).addScaledVector(ld, 1000).project(camera);
+    const facing = camera.getWorldDirection(_cd).dot(ld);
+    composer.rays.uv.value.set(_sp.x * 0.5 + 0.5, _sp.y * 0.5 + 0.5);
+    composer.rays.on.value = THREE.MathUtils.clamp((facing - 0.05) / 0.35, 0, 1) * (isDay ? Math.min(1, day.day * 2) : 0.3) * L.out * surface;
+  }
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;

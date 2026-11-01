@@ -158,22 +158,20 @@ export function ref(path, type, fallback) {
   return u;
 }
 
-const _dummies = new Map();
 /** A texture node one graph shares between materials, its picture each drawn material's own: `pick`
  * (material, object) => Texture, the material being sourceOf's (so a shadow pass still finds it). `like`: a texture of the kind it will hold (colour space, type,
  * filtering: these shape the shader, so they must be the same for every material it serves). Use
  * the node's .sample(uv)/.grad()/.level() as any texture node's; those all follow it. */
 export function shared(pick, like) {
-  const k = `${like.colorSpace}|${like.type}|${like.minFilter}|${like.magFilter}`;
-  let d = _dummies.get(k);
-  if (!d) {
-    d = new THREE.Texture();
-    d.colorSpace = like.colorSpace; d.type = like.type; d.minFilter = like.minFilter; d.magFilter = like.magFilter;
-    _dummies.set(k, d);
-  }
-  const node = T.texture(d);
-  node.onObjectUpdate((f) => pick(sourceOf(f), f.object) || undefined);
-  return node;
+  // (a placeholder of its own: two shared textures in one graph must not be taken for one binding)
+  const d = new THREE.Texture();
+  d.colorSpace = like.colorSpace; d.type = like.type; d.minFilter = like.minFilter; d.magFilter = like.magFilter;
+  d.wrapS = like.wrapS; d.wrapT = like.wrapT;
+  const upd = (f) => pick(sourceOf(f), f.object) || undefined;
+  // every sample made from it (.sample, .grad, .level are clones of it) follows the material too: it
+  // may be one of those, not this node, that ends up in the graph
+  const arm = (n) => { n.onObjectUpdate(upd); const clone = n.clone.bind(n); n.clone = () => arm(clone()); return n; };
+  return arm(T.texture(d));
 }
 
 const _crisp = new Map();
@@ -191,8 +189,6 @@ export function crispColor(m) {
     const base = shared((mat) => mat.map, map);
     const u = T.uv();
     const s = sharpGrad(base, u, T.dFdx(u), T.dFdy(u));
-    // (the sample that's drawn follows the material too: it and its base are one texture)
-    s.onObjectUpdate((f) => sourceOf(f).map || undefined);
     g = settled(s.mul(ref('color', 'color')));
     _crisp.set(k, g);
   }
@@ -204,6 +200,15 @@ export function crispColor(m) {
 const _identity = new THREE.Matrix3();
 
 // ------------------------------------------------------------------ fog
+/** The sky's light as the air and the picture see it, set each frame by main.js light(): where the
+ * sun (or the moon) is, its colour, and how much it glows in the haze (none below ground). The fog's
+ * glow toward it and the god rays (post.js) both go by these. */
+export const SKY = WEBGPU ? {
+  dir: T.uniform(new THREE.Vector3(0, 1, 0)).setGroup(T.renderGroup),
+  color: T.uniform(new THREE.Color(1, 0.9, 0.7)).setGroup(T.renderGroup),
+  glow: T.uniform(0).setGroup(T.renderGroup),
+} : null;
+
 /** The world's fog as a node (scene.fogNode): three's range fog on scene.fog (its colour, near and
  * far follow the day as before), and, where `mist` gives a box, the graveyard's ground mist
  * (engine.js groundMist): a height fog along the eye's ray, thick on the ground, broken by noise. */
@@ -215,7 +220,11 @@ export function fogNode(fog, mist = null) {
   return Fn(() => {
     const c = output.rgb.toVar();
     const k = smoothstep(near, far, positionView.z.negate());
-    c.assign(mix(c, color, k));
+    // the air lit by the sun (or moon) it's looked through toward: haze in that quarter of the sky
+    // glows its colour, warm at golden hour, silver under the moon (SKY: main.js light())
+    const toward = clamp(T.dot(normalize(positionWorld.sub(cameraPosition)), SKY.dir), 0.0, 1.0);
+    const glow = toward.mul(toward).mul(toward).mul(toward).mul(toward).mul(toward).mul(0.75).add(toward.mul(0.12)).mul(SKY.glow);
+    c.assign(mix(c, mix(color, SKY.color, clamp(glow, 0.0, 0.85)), k));
     if (mist) {
       const { box: [x0, z0, x1, z1], density, falloff, edge } = mist;
       const mq = positionWorld.xz;

@@ -15,6 +15,20 @@ import * as THREE from 'three';
 const T = THREE.TSL;
 const CHUNKS = 8;
 
+/** Softer shadow edges than three's own PCF (five taps): sixteen on a Vogel disk turned per pixel, each
+ * one the GPU's own filtered depth comparison, so a penumbra is smooth, not speckled. The disk is
+ * `shadow.radius` texels across. */
+const softPCF = T.Fn(({ depthTexture, shadowCoord, shadow }) => {
+  const { reference, renderGroup, vec2, float, texture, vogelDiskSample, interleavedGradientNoise, screenCoordinate, PI2 } = T;
+  const mapSize = reference('mapSize', 'vec2', shadow).setGroup(renderGroup);
+  const radius = reference('radius', 'float', shadow).setGroup(renderGroup);
+  const r = vec2(1).div(mapSize).mul(radius);
+  const phi = interleavedGradientNoise(screenCoordinate.xy).mul(PI2);
+  let sum = float(0);
+  for (let i = 0; i < 16; i++) sum = sum.add(texture(depthTexture, shadowCoord.xy.add(vogelDiskSample(i, 16, phi).mul(r))).compare(shadowCoord.z));
+  return sum.mul(1 / 16);
+});
+
 /** The shadow of the never-moving world: kept, redrawn in slices into a back map, then swapped in. */
 class StaticShadow extends THREE.ShadowNode {
   constructor(light, shadow, isStatic) {
@@ -150,6 +164,7 @@ export function installSunShadows(sun, { isStatic, staticSize = 4096, staticBox 
   const c = S.camera;
   c.left = c.bottom = -staticBox / 2; c.right = c.top = staticBox / 2;
   c.updateProjectionMatrix();
+  S.filterNode = softPCF; S.radius = 2.2;
   const stat = new StaticShadow(sun, S, isStatic);
   // the stand-in light: the sun's direction, its own shadow map, its own matrices
   const proxy = new THREE.DirectionalLight(0xffffff, 0);
@@ -157,7 +172,8 @@ export function installSunShadows(sun, { isStatic, staticSize = 4096, staticBox 
   proxy.shadow.mapSize.set(dynSize, dynSize);
   const pc = proxy.shadow.camera;
   pc.left = pc.bottom = -dynBox / 2; pc.right = pc.top = dynBox / 2; pc.near = S.camera.near; pc.far = S.camera.far;
-  proxy.shadow.bias = S.bias; proxy.shadow.normalBias = S.normalBias; proxy.shadow.radius = S.radius;
+  proxy.shadow.bias = S.bias; proxy.shadow.normalBias = S.normalBias; proxy.shadow.radius = 2.6;
+  proxy.shadow.filterNode = softPCF;
   pc.updateProjectionMatrix();
   const dyn = new DynamicShadow(proxy, proxy.shadow, isStatic);
   S.shadowNode = T.min(stat, dyn);

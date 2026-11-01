@@ -8,6 +8,7 @@
 // .enabled), bloom.setSize() and grade.uniforms.
 import * as THREE from 'three';
 import { bloom as bloomNode } from 'three/addons/tsl/display/BloomNode.js';
+import { SKY } from './nodes.js';
 
 const T = THREE.TSL;
 
@@ -51,9 +52,28 @@ export function makeComposer(renderer, scene, camera, { samples = 4, bloom = tru
   };
   const g = grade.uniforms;
 
+  // god rays: where the sun (or the moon) is behind leaves, a roof's edge, a spire, light streams out
+  // from it through the haze. A half-size pass walks from each pixel toward the sun's place on the
+  // screen through the picture, gathering only what's brighter than lit ground (the sky about the
+  // sun), fading as it goes; main.js light() says where the sun is and how strongly (rays.uv, rays.on)
+  const rays = { uv: uniform(new THREE.Vector2(0.5, 0.8)), on: uniform(0), k: uniform(0.55) };
+  const STEPS = touch ? 20 : 36;
+  const shafts = T.rtt(Fn(() => {
+    const p = uv();
+    const step = p.sub(rays.uv).mul(0.94 / STEPS);
+    const at = p.toVar(), fall = float(1).toVar(), sum = vec3(0).toVar();
+    T.Loop(STEPS, () => {
+      at.subAssign(step);
+      const s = color.sample(at).level(0).rgb;
+      sum.addAssign(s.mul(smoothstep(1.1, 3.2, T.luminance(s))).mul(fall));
+      fall.mulAssign(0.96);
+    });
+    return vec4(sum.mul(1 / STEPS).mul(rays.on).mul(rays.k), 1.0);
+  })(), null, null, { type: THREE.HalfFloatType, resolutionScale: touch ? 0.25 : 0.5 });
+
   const out = Fn(() => {
     const p = uv();
-    const add = glow ? glow.getTextureNode().sample(p).rgb : vec3(0);
+    const add = (glow ? glow.getTextureNode().sample(p).rgb : vec3(0)).add(shafts.sample(p).rgb.mul(SKY.color));
     // (each tap tone-mapped as the WebGL grade saw it: after OutputPass)
     const tap = (o) => clamp(renderOutput(vec4(color.sample(o ? p.add(o) : p).rgb.add(add), 1.0), THREE.NeutralToneMapping, THREE.SRGBColorSpace).rgb, 0.0, 1.0);
     const c0 = tap(null).toVar();
@@ -78,7 +98,7 @@ export function makeComposer(renderer, scene, camera, { samples = 4, bloom = tru
 
   const composer = {
     isWebGPUComposer: true,
-    pipeline, world, grade, glow,
+    pipeline, world, grade, glow, rays,
     worldPass: world,
     vmPass: world.vm,
     /** The buffer the world is drawn into (what shaders are compiled against). */
