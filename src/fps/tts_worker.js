@@ -37,6 +37,33 @@ async function load(voices = [], { dtype = 'q8', threads = 1 } = {}) {
   }
 }
 
+/** The model's own quiet cut from either end of what it says (about a quarter second before every
+ * piece and half a second after: strung together, that was most of a second between one sentence and
+ * the next, and a beat late on every first word). The game puts its own pauses between them, by the
+ * punctuation (voice.js pauseAfter). A breath of it is kept, faded, and a lone click at the end
+ * isn't taken for speech. */
+function trim(a, rate) {
+  const win = Math.max(1, Math.round(rate * 0.01)), n = Math.floor(a.length / win);
+  if (n < 8) return a;
+  const e = new Float32Array(n);
+  let peak = 0;
+  for (let w = 0; w < n; w++) {
+    let m = 0;
+    for (let i = w * win, j = i + win; i < j; i++) { const x = a[i] < 0 ? -a[i] : a[i]; if (x > m) m = x; }
+    e[w] = m; if (m > peak) peak = m;
+  }
+  const th = Math.max(0.004, peak * 0.03);
+  let s = 0; while (s < n - 1 && !(e[s] >= th && e[s + 1] >= th)) s++;
+  let t = n - 1; while (t > s && !(e[t] >= th && e[t - 1] >= th)) t--;
+  if (t - s < 4) return a;
+  const from = Math.max(0, (s - 2) * win), to = Math.min(a.length, (t + 1) * win + Math.round(rate * 0.06));
+  const out = a.slice(from, to);
+  const fi = Math.min(out.length, Math.round(rate * 0.01)), fo = Math.min(out.length, Math.round(rate * 0.045));
+  for (let i = 0; i < fi; i++) out[i] *= i / fi;
+  for (let i = 0; i < fo; i++) out[out.length - 1 - i] *= i / fo;
+  return out;
+}
+
 // one line at a time: the most pressing first (what's being said now, then what's waiting its turn,
 // then what's made ahead), in the order asked among equals; the game drops what it no longer wants
 const queue = [];
@@ -55,7 +82,7 @@ async function pump() {
       await loading;
       const t0 = performance.now();
       const a = await tts.generate(m.text, { voice: m.voice, speed: m.speed || 1 });
-      const audio = a.audio instanceof Float32Array ? a.audio : new Float32Array(a.audio);
+      const audio = trim(a.audio instanceof Float32Array ? a.audio : new Float32Array(a.audio), a.sampling_rate);
       postMessage({ type: 'audio', id: m.id, audio, rate: a.sampling_rate, ms: performance.now() - t0 }, [audio.buffer]);
     } catch (err) {
       postMessage({ type: 'fail', id: m.id, error: String(err) });
