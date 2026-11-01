@@ -22,6 +22,8 @@
 // Settings: localStorage bm.voices = '0' turns all voices off; bm.neural = '0' keeps to the
 // browser's voices.
 
+import { monsterFx, MONSTER_FX } from './voicefx.js';
+
 const EARSHOT = 28;          // metres
 const PHONE = typeof navigator !== 'undefined' && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
 /** Which build of the model, on how many threads: the full one on a computer whose page is isolated
@@ -193,8 +195,11 @@ export function neuralCast(key, { sex = 'm', kind = 'villager', age = null, fear
   return { voice: list[h % list.length], rate, speed: Math.max(0.6, Math.min(1.6, (0.96 + r(13) * 0.08) / rate)), fx };
 }
 
-/** A speaker's effect, feeding `out`: what to connect their voice to. */
+/** A speaker's effect, feeding `out`: what to connect their voice to. `fx` is a name, or a chain of
+ * them (the voice through each in turn); the monsters' effects are in voicefx.js. */
 export function fxInput(ctx, fx, out) {
+  if (Array.isArray(fx)) { let node = out; for (let i = fx.length - 1; i >= 0; i--) node = fxInput(ctx, fx[i], node); return node; }
+  if (fx && MONSTER_FX.includes(String(fx).split(':')[0])) return monsterFx(ctx, fx, out);
   if (fx === 'fear' || fx === 'fear-helm') {   // terror: the voice wavers in pitch and quavers in breath, a little hoarse
     const t = ctx.currentTime, end = t + 12;   // (its wobblers run a while, then stop: a line is said by then)
     const into = fx === 'fear-helm' ? fxInput(ctx, 'helm', out) : out;
@@ -445,7 +450,7 @@ const neural = {
       side = d > 0.5 ? Math.max(-0.85, Math.min(0.85, (dx * rx + dz * rz) / d)) : 0;
     }
     // (the dead's rasp drives the voice hard: brought back down after it)
-    gain.gain.value = vol * (line.cast.fx === 'undead' ? 0.4 : 1);
+    gain.gain.value = vol * ([].concat(line.cast.fx).includes('undead') ? 0.4 : 1);
     if (pan) { pan.pan.value = side; gain.connect(pan); pan.connect(this.bus); } else gain.connect(this.bus);
     const lv = ctx.createGain();
     lv.gain.value = level;
