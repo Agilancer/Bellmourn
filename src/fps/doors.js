@@ -110,7 +110,7 @@ export class Doors {
   toggle(door) {
     door.open = !door.open;
     if (door.open) for (const b of door.boxes) b.off = true; // walk through as soon as it moves
-    this.ctx.sfx?.door?.(door.open);
+    this.ctx.sfx?.door?.(door.open, /cathedral/i.test(door.name));
   }
 
   update(dt) {

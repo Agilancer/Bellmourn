@@ -39,7 +39,7 @@ import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
 import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion } from './gear.js';
 import { Bag, armorCut } from './bag.js';
-import { terrainHeight, REGION, POOL, STREAM } from './terrain.js';
+import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
 import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
 import { Zombies } from './zombies.js';
@@ -50,6 +50,7 @@ import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
 import { Crater, CRATER, CRATER_ARMS, formCrater } from './crater.js';
 import { Intro } from './intro.js';
+import { Ambience } from './ambience.js';
 import { Quests, GIVERS } from './quests.js';
 import { SaveMenu, SLOT_COUNT, readSlot } from './saves.js';
 import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
@@ -121,6 +122,13 @@ const lantern = new THREE.PointLight(0xffd2a0, 0, 7, 2);
 scene.add(lantern);
 
 const sfx = title.sfx;
+// the voices play through the game's own sound, and are fetched from the start (the model and every
+// voice in it: voice.js); a new game waits for them, so the village speaks to you as you wake
+voice.useSound(sfx);
+voice.warm();
+// the music (title.js made it: it has the title's song) and the world's own sound (ambience.js)
+const music = title.music, ambience = new Ambience(sfx);
+ambience.prefetch(['wind_calm', 'wind_forest', 'birds', 'night', 'fire_small', 'fire_medium', 'torch']);
 // A phone that runs out of memory is killed and reloaded by the browser with no word of why (Safari's
 // "A problem repeatedly occurred"), so each run notes how far it has got; if it never closed cleanly,
 // the next shows where it stopped, under the title.
@@ -154,7 +162,7 @@ const SPELL_BLOW = { fire: 1, lightning: 1.25, staff: 0.85, frost: 0.5 };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
-let hour = { golden: 17.6, noon: 12, night: 23, cycle: 6 }[timeMode] ?? 6;   // (a new day begins at 06:00)
+let hour = { golden: 17.6, noon: 12, night: 23, cycle: 12 }[timeMode] ?? 12;   // (a new game begins at noon)
 let started = false, paused = false, lost = false;
 let W = 2, H = 2;
 let shake = 0, flameList = [], lightTimer = 0;
@@ -287,7 +295,7 @@ async function build() {
     const clay = /^(jar_|amphora|vase_|urn_|crock_)/.test(p.id);
     // (dust, soft, low and spreading: the pieces themselves are the debris)
     for (let i = 0; i < 6; i++) smoke.emit(at.clone().setY(p.y + 0.15 + Math.random() * 0.3), new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.25, (Math.random() - 0.5) * 1.2), { life: 1.6, size: 0.5, grow: 0.9, alpha: 0.2, shade: clay ? 0.8 : 0.7 });
-    sfx.smash?.(clay);
+    sfx.smash?.(clay, at);
     zombies.noise(at, 14);
   };
   ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
@@ -329,7 +337,10 @@ async function build() {
   await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
   voice.listener = player;            // (how loud each voice is: by how far from you it is)
-  player.onFall = (d) => hurtPlayer(d, null, 'fall');      // (a long drop hurts: the gulf)
+  player.onFall = (d) => hurtPlayer(d, null, 'fall');
+  player.onJump = () => sfx.jump(underfoot(), inMail());
+  player.onLand = (k) => sfx.land(underfoot(), inMail(), k);
+  sfx.stinger = (k) => music.stinger(k);   // (a quest done: quests.js, through audio.js)      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
   zombies = new Zombies(scene, physics, kit, sfx);
@@ -364,7 +375,7 @@ async function build() {
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
-  foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; };
+  foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; sfx.lock(true); music.stinger('triumph'); };
   // the people of the village (tools/villagers' men and women), fewer on a phone, Velscour's Sworn at
   // the keep, and the open country's knights and sorcerers onto the knight's clips (ual.js): all of
   // them in before play (prepare waits; a phone brings the Sworn once the village is in, and the
@@ -648,6 +659,7 @@ let equipping = Promise.resolve();
  * numbers: life, mana, regeneration, speed, the shield's Guard. */
 function applyGear(first = false) {
   equipping = equipping.then(async () => {
+    const held = vm.equip.R;   // (what was in the hand: a blade drawn, or put away, is heard)
     st = computeStats(char);
     const w = char.equip.weapon, o = char.equip.offhand;
     if (w) vm.setArm(w.kind, w.model, w.name, w.finish);
@@ -666,7 +678,12 @@ function applyGear(first = false) {
     guard.v = first ? guard.max : Math.min(guard.v, guard.max);
     const g = char.equip.hands?.model || 'bare';
     if (vm.gauntlet !== g) await vm.load(g); else await vm.applyEquip();
-    if (!first) sfx.equip();
+    if (!first) {
+      const edged = (k) => k && k !== 'staff' && !BLUNT.test(char.equip.weapon?.model || char.equip.weapon?.kind || '');
+      if (vm.equip.R !== held && vm.equip.R && edged(vm.equip.R)) sfx.unsheath();
+      else if (vm.equip.R !== held && !vm.equip.R && held) sfx.sheath();
+      else sfx.equip();
+    }
     hud.refresh(vm.equip, book);
     saveCharacter(char);
   });
@@ -772,7 +789,8 @@ function inFront(reach, cone) {
 function parried(by) {
   reel(by, 1.3);
   riposteUntil = zombies.time + 1.6;
-  sfx.clang(false); sfx.clang(false);
+  if (!sfx.play('sword_parry', { vol: 1.3 })) { sfx.clang(false); sfx.clang(false); }
+  sfx.play('sword_blocked', { vol: 0.8, delay: 0.03 });
   shake = Math.max(shake, 0.5);
   magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#ffffff'), new THREE.Color('#fff0b0'), new THREE.Color('#ffc040')], 34, { speed: 6, size: 0.035, grav: 7, life: 0.5 });
   hud.toast('Parried! Strike while it reels');
@@ -787,7 +805,8 @@ function shieldBash() {
     if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: 6 + Math.random() * 5, dir: new THREE.Vector3(dx, 0.1, dz), kind: 'blunt' });
     reel(z, 0.9); shove(z, dx, dz, 1.4);       // (after the blow's own flinch, so the reel holds)
   }
-  sfx.clang(!hit.length); shake = Math.max(shake, hit.length ? 0.8 : 0.35);
+  if (hit.length) sfx.hit('blunt', true); else sfx.swing(true, true);
+  shake = Math.max(shake, hit.length ? 0.8 : 0.35);
   if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
 }
 function staffSweep() {
@@ -844,15 +863,16 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
       hud.toast('Your guard is broken!'); hud.flashGuard();
       shake = Math.max(shake, 1.2);
     }
-    sfx.clang(false);
+    sfx.block(guard.broken);
     magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#fff0b0'), new THREE.Color('#ffb040'), new THREE.Color('#d0d0d0')], 16,
       { speed: 4, size: 0.03, grav: 9, life: 0.4 });
     if (by && kind === 'melee' && !by.dead) answerBlow(by);
     shake = Math.max(shake, 0.35);
   } else {
     shake = Math.max(shake, 0.9);
-    sfx.clang(true);
+    sfx.hurt();
   }
+  hurtAt = performance.now();
   d *= 1 - armorCut(st.armor);
   player.health -= d;
   if (player.health <= 0) {
@@ -860,6 +880,7 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
     player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
     zombies.forget();
     hud.toast('Torn apart by the dead... you wake in the village');
+    music.stinger('fell');
   }
 }
 
@@ -922,12 +943,12 @@ function onEvent(kind, side, clip, info) {
     const p = pending[side];
     if (!p) return;
     pending[side] = null;
-    sfx.cast(KIND_SOUND[p.def.kind] || p.def.kind);
+    sfx.cast(KIND_SOUND[p.def.kind] || p.def.kind, p.id);
     if (p.def.self) { magic.selfCast(p.def, player, camera); if (p.def.self === 'heal') hud.toast('Your wounds close'); return; }
     const from = fromView(castFrom(p));
     const dir = aimPoint().sub(from).normalize();
     magic.cast(p.def, from, dir, player, camera);
-  } else if (kind === 'whoosh') sfx.swing(!!info?.heavy);
+  } else if (kind === 'whoosh') sfx.swing(!!info?.heavy, BLUNT.test((ITEMS[vm.equip[side]] || ITEMS[vm.equip.R])?.id || ''));
   else if (kind === 'hit' && info?.attack) melee(info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power);
 }
 
@@ -961,6 +982,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     if (ripo) { riposteUntil = 0; heavy = true; hud.toast('Riposte!'); }
     const dmg = stats.meleeDamage(heavy, side) * power * (ripo ? 1.8 : 1);
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
+    sfx.hit(blunt ? 'blunt' : 'flesh', heavy);
     // a treasure's powers: the dead set burning, or chilled to a crawl
     // (it shows where the blade bit: char, or rime, about the wound, never the whole body)
     if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); flesh.z.mark?.(flesh.point, flesh.bone, 0.07, 1); }
@@ -981,13 +1003,13 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     { speed: wood || tag === 'ground' ? 2.5 : 5.5, nrm: n, size: 0.035, grav: 9, life: 0.55, floor: n.y > 0.7 ? p.y : null });
   if (!wood && tag !== 'ground') magic.flashAt(p, 0xffc070, 0.3);
   if (tag === 'ground' || wood) for (let i = 0; i < 4; i++) smoke.emit(p.clone(), new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4, (Math.random() - 0.5) * 0.6), { life: 1.2, size: 0.3, grow: 0.5, alpha: 0.25, shade: 0.7 });
-  sfx.clang(wood || tag === 'ground');
+  sfx.hit(wood ? 'wood' : tag === 'ground' ? 'ground' : 'stone', heavy);
   shake = heavy ? 0.9 : 0.55;
 }
 
 // ------------------------------------------------------------------ zones and light
 function zoneAt(p) {
-  for (const u of ctx.unders) if (u.dg.contains(p)) return { name: u.dg.where?.(p) || u.dg.name, kind: 'under', fog: u.dg.fogAt?.(p), amb: u.dg.ambAt?.(p) };
+  for (const u of ctx.unders) if (u.dg.contains(p)) return { name: u.dg.where?.(p) || u.dg.name, region: u.dg.name, kind: 'under', fog: u.dg.fogAt?.(p), amb: u.dg.ambAt?.(p) };
   if (p.y < terrainHeight(p.x, p.z) - 1.5 && p.x < REGION.x0) return { name: 'The Undercroft', kind: 'under' };
   if (p.x > REGION.x0) {   // the downs: see a long way
     for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1 && p.y > z.y0) return { name: z.name, kind: 'in', open: 1 };
@@ -1014,6 +1036,7 @@ function light(dt, t) {
   if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
   day = dayState(hour);
   const z = zoneAt(player.pos);
+  here = z;
   hud.zone(z.name);
   const k = Math.min(1, dt * 2.5);
   L.out += ((z.kind === 'out' ? 1 : 0) - L.out) * k;
@@ -1124,6 +1147,7 @@ function begin() {
   if (lost) { location.reload(); return; }
   sfx.start();
   if (!ready) return;
+  if (!introBusy) music.play();
   started = true;
   paused = false;
   title.hide();
@@ -1339,6 +1363,8 @@ async function newGame() {
 }
 
 async function startOver() {
+  music.intro();   // (the opening's song from this moment, over the getting-ready and the whole of it)
+  found.clear(); try { localStorage.removeItem('bm.found'); } catch { /* no storage */ }
   saves.show(null); quests.close(); bag.show(false); map.show(false);
   hud.showOverlay(null);
   if (touch) hud.showTouch(false);
@@ -1349,7 +1375,7 @@ async function startOver() {
   quests.load({});
   progress = { arrived: false };
   try { localStorage.removeItem(PROGRESS); } catch { /* no storage */ }
-  if (timeMode === 'cycle') hour = 6;         // 06:00: the game begins at dawn (held there till the village has met you)
+  if (timeMode === 'cycle') hour = 12;        // noon: the game begins at midday (held there till the village has met you)
   holdHour = true;
   await applyGear(true);
   zombies.forget();
@@ -1399,6 +1425,14 @@ async function startOver() {
         await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
         line('The knights of the open country…');
         await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
+        if (voice.enabled && voice.neural !== 'failed' && voice.neural !== 'off') {
+          const tell = () => { const [g, o] = voice.progress; line(o ? `The voices of the village… ${g} of ${o}` : 'The voices of the village…'); };
+          tell();
+          const each = setInterval(tell, 300);
+          await Promise.race([voice.ready, new Promise((r) => setTimeout(r, 240000))]).finally(() => clearInterval(each));
+        }
+        // what they'll say to you from the rim, made now, so each line is in the air the moment it's due
+        voice.prefetch(GATHER_TALK.map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; }));
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
@@ -1417,7 +1451,7 @@ async function startOver() {
       onPlace: placeInCrater,
       onControl: () => {
         introBusy = false; setCinema(false); if (!touch && !document.pointerLockElement) pause();
-        setTimeout(() => { if (progress?.welcomed === false) hud.toast('The village has gathered at the edge of town. Climb out and go to them.'); }, 1500);
+        music.endIntro(6);   // (the opening's song fades as you wake; the place's music follows)
       },
       onDone: () => { introBusy = false; setCinema(false); saveProgress(); const done = intro; intro = null; setTimeout(() => done.dispose(), 500); } });
     await intro.prepare(say);
@@ -1434,11 +1468,14 @@ function setCinema(on) {
   if (!on) hud.refresh(vm.equip, book);
 }
 
-// After the green star the village gathers on the meadow at the edge of town, east of the crater and
-// well back from it (nobody goes near the hole): where each stands, [name, across (m, along the
-// crowd's front), back (m, away from the crater)] from GATHER, Sister Odile at the front
-const GATHER = { x: CRATER.x + 30, z: CRATER.z + 12 };
-const GATHER_CAST = [['Odile', 0, 0], ['Osric', -1.7, 0.9], ['Hesk', 1.7, 0.7], ['Garrow', -3.3, 0.2], ['Tobias', 3.2, 0.5], ['Wren', -2.3, 2.3], ['Elsie', 2.5, 2.1]];
+// After the green star the village comes out to the crater and stands round its rim, looking down at
+// you as you wake, and talks to you from there. GATHER is the rim toward the town (where you face as
+// you wake, and where Sister Odile stands); each of the rest stands [name, degrees round the rim from
+// her], RING metres from the crater's middle.
+const RING = CRATER.R + 2.5;
+const GATHER_DIR = (() => { const l = Math.hypot(30, 12); return [30 / l, 12 / l]; })();   // (toward the town)
+const GATHER = { x: CRATER.x + GATHER_DIR[0] * RING, z: CRATER.z + GATHER_DIR[1] * RING };
+const GATHER_CAST = [['Odile', 0], ['Osric', -38], ['Hesk', 38], ['Garrow', -78], ['Tobias', 80], ['Wren', -122], ['Elsie', 125]];
 // what they say among themselves while you're still down in it (round again, till you come)
 const GATHER_CHATTER = [
   { name: 'Elsie', text: 'Did you see it? He fell right out of the sky!' },
@@ -1479,16 +1516,16 @@ const GATHER_TALK = [
   { name: 'Odile', text: 'The dead are walking beneath our cathedral. Speak with me, and I will tell you all of it.' },
 ];
 
-/** Where each of the village stands at the edge of town (facing the crater, Odile at the front), and
- * which way they face. */
+/** Where each of the village stands round the crater's rim (all facing its middle, Odile toward the
+ * town), and f: the way from her into the crater. */
 function gatherSpots() {
-  const fx = CRATER.x - GATHER.x, fz = CRATER.z - GATHER.z, fl = Math.hypot(fx, fz), f = [fx / fl, fz / fl], side = [-f[1], f[0]];
-  return { f, cast: GATHER_CAST.map(([name, across, back]) => ({ name, at: [GATHER.x + side[0] * across - f[0] * back, GATHER.z + side[1] * across - f[1] * back] })) };
+  const f = [-GATHER_DIR[0], -GATHER_DIR[1]], a0 = Math.atan2(GATHER_DIR[1], GATHER_DIR[0]);
+  return { f, cast: GATHER_CAST.map(([name, deg]) => { const a = a0 + deg * Math.PI / 180; return { name, at: [CRATER.x + Math.cos(a) * RING, CRATER.z + Math.sin(a) * RING] }; }) };
 }
 let staged = [];   // (the village as it was, while warm draws it gathered)
 
 /** In the black after the white: you stand in the crater's middle, facing the town, and the village
- * has gathered at its edge, a good way off, to watch the hole. */
+ * stands round the rim above you, looking down; they speak to you from there as you wake. */
 function placeInCrater() {
   const x = CRATER.x + 0.6, z = CRATER.z;
   player.pos.set(x, physics.groundAt(x, z), z); player.vel.set(0, 0, 0);
@@ -1501,7 +1538,7 @@ function placeInCrater() {
   progress = { ...(progress || {}), arrived: true, welcomed: false, gifts: [] };
   const done = () => { holdHour = false; progress.welcomed = true; hud.toast('Sister Odile has a task for you: walk up to her and press E'); saveProgress(); };
   const out = (p) => Math.hypot(p.pos.x - CRATER.x, p.pos.z - CRATER.z) > CRATER.R - 2 && p.pos.y > -0.8;   // up at the rim, or over it
-  if (!villagers.gather(player, cast, { look: [CRATER.x, CRATER.z], chatter: GATHER_CHATTER, sight: GATHER_SIGHT, script: GATHER_TALK, out, onGift: gift, onDone: done })) {
+  if (!villagers.gather(player, cast, { look: [CRATER.x, CRATER.z], chatter: GATHER_CHATTER, sight: GATHER_SIGHT, script: GATHER_TALK, out, near: RING + 8, onGift: gift, onDone: done })) {
     for (const w of GATHER_TALK) if (w.gift) gift(w.gift, null);
     done();
   }
@@ -1531,6 +1568,70 @@ function showUnder() {
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
   for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
   ctx.detail?.update(cp);   // (and the small pieces far off left out: engine.js DetailCull)
+}
+
+// ------------------------------------------------------------------ the sounds of the place
+let here = null, hurtAt = -1e9;
+const found = new Set((() => { try { return JSON.parse(localStorage.getItem('bm.found') || '[]'); } catch { return []; } })());
+// the places worth a stinger the first time you come to them
+const FINDS = /^(The Green Downs|Millhaven|Brightwater Falls|Blackvigil Keep|The Bellmourn Graveyard|The Darkwood)$/;
+
+/** Which of the music's sets (music.js SETS) plays where you are. */
+function musicSet(z, p) {
+  if (!z) return 'village';
+  if (z.kind === 'under') return 'under';
+  if (z.name === 'Blackvigil Keep' || z.name === 'The Vigil Road' || ctx.keep?.regionOf?.(p)) return 'keep';
+  if (p.x > GRAVEYARD.x0 - 4 && p.x < GRAVEYARD.x1 + 4 && p.z > GRAVEYARD.z0 - 4 && p.z < GRAVEYARD.z1 + 4) return 'graveyard';
+  if (z.name === 'The Darkwood' || z.name === 'The Bellwood Trail') return 'wood';
+  if (p.x > REGION.x0) return 'downs';
+  return 'village';
+}
+
+/** What's under your feet: water (wading), wood (floors, bridges), stone (below, the plaza, the
+ * cathedral, the keep), or earth. */
+function underfoot() {
+  const p = player.pos, z = here || {};
+  if (p.x > REGION.x0) {
+    const s = streamAt(p.x, p.z), r = riverAt(p.x, p.z);
+    if ((s.d < 5 && p.y < streamLevel(s.s) + 0.05) || (r.d < 4.5 && p.y < riverLevel(r.s) + 0.05) || (Math.hypot(p.x - POOL.x, p.z - POOL.z) < POOL.r && p.y < POOL.level + 0.05)) return 'water';
+  }
+  if (z.kind === 'under') return /Grotto/.test(z.region || '') && Math.random() < 0.3 ? 'water' : 'stone';
+  const g = physics.groundAt(p.x, p.z);
+  if (z.kind === 'in') return /Cathedral|Sacristy|Stair|Mausoleum|Hall of the Sworn|Barracks of the Vigil|Chapel|Armoury|Reliquary|Throne/.test(z.name) ? 'stone' : 'wood';
+  if (physics.dynamic.some((d) => p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1)) return 'wood';   // (the rope bridge)
+  if (p.y > g + 0.12) return 'stone';   // (on something built: steps, a wall walk, a pad)
+  if ((Math.abs(p.x) < 21 && Math.abs(p.z) < 21) || (Math.abs(p.x) < 17 && Math.abs(p.z + 47.5) < 8.5) || z.name === 'Blackvigil Keep') return 'stone';   // (the plaza, the forecourt, the keep)
+  return 'dirt';
+}
+/** In mail or plate: the footsteps jingle. */
+const inMail = () => /Mail|Brigandine|Plate/.test(`${char.equip.body?.base || ''} ${char.equip.legs?.base || ''}`);
+
+/** Each frame: where you hear from; the music (the place's, a fight's); the world's own sound. */
+function sounds(dt) {
+  sfx.hear(camera);
+  if (!sfx.ctx) return;
+  const z = here, p = player.pos, playing = started && !introBusy;
+  const set = musicSet(z, p);
+  // how many hunt you, near (a knight or a sorcerer counts twice; a lord's fight more)
+  let threat = 0;
+  if (playing) {
+    for (const e of zombies.list) {
+      if (e.dead || e.gone || !e.aggro) continue;
+      const dx = e.pos.x - p.x, dz = e.pos.z - p.z;
+      if (dx * dx + dz * dz > 24 * 24 || Math.abs(e.pos.y - p.y) > 6) continue;
+      threat += e.kindName === 'knight' || e.kindName === 'sorcerer' ? 2 : 1;
+    }
+    if (foes.bossBar(player)) threat += 3;
+  }
+  music.update(dt, { set, threat, hurt: performance.now() - hurtAt < 4000, paused: paused || !started });
+  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused });
+  // somewhere new: a stinger, the first time
+  const place = z?.kind === 'under' ? z.region : z?.name;
+  if (playing && place && (z.kind === 'under' || FINDS.test(place)) && !found.has(place)) {
+    found.add(place);
+    try { localStorage.setItem('bm.found', JSON.stringify([...found])); } catch { /* no storage */ }
+    music.stinger('found');
+  }
 }
 
 // ------------------------------------------------------------------ the loop
@@ -1604,7 +1705,7 @@ function tick(dt) {
     if (vm.blocking && !wasBlocking) blockAt = zombies.time;
     for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
-    if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(L.out < 0.5);
+    if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(underfoot(), player.speed > 7.5, inMail());
     lastBob = player.bob;
     // the swing's kick and the spells' blasts
     const sh = shake + magic.shake;
@@ -1654,10 +1755,10 @@ function tick(dt) {
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
       hud.prompt(box.searched ? `The ${box.holds.name} is empty` : box.sealed || `E — search the ${box.holds.name}`);
-      if (box.sealed && inp.was('KeyE')) { sfx.clang?.(false); hud.toast('It will not open while he lives'); }
+      if (box.sealed && inp.was('KeyE')) { sfx.lock(false); hud.toast('It will not open while he lives'); }
       if (!box.searched && !box.sealed && inp.was('KeyE')) {
         const n = ctx.loot.search(box, player);
-        sfx.door?.(true);
+        if (box.holds?.kind === 'chest' || /chest|coffer|coffin/i.test(box.holds?.name || '')) sfx.chest(true); else sfx.splinter(false);
         if (!n) hud.toast(`Nothing in the ${box.holds.name}`);
       }
     } else {
@@ -1717,6 +1818,7 @@ function tick(dt) {
 
   vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
   if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
+  sounds(dt);
   res.timer.begin(); composer.render(dt); res.timer.end();
   if (++run.frames % 30 === 1) trace();
   inp.endFrame();
@@ -1762,8 +1864,7 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, input: () => gameInput, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
-  setTimeout(() => voice.warm(), 4000);   // (the neural voices: a big download, so after the game is up)
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

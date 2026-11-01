@@ -2,15 +2,22 @@
 // kokoro-js (Apache-2.0), run here, off the game's thread, so nothing waits on it. The model (the
 // 8-bit build, about 90 MB) is fetched the first time and kept in the browser's cache after.
 //   in:  { type: 'load' }  { type: 'say', id, text, voice, speed }
-//   out: { type: 'ready' } { type: 'audio', id, audio (Float32Array), rate } { type: 'fail', id }
+//   in: { type: 'load', voices: [every voice the game uses: each is fetched before 'ready'] }
+//   out: { type: 'progress', got, of } { type: 'ready' } { type: 'audio', id, audio (Float32Array), rate } { type: 'fail', id }
 //        { type: 'error', error }
 const LIB = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
 const MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 let tts = null, loading = null;
 
-async function load() {
+async function load(voices = []) {
   const { KokoroTTS } = await import(LIB);
   tts = await KokoroTTS.from_pretrained(MODEL, { dtype: 'q8', device: 'wasm' });
+  // every voice fetched now (each one's style file comes the first time it speaks): a word in each
+  let got = 0;
+  for (const voice of voices) {
+    try { await tts.generate('Hm.', { voice }); } catch (err) { console.warn('voices: no', voice, String(err)); }
+    postMessage({ type: 'progress', got: ++got, of: voices.length });
+  }
 }
 
 // one line at a time, in the order asked (the game drops what it no longer wants)
@@ -37,7 +44,7 @@ async function pump() {
 onmessage = (e) => {
   const m = e.data;
   if (m.type === 'load') {
-    loading ||= load();
+    loading ||= load(m.voices || []);
     loading.then(() => postMessage({ type: 'ready' }), (err) => postMessage({ type: 'error', error: String(err && err.stack || err) }));
   } else if (m.type === 'say') {
     queue.push(m);

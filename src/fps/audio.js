@@ -1,25 +1,153 @@
-// Little synthesized sounds (no audio files yet): swings, clangs, casts, bursts, footsteps.
+// The game's sounds. Recorded ones (assets/audio/sfx, from the user's effects pack: tools/audio/
+// build_audio.py) for blades, blows, blocks, footsteps on each ground (and in mail), doors, chests and
+// the spells; until they're in (and for what the pack has nothing for) little synthesized ones:
+// swings, clangs, casts, bursts, bells. Music and the ambience have their own lines out (music.js,
+// ambience.js), each with its own volume, all under the one master volume.
 // The context starts on the first click or key, as browsers require.
+
+const SFX_DIR = 'assets/audio/sfx/';
+// the effects, by name, and how many takes of each (name_1 .. name_n; a 0 is a single file, `name`)
+const TAKES = {
+  sword_attack: 3, sword_blocked: 3, sword_impact_hit: 3, sword_parry: 3, sword_sheath: 2, sword_unsheath: 2, bow_impact_hit: 3,
+  chop: 4, mine: 5, chest_open: 2, chest_close: 2, door_open: 2, door_close: 2, lock_unlock: 0,
+  fireball: 3, firebuff: 2, firespray: 2, waterspray: 2, wave_attack: 2, rock_wall: 2, spell_impact: 3,
+  ice_barrage: 2, ice_freeze: 2, ice_throw: 2, ice_wall: 2, rock_meteor_swarm: 2, rock_meteor_throw: 2, light_torch: 2, torch_attack_strike: 2,
+};
+for (const g of ['dirt', 'stone', 'water', 'wood']) for (const c of ['', 'chain_']) {
+  TAKES[`${g}_${c}walk`] = 5; TAKES[`${g}_${c}run`] = 5; TAKES[`${g}_${c}jump`] = 0; TAKES[`${g}_${c}land`] = 0;
+}
+// what each spell sounds like as it leaves the hand: [effect, volume, pitch]
+const SPELL_CAST = {
+  firebolt: ['fireball', 1.1], frost: ['ice_throw', 1], wallfire: ['firespray', 1.1], firebeam: ['firebuff', 1], meteor: ['firebuff', 0.9, 0.8],
+  arcaneblast: ['wave_attack', 0.9, 1.15], nova: ['ice_wall', 1], blizzard: ['ice_barrage', 0.9], lance: ['rock_meteor_throw', 1.2, 1.1],
+  plague: ['rock_meteor_throw', 0.7, 1.35], blades: ['sword_unsheath', 1.1], spikes: ['rock_wall', 1.2], wisp: ['light_torch', 1], staff: ['spell_impact', 0.5, 0.7],
+};
+const clamp1 = (x) => Math.max(-1, Math.min(1, x));
+/** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
+function onset(b) {
+  const d = b.getChannelData(0), n = Math.min(d.length, Math.round(b.sampleRate * 0.25));
+  for (let i = 0; i < n; i++) if (Math.abs(d[i]) > 0.0025) return Math.max(0, i - b.sampleRate * 0.004) / b.sampleRate;
+  return 0;
+}
 
 export class Sfx {
   constructor() {
     this.ctx = null;
     this.volume = 0.5;
+    this.musicVolume = 0.7; this.ambVolume = 0.8;
+    try {
+      const m = parseFloat(localStorage.getItem('bm.music')), a = parseFloat(localStorage.getItem('bm.ambience'));
+      if (Number.isFinite(m)) this.musicVolume = m;
+      if (Number.isFinite(a)) this.ambVolume = a;
+    } catch { /* no storage */ }
+    this.bank = {};          // name -> [{b: AudioBuffer, off: where its sound starts}]
+    this.pick = {};          // name -> the take last played (never the same twice running)
+    this.voices = 0;
+    this.ear = { x: 0, y: 0, z: 0, rx: 1, rz: 0 };   // where you hear from, and which way is your right
+    this.onStart = [];       // (music.js: its players are let play by the same click)
   }
 
   start() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      for (const f of this.onStart) f();
+      return;
+    }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    this.out = this.ctx.createGain();
+    const c = this.ctx;
+    // master volume, then a gentle limiter so music, the world and a fight together never crackle
+    this.out = c.createGain();
     this.out.gain.value = this.volume;
-    this.out.connect(this.ctx.destination);
-    const n = this.ctx.sampleRate;
-    this.noise = this.ctx.createBuffer(1, n, n);
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -4; lim.knee.value = 4; lim.ratio.value = 10; lim.attack.value = 0.003; lim.release.value = 0.2;
+    this.out.connect(lim); lim.connect(c.destination);
+    this.music = c.createGain(); this.music.gain.value = this.musicVolume; this.music.connect(this.out);
+    this.amb = c.createGain(); this.amb.gain.value = this.ambVolume; this.amb.connect(this.out);
+    const n = c.sampleRate;
+    this.noise = c.createBuffer(1, n, n);
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    for (const f of this.onStart) f();
   }
+
+  setMusicVolume(v) { this.musicVolume = v; if (this.music) this.music.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05); }
+  setAmbVolume(v) { this.ambVolume = v; if (this.amb) this.amb.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05); }
+
+  /** A file fetched and decoded (null if it can't be). */
+  async decode(url) {
+    if (!this.ctx) this.start();
+    const c = this.ctx;
+    if (!c) return null;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const ab = await r.arrayBuffer();
+      return await new Promise((res, rej) => { const p = c.decodeAudioData(ab, res, rej); p?.catch?.(rej); });
+    } catch (e) { console.warn('sound', url, e?.message || e); return null; }
+  }
+
+  /** The effects, fetched and decoded a few at a time (each plays as soon as it's in). */
+  loadBank() {
+    if (this.banking) return this.banking;
+    const files = [];
+    for (const [name, k] of Object.entries(TAKES)) for (let i = 1; i <= Math.max(1, k); i++) files.push([name, k ? `${name}_${i}` : name]);
+    let next = 0;
+    const one = async () => {
+      while (next < files.length) {
+        const [name, f] = files[next++];
+        const b = await this.decode(SFX_DIR + f + '.mp3');
+        if (b) (this.bank[name] ||= []).push({ b, off: onset(b) });
+      }
+    };
+    this.banking = Promise.all([one(), one(), one(), one()]).then(() => this.bank);
+    return this.banking;
+  }
+
+  /** Where you hear from (the camera), each frame. */
+  hear(camera) {
+    const p = camera.position, e = camera.matrixWorld.elements;
+    this.ear.x = p.x; this.ear.y = p.y; this.ear.z = p.z;
+    const l = Math.hypot(e[0], e[2]) || 1;
+    this.ear.rx = e[0] / l; this.ear.rz = e[2] / l;
+  }
+
+  /** How loud (0..1) and to which side (-1..1) a sound at p is, heard `far` metres off at most. */
+  place(p, far = 35) {
+    const E = this.ear, x = p.x ?? p[0], y = p.y ?? p[1], z = p.z ?? p[2];
+    const dx = x - E.x, dz = z - E.z, d = Math.hypot(dx, y - E.y, dz), h = Math.hypot(dx, dz);
+    const k = Math.max(0, 1 - d / far);
+    return { k: k * k, pan: h > 0.3 ? clamp1((dx * E.rx + dz * E.rz) / h) * Math.min(1, d / 3) * 0.85 : 0, d };
+  }
+
+  /** One take of a recorded effect: false if it isn't in yet (the caller makes do). o: {vol, rate,
+   * vary (pitch wander), at (a place: heard from there), far, pan, delay, to (a line out)} */
+  play(name, { vol = 1, rate = 1, vary = 0.05, at = null, far = 35, pan = 0, delay = 0, to = null } = {}) {
+    const takes = this.bank[name];
+    if (!this.ok || !takes?.length) return false;
+    let g = vol, p = pan;
+    if (at) { const q = this.place(at, far); if (q.k < 0.004) return true; g *= q.k; p = q.pan; }
+    if (this.voices > 48) return true;
+    let i = Math.floor(Math.random() * takes.length);
+    if (takes.length > 1 && i === this.pick[name]) i = (i + 1) % takes.length;
+    this.pick[name] = i;
+    const s = takes[i], c = this.ctx, t = c.currentTime + delay;
+    const src = c.createBufferSource();
+    src.buffer = s.b;
+    src.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * vary);
+    const gn = c.createGain();
+    gn.gain.value = g;
+    src.connect(gn);
+    let last = gn;
+    if (p && c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = clamp1(p); gn.connect(pn); last = pn; }
+    last.connect(to || this.out);
+    src.start(t, s.off);
+    this.voices++;
+    src.onended = () => { this.voices--; last.disconnect(); };
+    return true;
+  }
+  has(name) { return !!this.bank[name]?.length; }
 
   _noise(t0, dur, { type = 'bandpass', f0 = 800, f1 = 800, q = 1, gain = 0.4, attack = 0.01 } = {}) {
     const c = this.ctx;
@@ -46,16 +174,23 @@ export class Sfx {
 
   get ok() { return this.ctx && this.ctx.state === 'running'; }
 
-  swing(heavy = false) {
+  /** A blow through the air: a blade's swish, or a staff's or a mace's heavier whoom. */
+  swing(heavy = false, blunt = false) {
     if (!this.ok) return;
+    if (this.play(blunt ? 'torch_attack_strike' : 'sword_attack', { vol: (heavy ? 1.15 : 0.9) * (blunt ? 0.85 : 1), rate: heavy ? 0.86 : 1 })) return;
     const t = this.ctx.currentTime;
     this._noise(t, heavy ? 0.42 : 0.28, { f0: heavy ? 300 : 500, f1: heavy ? 1400 : 2400, q: 1.6, gain: heavy ? 0.5 : 0.35, attack: 0.08 });
   }
 
-  /** Something smashed: boards splitting with a crack and a clatter, or pottery shattering into
-   * a ring of high chinks. */
-  smash(clay = false) {
+  /** Something smashed, heard from `at`: boards splitting with a crack and a clatter, or pottery
+   * shattering (the recordings; made-up sounds until they're in). */
+  smash(clay = false, at = null) {
     if (!this.ok) return;
+    if (clay ? this.play('mine', { vol: 0.9, rate: 1.7, at }) : this.play('chop', { vol: 1.25, rate: 0.78, at })) {
+      if (clay) this.play('chop', { vol: 0.5, rate: 1.5, at, delay: 0.02 });
+      else this.play('chop', { vol: 0.6, rate: 1.15, at, delay: 0.14 });
+      return;
+    }
     const t = this.ctx.currentTime;
     if (clay) {
       this._noise(t, 0.12, { type: 'highpass', f0: 3200, f1: 1800, gain: 0.55, attack: 0.002 });
@@ -70,28 +205,100 @@ export class Sfx {
     for (let i = 0; i < 6; i++) this._noise(t + 0.08 + Math.random() * 0.35, 0.04 + Math.random() * 0.05, { type: 'bandpass', f0: 900 + Math.random() * 900, f1: 400, q: 2, gain: 0.08 + Math.random() * 0.1, attack: 0.002 });
   }
 
-  clang(soft = false) {
+  /** Steel on steel (a blow on a shield, yours or theirs: `at` a place, or none for your own), or soft:
+   * a dull knock. */
+  clang(soft = false, at = null) {
     if (!this.ok) return;
+    if (!soft && this.play('sword_blocked', { vol: 1.1, at, far: 40 })) return;
     const t = this.ctx.currentTime;
     if (soft) { this._noise(t, 0.18, { type: 'lowpass', f0: 900, f1: 200, gain: 0.5 }); return; }
     for (const [f, g] of [[1180, 0.12], [1730, 0.08], [2610, 0.05]]) this._tone(t, 0.5, { type: 'triangle', f0: f, f1: f * 0.97, gain: g });
     this._noise(t, 0.08, { type: 'highpass', f0: 3000, f1: 2000, gain: 0.3 });
   }
 
-  cast(kind = 'fire') {
+  /** Your blow landing: in flesh (blunt: a crushing thud), on stone or metal, in wood, in the dirt. */
+  hit(what, heavy = false) {
     if (!this.ok) return;
+    const k = heavy ? 1.15 : 0.95;
+    const done = what === 'flesh' ? this.play('sword_impact_hit', { vol: k * 1.1, rate: heavy ? 0.9 : 1 })
+      : what === 'blunt' ? this.play('sword_impact_hit', { vol: k * 1.2, rate: 0.68 }) && this.play('dirt_land', { vol: 0.9 * k, rate: 0.7 })
+      : what === 'wood' ? this.play('chop', { vol: k })
+      : what === 'ground' ? this.play('dirt_land', { vol: 1.3 * k, rate: 0.85 })
+      : this.play('mine', { vol: k * 0.95 });
+    if (!done) this.clang(what !== 'stone');
+  }
+
+  /** A blow taken on your raised shield (broken: the Guard gives out under it). */
+  block(broken = false) {
+    if (!this.ok) return;
+    if (!this.play('sword_blocked', { vol: 1.2, rate: broken ? 0.85 : 1 })) { this.clang(false); return; }
+    if (broken) this.play('sword_parry', { vol: 1.1, rate: 0.7, delay: 0.04 });
+  }
+
+  /** A blow getting through to you. */
+  hurt() {
+    if (!this.ok) return;
+    if (!this.play('sword_impact_hit', { vol: 0.85, rate: 0.78 })) { this.clang(true); return; }
+    this._noise(this.ctx.currentTime, 0.16, { type: 'lowpass', f0: 700, f1: 150, gain: 0.35 });
+  }
+
+  /** A blade drawn into the hand, or put away. */
+  unsheath() { if (this.ok && !this.play('sword_unsheath', { vol: 0.9 })) this.equip(); }
+  sheath() { if (this.ok && !this.play('sword_sheath', { vol: 0.8 })) this.equip(); }
+
+  /** A chest's lid swung up (or let fall). */
+  chest(open = true) {
+    if (!this.ok) return;
+    if (!this.play(open ? 'chest_open' : 'chest_close', { vol: 1.1 })) this.door(open);
+  }
+
+  /** A lock: a sealed thing tried (it rattles), or its seal broken. */
+  lock(opens = false) {
+    if (!this.ok) return;
+    if (!this.play('lock_unlock', { vol: opens ? 1.3 : 0.9, rate: opens ? 1 : 1.25 })) this.clang(!opens);
+  }
+
+  /** A footstep (surface: dirt, stone, wood, water; chain: in mail or plate), a jump, a landing. */
+  step(surface = 'dirt', run = false, chain = false) {
+    if (!this.ok) return;
+    if (typeof surface === 'boolean') surface = surface ? 'stone' : 'dirt';
+    if (this.play(`${surface}_${chain ? 'chain_' : ''}${run ? 'run' : 'walk'}`, { vol: run ? 1.5 : 1.7, vary: 0.04 })) return;
+    const t = this.ctx.currentTime, stone = surface === 'stone';
+    this._noise(t, 0.09, { type: 'lowpass', f0: stone ? 900 : 500, f1: 150, gain: stone ? 0.16 : 0.11, attack: 0.004 });
+  }
+  jump(surface = 'dirt', chain = false) { if (this.ok) this.play(`${surface}_${chain ? 'chain_' : ''}jump`, { vol: 1.4 }); }
+  land(surface = 'dirt', chain = false, hard = 0.5) {
+    if (!this.ok) return;
+    if (!this.play(`${surface}_${chain ? 'chain_' : ''}land`, { vol: 0.7 + 0.8 * hard, rate: 1 - 0.12 * hard })) this.step(surface, true, chain);
+  }
+
+  /** A spell let go (`id`: which, for its own sound; kind for the made-up one where it has none). */
+  cast(kind = 'fire', id = null) {
+    if (!this.ok) return;
+    const s = SPELL_CAST[id] || (kind === 'staff' ? SPELL_CAST.staff : null);
+    if (s && this.play(s[0], { vol: s[1], rate: s[2] || 1 })) { if (kind === 'staff') this._castTone(kind, 0.5); return; }
+    this._castTone(kind, 1);
+  }
+
+  _castTone(kind, vol) {
     const t = this.ctx.currentTime;
     const base = { fire: 220, frost: 660, lightning: 140, heal: 520, wisp: 880, staff: 330, arcane: 520, drain: 110, bone: 300,
       void: 90, poison: 180, blade: 760, stone: 70 }[kind] || 400;
-    this._tone(t, 0.35, { type: kind === 'lightning' ? 'sawtooth' : 'triangle', f0: base, f1: base * 2.2, gain: 0.12, attack: 0.02 });
-    this._noise(t, 0.3, { f0: base * 2, f1: base * 6, q: 2, gain: 0.25, attack: 0.03 });
-    if (kind === 'heal' || kind === 'wisp') for (const k of [1, 1.25, 1.5]) this._tone(t + 0.05 * k, 0.7, { f0: base * k, f1: base * k, gain: 0.06 });
+    this._tone(t, 0.35, { type: kind === 'lightning' ? 'sawtooth' : 'triangle', f0: base, f1: base * 2.2, gain: 0.12 * vol, attack: 0.02 });
+    this._noise(t, 0.3, { f0: base * 2, f1: base * 6, q: 2, gain: 0.25 * vol, attack: 0.03 });
+    if (kind === 'heal' || kind === 'wisp') for (const k of [1, 1.25, 1.5]) this._tone(t + 0.05 * k, 0.7, { f0: base * k, f1: base * k, gain: 0.06 * vol });
   }
 
-  boom(size = 0.3) {
+  /** A spell bursting (size: how big), heard from `at` if given: the crack of it, and its weight
+   * under it (a big one brings stone down with it). */
+  boom(size = 0.3, at = null) {
     if (!this.ok) return;
     const t = this.ctx.currentTime;
-    this._noise(t, 0.25 + size * 0.6, { type: 'lowpass', f0: 1800, f1: 120, gain: 0.35 + size * 0.4, attack: 0.005 });
+    let k = 1;
+    if (at) { k = this.place(at, 70).k ** 0.5; if (k < 0.02) return; }
+    if (size >= 1.2) this.play('rock_meteor_swarm', { vol: 1.2, at, far: 90 });
+    else if (size > 0.04) this.play('spell_impact', { vol: 0.5 + size * 0.7, rate: 1.15 - Math.min(0.4, size * 0.35), at, far: 50 });
+    this._noise(t, 0.25 + size * 0.6, { type: 'lowpass', f0: 1800, f1: 120, gain: (0.35 + size * 0.4) * k, attack: 0.005 });
   }
 
   fizzle() {
@@ -100,17 +307,28 @@ export class Sfx {
     this._tone(t, 0.25, { type: 'square', f0: 300, f1: 90, gain: 0.05 });
   }
 
-  step(stone = false) {
+  /** A door swung open or shut (big: the cathedral's, heavier and slower). */
+  door(open, big = false) {
     if (!this.ok) return;
-    const t = this.ctx.currentTime;
-    this._noise(t, 0.09, { type: 'lowpass', f0: stone ? 900 : 500, f1: 150, gain: stone ? 0.16 : 0.11, attack: 0.004 });
-  }
-
-  door(open) {
-    if (!this.ok) return;
+    if (this.play(open ? 'door_open' : 'door_close', { vol: big ? 1.35 : 1.15, rate: big ? 0.8 : 1 })) return;
     const t = this.ctx.currentTime;
     this._noise(t, 0.5, { type: 'bandpass', f0: open ? 300 : 500, f1: open ? 700 : 220, q: 4, gain: 0.18, attack: 0.05 }); // the hinge
     this._noise(t + (open ? 0.42 : 0.4), 0.18, { type: 'lowpass', f0: 600, f1: 120, gain: open ? 0.12 : 0.4 });   // and the thump
+  }
+
+  /** Something breaking: a pot (or a flask) into shards, or ice. */
+  shatter(kind = 'pot', at = null) {
+    if (!this.ok) return;
+    if (kind === 'ice') { if (this.play('ice_freeze', { vol: 1, rate: 1.35, at })) return; }
+    else if (this.play('mine', { vol: 0.8, rate: 1.7, at })) { this.play('chop', { vol: 0.5, rate: 1.5, at, delay: 0.02 }); return; }
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.25, { type: 'highpass', f0: 3500, f1: 1500, gain: 0.3, attack: 0.002 });
+  }
+
+  /** Wood split (a crate or a barrel struck, or broken). */
+  splinter(heavy = false, at = null) {
+    if (!this.ok) return;
+    if (!this.play('chop', { vol: heavy ? 1.2 : 0.9, rate: heavy ? 0.8 : 1, at })) this.clang(true);
   }
 
   /** A rising roar while a spell gathers for `secs` seconds. */
@@ -132,6 +350,7 @@ export class Sfx {
   /** Ice forming: a glassy crackle and a cold chime. */
   freeze() {
     if (!this.ok) return;
+    if (this.play('ice_freeze', { vol: 1.1 })) { this._tone(this.ctx.currentTime, 1.2, { f0: 1320, f1: 1310, gain: 0.03 }); return; }
     const t = this.ctx.currentTime;
     this._noise(t, 0.7, { type: 'highpass', f0: 5000, f1: 2500, gain: 0.25, attack: 0.01 });
     for (let i = 0; i < 6; i++) this._tone(t + i * 0.04 + Math.random() * 0.03, 0.5, { type: 'triangle', f0: 2200 + Math.random() * 1800, f1: 1800, gain: 0.04 });
@@ -276,6 +495,7 @@ export class Sfx {
   /** A quest taken (low) or done (high): two notes and a bell. */
   quest(done = false) {
     if (!this.ok) return;
+    if (done) this.stinger?.('triumph');
     const t = this.ctx.currentTime, b = done ? 660 : 440;
     this._tone(t, 0.5, { type: 'triangle', f0: b, f1: b, gain: 0.07 });
     this._tone(t + 0.14, 0.9, { type: 'triangle', f0: b * 1.5, f1: b * 1.5, gain: 0.07 });

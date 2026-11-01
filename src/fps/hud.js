@@ -124,7 +124,7 @@ export class Hud {
     this.xpEl = el('div', 'xpbar', '<i></i><span></span>');
     this.banner = el('div', 'banner');
     // the hour of the day, 24-hour, under the corner map
-    this.clock = el('div', 'clock', '06:00');
+    this.clock = el('div', 'clock', '12:00');
     this.lastClock = '';
     this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner, this.clock);
     r.append(this.hud);
