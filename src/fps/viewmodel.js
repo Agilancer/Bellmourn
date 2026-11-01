@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
 
 const ROOT = 'templates/models/';
-const _p = new THREE.Vector3();
+const _p = new THREE.Vector3(), _a = new THREE.Vector3(), _d = new THREE.Vector3(), _h = new THREE.Vector3();
 // the greatsword turns a quarter in the hands as a swing lifts it, so it cuts with the edge
 // (the carry shows the flat); it turns back as the blade comes home
 const ROLL_2H = { angle: Math.PI / 2, in: 0.06, out: 0.22 };
@@ -33,11 +33,95 @@ const WALK = {
   R: { onehand: 'sword_walk', twohand: 'great_walk', staff: 'staff_walk', null: 'hand_walk' },
   L: { onehand: 'sword_walk', shield_round: 'round_walk', shield_kite: 'kite_walk', null: 'hand_walk' },
 };
+// Where a fist really closes, per arm model, in its 'item' socket's own frame (metres; the
+// rig's grip line is the socket's y axis). The gauntlets' fingers wrap the rig's grip line; the
+// bare (SDF) hands' fingers are fuller and close a little off it, so the handle would run
+// through the curled fingertips. Their items are seated in the fist's own hole (measured on
+// the bare arms with tools/grip_shots.js), and on a two-hander the support arm is moved onto
+// the handle (slide()).
+// A model's entry may be given per held kind ({kind: {R, L}}), else for anything it holds. The
+// bare fist's hole is 4 mm toward the palm and 6 mm out (BARE_HOLE); a sword's grip sits 10 mm
+// nearer the fingertips than that, so the fingers read wrapped round it. The glove gauntlets
+// hold a sword 8 mm out toward their fingertips for the same reason. The plated gauntlets'
+// finger lames reach a little past the rig's grip, into a sword's guard: they hold it 8 mm
+// further down the grip.
+const BARE_HOLE = { R: [0.004, 0, 0.006], L: [-0.004, 0, 0.006] };
+const OUT = { R: [-0.012, 0.004, 0], L: [0.012, 0.004, 0] };
+const GLOVE_STAFF = { R: [-0.006, 0, 0], L: [0.006, 0, 0] };
+const LOWER = { R: [0, 0.008, 0], L: [0, 0.008, 0] };
+const GRIP_SEAT = {
+  bare: { R: [-0.006, 0, 0.006], L: [0.006, 0, 0.006], staff: BARE_HOLE, shield_round: BARE_HOLE, shield_kite: BARE_HOLE },
+  brawler: { onehand: OUT, twohand: OUT, staff: GLOVE_STAFF }, hunter: { onehand: OUT, twohand: OUT, staff: GLOVE_STAFF },
+  runebound: { onehand: OUT, twohand: OUT, staff: GLOVE_STAFF },
+  knight: LOWER, templar: LOWER, wayfarer: LOWER, drake: LOWER, fiend: LOWER, boneward: LOWER, mailed: LOWER };
+// and per held kind, for every arm model (added to the above): a staff's thick shaft sits out
+// under the curled fingers rather than back against the heel of the hand
+const ITEM_SEAT = { staff: { R: [-0.020, 0, 0], L: [0.020, 0, 0] } };
+// The rig's fist closes the bare fingers solid (no tunnel for a handle), so while a bare hand
+// holds something each finger opens about its own curl axis by these angles (degrees, at the
+// knuckle, middle and end joints; negative closes), so a handle runs through the fist with the
+// fingertips tucked round it. The glove-like gauntlets tuck their fingertips round a handle a
+// little more; shields' thin bars, every other pose and the plated gauntlets are left as keyed.
+const TUCK = { onehand: [0, -2, -12], twohand: [0, -2, -12], staff: [0, -2, -10] };
+const GRIP_OPEN = { bare: { default: [8, 6, 4], onehand: [8, 0, -14], twohand: [8, 0, -14], staff: [6, 2, -6] },
+  brawler: TUCK, hunter: TUCK, runebound: TUCK };
+const FINGERS = ['index', 'middle', 'ring', 'pinky'];
+const _s1 = new THREE.Vector3(), _s2 = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Quaternion();
+
+function restoreGrip(arm) {
+  for (const [b, p, q] of arm.saved) { b.position.copy(p); b.quaternion.copy(q); }
+}
+
+function openGrip(arm, deg) {
+  arm.saved ||= FINGERS.flatMap((f) => arm.fingers[f].filter(Boolean)).map((b) => [b, new THREE.Vector3(), new THREE.Quaternion()]);
+  for (const [b, p, q] of arm.saved) { p.copy(b.position); q.copy(b.quaternion); }
+  for (const f of FINGERS) {
+    const b = arm.fingers[f];
+    if (!b[2]) continue;
+    _s1.subVectors(b[1].position, b[0].position); _s2.subVectors(b[2].position, b[1].position);
+    _n.crossVectors(_s1, _s2);   // (turning the first segment about this curls it further)
+    if (_n.lengthSq() < 1e-12) continue;
+    _n.normalize();
+    const seg = [_s1.clone(), _s2.clone()];
+    let a = 0;
+    for (let k = 0; k < 3; k++) {   // each segment turns by every opening up to it, about its own joint
+      a -= deg[k] * Math.PI / 180;
+      _q.setFromAxisAngle(_n, a);
+      b[k].quaternion.premultiply(_q);
+      if (k < 2) b[k + 1].position.copy(b[k].position).add(seg[k].applyQuaternion(_q));
+    }
+  }
+}
 const BLOCK = { shield_round: 'round_block', shield_kite: 'kite_block' };
 const SHIELD = { shield_round: 'round', shield_kite: 'kite' };
 // what each held kind attacks with: a slot in fp_moves.json, whose picked option is a chain
 const SLOT_OF = { onehand: 'onehand', twohand: 'twohand', staff: 'staff' };
 const CHAIN_FADE = 0.1;   // the blend from one blow of a combo into the next
+// Melee pace (the user's call): every blow wants its own click and plays a little slower (PACE);
+// between the blows of a one-hander's combo the next waits cocked at its wind-up for COCK_WAIT
+// seconds (a click lets it go), then eases back to the carry; after a one-hander's last blow, and
+// after every two-handed blow, the weapon rests (back to the carry) before the next, two-handers
+// taking turns about their blows.
+const PACE = { onehand: 0.85, twohand: 0.75 };
+const COCK_WAIT = 1.0, COCK_FADE = 0.22;
+// a cocked blow not asked for unwinds: its clip plays backward (at this speed) from the wind-up to
+// its start, the way it came, so the blade stays on screen, then the carry takes over
+const UNWIND = 0.35;
+// a click this close to the end of a rest (seconds) is kept, and the blow goes as the carry's reached
+const BUFFER = 0.4;
+// a cocked blow held where its wind-up would be hard to see (low in the corner) is brought in and
+// up while it waits ([in toward the middle, up], metres in the view)
+const COCK_LIFT = { sword_rise: [0.04, 0.06] };
+// The shove's ghost (the user's call): a see-through copy of the shield leaps out of it, swells
+// GHOST_GROW times larger and flies GHOST_FLY metres on toward the crosshair over GHOST_TIME
+// seconds, fading as it goes.
+const GHOST_TIME = 0.32, GHOST_FLY = 0.25, GHOST_GROW = 2.2, GHOST_ALPHA = 0.9;
+const GHOST_MAX = 1.4;   // (no taller than this, swollen: a kite's ghost grows less than a buckler's)
+// (lit at its rims, faint across its face: a ghost, not a white plate)
+const GHOST_VERT = `varying vec3 vN; varying vec3 vV;
+void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
+const GHOST_FRAG = `uniform vec3 color; uniform float alpha; varying vec3 vN; varying vec3 vV;
+void main() { float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); gl_FragColor = vec4(color * (0.10 + 1.3 * f), alpha); }`;
 const EVENTS = new Set(['hit', 'fire', 'whoosh']);   // the catalog's times that are told to the game
 
 /** The move set: catalog + each side's clips (smoothed once), fetched on first use. */
@@ -116,6 +200,10 @@ export class ViewModel {
   constructor(manifest, lib = null) {
     this.manifest = manifest;
     this.lib = lib; // for normal maps made from each model's skin
+    this.grip = { seat: GRIP_SEAT, item: ITEM_SEAT, open: GRIP_OPEN };   // (per arm model; tunable from the move viewer)
+    this.turn = {};   // (side -> the two-hander's next blow)
+    this.buffered = {};   // (side -> a click kept from the end of a rest)
+    this.ghosts = [];   // (the shove's ghost shields in flight)
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
     this.hemi = new THREE.HemisphereLight(0xfff0dd, 0x302838, 1.2);
@@ -208,7 +296,8 @@ export class ViewModel {
       for (const [name, clip] of Object.entries(this.moves.clips[side])) actions[name] = mixer.clipAction(clip);
       g.scene.matrixAutoUpdate = false;   // (its matrix is the sideways slide: slide())
       this.arms[side] = { scene: g.scene, mixer, actions, socket: g.scene.getObjectByName('item'),
-        hand: g.scene.getObjectByName('hand'), item: null, walk: null, current: null, roll: 0 };
+        hand: g.scene.getObjectByName('hand'), item: null, walk: null, current: null, roll: 0,
+        fingers: Object.fromEntries(FINGERS.map((f) => [f, [1, 2, 3].map((k) => g.scene.getObjectByName(f + k))])) };
     }
     await this.applyEquip();
   }
@@ -320,6 +409,8 @@ export class ViewModel {
       if (kind && !(side === 'L' && this.equip.R && ITEMS[this.equip.R].both)) {
         arm.item = await this.itemScene(kind);
         arm.socket.add(arm.item);
+        const m = this.grip.seat[this.gauntlet], a = m?.[kind]?.[side] ?? m?.[side], b = this.grip.item[kind]?.[side];
+        if (a || b) arm.item.position.set(0, 0, 0).add(_p.fromArray(a || [0, 0, 0])).add(_a.fromArray(b || [0, 0, 0]));
       }
       this.state[side] = null;
       this.playWalk(side, true);
@@ -332,6 +423,13 @@ export class ViewModel {
   }
 
   twoHanded() { return !!(this.equip.R && ITEMS[this.equip.R]?.both); }
+
+  /** What this hand is closed on, if anything shown: its own item's kind, or the two-hander's
+   * (the support hand). */
+  gripping(side) {
+    if (this.arms[side]?.item?.visible) return this.equip[side];
+    return side === 'L' && this.twoHanded() && this.arms.R?.item?.visible ? this.equip.R : null;
+  }
 
   /** Switch an arm to action `a`, cross-fading from whatever it was playing so the weights
    * always sum to one (fading in from nothing would let the bind pose show through). */
@@ -350,12 +448,12 @@ export class ViewModel {
     arm.current = a;
   }
 
-  playWalk(side, snap = false) {
+  playWalk(side, snap = false, fade = 0.14) {
     const arm = this.arms[side];
     const a = arm.actions[this.walkClip(side)];
     if (!a) return;
     a.setLoop(THREE.LoopRepeat, Infinity);
-    this.switchTo(arm, a, snap ? 0 : 0.14);
+    this.switchTo(arm, a, snap ? 0 : fade);
     arm.walk = a;
     if (arm.item) arm.item.visible = true;
   }
@@ -363,13 +461,14 @@ export class ViewModel {
   /** Play a one-shot clip on one arm; events fire at the catalog's times. `from` starts it
    * part-way (a combo's next blow enters at its wind-up); a `quiet` arm fires no events (the
    * left hand on a two-handed grip: the right one speaks for both). */
-  play(side, name, { hold = null, hideItem = false, from = 0, fade = 0.1, quiet = false, freeze = false } = {}) {
+  play(side, name, { hold = null, hideItem = false, from = 0, fade = 0.1, quiet = false, freeze = false, speed = 1 } = {}) {
     const arm = this.arms[side];
     const a = arm.actions[name];
     if (!a) return false;
     a.setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = true;
     this.switchTo(arm, a, fade, freeze);
+    a.timeScale = speed;
     a.time = from;
     if (arm.item) arm.item.visible = !hideItem;
     const ev = this.manifest.events[name] || {};
@@ -383,7 +482,7 @@ export class ViewModel {
     const c = this.clipInfo(name);
     if (!c || c.kind !== 'attack') return null;
     const e = c.events.edge || [0.8, 0.6];
-    return { attack: true, heavy: !!c.heavy, power: c.power ?? 1, edge: [side === 'L' ? -e[0] : e[0], e[1]] };
+    return { attack: true, heavy: !!c.heavy, stab: !!c.stab, power: c.power ?? 1, edge: [side === 'L' ? -e[0] : e[0], e[1]] };
   }
 
   busy(side) { return !!this.state[side]; }
@@ -395,19 +494,102 @@ export class ViewModel {
   attack(side) {
     const kind = this.equip[side];
     if (!kind) return 'spell';
-    const st = this.state[side];
+    let st = this.state[side];
+    if (st?.unwind) { this.state[side] = null; st = null; }   // (winding back down: a click starts afresh)
     if (st && !/_aside_/.test(st.name)) {   // (stepping aside for the other hand: cut it short)
-      // a blow under way: the next in its combo follows once this one's follow-through is done
-      // (asked for any time before its recovery is well along)
-      if (st.chain && !st.queued && st.action.time < (st.events.link ?? st.duration) + 0.15) { st.queued = true; return 'queued'; }
+      if (st.cocked) { this.loose(side); return 'loosed'; }   // the cocked blow goes
+      // a blow under way: a click asks for the next in its combo, which follows once this one's
+      // follow-through is done (asked for any time before its recovery is well along); a weapon
+      // that rests after this blow takes no more until it has
+      if (st.chain && !st.queued && !this.rests(side, st) && st.action.time < (st.events.link ?? st.duration) + 0.15) { st.queued = true; return 'queued'; }
+      // near the end of a rest: kept, and it goes as soon as the weapon is back at the carry
+      if (st.chain && this.rests(side, st) && (st.duration - st.action.time) / (st.action.timeScale || 1) <= BUFFER) { this.buffered[side] = true; return 'buffered'; }
       return null;
     }
     const both = ITEMS[kind]?.both;
     if (both && this.busy('L') && !/_aside_/.test(this.state.L.name)) return null;
     const list = this.pick(SLOT_OF[kind])?.chain;
     if (!list) return null;
-    this.strike(side, list, 0, 0, 0.1);
+    const index = both ? (this.turn[side] ?? 0) : 0;   // (two-handers take turns about their blows)
+    this.strike(side, list, index, 0, 0.1);
+    if (both) this.turn[side] = index + 1;
     return kind;
+  }
+
+  /** Whether the weapon rests after this blow (back to the carry) rather than cocking the next. */
+  rests(side, st) {
+    if (!st.chain || ITEMS[this.equip[side]]?.both) return true;
+    const { list, index } = st.chain;
+    return index % list.length === list.length - 1;
+  }
+
+  /** A cocked blow goes: it plays on from its wind-up, and the other hand's step-aside with it. */
+  loose(side) {
+    for (const s of ['R', 'L']) {
+      const o = this.state[s];
+      if (o && (s === side || /_aside_/.test(o.name))) { o.hold = null; o.cocked = false; }
+    }
+  }
+
+  /** A cocked blow not asked for: the weapon (and the other hand's step-aside) unwinds the way it
+   * came, back to the start of its clip, then to the carry; `now`, straight to the carry. */
+  relax(side, now = false) {
+    for (const s of ['R', 'L']) {
+      const o = this.state[s];
+      if (!o || !(s === side || (/_aside_/.test(o.name) && o.hold != null))) continue;
+      if (now) { this.state[s] = null; this.playWalk(s); continue; }
+      o.hold = null; o.cocked = false; o.unwind = true;
+      o.action.paused = false; o.action.timeScale = -UNWIND;
+    }
+  }
+
+  /** With the shield up the sword hand only stabs, round the shield's edge (LMB). */
+  stab() {
+    if (!this.blocking || this.equip.R !== 'onehand') return null;
+    const st = this.state.R;
+    if (st && st.name !== 'sword_guard') return null;
+    this.play('R', 'sword_stab', { fade: 0.06, speed: PACE.onehand });
+    return 'stab';
+  }
+
+  /** The shove made visible: a see-through ghost of the held shield leaps out of it, swelling
+   * and flying on ahead as it fades (the push's wave; a bigger shield throws a bigger one). */
+  shoveGhost() {
+    const it = this.arms.L?.item;
+    if (!it || !SHIELD[this.equip.L]) return;
+    it.updateMatrixWorld(true);
+    const g = it.clone(true);   // (sharing the shield's geometry)
+    const mat = new THREE.ShaderMaterial({ uniforms: { color: { value: new THREE.Color(0xb8dcff) }, alpha: { value: GHOST_ALPHA } },
+      vertexShader: GHOST_VERT, fragmentShader: GHOST_FRAG, transparent: true, depthWrite: false, depthTest: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    g.traverse((o) => { if (o.isMesh) { o.material = mat; o.renderOrder = 10; } });
+    it.matrixWorld.decompose(g.position, g.quaternion, g.scale);
+    g.matrixAutoUpdate = true;
+    this.scene.add(g);
+    const from = g.position.clone();
+    const dir = new THREE.Vector3(0, -0.04, -1.3).sub(from).normalize();   // (on toward the crosshair)
+    const grow = Math.min(GHOST_GROW, GHOST_MAX / Math.max(0.2, this.shieldSize()?.h || 0.5)) - 1;
+    this.ghosts.push({ g, mat, t: 0, from, dir, grow, s0: g.scale.clone() });
+  }
+
+  /** The held shield's size in metres ({w, h}: across its face and along its grip), from its
+   * own model (the shove's reach and width go by it). */
+  shieldSize() {
+    const it = this.arms.L?.item;
+    if (!it || !SHIELD[this.equip.L]) return null;
+    if (!it.userData.size) {
+      it.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(it.matrixWorld).invert(), m = new THREE.Matrix4();
+      const b = new THREE.Box3(), mb = new THREE.Box3();
+      it.traverse((o) => {
+        if (!o.isMesh) return;
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+        b.union(mb.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+      });
+      const sz = b.getSize(new THREE.Vector3());
+      it.userData.size = { w: sz.x, h: sz.y };
+    }
+    return it.userData.size;
   }
 
   /** Blow `index` of a combo (wrapping round), entering it at time `from`. */
@@ -415,17 +597,18 @@ export class ViewModel {
     const name = list[index % list.length];
     const kind = this.equip[side];
     const freeze = index > 0;   // (chained: the blow before holds where it was cut)
-    if (!this.play(side, name, { from, fade, freeze })) return;
+    const speed = this.clipInfo(name)?.kind === 'attack' ? PACE[kind] ?? 1 : 1;
+    if (!this.play(side, name, { from, fade, freeze, speed })) return;
     if (this.clipInfo(name)?.kind === 'attack') this.state[side].chain = { list, index };
-    if (ITEMS[kind]?.both) this.play('L', name, { from, fade, quiet: true, freeze });
+    if (ITEMS[kind]?.both) this.play('L', name, { from, fade, quiet: true, freeze, speed });
     // a shield swings out of the sword's way, frame for frame with the blow
     const sh = this.equip.L;
     if (side === 'R' && kind === 'onehand' && SHIELD[sh] && !this.blocking && (!this.state.L || /_aside_/.test(this.state.L.name)))
-      this.play('L', `${SHIELD[sh]}_aside_${name.split('_')[1]}`, { from, fade, freeze });
+      this.play('L', `${SHIELD[sh]}_aside_${name.split('_')[1]}`, { from, fade, freeze, speed });
     // and a sword in the other hand makes room for this one
     const other = side === 'R' ? 'L' : 'R';
     if (kind === 'onehand' && this.equip[other] === 'onehand' && (!this.state[other] || /_aside_/.test(this.state[other].name)))
-      this.play(other, `sword_aside_${name.split('_')[1]}`, { from, fade, freeze });
+      this.play(other, `sword_aside_${name.split('_')[1]}`, { from, fade, freeze, speed });
   }
 
   /** The left hand's action (RMB): shields block while held; swords swing. */
@@ -437,6 +620,7 @@ export class ViewModel {
         this.blocking = true;
         const name = BLOCK[kind];
         const t3 = this.manifest.events[name]?.hold ?? this.manifest.frame_starts[name][3];
+        if (this.state.R?.cocked) this.relax('R', true);   // (a cocked blow gives way to the shield)
         this.play('L', name, { hold: t3 });
         if (this.equip.R === 'onehand' && !this.busy('R')) this.play('R', 'sword_guard', { hold: t3 });
       }
@@ -463,8 +647,9 @@ export class ViewModel {
       return Math.max(0, ...this.manifest.frame_starts[clip].filter((t) => t < fire - 1e-3));
     };
     const both = () => {
-      this.play('R', 'both_cast', { hideItem: true, hold: hold('both_cast') });
-      this.play('L', 'both_cast', { hideItem: true, hold: hold('both_cast') });
+      const clip = this.pick('twospell')?.chain[0] || 'both_cast';
+      this.play('R', clip, { hideItem: true, hold: hold(clip) });
+      this.play('L', clip, { hideItem: true, hold: hold(clip) });
       return 'both';
     };
     if (spell.hands === 2) return both();
@@ -483,7 +668,7 @@ export class ViewModel {
     const p = new THREE.Vector3();
     if (arm.item && arm.item.visible && it?.tip) {
       p.set(0, it.tip, 0);
-      arm.socket.localToWorld(p);
+      arm.item.localToWorld(p);   // (the item, not the socket: it may be seated off the socket)
     } else {
       p.set(side === 'R' ? -0.06 : 0.06, 0, -0.06); // just in front of the palm
       arm.hand.localToWorld(p);
@@ -502,6 +687,15 @@ export class ViewModel {
         const next = list[(index + 1) % list.length];
         this.strike(side, list, index + 1, this.manifest.events[next]?.enter ?? 0, CHAIN_FADE);
         st = this.state[side];
+      } else if (st?.chain && !st.queued && !st.cocked && st.hold == null && !this.rests(side, st)
+        && st.action.time >= (st.events.link ?? st.duration)) {
+        // no click yet: the next blow waits, cocked at its wind-up, for a moment
+        const { list, index } = st.chain;
+        const next = list[(index + 1) % list.length], enter = this.manifest.events[next]?.enter ?? 0;
+        this.strike(side, list, index + 1, enter, COCK_FADE);
+        st = this.state[side];
+        st.hold = enter; st.cocked = true;
+        for (const s of ['R', 'L']) { const o = this.state[s]; if (s !== side && o && /_aside_/.test(o.name)) o.hold = enter; }
       }
       const roll = arm.item && ITEMS[this.equip[side]]?.roll;
       if (roll) {   // eased, so a combo entering mid-swing turns the blade rather than snapping it
@@ -511,16 +705,27 @@ export class ViewModel {
       }
       if (st) {
         const a = st.action;
-        if (st.hold != null && a.time >= st.hold) { a.time = st.hold; a.paused = true; }
-        else a.paused = false;
-        if (!a.paused && a.time >= st.duration - 1e-4) {
+        if (st.hold != null && a.time >= st.hold) { a.time = st.hold; a.paused = true; st.heldFor = (st.heldFor || 0) + dt; }
+        else { a.paused = false; st.heldFor = 0; }
+        if (st.cocked && st.heldFor > COCK_WAIT) this.relax(side);
+        else if (st.unwind && a.time <= 1e-3) { this.state[side] = null; this.playWalk(side, false, 0.18); }   // (unwound)
+        else if (!st.unwind && !a.paused && a.time >= st.duration - 1e-4) {
           this.state[side] = null;
-          this.playWalk(side);
+          const t3 = this.manifest.events[BLOCK[this.equip.L]]?.hold;
+          if (st.name === 'sword_stab' && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
+          else this.playWalk(side);
+          if (this.buffered[side]) { this.buffered[side] = false; if (st.chain) (this.kept ||= []).push(side); }   // (the kept click: below, once both hands are done)
         }
       } else if (arm.walk) {
         arm.walk.timeScale = 0.25 + Math.min(1.3, speed / 6.2);
       }
+      // (the mixer only writes a bone whose value changed, so a grip opened last frame is put
+      // back first, or it would keep opening while a pose holds)
+      if (arm.opened) { restoreGrip(arm); arm.opened = false; }
       arm.mixer.update(dt);
+      const open = this.grip.open[this.gauntlet], held = this.gripping(side);
+      const deg = held && (Array.isArray(open) ? open : open?.[held] || open?.default);
+      if (deg) { openGrip(arm, deg); arm.opened = true; }
       // events once the pose has moved on to them, so a hit fires on the frame that shows it
       st = this.state[side];
       if (st) {
@@ -532,13 +737,23 @@ export class ViewModel {
         st.last = t;
       }
     }
-    this.slide();
+    for (const s of this.kept?.splice(0) || []) this.attack(s);
+    for (let i = this.ghosts.length - 1; i >= 0; i--) {   // the shove's ghosts: out, larger, fading
+      const gh = this.ghosts[i];
+      gh.t += dt;
+      const k = Math.min(1, gh.t / GHOST_TIME), e = 1 - (1 - k) ** 3;
+      gh.g.position.copy(gh.from).addScaledVector(gh.dir, GHOST_FLY * e);
+      gh.g.scale.copy(gh.s0).multiplyScalar(1 + gh.grow * e);
+      gh.mat.uniforms.alpha.value = GHOST_ALPHA * (k < 0.1 ? 1 : ((1 - k) / 0.9) ** 2.2);   // (full a tic, then gone quickly: the staggered foe shows through)
+      if (k >= 1) { this.scene.remove(gh.g); gh.mat.dispose(); this.ghosts.splice(i, 1); }
+    }
+    this.slide(dt);
   }
 
   /** Slide each arm sideways on screen (a shear: every depth moves the same distance on screen,
    * so nothing bends) by how far its grip is from the centre, so the hands ride wide. Two hands
    * on one grip slide together. */
-  slide() {
+  slide(dt = 1 / 60) {
     const fx = this.camera.projectionMatrix.elements[0];
     const f = Math.min(2.2, Math.max(0.8, (this.moves?.cat.stretch ?? 1) * this.aspect / 1.6));
     const shift = {};
@@ -555,8 +770,39 @@ export class ViewModel {
       const arm = this.arms[side];
       if (!arm) continue;
       const k = shift[side] / fx;   // x' = x - k z: on screen, + fx k
-      arm.scene.matrix.set(1, 0, -k, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+      // a charge held on its frame trembles, a pixel or two at first and more the longer it is
+      // held, so the clenched fist reads as power building rather than a frozen frame
+      const st = this.state[side];
+      let tx = 0, ty = 0;
+      if (st?.heldFor > 0 && this.clipInfo(st.name)?.kind === 'cast') {
+        const t = st.heldFor, amp = 0.0003 + 0.0004 * Math.min(1, t / 1.5), ph = side === 'L' ? 1.7 : 0;
+        tx = amp * Math.sin(t * 47 + ph);
+        ty = amp * (Math.sin(t * 61 + ph * 0.6) + 0.8 * Math.max(0, Math.sin(t * 9)) ** 4);
+      }
+      // a cocked blow breathes while it waits, lifted into view if its wind-up sits low, and
+      // sags in its last moment before it eases back (the lift itself eases in and out)
+      const cocked = st?.cocked && st.heldFor > 0, want = (cocked || st?.unwind) && COCK_LIFT[st.name];
+      const k10 = Math.min(1, dt * 10), sx = side === 'L' ? 1 : -1;   // (in toward the middle)
+      arm.liftX = (arm.liftX || 0) + ((want ? want[0] * sx : 0) - (arm.liftX || 0)) * k10;
+      arm.lift = (arm.lift || 0) + ((want ? want[1] : 0) - (arm.lift || 0)) * k10;
+      tx += arm.liftX; ty += arm.lift;
+      if (cocked) {
+        const t = st.heldFor, ph = side === 'L' ? 1.1 : 0;
+        tx += 0.0004 * Math.sin(t * 5.3 + ph);
+        ty += 0.0006 * Math.sin(t * 3.1 + ph) - 0.012 * Math.max(0, (t - (COCK_WAIT - 0.2)) / 0.2);
+      }
+      arm.scene.matrix.set(1, 0, -k, tx, 0, 1, 0, ty, 0, 0, 1, 0, 0, 0, 0, 1);
       arm.scene.updateMatrixWorld(true);
+    }
+    // a seated two-hander: move the support hand so its fist's hole is on the handle's line
+    const m = this.grip.seat[this.gauntlet], sl = m?.[this.equip.R]?.L ?? m?.L;
+    if (sl && this.twoHanded() && this.arms.R?.item && this.arms.L) {
+      const R = this.arms.R, L = this.arms.L;
+      const a = R.item.getWorldPosition(_a), d = _d.set(0, 1, 0).transformDirection(R.item.matrixWorld);
+      const h = L.socket.localToWorld(_h.fromArray(sl));
+      const off = _a.addScaledVector(d, _p.subVectors(h, a).dot(d)).sub(h);   // (nearest point on the line, minus the hole)
+      L.scene.matrix.elements[12] += off.x; L.scene.matrix.elements[13] += off.y; L.scene.matrix.elements[14] += off.z;
+      L.scene.updateMatrixWorld(true);
     }
   }
 

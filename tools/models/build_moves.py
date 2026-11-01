@@ -123,10 +123,11 @@ def catalog():
         # the library clip the blow (or cast, or block) is taken from, and where in it
         key = next((f for e in ("hit", "fire", "hold") for f in frames
                     if f.get(e) and isinstance(f.get("ref"), str)), None)
-        if key:
+        if key and key["ref"].split("@")[0] not in moves.MOCAP_VIDEOS:
             src, fr = key["ref"].split("@")
             ev["src"] = [src, round(int(fr) / 30, 3)]
         clips[cid] = dict(kind=clip["kind"], heavy=bool(clip.get("heavy")), roll=bool(clip.get("roll")),
+                          stab=bool(clip.get("stab")),
                           power=clip.get("power", 1.0),
                           starts=starts,
                           events=ev, names=[f["name"] for f in frames],
@@ -238,7 +239,7 @@ def blended_blades(keys, t0, t1, steps=4):
             yield tt, R.project(g) + sl, R.project(tip) + sl, d, (g + tip) / 2
 
 
-def attack_checks(cid, keys):
+def attack_checks(cid, keys, stab=False):
     """A blow's own rules: on its hit frame the blade crosses the crosshair's column, and its
     sweep there runs the way its name says (a chop within 25 degrees of straight down, a
     diagonal 35-55 degrees off it)."""
@@ -252,6 +253,8 @@ def attack_checks(cid, keys):
     xs = [R.project(arm["G"] + arm["D"] * p[j])[0] + sl for j in ("guard", "tip")]
     if not min(xs) - 6 <= R.SCREEN_W / 2 <= max(xs) + 6:
         out.append(f"blade misses the crosshair column at HIT ({min(xs):.0f}-{max(xs):.0f}px)")
+    if stab:   # (the stab round a raised shield is meant to read as one)
+        return out
     # no blow may read as a stab: through the hit, as the game blends it, the blade stays long on
     # screen and off the line of sight (a blade pointed at the eye is a short stub however it
     # moves); and the tip is moving fast as the damage lands, not parked before it
@@ -309,7 +312,7 @@ def check():
             behind += sum(q[2] <= R.NEAR for arm in arms for q in fit_check.smearable(arm))
         flag = []
         if clip["kind"] == "attack":
-            flag += attack_checks(cid, keys)
+            flag += attack_checks(cid, keys, clip.get("stab"))
         if worst_top < MARGIN:
             flag.append(f"TOO NEAR THE TOP {worst_top:.0f}px (keep {MARGIN:.0f})")
         if worst_miss > 0.015:

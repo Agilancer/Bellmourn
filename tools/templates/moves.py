@@ -26,10 +26,17 @@ grip at the side; `shrug` lifts the shoulder (metres) while the arm is raised.
     python tools/models/build_moves.py      # bakes these into templates/models/arms/fp_moves_*.glb
 """
 import math
+import os
+import sys
+
+import numpy as np
 
 import anims
 from anims import W, H, mirror, walk_cycle, lerp_key, lerp_hand
 import fp_rig as R
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models"))
+import arm as A  # noqa: E402  (hand shapes)
 
 VIEW = R.REST_SCALE
 STRETCH = 1.3                  # how much wider the hands are drawn than they are posed
@@ -93,8 +100,8 @@ def towards(a, b, s, name, tics, **extra):
 SWORD = dict(S=at(0.80, 0.90, 0.40), ang=86, dz=0.05)
 GREAT = dict(S=at(0.76, 0.90, 0.42), ang=62, dz=0.15, twist=-22)  # (torso turned right)
 STAFF = dict(S=at(0.83, 0.95, 0.36), ang=90, dz=0.05)
-ROUND = dict(S=at(0.86, 0.93, 0.42), ang=165, dz=0.10, face=(0.62, 0.14, 0.77))
 KITE = dict(S=at(0.85, 1.05, 0.46), ang=100, dz=0.10, face=(0.62, 0.10, 0.78))
+ROUND = dict(KITE)   # (held like the kite: see ROUND_BLOCK)
 HAND = palm("READY", 2, 0.82, 0.89, 0.33, (-0.10, 0.30, 0.95), (-0.40, -0.90, 0.15), 0.55)
 BOTH = palm("READY", 2, 0.75, 0.90, 0.32, (-0.15, 0.30, 0.94), (-0.45, -0.85, 0.25), 0.55)
 GRIP_2H = anims.GRIP_2H
@@ -130,7 +137,7 @@ SWORD_DIAG = [
     k("LIFT", 2, 0.82, 0.78, 0.44, 60, 0.00, ref="Sword_Attack@3"),
     k("COCK", 2, 0.82, 0.70, 0.42, 38, -0.15, twist=-8, pole=(1.0, -0.1, -0.4),
       ref="Sword_Attack@6", enter=True),
-    k("COCKED", 3, 0.82, 0.68, 0.40, 30, -0.18, twist=-12, pole=(1.0, -0.1, -0.4),
+    k("COCKED", 1, 0.82, 0.68, 0.40, 30, -0.18, twist=-12, pole=(1.0, -0.1, -0.4),
       ref="Sword_Attack@9"),
     k("OVER", 1, 0.75, 0.65, 0.40, 70, 0.25, twist=-6, pole=(1.0, 0.0, -0.3), smear=True,
       flat=0.4, ref="Sword_Attack@11"),
@@ -195,7 +202,22 @@ SWORD_RISE = [
 # While a shield is up, the sword hand draws back down and out of its way (8 frames, frame
 # for frame with the block).
 SWORD_BACK_POSE = dict(S=at(0.86, 0.98, 0.34), ang=60, dz=0.30)
-GUARD_PULL = (0.0, 0.45, 0.85, 1.0, 1.0, 0.70, 0.35, 0.06)
+GUARD_PULL = (0.0, 0.45, 0.85, 1.0, 1.0, 1.0, 1.0, 0.70, 0.35, 0.06)   # (frame for frame with the block, its shove included)
+
+
+# Stab round the raised shield (the user's call, 2026-11-01): while the shield is up the sword hand
+# only thrusts, reaching from the guard it waits in, round the shield's right edge, at the target
+# (the one blow allowed to read as a stab: the build's no-stab rule skips it).
+SWORD_STAB = [
+    pose(SWORD_BACK_POSE, "GUARD", 1),
+    k("DRAW", 2, 0.90, 0.96, 0.30, 72, 0.9),
+    k("THRUST", 1, 0.75, 0.84, 0.45, 120, 1.3, smear=True),
+    k("HIT", 2, 0.65, 0.765, 0.52, 140, 1.0, smear=True, hit=True),
+    k("REACH", 1, 0.645, 0.76, 0.525, 141, 1.0),
+    k("WITHDRAW", 2, 0.76, 0.87, 0.43, 100, 1.1),
+    k("BACK", 2, 0.85, 0.95, 0.36, 70, 0.5),
+    pose(SWORD_BACK_POSE, "GUARD", 2),
+]
 
 
 # ---------------------------------------------------------------- two-handed (right + left support)
@@ -220,9 +242,9 @@ GREAT_CHOP = [
 # Cleave (UAL1 Sword_Attack, two hands): the diagonal cut, heavier and lower.
 GREAT_CLEAVE = [
     pose(GREAT, "CARRY", 2, ref="Sword_Attack@0"),
-    k("LIFT", 3, 0.77, 0.82, 0.46, 40, 0.10, twist=-22, ref="Sword_Attack@3"),
+    k("LIFT", 2, 0.77, 0.82, 0.46, 40, 0.10, twist=-22, ref="Sword_Attack@3"),
     k("COCK", 3, 0.78, 0.74, 0.48, 20, -0.05, twist=-24, ref="Sword_Attack@6", enter=True),
-    k("COCKED", 3, 0.78, 0.73, 0.48, 16, -0.06, twist=-24, ref="Sword_Attack@9"),
+    k("COCKED", 2, 0.78, 0.73, 0.48, 16, -0.06, twist=-24, ref="Sword_Attack@9"),
     k("OVER", 2, 0.71, 0.71, 0.50, 55, 0.15, twist=-12, smear=True, flat=0.3, ref="Sword_Attack@11"),
     k("CUT", 1, 0.62, 0.72, 0.50, 100, 0.30, twist=-2, smear=True, flat=0.4, ref="Sword_Attack@12"),
     k("HIT", 2, 0.55, 0.77, 0.50, 140, 0.35, twist=6, smear=True, hit=True, flat=0.5,
@@ -241,8 +263,8 @@ GREAT_BACK = [
     pose(GREAT, "CARRY", 2, ref="Sword_Dash@0"),
     k("TIP", 2, 0.70, 0.88, 0.44, 80, 1.20, twist=-10, ref="Sword_Dash@1"),
     k("CROSS", 2, 0.58, 0.86, 0.44, 150, 1.00, twist=4, ref="Sword_Dash@2"),
-    k("CHAMBER", 3, 0.38, 0.74, 0.42, 184, -0.30, twist=24, flat=0.3, ref="Sword_Dash@4", enter=True),
-    k("COILED", 2, 0.37, 0.73, 0.42, 186, -0.32, twist=26, flat=0.3, ref="Sword_Dash@7"),
+    k("CHAMBER", 2, 0.38, 0.74, 0.42, 184, -0.30, twist=24, flat=0.3, ref="Sword_Dash@4", enter=True),
+    k("COILED", 1, 0.37, 0.73, 0.42, 186, -0.32, twist=26, flat=0.3, ref="Sword_Dash@7"),
     k("WHIP", 1, 0.45, 0.71, 0.44, 180, -0.05, twist=16, smear=True, flat=0.4, ref="Sword_Dash@9"),
     k("DRAW", 1, 0.53, 0.70, 0.44, 175, 0.15, twist=4, smear=True, flat=0.5, ref="Sword_Dash@9"),
     k("HIT", 2, 0.60, 0.70, 0.44, 172, 0.25, twist=-4, smear=True, hit=True, flat=0.6,
@@ -261,22 +283,13 @@ GREAT_BACK = [
 # Block (UAL2 Idle_Shield_Loop / Shield_OneShot / Idle_Shield_Break): the shield comes up across
 # the chest, face to the enemy, its rim just under the crosshair so you look over it; a blow
 # knocks it back and out (BRACE), then it lowers to the corner. Frame 3 holds while blocking.
-ROUND_UP = dict(S=at(0.64, 0.84, 0.42), ang=178, dz=0.0, face=(-0.30, 0.17, 0.94))
-ROUND_BLOCK = [
-    pose(ROUND, "CARRY", 2, ref="Shield_OneShot@0"),
-    k("RAISE 1", 1, 0.76, 0.86, 0.41, 170, 0.10, face=(0.45, 0.10, 0.88), ref="Shield_OneShot@2"),
-    k("RAISE 2", 1, 0.68, 0.86, 0.41, 175, 0.05, face=(0.00, 0.10, 0.99), ref="Shield_OneShot@4"),
-    pose(ROUND_UP, "BLOCK", 4, ref="Idle_Shield_Loop@0", hold=True),
-    k("BRACE", 2, 0.67, 0.89, 0.38, 176, 0.0, face=(-0.10, 0.22, 0.97), ref="Idle_Shield_Break@4"),
-    k("LOWER 1", 2, 0.70, 0.86, 0.39, 172, 0.05, face=(0.30, 0.10, 0.95), ref="Shield_OneShot@18"),
-    k("LOWER 2", 2, 0.80, 0.91, 0.41, 168, 0.08, face=(0.50, 0.13, 0.86), ref="Shield_OneShot@22"),
-    pose(ROUND, "SETTLE", 2, ref="Shield_OneShot@25"),
-]
 KITE_UP = dict(S=at(0.62, 0.90, 0.50), ang=96, dz=0.0, face=(-0.28, 0.12, 0.95))
 KITE_BLOCK = [
     pose(KITE, "CARRY", 2, ref="Shield_OneShot@0"),
     towards(KITE, KITE_UP, 0.45, "RAISE 1", 1, ref="Shield_OneShot@2"),
     towards(KITE, KITE_UP, 0.85, "RAISE 2", 1, ref="Shield_OneShot@4"),
+    pose(KITE_UP, "SHOVE", 3, S=at(0.57, 0.80, 0.56), face=(-0.38, 0.14, 0.92), ref="Shield_OneShot@6"),   # (driven out and up: the shove)
+    pose(KITE_UP, "STEADY", 2, S=at(0.62, 0.91, 0.50), ref="Shield_OneShot@8"),   # (settling back into the block)
     pose(KITE_UP, "BLOCK", 4, ref="Idle_Shield_Loop@0", hold=True),
     dict(KITE_UP, name="BRACE", tics=2, S=at(0.65, 0.94, 0.46), face=(0.12, 0.05, 0.99),
          ref="Idle_Shield_Break@4"),
@@ -284,11 +297,22 @@ KITE_BLOCK = [
     towards(KITE, KITE_UP, 0.30, "LOWER 2", 2),
     towards(KITE, KITE_UP, 0.0, "SETTLE", 2),
 ]
+# the round shield blocks just like the kite: the same keys (held upright at the left, the
+# forearm along its back)
+def raised(key, dy=0.03):
+    """A key drawn dy (a fraction of the screen) higher: the round shield, smaller than the
+    kite, sits a touch higher in the same hold so it covers as much."""
+    x, y, z = key["S"]
+    return dict(key, S=(x, y - dy * H / VIEW, z))
+
+
+ROUND, ROUND_UP = raised(KITE), raised(KITE_UP)
+ROUND_BLOCK = [raised(key) for key in KITE_BLOCK]
 # a second sword makes room the same way when the other hand swings: out and down a little
 SWORD_ROOM = dict(S=at(0.87, 0.96, 0.40), ang=78, dz=0.10)
 # out of the way of the sword: lower and further out into the corner, face turned outward
-ROUND_ASIDE = dict(S=at(0.97, 1.06, 0.38), ang=150, dz=0.16, face=(0.90, 0.22, 0.38))
 KITE_ASIDE = dict(S=at(0.95, 1.16, 0.46), ang=110, dz=0.12, face=(0.90, 0.12, 0.42))
+ROUND_ASIDE = raised(KITE_ASIDE)
 
 
 def aside_weights(keys):
@@ -409,6 +433,154 @@ BOTH_CAST = [
     dict(BOTH, name="SETTLE", ref="Spell_Simple_Exit@13"),
 ]
 
+# ---------------------------------------------------------------- casts from the user's own hands
+# Motion capture of the user's casting videos (F:\!  BELLMOURN\! @ MOCAP, 30 fps; MediaPipe hand
+# landmarks on chosen frames). `ref="<video>@<frame>"`: one = SINGLE HAND CASTING - LEFT HAND,
+# twoL / twoR = TWO HANDED CASTING - LEFT / RIGHT HAND. The video hand closes into a fist and
+# drops low, then rises and thrusts at the target, opening at full reach; holds there, closes
+# and pulls back. Hand shapes (arm.shape_locals) start from the medians of the held frames'
+# joint bends and are matched by eye to the video from the player's view: each finger [bend of
+# its 3 segments from the hand's line, toward the palm; fan], in degrees; the thumb [opening
+# from the fingers' line toward the thumb side, its lift off the palm, bend at the knuckle,
+# bend at the tip]. A left-hand video reads as the mirrored right.
+MOCAP_VIDEOS = ("one", "twoL", "twoR")
+
+
+def thumb(open_, lift, mcp, ip):
+    t0 = np.array([-math.sin(math.radians(lift)),
+                   math.cos(math.radians(lift)) * math.sin(math.radians(open_)),
+                   math.cos(math.radians(lift)) * math.cos(math.radians(open_))])
+    b = np.array([-0.6, 0.0, 0.8])  # a thumb bends forward and in across the palm
+    b = b - t0 * b.dot(t0)
+    b /= np.linalg.norm(b)
+    return [tuple(t0 * math.cos(math.radians(a)) + b * math.sin(math.radians(a)))
+            for a in (0, mcp, mcp + ip)]
+
+
+# one hand (video `one` 50-155): long fingers, nearly straight; middle, ring and pinky close
+# together (14 deg apart) and the index split well off them, the thumb stretched far out and
+# low, past a right angle to the index
+ONE_SHAPE = dict(index=[4, 10, 18, 36], middle=[6, 14, 24, 2], ring=[8, 18, 28, -12],
+                 pinky=[6, 14, 24, -26], thumb=thumb(107, 6, 8, 8))
+# two hands (videos twoR 56-153 and twoL 56-202, averaged, one shape for both): index and
+# middle gently bent, ring and pinky long with straight tips, stacked in a wide fan, the index
+# pointing on at the target, the thumb straight up
+TWO_SHAPE = dict(index=[4, 18, 26, 17], middle=[6, 22, 34, 2], ring=[8, 23, 27, -14],
+                 pinky=[12, 27, 31, -28], thumb=thumb(80, 10, 6, 6))
+FIST = A.shape_of(0.88, 1.0)
+CLENCH = A.shape_of(0.97, 1.0)
+
+
+def flare(shape, k=1.15):
+    """The fingers flung wider and straighter (the kick of the release)."""
+    out = {f: [b * (2 - k) * 0.8 for b in v[:3]] + [v[3] * k] for f, v in shape.items()
+           if f != "thumb"}
+    out["thumb"] = shape["thumb"]
+    return out
+
+
+def stagger(a, b, amount):
+    """Part-way from shape a to b by a different amount per finger (a closing hand curls from
+    the pinky side first)."""
+    out = {f: A.blend_shape(a, b, amount[f])[f] for f in ("index", "middle", "ring", "pinky")}
+    out["thumb"] = A.blend_shape(a, b, amount["thumb"])["thumb"]
+    return out
+
+
+CURLING = dict(pinky=0.6, ring=0.55, middle=0.35, index=0.15, thumb=0.15)
+
+
+def hand_shape(key):
+    return key.get("shape") or A.shape_of(key.get("curl", 0.5), key.get("spread", 1.0))
+
+
+def shaped(name, tics, xf, yf, z, fing, palm_dir, shape, **extra):
+    return palm(name, tics, xf, yf, z, fing, palm_dir, 0.3, shape=shape, **extra)
+
+
+def blend(a, b, s, name, tics, **extra):
+    """An open-hand key part-way from a to b, hand shape included (meta not carried over)."""
+    out = {k: v for k, v in a.items() if k not in META}
+    for k in ("S", "fing", "palm"):
+        out[k] = tuple(p + (q - p) * s for p, q in zip(a[k], b[k]))
+    out["shape"] = A.blend_shape(hand_shape(a), hand_shape(b), s)
+    out.update(name=name, tics=tics, **extra)
+    return out
+
+
+# One hand: the hand closes and dips low by the hip, then comes up a little into a clenched,
+# coiled fist that holds while charging; it rises and thrusts, the fingers already springing
+# open, palm to the target and the wrist bent back so the fingers fan upward; the release kicks
+# the hand back and up with the fingers flung wide; it holds splayed, lowers still open, and
+# only closes as it pulls down.
+FIST_LOW = shaped("DRAW", 3, 0.74, 1.00, 0.30, (-0.35, 0.25, 0.90), (-0.55, -0.80, -0.10), FIST,
+                  ref="one@12")   # (dipped in toward the bottom centre, the wrist tucked)
+ONE_FIRE = shaped("RELEASE", 2, 0.60, 0.58, 0.43, (-0.12, 0.92, 0.37), (-0.10, -0.35, 0.93),
+                  ONE_SHAPE, fire=True, ref="one@46")
+ONE_PULL = shaped("PULL", 2, 0.70, 0.78, 0.35, (-0.15, 0.55, 0.82), (-0.70, -0.55, 0.45), FIST,
+                  ref="one@176")
+HAND_MOCAP = [
+    dict(HAND, ref="one@0"),
+    FIST_LOW,
+    shaped("CHARGE", 3, 0.79, 0.83, 0.31, (-0.20, 0.95, 0.23), (-0.05, -0.23, 0.97), CLENCH,
+           hold=True, ref="one@0"),   # (a raised fist, its back toward you, as the video's)
+    shaped("RISE", 3, 0.72, 0.74, 0.36, (-0.14, 0.82, 0.55), (-0.30, -0.45, 0.84),
+           A.blend_shape(FIST, ONE_SHAPE, 0.75), smear=True, ref="one@40"),
+    shaped("THRUST", 2, 0.645, 0.62, 0.41, (-0.13, 0.90, 0.42), (-0.15, -0.38, 0.91),
+           ONE_SHAPE, smear=True, ref="one@43"),
+    ONE_FIRE,
+    dict(ONE_FIRE, name="RECOIL", tics=2, S=at(0.625, 0.53, 0.39), fing=(-0.10, 0.97, 0.20),
+         shape=flare(ONE_SHAPE), fire=False, ref="one@50"),
+    dict(ONE_FIRE, name="HOLD", tics=3, S=at(0.61, 0.57, 0.415), fing=(-0.12, 0.94, 0.32),
+         fire=False, ref="one@100"),
+    dict(ONE_FIRE, name="LOWER", tics=1, S=at(0.62, 0.61, 0.405), fing=(-0.13, 0.90, 0.42),
+         shape=A.blend_shape(ONE_SHAPE, FIST, 0.1), fire=False, ref="one@155"),
+    dict(ONE_FIRE, name="CURL", tics=1, S=at(0.63, 0.635, 0.395), fing=(-0.14, 0.82, 0.55),
+         shape=stagger(ONE_SHAPE, FIST, CURLING), fire=False, ref="one@161"),
+    shaped("CLOSE", 1, 0.645, 0.67, 0.38, (-0.15, 0.72, 0.68), (-0.45, -0.55, 0.70), FIST,
+           ref="one@167"),
+    ONE_PULL,
+    blend(ONE_PULL, HAND, 0.5, "RETURN 1", 2),
+    blend(ONE_PULL, HAND, 0.85, "RETURN 2", 2),
+    dict(HAND, name="SETTLE"),
+]
+
+# Two hands, the same cast mirrored: both fists dip low, come up clenched to charge, then rise
+# and thrust in to the target from either side, opening as they go, palms turned in toward
+# each other and thumbs up, so the two hands point on at the target at mirrored angles; the
+# release kicks them up, back and a little apart; they hold, lower still open, then close.
+BOTH_LOW = shaped("DRAW", 3, 0.70, 1.00, 0.30, (-0.35, 0.25, 0.90), (-0.55, -0.80, -0.10), FIST,
+                  ref="twoR@20")
+TWO_FIRE = shaped("RELEASE", 2, 0.575, 0.61, 0.43, (-0.30, 0.42, 0.86), (-0.95, -0.25, 0.00),
+                  TWO_SHAPE, fire=True, ref="twoR@52")
+BOTH_PULL = shaped("PULL", 2, 0.66, 0.80, 0.35, (-0.20, 0.55, 0.81), (-0.75, -0.55, 0.35), FIST,
+                   ref="twoR@162")
+BOTH_MOCAP = [
+    dict(BOTH, ref="twoR@0"),
+    BOTH_LOW,
+    shaped("CHARGE", 3, 0.73, 0.83, 0.31, (-0.20, 0.95, 0.23), (-0.05, -0.23, 0.97), CLENCH,
+           hold=True, ref="twoR@0"),
+    shaped("RISE", 3, 0.68, 0.76, 0.37, (-0.32, 0.65, 0.69), (-0.88, -0.40, 0.25),
+           A.blend_shape(FIST, TWO_SHAPE, 0.75), smear=True, ref="twoR@44"),
+    shaped("THRUST", 2, 0.605, 0.655, 0.41, (-0.30, 0.48, 0.82), (-0.93, -0.30, 0.05),
+           TWO_SHAPE, smear=True, ref="twoR@49"),
+    TWO_FIRE,
+    dict(TWO_FIRE, name="RECOIL", tics=2, S=at(0.605, 0.57, 0.40), fing=(-0.26, 0.58, 0.77),
+         shape=flare(TWO_SHAPE), fire=False, ref="twoR@56"),
+    dict(TWO_FIRE, name="HOLD", tics=3, S=at(0.585, 0.605, 0.42), fire=False, ref="twoR@123"),
+    dict(TWO_FIRE, name="LOWER", tics=1, S=at(0.595, 0.635, 0.405), fing=(-0.28, 0.44, 0.85),
+         shape=A.blend_shape(TWO_SHAPE, FIST, 0.1), fire=False, ref="twoR@153"),
+    dict(TWO_FIRE, name="CURL", tics=1, S=at(0.605, 0.66, 0.395), fing=(-0.29, 0.52, 0.80),
+         shape=stagger(TWO_SHAPE, FIST, CURLING), fire=False, ref="twoR@156"),
+    shaped("CLOSE", 1, 0.62, 0.69, 0.38, (-0.30, 0.62, 0.72), (-0.85, -0.45, 0.30), FIST,
+           ref="twoR@159"),
+    BOTH_PULL,
+    blend(BOTH_PULL, BOTH, 0.5, "RETURN 1", 2),
+    blend(BOTH_PULL, BOTH, 0.85, "RETURN 2", 2),
+    dict(BOTH, name="SETTLE"),
+]
+
+
 # Staff, raise and point (the approved staff cast), from the wider carry.
 STAFF_FIRE = k("FIRE", 2, 0.62, 0.74, 0.42, 108, 1.50, fire=True)
 STAFF_POINT = [
@@ -487,7 +659,7 @@ def add(cid, frames_by_side, **info):
 
 SWORD_ATTACKS = dict(chop=SWORD_CHOP, diag=SWORD_DIAG, back=SWORD_BACK, rise=SWORD_RISE)
 GREAT_ATTACKS = dict(chop=GREAT_CHOP, cleave=GREAT_CLEAVE, back=GREAT_BACK)
-HAND_CASTS = dict(thrust=HAND_THRUST, push=HAND_PUSH, hurl=HAND_HURL)
+HAND_CASTS = dict(mocap=HAND_MOCAP, thrust=HAND_THRUST, push=HAND_PUSH, hurl=HAND_HURL)
 STAFF_CASTS = dict(point=STAFF_POINT, over=STAFF_OVER)
 
 add("sword_walk", {s: frames(walk(SWORD, 22 if s == "R" else -22), s, "sword1h") for s in "RL"},
@@ -511,6 +683,8 @@ for name, keys in SWORD_ATTACKS.items():
 for name, keys in GREAT_ATTACKS.items():   # (blades show their flat by key now: no quarter-turn roll)
     add(f"great_{name}", {"RL": two_handed(keys)}, kind="attack", heavy=True, roll=False,
         power=1.2 if name == "chop" else 1.0)
+add("sword_stab", {s: frames(SWORD_STAB, s, "sword1h") for s in "RL"}, kind="attack", stab=True,
+    power=1.1)
 add("round_block", {"L": frames(ROUND_BLOCK, "L", "round")}, kind="block")
 add("kite_block", {"L": frames(KITE_BLOCK, "L", "kite")}, kind="block")
 add("sword_guard", {"R": frames([towards(SWORD, SWORD_BACK_POSE, s, f["name"], f["tics"])
@@ -519,6 +693,7 @@ add("sword_guard", {"R": frames([towards(SWORD, SWORD_BACK_POSE, s, f["name"], f
 for name, keys in HAND_CASTS.items():
     add(f"hand_{name}", {s: frames(keys, s, None) for s in "RL"}, kind="cast")
 add("both_cast", {"RL": both_hands(BOTH_CAST)}, kind="cast")
+add("both_mocap", {"RL": both_hands(BOTH_MOCAP)}, kind="cast")
 for name, keys in STAFF_CASTS.items():
     add(f"staff_{name}", {"R": frames(keys, "R", "staff")}, kind="cast")
 
@@ -542,10 +717,17 @@ SLOTS = {
              note="straight down; slower, lands harder"),
     ], default="combo"),
     "spell": dict(title="One-hand spell", options=[
+        dict(id="mocap", name="Thrust and splay (your cast)", chain=["hand_mocap"],
+             ref="your casting video", note="motion captured from your left-hand cast"),
         dict(id="push", name="Raise and push", chain=["hand_push"], ref="UAL1 Spell_Simple"),
         dict(id="hurl", name="Overhand hurl", chain=["hand_hurl"], ref="UAL2 OverhandThrow"),
         dict(id="thrust", name="Draw and thrust", chain=["hand_thrust"], ref="(the first rig)"),
-    ], default="push"),
+    ], default="mocap"),
+    "twospell": dict(title="Two-hand spell", options=[
+        dict(id="mocap", name="Both hands thrust (your cast)", chain=["both_mocap"],
+             ref="your two-hand casting videos", note="motion captured, mirrored hands"),
+        dict(id="gather", name="Gather and push", chain=["both_cast"], ref="UAL1 Spell_Simple"),
+    ], default="mocap"),
     "staff": dict(title="Staff", options=[
         dict(id="point", name="Raise and point", chain=["staff_point"], ref="(the first rig)"),
         dict(id="over", name="Overhand", chain=["staff_over"], ref="UAL2 OverhandThrow"),
