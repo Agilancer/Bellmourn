@@ -575,6 +575,9 @@ function solidTwin(m) {
     s.transparent = true; s.blending = THREE.NoBlending; s.depthWrite = false;
     s.onBeforeCompile = m.onBeforeCompile; s.customProgramCacheKey = m.customProgramCacheKey;
     s.userData = { ...m.userData, solid: null };
+    // (WebGPU: clone() leaves the node graph behind too; with the same graph, the same key (above)
+    // and the same userData for it to read, the twin shares the overlay's shader)
+    for (const k of Object.keys(m)) if (/Node$/.test(k) && m[k]?.isNode) s[k] = m[k];
     m.userData.solid = s;
   }
   return m.userData.solid;

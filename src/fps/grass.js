@@ -3,6 +3,7 @@
 // with blades drawn pixel by pixel on a small canvas (crisp and low resolution, like everything
 // else), all of them one instanced draw, nodding a little in the wind and lit as the ground is.
 import * as THREE from 'three';
+import { WEBGPU, T, crispColor } from './nodes.js';
 
 function rng(seed) {
   return () => {
@@ -57,7 +58,7 @@ export class Tufts {
   constructor() {
     this.at = [];              // [x, z, turn, scale, tone]
     this.R = rng(911);         // (its own: the world's draws are left as they were)
-    this.time = { value: 0 };
+    this.time = WEBGPU ? T.uniform(0).setGroup(T.renderGroup) : { value: 0 };
   }
 
   /** Tufts along both verges of a road through `pts` [[x, z, w?]...], w metres either side of its
@@ -88,6 +89,22 @@ export class Tufts {
     this.at.push([x, z, this.R() * Math.PI, scale, (0.68 + this.R() * 0.22) * drift, tint]);
   }
 
+  /** (WebGPU) The tufts' material: the GLSL patch below as nodes. The sway is worked in the tuft's
+   * own space as `transformed` is (so turned and scaled by its instance's matrix: TSL's positionLocal
+   * has that matrix in it already); the map crisp (SHARP_MAP); and lit as the ground from both sides
+   * of the card (the geometry's normal, never turned down on a back face). */
+  nodeMaterial() {
+    const { referenceAttribute, positionGeometry, positionLocal, normalViewGeometry, vec4, sin } = T;
+    const mat = new THREE.MeshLambertNodeMaterial({ map: tuftTexture(), alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide });
+    const M = referenceAttribute('instanceMatrix', 'mat4'), tw = M.element(3), time = this.time;
+    const tsw = sin(time.mul(1.6).add(tw.x.mul(0.37)).add(tw.z.mul(0.29))).add(sin(time.mul(3.1).add(tw.x.mul(1.3))).mul(0.4));
+    const k = tsw.mul(0.045).mul(positionGeometry.y).div(0.45);
+    mat.positionNode = positionLocal.add(M.mul(vec4(k, 0.0, k.mul(0.6), 0.0)).xyz);
+    mat.normalNode = normalViewGeometry;
+    crispColor(mat);
+    return mat;
+  }
+
   /** All of them into the scene: one instanced mesh. */
   finish(scene) {
     if (!this.at.length) return;
@@ -103,10 +120,10 @@ export class Tufts {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));   // (lit as the ground: straight up)
     geo.setIndex(idx);
-    const mat = new THREE.MeshLambertMaterial({ map: tuftTexture(), alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide });
-    mat.defines = { SHARP_MAP: '' };   // (painted pixel by pixel: crisp, engine.js)
+    const mat = WEBGPU ? this.nodeMaterial() : new THREE.MeshLambertMaterial({ map: tuftTexture(), alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide });
+    if (!WEBGPU) mat.defines = { SHARP_MAP: '' };   // (painted pixel by pixel: crisp, engine.js)
     const time = this.time;
-    mat.onBeforeCompile = (sh) => {
+    if (!WEBGPU) mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTuftTime = time;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTuftTime;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -122,7 +139,7 @@ export class Tufts {
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
           normal = normalize( vNormal ); nonPerturbedNormal = normal;`);
     };
-    mat.customProgramCacheKey = () => 'tufts';
+    if (!WEBGPU) mat.customProgramCacheKey = () => 'tufts';
     const mesh = new THREE.InstancedMesh(geo, mat, this.at.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
     this.at.forEach(([x, z, r, s, tone, tint], i) => {

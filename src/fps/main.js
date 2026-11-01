@@ -9,12 +9,8 @@
 // only the torches on its walls (and whatever you cast) light it. Everything is loaded,
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
-import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, Resolution, TEXELS, groundMist } from './engine.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
+import { fogNode, SKY } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
@@ -62,6 +58,12 @@ import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
 
 const touch = TOUCH;
+// the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
+// build), WebGPU's its own (post.js)
+const POST = WEBGPU ? await import('./post.js') : await (async () => {
+  const [a, b, c, d, e] = await Promise.all(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'ShaderPass'].map((n) => import(`three/addons/postprocessing/${n}.js`)));
+  return { EffectComposer: a.EffectComposer, RenderPass: b.RenderPass, UnrealBloomPass: c.UnrealBloomPass, OutputPass: d.OutputPass, ShaderPass: e.ShaderPass };
+})();
 // mist lying on the graveyard's ground (in the fog shader, so made before anything is compiled)
 groundMist([GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], { density: 0.055 });
 // the mouse captured for looking (a refusal, say from a window in the background, is no matter)
@@ -71,15 +73,26 @@ const HI = QUALITY === 'high';
 
 const canvas = document.getElementById('game');
 const ui = document.getElementById('ui');
-const renderer = makeRenderer(canvas, { touch });
+// (WebGPU: once the GPU's device is ours; where there's none to be had, the page goes back to WebGL
+// for the rest of the session: index.html)
+const renderer = await (async () => {
+  try { return await makeRenderer(canvas, { touch }); } catch (e) {
+    if (!WEBGPU) throw e;
+    console.warn('WebGPU would not start: drawing with WebGL', e);
+    try { sessionStorage.setItem('bm.nogpu', '1'); } catch { /* no storage */ }
+    location.reload();
+    return new Promise(() => {});
+  }
+})();
 const res = new Resolution({ touch });
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.2;
 renderer.shadowMap.enabled = HI;
 // a phone at high: plain PCF (a quarter the taps of soft), the sun's map redrawn every other
 // frame (see tick), and less of everything else below
-renderer.shadowMap.type = touch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-if (touch) renderer.shadowMap.autoUpdate = false;
+// (WebGPU has no soft PCF of its own: its PCF, softened by each light's radius)
+renderer.shadowMap.type = touch || WEBGPU ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+if (touch) renderer.shadowMap.autoUpdate = false;   // (WebGPU: each light's own, light() and tick())
 
 // the world camera: the rigs' 90 degree horizontal view at 16:10 (64 degrees vertical), which
 // stays the vertical view at any aspect ratio
@@ -87,6 +100,7 @@ const camera = new THREE.PerspectiveCamera(64, 1.6, 0.05, 1200);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xa9b7c4, 40, 280);
 scene.background = new THREE.Color(0x000000);
+if (WEBGPU) scene.fogNode = fogNode(scene.fog, MIST);   // (the graveyard's ground mist in it: engine.js groundMist)
 const BLACK = new THREE.Color(0x000000);
 
 const hemi = new THREE.HemisphereLight(0xc8d8ff, 0x3a3026, 1.0);
@@ -142,12 +156,14 @@ try { lastRun = localStorage.getItem(TRACE); localStorage.removeItem(TRACE); } c
 function trace() {
   const i = renderer.info;
   const s = `${run.step}, ${run.frames} frames drawn${started ? ' (playing)' : ''}, ${villagers?.list.length ?? 0} villagers in`
-    + `${run.bringing ? `, bringing ${run.bringing}` : ''}, ${i.memory.textures} textures, ${i.programs?.length ?? 0} shaders, ${(performance.now() / 1000).toFixed(1)}s`;
+    + `${run.bringing ? `, bringing ${run.bringing}` : ''}, ${i.memory.textures} textures, ${programCount(renderer)} shaders${WEBGPU ? ' (WebGPU)' : ''}, ${(performance.now() / 1000).toFixed(1)}s`;
   try { localStorage.setItem(TRACE, s); } catch { /* no storage */ }
 }
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
+let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -174,10 +190,18 @@ let char = loadCharacter(), st = computeStats(char), bag = null, map = null;
 const guard = { v: 0, max: 0, broken: false, wait: 0 };
 
 // ------------------------------------------------------------------ post-processing
+// (WebGPU: post.js, the same steps in a node graph, the last of them done in one pass)
+const { composer, worldPass, vmPass, bloom, grade } = WEBGPU
+  ? POST.makeComposer(renderer, scene, camera, { samples: touch ? 2 : 4, bloom: HI || QUALITY === 'low', touch })
+  : glComposer();
+res.gpuTimer(renderer);   // (what the picture's size goes by, where the GPU can time itself)
+
+/** WebGL's composer (three's EffectComposer): the world, the arms over it, bloom, tone mapping, the grade. */
+function glComposer() {
+const { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass } = POST;
 const composer = new EffectComposer(renderer);
 composer.setPixelRatio(1);
 multisample(composer, renderer, touch ? 2 : 4);   // (the world's buffer: no jagged edges)
-res.gpuTimer(renderer);   // (what the picture's size goes by, where the GPU can time itself)
 const worldPass = new RenderPass(scene, camera);
 const vmPass = new RenderPass(new THREE.Scene(), new THREE.Camera());
 vmPass.clear = false; vmPass.clearDepth = true;
@@ -214,6 +238,8 @@ composer.addPass(vmPass);
 if (HI || QUALITY === 'low') composer.addPass(bloom);
 composer.addPass(new OutputPass());
 composer.addPass(grade);
+return { composer, worldPass, vmPass, bloom, grade };
+}
 
 // the picture's size (engine.js Resolution): the screen's own, eased down (to 0.6) when frames run
 // long and back up when there's time to spare
@@ -295,6 +321,7 @@ async function build() {
   // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
   props.onChange = (at) => {
     for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+    sunShadows?.invalidate();   // (and the sun's map of the still world, where it's kept: sunshadow.js)
   };
   // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
   props.onBreak = (p, at, dir) => {
@@ -480,7 +507,7 @@ async function build() {
  * nothing is (and nobody can go): what they make the first time (their shaders, their shadows) is
  * made now, in the loading, and not in your first fight. Everything is put back after. */
 async function rehearse() {
-  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const T0 = performance.now(), p0 = programCount(renderer);
   const was = { started, paused, introBusy, book: { ...book }, mana: player.mana, health: player.health, pos: player.pos.clone(), yaw: player.yaw, pitch: player.pitch };
   const at = new THREE.Vector3(2600, 0, 2600);
   started = true; paused = false; introBusy = true;   // (the hands work; nothing walks, nothing hurts you)
@@ -524,7 +551,7 @@ async function rehearse() {
   started = was.started; paused = was.paused; introBusy = was.introBusy;
   Object.assign(hud, quiet);
   hud.refresh(vm.equip, book);
-  console.info(`rehearsed in ${Math.round(performance.now() - T0)} ms: ${renderer.info.programs.length - p0} more programs`);
+  console.info(`rehearsed in ${Math.round(performance.now() - T0)} ms: ${programCount(renderer) - p0} more programs`);
 }
 
 /** Everything in before play, so nothing loads or is made on the GPU mid-game: the whole village and
@@ -532,7 +559,7 @@ async function rehearse() {
  * and the knight's), every gauntlet (not on a phone); then every picture refined and uploaded, every
  * shader compiled, and the world drawn once whole, with its shadows, so every buffer is on the GPU. */
 async function prepare(mark) {
-  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const T0 = performance.now(), p0 = programCount(renderer);
   const wait = (p, what) => Promise.resolve(p).catch((e) => console.warn(what, e));
   await Promise.all([wait(villagers.ready, 'the village'), wait(foes.swornReady, 'the Sworn'), wait(foes.ualReady, "the foes' clips"), wait(ctx.crater.armourReady, "the knight's armour")]);
   await mark('people');
@@ -559,10 +586,33 @@ async function prepare(mark) {
   const skel = skels.size;
   // the world's matrices only where something's shown, and its small pieces left out far off
   visibleMatrices(scene);
-  ctx.detail = new DetailCull(ctx.built, { touch, under: ctx.builtUnder });
+  // (WebGPU: the builders' meshes never move and their materials never change, but for the lit windows
+  // and lanterns: three needn't look them over again each frame; nodes.js settled)
+  if (WEBGPU && !/[?&]nostatic\b/.test(location.search)) {
+    const mutable = new Set([ctx.glass, ctx.lantern].filter(Boolean));
+    for (const m of [...(ctx.built || []), ...(ctx.builtUnder || [])]) {
+      // (and their matrices worked out once, not every frame: engine.js visibleMatrices)
+      if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; }
+      if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
+    }
+  }
+  // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
+  // frame; made before the shaders are compiled, which take it in)
+  if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
+    const { installSunShadows } = await import('./sunshadow.js');
+    sunShadows = installSunShadows(sun, { isStatic: (o) => o.static === true, staticSize: touch ? 2048 : 4096, dynSize: touch ? 1024 : 2048 });
+  }
+  // (WebGPU: the still world's pieces in render bundles by 40 m cells, which the GPU replays: cells.js;
+  // those are drawn whole, so only what's left is culled piece by piece far off)
+  if (WEBGPU && !/[?&]nocells/.test(location.search)) {
+    const { makeCells } = await import('./cells.js');
+    cells = makeCells(renderer, scene, [...(ctx.built || []), ...(ctx.builtUnder || [])].filter((m) => m.static));
+  }
+  ctx.detail = new DetailCull(cells ? ctx.built.filter((m) => !m.parent?.isCell) : ctx.built, { touch, under: ctx.builtUnder });
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
   // smooth-edged leaves, hair and lashes
   const r1 = refineScene(scene), r2 = refineScene(vm.scene);
+  hideUnported(scene, vm.scene);   // (WebGPU: a GLSL shader left over is hidden, not thrown on)
   const tex = texturesOf(vm.scene, texturesOf(scene));
   await upload(renderer, tex, (k) => title.progress(Math.round(86 + 6 * k)));
   await mark('uploaded');
@@ -571,7 +621,7 @@ async function prepare(mark) {
   await warmWorld();
   scene.remove(lying);
   await mark('warm');
-  console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${renderer.info.programs.length - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
+  console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${programCount(renderer) - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
 }
 
 /** The world drawn once with everything in it shown and nothing culled, so every program it needs is
@@ -580,6 +630,7 @@ async function prepare(mark) {
  * buffer of the same kind as the composer's (the programs and buffers don't depend on its size, and
  * a phone isn't asked to draw the whole world at full size). Put back as it was. */
 async function warmWorld() {
+  if (WEBGPU) return warmWorldGPU();
   const small = new THREE.WebGLRenderTarget(256, 144, { type: THREE.HalfFloatType });
   const saved = [];
   scene.traverse((o) => { if (o.isLight) return; saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; });   // (lights stay as they are: their count is in every shader)
@@ -603,6 +654,33 @@ async function warmWorld() {
   renderer.shadowMap.autoUpdate = autoShadow; renderer.shadowMap.needsUpdate = true;
 }
 
+/** WebGPU's warm-up: drawn into a buffer made as the world's is (a pipeline belongs to its buffer's
+ * format and samples), with every light's shadow map drawn in the same frame, everything shown and
+ * nothing culled, so every pipeline and shadow pipeline is made now. */
+async function warmWorldGPU() {
+  const small = composer.warmTarget();
+  const saved = [];
+  scene.traverse((o) => { if (o.isLight) return; saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; });
+  const casters = [];
+  scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
+  for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
+  sunShadows?.invalidate(true);   // (the still world's sun map drawn whole, with everything in it)
+  cells?.all(true);
+  const was = renderer.getRenderTarget();
+  renderer.setRenderTarget(small);
+  try { renderer.render(scene, camera); } catch (e) {
+    if (/[?&]debugrender/.test(location.search)) await findBadDraw(renderer, scene, camera, small);
+    throw e;
+  }
+  renderer.render(vm.scene, vm.camera);
+  renderer.setRenderTarget(was);
+  await renderer.backend.device?.queue.onSubmittedWorkDone();
+  small.dispose();
+  for (const [o, v, fc] of saved) { o.visible = v; o.frustumCulled = fc; }
+  for (const [l, au] of casters) { l.shadow.autoUpdate = au; l.shadow.needsUpdate = true; }
+  cells?.all(false);
+}
+
 /** A small picture of an arm model for the bag, rendered from the model itself. */
 const iconRT = { rt: null, sc: null, cv: null };
 function renderIcon(obj) {
@@ -614,7 +692,7 @@ function renderIcon(obj) {
     iconRT.key = new THREE.DirectionalLight(0xffe8c8, 3.2); iconRT.sc.add(iconRT.key, iconRT.key.target);
     iconRT.cv = document.createElement('canvas'); iconRT.cv.width = iconRT.cv.height = S;
   }
-  const { rt, sc, cv } = iconRT, g = cv.getContext('2d'), buf = new Uint8Array(S * S * 4);
+  const { rt, sc } = iconRT, buf = new Uint8Array(S * S * 4);
   const tm = renderer.toneMapping;
   renderer.toneMapping = THREE.NoToneMapping;
   const holder = new THREE.Group();
@@ -639,15 +717,27 @@ function renderIcon(obj) {
   renderer.setClearColor(0x000000, 0);
   renderer.clear();
   renderer.render(sc, cam);
+  if (WEBGPU) {   // (WebGPU reads back only later; its rows come top first)
+    renderer.setRenderTarget(null);
+    renderer.toneMapping = tm;
+    sc.remove(holder);
+    return renderer.readRenderTargetPixelsAsync(rt, 0, 0, S, S).then((px) => iconPicture(px, S, false));
+  }
   renderer.readRenderTargetPixels(rt, 0, 0, S, S, buf);
   renderer.setRenderTarget(null);
   renderer.toneMapping = tm;
   sc.remove(holder);
+  return iconPicture(buf, S, true);
+}
+
+/** An icon's pixels (linear light, RGBA) as a data URL; `flip`: its rows bottom first (WebGL's). */
+function iconPicture(buf, S, flip) {
+  const cv = iconRT.cv, g = cv.getContext('2d');
   // (the target holds linear light: brought to sRGB for the page)
   const lut = iconRT.lut ||= Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)); });
   for (let i = 0; i < buf.length; i += 4) { buf[i] = lut[buf[i]]; buf[i + 1] = lut[buf[i + 1]]; buf[i + 2] = lut[buf[i + 2]]; }
   const img = g.createImageData(S, S);
-  for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+  for (let y = 0; y < S; y++) { const r = flip ? S - 1 - y : y; img.data.set(buf.subarray(r * S * 4, (r + 1) * S * 4), y * S * 4); }
   g.clearRect(0, 0, S, S);
   g.putImageData(img, 0, 0);
   return cv.toDataURL();
@@ -659,7 +749,7 @@ function itemIcon(it, again) {
   const key = it.model + '|' + (it.finish || '');
   if (icons.has(key)) return icons.get(key) || null;
   icons.set(key, '');
-  vm.modelScene(it.model, it.finish).then((obj) => { icons.set(key, renderIcon(obj)); again?.(); });
+  vm.modelScene(it.model, it.finish).then((obj) => renderIcon(obj)).then((url) => { icons.set(key, url); again?.(); });
   return null;
 }
 
@@ -1059,6 +1149,7 @@ let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0), WHITE = new THREE.Color(1, 1, 1), WISP = new THREE.Color(0xffe8b0);
+const _sp = new THREE.Vector3(), _cd = new THREE.Vector3();
 let day = dayState(hour);
 function light(dt, t) {
   if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
@@ -1080,7 +1171,7 @@ function light(dt, t) {
   const isDay = day.day > 0.02;
   sun.color.copy(isDay ? day.sunColor : MOON);
   sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
-  sun.shadow.autoUpdate = L.under < 0.95;   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here)
+  sun.shadow.autoUpdate = L.under < 0.95 && !(WEBGPU && touch);   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here; a phone's under WebGPU: every other frame, tick)
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
     _lx.crossVectors(UP, ld).normalize();
@@ -1091,7 +1182,17 @@ function light(dt, t) {
     _c.addScaledVector(_lx, Math.round(px / tx) * tx - px).addScaledVector(_ly, Math.round(py / tx) * tx - py);
     sun.target.position.copy(_c);
     sun.position.copy(_c).addScaledVector(ld, 300);
+    sunShadows?.update();   // (WebGPU: the moving things' map follows; the world's is kept: sunshadow.js)
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
+  if (WEBGPU) {   // the sky's light, for the haze's glow toward it and the god rays (nodes.js SKY, post.js)
+    SKY.dir.value.copy(ld);
+    SKY.color.value.copy(sun.color);
+    SKY.glow.value = (isDay ? 0.25 + 0.75 * day.day : 0.35) * surface;
+    _sp.copy(camera.position).addScaledVector(ld, 1000).project(camera);
+    const facing = camera.getWorldDirection(_cd).dot(ld);
+    composer.rays.uv.value.set(_sp.x * 0.5 + 0.5, _sp.y * 0.5 + 0.5);
+    composer.rays.on.value = THREE.MathUtils.clamp((facing - 0.05) / 0.35, 0, 1) * (isDay ? Math.min(1, day.day * 2) : 0.3) * L.out * surface;
+  }
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
@@ -1711,6 +1812,7 @@ function showUnder() {
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
   for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
   ctx.detail?.update(cp);   // (and the small pieces far off left out: engine.js DetailCull)
+  cells?.update();          // (a cell whose pieces were shown or hidden is recorded again: cells.js)
 }
 
 // ------------------------------------------------------------------ the sounds of the place
@@ -1978,7 +2080,10 @@ function tick(dt) {
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
-  if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
+  if (touch && HI) {
+    const due = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
+    if (WEBGPU) { if (due && L.under < 0.95) sun.shadow.needsUpdate = true; } else renderer.shadowMap.needsUpdate = due;
+  }
   sounds(dt);
   res.timer.begin(); composer.render(dt); res.timer.end();
   if (++run.frames % 30 === 1) trace();
@@ -1992,12 +2097,14 @@ try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); 
 if (lastRun) title.lastRun(lastRun);
 gameInput = new Input(canvas, ui);
 // a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
-canvas.addEventListener('webglcontextlost', () => {
+const onLost = () => {
   lost = true; ready = false;
   bag?.show(false); hud.showTouch(false);
   title.hide(true);
   hud.showOverlay('lost', touch);
-});
+};
+canvas.addEventListener('webglcontextlost', onLost);
+if (WEBGPU) renderer.onDeviceLost = (info) => { console.warn('the GPU device was lost', info?.message || info); onLost(); };
 canvas.addEventListener('mousedown', () => sfx.start());
 // the pause screen's menu (hud.onMenu), and a click elsewhere on it resumes
 hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
@@ -2023,7 +2130,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, cells: () => cells, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {

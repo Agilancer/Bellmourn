@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { SHARP_GLSL } from './engine.js';
 import { craterHeight } from './crater.js';
+import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, settled } from './nodes.js';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
@@ -231,6 +232,7 @@ function downsMaterial(lib) {
   const tint = layers.map(([, c]) => T(c));
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x080808, shininess: 6 });
   m.userData.noGlass = true;
+  if (WEBGPU) { m.colorNode = settled(downsNode(tex, layers.map(([, c]) => c))); keyed(m, 'downs'); return m; }
   m.onBeforeCompile = (sh) => {
     tex.forEach((t, i) => { sh.uniforms['dT' + i] = { value: t }; });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 downs;\nvarying vec3 vDP; varying vec3 vDN; varying vec3 vDA;')
@@ -314,4 +316,80 @@ function downsMaterial(lib) {
       diffuseColor.rgb *= c;`);
   };
   return m;
+}
+
+/** downsMaterial's colour in TSL (WebGPU): the same layers by slope, wetness, height and noise, each
+ * drawn only where it shows. The one downs ground: its textures and tints are its own. */
+function downsNode(tex, tints) {
+  const { Fn, If, texture, attribute, positionWorld, normalGeometry, dFdx, dFdy, vec2, vec3, vec4, max, mix, smoothstep, dot, pow, abs, normalize } = TSL;
+  const tn = tex.map((t) => texture(t));
+  const f3 = (v) => +v.toFixed(3);
+  const tint = (c) => { const k = new THREE.Color(c ?? 0xffffff); return vec3(f3(k.r), f3(k.g), f3(k.b)); };
+  return Fn(() => {
+    const P = positionWorld.toVar(), gp = P.xz.toVar();
+    // the world position's screen gradients, worked out once (so a layer can be skipped where it
+    // doesn't show, and the texture sampled inside the branch)
+    const dPX = dFdx(P).toVar(), dPY = dFdy(P).toVar();
+    const dUm = untileMask(gp, 3.0).toVar();   // (where the second copies show: one mask a pixel, for every layer)
+    const DA = attribute('downs', 'vec3').toVar();
+    // (and again turned and shifted by a slow noise: no rows of tiles)
+    const dTex = (i, tile) => untiled(tn[i], gp.div(tile), dPX.xz.div(tile), dPY.xz.div(tile), dUm, false).rgb;
+    const R = (v) => vec2(v.x.mul(0.6).add(v.y.mul(0.8)), v.y.mul(0.6).sub(v.x.mul(0.8)));   // (GLSL mat2(0.6, -0.8, 0.8, 0.6))
+    const dTex2 = (i, o, tile) => sharpGrad(tn[i], R(gp).add(o).div(tile), R(dPX.xz).div(tile), R(dPY.xz).div(tile)).rgb;
+    const dTri = (i, p, n, tile) => {   // rock wraps round the cliffs without stretching
+      const w0 = pow(abs(n), vec3(4.0)), w = w0.div(w0.x.add(w0.y).add(w0.z)).toVar();
+      const c = vec3(0.0).toVar();
+      If(w.x.greaterThan(0.01), () => { c.addAssign(sharpGrad(tn[i], p.zy.div(tile), dPX.zy.div(tile), dPY.zy.div(tile)).rgb.mul(w.x)); });
+      If(w.y.greaterThan(0.01), () => { c.addAssign(sharpGrad(tn[i], p.xz.div(tile), dPX.xz.div(tile), dPY.xz.div(tile)).rgb.mul(w.y)); });
+      If(w.z.greaterThan(0.01), () => { c.addAssign(sharpGrad(tn[i], p.xy.div(tile), dPX.xy.div(tile), dPY.xy.div(tile)).rgb.mul(w.z)); });
+      return c;
+    };
+    const n1 = snoise(gp.mul(0.035)).toVar(), n2 = snoise(gp.mul(0.11).add(7.0)).toVar(), n3 = snoise(gp.mul(0.06).add(31.0)).toVar();
+    // every layer drawn only where it shows
+    const nn = normalize(normalGeometry).toVar();
+    const slope = nn.y.oneMinus().toVar();
+    const wr = smoothstep(0.22, 0.4, slope.add(n2.sub(0.5).mul(0.12))).toVar();
+    const c = vec3(0.0).toVar();
+    If(wr.lessThan(0.999), () => {
+      const a = smoothstep(0.4, 0.62, n2).toVar(), b = smoothstep(0.7, 0.8, n1.mul(0.6).add(n3.mul(0.4))).toVar();
+      const grass = vec3(0.0).toVar();
+      If(a.lessThan(0.999), () => { grass.assign(dTex(0, 1.7).mul(tint(tints[0]))); });
+      If(a.greaterThan(0.001), () => { grass.assign(mix(grass, dTex2(0, vec2(0.37), 1.9).mul(tint(0xffa8ff)), a)); });
+      If(b.greaterThan(0.001), () => { grass.assign(mix(grass, dTex(1, 2.6).mul(tint(tints[1])), b)); });
+      c.assign(grass.mul(wr.oneMinus()));
+    });
+    If(wr.greaterThan(0.001), () => {
+      // the rock face at its own scale (a 10 m repeat: plates a metre or two across, as a cliff's
+      // are), its light and dark varied by the same rock sampled again far larger and shifted
+      const rk = dTri(3, P, nn, 10.0);
+      const big = dot(dTri(3, P.add(vec3(13.7, 5.1, 7.3)), nn, 23.0), vec3(0.333));
+      c.addAssign(rk.mul(big.mul(0.75).add(0.62)).mul(tint(tints[3])).mul(wr));
+    });
+    // the banks: mud and gravel, a ragged beach of sand round the pool (on the low, level ground,
+    // not up the cliff) and bars of it along the stream
+    const shore = smoothstep(0.42, 0.58, DA.z.add(n2.sub(0.5).mul(0.3))).mul(smoothstep(0.25, 0.45, slope).oneMinus())
+      .mul(smoothstep(+(POOL.level + 2.5).toFixed(1), +(POOL.level + 5).toFixed(1), P.y).oneMinus()).toVar();
+    // (on the cliffs the wet shows as dark, wet rock rather than mud smeared down the face)
+    const steep = smoothstep(0.3, 0.55, slope).toVar();
+    const wb = smoothstep(0.2, 0.7, max(DA.x, shore)).mul(steep.oneMinus()).toVar();
+    If(wb.greaterThan(0.001), () => {
+      const sand = max(shore, smoothstep(0.6, 0.7, n3).mul(smoothstep(0.3, 0.8, DA.x)));
+      const a = smoothstep(0.4, 0.7, n1).toVar(), sb = smoothstep(0.2, 0.8, sand).toVar();
+      const bank = vec3(0.0).toVar();
+      If(a.lessThan(0.999), () => { bank.assign(dTex(4, 2.5).mul(tint(tints[4]))); });
+      If(a.greaterThan(0.001), () => { bank.assign(mix(bank, dTex(5, 1.3).mul(tint(tints[5])), a)); });
+      If(sb.greaterThan(0.001), () => { bank.assign(mix(bank, dTex(2, 1.6).mul(tint(tints[2])), sb)); });
+      c.assign(mix(c, bank, wb));
+    });
+    c.mulAssign(steep.mul(0.38).mul(smoothstep(0.2, 0.8, DA.x)).oneMinus());
+    const wp = smoothstep(0.3, 0.8, DA.y).mul(smoothstep(0.3, 0.5, slope).oneMinus()).toVar();
+    If(wp.greaterThan(0.001), () => { c.assign(mix(c, dTex(6, 1.5).mul(tint(tints[6])), wp)); });
+    // old snow lying in the hollows of the plateau above the falls, in ragged drifts
+    const snow = smoothstep(+(CLIFF.top - 2.5).toFixed(1), +(CLIFF.top + 0.5).toFixed(1), P.y).mul(smoothstep(0.1, 0.28, slope).oneMinus())
+      .mul(smoothstep(0.42, 0.56, n1.mul(0.45).add(n2.mul(0.35)).add(snoise(gp.mul(0.45).add(13.0)).mul(0.2)))).toVar();
+    c.mulAssign(snoise(gp.mul(0.013).add(3.0)).mul(0.32).add(0.84));
+    c.mulAssign(snoise(gp.mul(0.1).add(21.0)).mul(0.16).add(0.92));
+    If(snow.greaterThan(0.001), () => { c.assign(mix(c, dTex(7, 3.0).mul(tint(tints[7])).mul(n3.mul(0.22).add(0.86)), snow)); });
+    return vec4(c.mul(ref('color', 'color')), 1.0);
+  })();
 }

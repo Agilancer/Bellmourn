@@ -206,17 +206,19 @@ export class Intro {
     // on) and the part of it spent waiting on the GPU
     if (o.calibrate) {
       this.show(19.5, 1 / 30, true);
-      const gl = R.getContext(), px = new Uint8Array(4);
-      const time = () => {
+      // (the GPU waited on: WebGL by reading a pixel back, WebGPU by its queue)
+      const gl = R.isWebGPURenderer ? null : R.getContext(), px = new Uint8Array(4);
+      const time = async () => {
         const a = performance.now();
         o.render();
         const b = performance.now();
-        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        if (gl) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        else await R.backend.device.queue.onSubmittedWorkDone();
         return [performance.now() - a, performance.now() - b];
       };
-      time(); time();
+      await time(); await time();
       let ms = 0, gpu = 0;
-      for (let i = 0; i < 4; i++) { const [m, g] = time(); ms += m / 4; gpu += g / 4; }
+      for (let i = 0; i < 4; i++) { const [m, g] = await time(); ms += m / 4; gpu += g / 4; }
       o.calibrate(ms, gpu);
     }
     // and back as it was before it all
