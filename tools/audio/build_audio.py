@@ -131,9 +131,9 @@ if 'crowd' in ONLY:
     c = find(r'crowd-panic-scream.*\.mp3$')
     if c: note('sfx/crowd_panic.mp3', c[0], write(aud.Sound(c[0]).limit(0, 1.5).fadeout(1.25, 0.25), os.path.join(OUT, 'sfx', 'crowd_panic.mp3'), 44100, 2, 128))
 
-with open(os.path.join(OUT, 'build_report.json'), 'w') as f:
+with open(os.path.join(OUT, 'build_report.json'), 'w', encoding='utf-8') as f:
     old = {}
-    try: old = json.load(open(os.path.join(OUT, 'build_report.json')))
+    try: old = json.load(open(os.path.join(OUT, 'build_report.json'), encoding='utf-8'))
     except Exception: pass
     json.dump({**old, **report}, f, indent=1, sort_keys=True)
 print('done:', len(report), 'files')
