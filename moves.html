@@ -164,6 +164,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ViewModel, ITEMS } from './src/fps/viewmodel.js';
+import { shoveArea, launchWave, stepWaves } from './src/fps/shovewave.js';
 
 const $ = (id) => document.getElementById(id);
 const manifest = await (await fetch('templates/models/manifest.json', { cache: 'no-store' })).json();
@@ -228,7 +229,19 @@ function bolt(side) {
   m.position.copy(from); world.add(m);
   fx.push({ m, t: 0, life: 0.35, from, to: new THREE.Vector3(0, 1.4, -2.1) });
 }
+// the shove's wave, as the game throws it (main.js shieldShove), from this viewer's eye
+function waveTest() {
+  const front = vm.shieldFront();
+  if (!front) return;
+  const { half, reach } = shoveArea(vm.shieldSize());
+  const ndc = front.clone().applyMatrix4(vm.camera.projectionMatrix);
+  const d = new THREE.Vector3(ndc.x, ndc.y, 0.5).unproject(eye).sub(eye.position).normalize();
+  const start = eye.position.clone().addScaledVector(d, 0.7), f = eye.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+  const end = eye.position.clone().addScaledVector(f, reach); end.y = start.y;
+  launchWave(world, vm.ghostOf(), start, end, half * 2, vm.manifest.view_scale * 0.7 / Math.max(0.1, -front.z));
+}
 function stepFx(dt) {
+  stepWaves(dt);
   for (let i = fx.length - 1; i >= 0; i--) {
     const f = fx[i]; f.t += dt; const k = f.t / f.life;
     if (f.from) f.m.position.lerpVectors(f.from, f.to, Math.min(1, k));
@@ -512,7 +525,7 @@ window.review = async (spec) => {
         for (let j = 0; j < sub; j++) {
           if (left > 0) { const r = vm.attackRight(); if (r && r !== 'spell') left--; }
           // timed clicks (s.clicks: seconds) and stabs with the shield up (s.stabs)
-          for (const [list, fn] of [[s.clicks, () => vm.attackRight()], [s.stabs, () => vm.stab()], [s.ghosts, () => vm.shoveGhost()]]) for (const tc of list || []) if (!done.has(list) || !done.get(list).has(tc)) { if (simT >= tc) { if (!done.has(list)) done.set(list, new Set()); done.get(list).add(tc); fn(); } }
+          for (const [list, fn] of [[s.clicks, () => vm.attackRight()], [s.stabs, () => vm.stab()], [s.ghosts, () => waveTest()]]) for (const tc of list || []) if (!done.has(list) || !done.get(list).has(tc)) { if (simT >= tc) { if (!done.has(list)) done.set(list, new Set()); done.get(list).add(tc); fn(); } }
           if (s.action === 'block') vm.actLeft((i - 1 + j / sub) * s.step < holdUntil);
           simT += s.step / sub;
           if (!charged && simT >= s.charge) { charged = true; for (const sd of ['R', 'L']) if (vm.state[sd]) vm.state[sd].hold = null; }

@@ -113,11 +113,8 @@ const BUFFER = 0.4;
 // a cocked blow held where its wind-up would be hard to see (low in the corner) is brought in and
 // up while it waits ([in toward the middle, up], metres in the view)
 const COCK_LIFT = { sword_rise: [0.04, 0.06] };
-// The shove's ghost (the user's call): a see-through copy of the shield leaps out of it, swells
-// GHOST_GROW times larger and flies GHOST_FLY metres on toward the crosshair over GHOST_TIME
-// seconds, fading as it goes.
-const GHOST_TIME = 0.32, GHOST_FLY = 0.25, GHOST_GROW = 2.2, GHOST_ALPHA = 0.9;
-const GHOST_MAX = 1.4;   // (no taller than this, swollen: a kite's ghost grows less than a buckler's)
+// The shove's ghost (shovewave.js throws it): see-through, faint across its face, lit at its rims.
+const GHOST_ALPHA = 0.9;
 // (lit at its rims, faint across its face: a ghost, not a white plate)
 const GHOST_VERT = `varying vec3 vN; varying vec3 vV;
 void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
@@ -136,11 +133,11 @@ function ghostMaterial() {
       const f = pow(abs(dot(normalize(normalView), normalize(positionView.negate()))).oneMinus(), 2.0);
       return vec4(uC.mul(f.mul(1.3).add(0.10)), uA);
     })();
-    Object.assign(m, { transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+    Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
     return { m, alpha: (a) => { uA.value = a; } };
   }
   const m = new THREE.ShaderMaterial({ uniforms: { color: { value: color }, alpha: { value: GHOST_ALPHA } },
-    vertexShader: GHOST_VERT, fragmentShader: GHOST_FRAG, transparent: true, depthWrite: false, depthTest: false,
+    vertexShader: GHOST_VERT, fragmentShader: GHOST_FRAG, transparent: true, depthWrite: false,
     blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   return { m, alpha: (a) => { m.uniforms.alpha.value = a; } };
 }
@@ -266,7 +263,6 @@ export class ViewModel {
     this.grip = { seat: GRIP_SEAT, item: ITEM_SEAT, open: GRIP_OPEN };   // (per arm model; tunable from the move viewer)
     this.turn = {};   // (side -> the two-hander's next blow)
     this.buffered = {};   // (side -> a click kept from the end of a rest)
-    this.ghosts = [];   // (the shove's ghost shields in flight)
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
     // (WebGPU's depth runs 0..1, not WebGL's -1..1: three sets the camera's coordinate system and asks
@@ -621,22 +617,25 @@ export class ViewModel {
     return 'stab';
   }
 
-  /** The shove made visible: a see-through ghost of the held shield leaps out of it, swelling
-   * and flying on ahead as it fades (the push's wave; a bigger shield throws a bigger one). */
-  shoveGhost() {
+  /** A see-through, rim-lit ghost of the held shield, to throw as the shove's wave
+   * ({g, alpha(a), w}: its shield's width; shovewave.js places and flies it). */
+  ghostOf() {
     const it = this.arms.L?.item;
-    if (!it || !SHIELD[this.equip.L]) return;
-    it.updateMatrixWorld(true);
+    if (!it || !SHIELD[this.equip.L]) return null;
     const g = it.clone(true);   // (sharing the shield's geometry)
-    const { m: mat, alpha } = ghostMaterial();
-    g.traverse((o) => { if (o.isMesh) { o.material = mat; o.renderOrder = 10; } });
-    it.matrixWorld.decompose(g.position, g.quaternion, g.scale);
+    const { m, alpha } = ghostMaterial();
+    g.traverse((o) => { if (o.isMesh) { o.material = m; o.renderOrder = 10; } });
+    g.position.set(0, 0, 0); g.quaternion.identity(); g.scale.set(1, 1, 1);
     g.matrixAutoUpdate = true;
-    this.scene.add(g);
-    const from = g.position.clone();
-    const dir = new THREE.Vector3(0, -0.04, -1.3).sub(from).normalize();   // (on toward the crosshair)
-    const grow = Math.min(GHOST_GROW, GHOST_MAX / Math.max(0.2, this.shieldSize()?.h || 0.5)) - 1;
-    this.ghosts.push({ g, mat, alpha, t: 0, from, dir, grow, s0: g.scale.clone() });
+    return { g, alpha, w: this.shieldSize().w };
+  }
+
+  /** The middle of the held shield's face, in the view model's space (the wave leaves from it). */
+  shieldFront() {
+    const it = this.arms.L?.item;
+    if (!it || !SHIELD[this.equip.L]) return null;
+    it.updateMatrixWorld(true);
+    return it.localToWorld(new THREE.Vector3(0, 0, 0.08));
   }
 
   /** The held shield's size in metres ({w, h}: across its face and along its grip), from its
@@ -805,15 +804,6 @@ export class ViewModel {
       }
     }
     for (const s of this.kept?.splice(0) || []) this.attack(s);
-    for (let i = this.ghosts.length - 1; i >= 0; i--) {   // the shove's ghosts: out, larger, fading
-      const gh = this.ghosts[i];
-      gh.t += dt;
-      const k = Math.min(1, gh.t / GHOST_TIME), e = 1 - (1 - k) ** 3;
-      gh.g.position.copy(gh.from).addScaledVector(gh.dir, GHOST_FLY * e);
-      gh.g.scale.copy(gh.s0).multiplyScalar(1 + gh.grow * e);
-      gh.alpha(GHOST_ALPHA * (k < 0.1 ? 1 : ((1 - k) / 0.9) ** 2.2));   // (full a tic, then gone quickly: the staggered foe shows through)
-      if (k >= 1) { this.scene.remove(gh.g); gh.mat.dispose(); this.ghosts.splice(i, 1); }
-    }
     this.slide(dt);
   }
 
