@@ -26,7 +26,7 @@ const SPELL_CAST = {
 const CROWD_VOL = { gasp: 0.8, panic: 1.2 };
 const clamp1 = (x) => Math.max(-1, Math.min(1, x));
 /** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
-function onset(b) {
+export function onset(b) {
   const d = b.getChannelData(0), n = Math.min(d.length, Math.round(b.sampleRate * 0.25));
   for (let i = 0; i < n; i++) if (Math.abs(d[i]) > 0.0025) return Math.max(0, i - b.sampleRate * 0.004) / b.sampleRate;
   return 0;

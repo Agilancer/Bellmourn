@@ -1385,7 +1385,7 @@ async function newGame() {
 }
 
 async function startOver() {
-  music.intro();   // (the opening's song from this moment, over the getting-ready and the whole of it)
+  music.toIntro();   // (a game's music gives way; the title's song plays on under the getting-ready)
   found.clear(); try { localStorage.removeItem('bm.found'); } catch { /* no storage */ }
   saves.show(null); quests.close(); bag.show(false); map.show(false);
   hud.showOverlay(null);
@@ -1479,6 +1479,7 @@ async function startOver() {
     await intro.prepare(say);
   }
   title.hide();   // (it fades off the opening's first shot)
+  music.intro();  // (the opening's song from its first shot)
   intro.start(touch);
 }
 
