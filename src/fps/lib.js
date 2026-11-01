@@ -4,7 +4,8 @@
 // It also keeps track of which surfaces the world has used, so builders can ask for ones
 // that haven't been used yet (every Velscour texture ends up somewhere).
 import * as THREE from 'three';
-import { SHARP_GLSL, crisp } from './engine.js';
+import { SHARP_GLSL, crisp, WEBGPU } from './engine.js';
+import { drawNormalMap, T, sharpGrad, untiled, untileMask, vnoise, snoise, shared, keyed, ref, sourceOf, settled } from './nodes.js';
 
 const ROOT = 'assets/textures/';
 const SHINY = /iron|met_|gold|marble|slate|wet|sewer|ice|glass|polish|lacquer|obsidian|basalt|tile|inlay|salt/;
@@ -39,7 +40,13 @@ function feathered(m, f) {
   m.depthWrite = false;
   m.userData.feather = f;
   m.userData.noCast = true;
-  m.customProgramCacheKey = () => 'feather' + (m.userData.grain ? '-grain' : '') + (m.userData.tracks ? `-tracks${m.userData.tracks}-${m.userData.tileU}-${m.userData.tileV}` : '');
+  if (WEBGPU) {   // (one graph per grain and tracks; the track gauge and the tiles are the material's)
+    const grain = !!m.userData.grain, tracks = !!m.userData.tracks;
+    m.colorNode = settled(featherNode(grain, tracks, m.map));
+    keyed(m, `feather${grain ? '-grain' : ''}${tracks ? '-tracks' : ''}`);
+    return;
+  }
+  m.customProgramCacheKey =() => 'feather' + (m.userData.grain ? '-grain' : '') + (m.userData.tracks ? `-tracks${m.userData.tracks}-${m.userData.tileU}-${m.userData.tileV}` : '');
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float edge; varying float vEdge; varying vec2 vFeatherP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvEdge = edge; vFeatherP = (modelMatrix * vec4(transformed, 1.0)).xz;');
@@ -88,6 +95,13 @@ function feathered(m, f) {
 /** The map sampled by world position along whichever axis the surface faces most (blended at the
  * turns), so rock wraps a boulder without stretching or a seam at every facet. */
 function triplanar(m, tile) {
+  if (WEBGPU) {   // (as in GLSL, an overlay's own sampling, laid first, stays)
+    if (m.colorNode) return;
+    m.userData.tri = tile;
+    m.colorNode = settled(triNode(m.map));
+    keyed(m, 'tri');
+    return;
+  }
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     prev?.call(m, sh, r);
@@ -112,6 +126,16 @@ function triplanar(m, tile) {
 /** Where the picture is red (lava in the cracks of volcanic rock), it gives off light of its own,
  * `k` strong, a little uneven as embers are. */
 function glowCracks(m, k) {
+  if (WEBGPU) {
+    m.userData.cracks = k;
+    const g = cracksNode(m.map);
+    // (the plain crisp map, as crisp() would draw it, and the glow read off that same sample; over
+    // an overlay's or a triplanar's own colour, a plain crisp sample of the map for the glow)
+    if (!m.colorNode) m.colorNode = settled(g.color);
+    m.emissiveNode = settled(g.emissive);
+    keyed(m, 'cracks');
+    return;
+  }
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     prev?.call(m, sh, r);
@@ -128,6 +152,181 @@ function glowCracks(m, k) {
   };
   const key = m.customProgramCacheKey?.bind(m);
   m.customProgramCacheKey = () => (key ? key() : '') + `|cracks${k}`;
+}
+
+// ------------------------------------------------------------------ the same in TSL (WebGPU)
+// Each kind's graph is made once and shared by every material of its kind (docs/WEBGPU.md rule 1):
+// the material's own map comes in through nodes.js shared(), its numbers (track gauge, tiles,
+// triplanar repeat, glow) through ref().
+const likeKey = (t) => `${t?.colorSpace}|${t?.type}|${t?.minFilter}|${t?.magFilter}`;
+/** A zero that builds a shared() texture's own node into the graph, so its picture follows the drawn
+ * material whichever of its samples the shader keeps (the samples are copies that read it). */
+export const heldTex = (base) => T.float(T.textureSize(base, 0).x).mul(0.0);
+
+const _feather = new Map();
+/** feathered()'s colour: the map untiled (and, on a road, its wheel tracks), the edge band frayed by
+ * noise and by the picture's own light and dark, the rim darker, a slow drift of tone. */
+function featherNode(grain, tracks, like) {
+  const key = `${grain}|${tracks}|${likeKey(like)}`;
+  if (_feather.has(key)) return _feather.get(key);
+  const { Fn, uv: uvOf, dFdx, dFdy, positionWorld, attribute, vec2, vec3, vec4, sin, abs, smoothstep, mix, clamp, dot } = T;
+  const base = shared((mat) => mat.map, like);
+  const color = ref('color', 'color');
+  const g = Fn(() => {
+    const uv = uvOf().toVar(), dx = dFdx(uv).toVar(), dy = dFdy(uv).toVar();
+    const P = positionWorld.xz.toVar();
+    const s = untiled(base, uv, dx, dy, untileMask(P, 11.0).toVar(), grain).toVar();
+    if (tracks) {
+      // a road's two wheel tracks (ribbon UVs: u metres across, v along): darker, packed smooth
+      // (a coarser mip), wandering a little; a lighter crown between them
+      const gauge = ref('userData.tracks', 'float', 1), across = uv.x.mul(ref('userData.tileU', 'float', 1)).toVar(), along = uv.y.mul(ref('userData.tileV', 'float', 1)).toVar();
+      const wan = sin(along.mul(0.31)).mul(0.12).add(sin(along.mul(0.083).add(1.7)).mul(0.18)).toVar();
+      const d = abs(abs(across.sub(wan)).sub(gauge));
+      const tr = smoothstep(0.12, 0.42, d.add(vnoise(vec2(along.mul(0.9), across.mul(3.0))).sub(0.5).mul(0.12))).oneMinus();
+      const packed = base.sample(uv).level(3.5);
+      s.assign(mix(s, packed.mul(0.7), tr.mul(0.75)));
+      const crown = smoothstep(0.3, 0.6, abs(across.sub(wan)).div(gauge)).oneMinus().mul(0.07).add(1.0);
+      s.assign(vec4(s.rgb.mul(crown), s.a));
+    }
+    // (a long, slow wander, so a road's verge isn't a ruled line with wiggles in it, then finer)
+    const fn = vnoise(P.mul(0.16).add(3.1)).mul(0.42).add(vnoise(P.mul(0.55)).mul(0.3)).add(vnoise(P.mul(1.9).add(7.3)).mul(0.18)).add(vnoise(P.mul(5.3).add(2.1)).mul(0.1));
+    // light against dark a few mips down (whole stones, not single texels), against the picture's
+    // average (its last mip)
+    const frel = dot(base.sample(uv).level(2.2).rgb.sub(base.sample(uv).level(16.0).rgb), vec3(0.3333));
+    const e = attribute('edge', 'float').toVar();
+    // the fray: strongest mid-band, none at its two ends (so it never shows the band's own lines)
+    const fe = e.add(fn.sub(0.5).mul(1.25).add(clamp(frel, -0.3, 0.3).mul(1.5)).mul(4.0).mul(e).mul(e.oneMinus())).toVar();
+    const rgb = color.mul(s.rgb).mul(mix(0.9, 1.0, smoothstep(0.5, 0.9, fe))).mul(vnoise(P.mul(0.09).add(23.0)).mul(0.16).add(0.92));
+    return vec4(rgb.add(heldTex(base)), s.a.mul(smoothstep(0.42, 0.58, fe)));
+  })();
+  _feather.set(key, g);
+  return g;
+}
+
+const _tri = new Map();
+/** triplanar()'s colour: the map by world position along each axis the surface faces, blended. */
+function triNode(like) {
+  const key = likeKey(like);
+  if (_tri.has(key)) return _tri.get(key);
+  const { Fn, If, dFdx, dFdy, positionWorld, normalWorldGeometry, vec3, vec4, pow, abs, normalize } = T;
+  const base = shared((mat) => mat.map, like);
+  const color = ref('color', 'color'), tile = ref('userData.tri', 'float', 1);
+  const g = Fn(() => {
+    const tw0 = pow(abs(normalize(normalWorldGeometry)), vec3(4.0));
+    const tw = tw0.div(tw0.x.add(tw0.y).add(tw0.z)).toVar();
+    const tp = positionWorld.div(tile).toVar(), tdx = dFdx(tp).toVar(), tdy = dFdy(tp).toVar();   // (gradients outside the branches)
+    const c = vec4(0.0).toVar();
+    If(tw.x.greaterThan(0.01), () => { c.addAssign(sharpGrad(base, tp.zy, tdx.zy, tdy.zy).mul(tw.x)); });
+    If(tw.y.greaterThan(0.01), () => { c.addAssign(sharpGrad(base, tp.xz.add(0.37), tdx.xz, tdy.xz).mul(tw.y)); });
+    If(tw.z.greaterThan(0.01), () => { c.addAssign(sharpGrad(base, tp.xy.add(0.71), tdx.xy, tdy.xy).mul(tw.z)); });
+    return vec4(c.rgb.mul(color).add(heldTex(base)), c.a);
+  })();
+  _tri.set(key, g);
+  return g;
+}
+
+const _cracks = new Map();
+/** glowCracks(): the crisp map (as crisp() draws it) and, off the same sample, the lava's light. */
+function cracksNode(like) {
+  const key = likeKey(like);
+  if (_cracks.has(key)) return _cracks.get(key);
+  const { uv: uvOf, dFdx, dFdy, vec3, vec4, max, smoothstep, materialEmissive } = T;
+  const base = shared((mat) => mat.map, like);
+  const u = uvOf();
+  const s = sharpGrad(base, u, dFdx(u), dFdy(u));
+  s.onObjectUpdate((f) => sourceOf(f).map || undefined);   // (as nodes.js crispColor)
+  const cc = s.rgb;
+  // (only the cracks: red well above both green and blue, and bright; the rock round them stays
+  // rock even in orange torchlight)
+  const lava = smoothstep(0.12, 0.3, cc.r.sub(max(cc.g, cc.b))).mul(smoothstep(0.2, 0.45, cc.r));
+  const g = {
+    color: vec4(s.rgb.mul(ref('color', 'color')).add(heldTex(base)), s.a),
+    emissive: materialEmissive.add(vec3(1.0, 0.25, 0.06).mul(lava).mul(ref('userData.cracks', 'float'))),
+  };
+  _cracks.set(key, g);
+  return g;
+}
+
+let _grounds = 0;
+/** Library.ground() in TSL. Its textures, tiles, tints and the village's size are its own, so it has
+ * a graph of its own (there is one such ground); the yard is a uniform, the crater and its glow the
+ * material's userData uniforms (crater.js sets them). */
+function groundNodes(m, { village, yard, layers, tex }) {
+  const { Fn, If, texture, uniform, property, positionWorld, dFdx, dFdy, vec2, vec3, vec4, length, clamp, smoothstep, mix, atan, abs, max, materialEmissive } = T;
+  const tn = tex.map((t) => texture(t));
+  const gYard = uniform(new THREE.Vector4(...yard)).setGroup(T.renderGroup), gCrater = m.userData.crater, gGlow = m.userData.glow;
+  const fbm = (p) => snoise(p).mul(0.55).add(snoise(p.mul(2.1).add(9.1)).mul(0.3)).add(snoise(p.mul(4.3).add(3.7)).mul(0.15));
+  const glow = property('float', 'gGroundGlow');   // (worked out with the colour, given off as light)
+  const f1 = (v) => +v.toFixed(1), f2 = (v) => +v.toFixed(2), f3 = (v) => +v.toFixed(3);
+  m.colorNode = Fn(() => {
+    // dx, dy: the world position's screen gradients, worked out once for every layer
+    const gp = positionWorld.xz.toVar(), gdx = dFdx(gp).toVar(), gdy = dFdy(gp).toVar();
+    const gUm = untileMask(gp, 0.0).toVar();   // (where the second copies show: one mask for every layer)
+    // one layer at its own scale and turn, its repeat hidden (untiled), in its tint (the meadow's
+    // grasses take a blurrier mip a little sooner: a fine noisy texture otherwise sparkles)
+    const L = (i, rot) => {
+      const tile = f2(layers[i][1]), c = Math.cos(rot) / tile, s = Math.sin(rot) / tile, soft = i < 3 ? 1.6 : 1;
+      const R = (v) => vec2(v.x.mul(c).add(v.y.mul(s)), v.y.mul(c).sub(v.x.mul(s)));
+      const k = new THREE.Color(layers[i][2] ?? 0xffffff);
+      return untiled(tn[i], R(gp), R(gdx.mul(soft)), R(gdy.mul(soft)), gUm, false).rgb.mul(vec3(f3(k.r), f3(k.g), f3(k.b)));
+    };
+    const r = length(gp);
+    const n1 = fbm(gp.mul(0.03)).toVar(), n2 = fbm(gp.mul(0.09).add(17.0)).toVar(), n3 = fbm(gp.mul(0.05).add(41.0)).toVar();
+    const vil = smoothstep(f1(village - 14), f1(village + 12), r.add(n1.sub(0.5).mul(40.0))).oneMinus();
+    const yc = clamp(gp, gYard.xy, gYard.zw);
+    const yd = smoothstep(0.0, 5.0, length(gp.sub(yc)).add(n2.sub(0.5).mul(5.0))).oneMinus().toVar();
+    // the meadow, the forest floor and the grave soil, each drawn only where it shows (the layers
+    // within each likewise): mostly two or three textures a pixel, not eight
+    const wg = vil.mul(yd.oneMinus()).toVar(), wf = vil.oneMinus().mul(yd.oneMinus()).toVar(), ws = yd;
+    const gc = vec3(0.0).toVar();
+    If(wg.greaterThan(0.001), () => {
+      const a = smoothstep(0.42, 0.58, n2).toVar(), b = smoothstep(0.66, 0.74, n1.mul(0.5).add(n3.mul(0.5))).toVar();
+      const c = vec3(0.0).toVar();
+      If(a.lessThan(0.999), () => { c.assign(L(0, 0.0)); });
+      If(a.greaterThan(0.001), () => { c.assign(mix(c, L(1, 0.7), a)); });
+      If(b.greaterThan(0.001), () => { c.assign(mix(c, L(2, 1.9), b)); });
+      gc.addAssign(c.mul(wg));
+    });
+    If(wf.greaterThan(0.001), () => {
+      const a = smoothstep(0.38, 0.62, n3).toVar(), b = smoothstep(0.62, 0.72, n2).toVar();
+      const c = vec3(0.0).toVar();
+      If(a.lessThan(0.999), () => { c.assign(L(3, 0.3)); });
+      If(a.greaterThan(0.001), () => { c.assign(mix(c, L(4, 1.1), a)); });
+      If(b.greaterThan(0.001), () => { c.assign(mix(c, L(5, 2.3), b)); });
+      gc.addAssign(c.mul(wf));
+    });
+    If(ws.greaterThan(0.001), () => {
+      const a = smoothstep(0.45, 0.6, n1).toVar();
+      const c = vec3(0.0).toVar();
+      If(a.lessThan(0.999), () => { c.assign(L(6, 0.0)); });
+      If(a.greaterThan(0.001), () => { c.assign(mix(c, L(7, 0.9), a)); });
+      gc.addAssign(c.mul(ws));
+    });
+    gc.mulAssign(snoise(gp.mul(0.012).add(3.0)).mul(0.36).add(0.82));
+    gc.mulAssign(snoise(gp.mul(0.09).add(21.0)).mul(0.16).add(0.92));   // (and a gentler drift every ten metres or so)
+    // where Tessariel came down: charred out past the lip, streaked with what was thrown, the floor
+    // fused to dark green glass whose cracks still glow (worked out only within its reach: it is
+    // nothing beyond, as in GLSL)
+    glow.assign(0.0);
+    const cq = gp.sub(gCrater.xy).toVar(), cr = length(cq).toVar();
+    If(cr.lessThan(max(gCrater.w.add(14.0), gCrater.z.mul(0.62).add(1.5))), () => {
+      const cn = fbm(gp.mul(0.31).add(7.0)).toVar();
+      const rays = smoothstep(0.62, 0.9, snoise(vec2(atan(cq.y, cq.x).mul(7.0), cr.mul(0.06))).mul(0.7).add(cn.mul(0.5)));
+      const scorch = max(smoothstep(gCrater.z.mul(0.85), gCrater.w.add(4.0), cr.add(cn.sub(0.5).mul(9.0))).oneMinus(),
+        rays.mul(smoothstep(gCrater.z, gCrater.w.add(14.0), cr).oneMinus())).toVar();
+      const ash = mix(vec3(0.07, 0.065, 0.06), vec3(0.24, 0.22, 0.2), snoise(gp.mul(1.9)).mul(0.6).add(cn.mul(0.4)));
+      gc.assign(mix(gc, gc.mul(0.18).add(ash), scorch.mul(0.94)));
+      const core = smoothstep(gCrater.z.mul(0.25), gCrater.z.mul(0.62), cr.add(cn.sub(0.5).mul(3.0))).oneMinus().toVar();
+      gc.assign(mix(gc, vec3(0.04, 0.1, 0.06).add(snoise(gp.mul(4.0)).mul(0.06)), core.mul(0.85)));
+      const crack = max(smoothstep(0.002, 0.013, abs(snoise(gp.mul(1.15).add(2.0)).sub(0.5))).oneMinus(),
+        smoothstep(0.001, 0.007, abs(snoise(gp.mul(2.7).add(9.0)).sub(0.5))).oneMinus().mul(0.5));
+      glow.assign(crack.mul(core).mul(core).mul(gGlow).mul(snoise(gp.mul(0.6).add(1.0)).mul(0.45).add(0.55)));
+    });
+    return vec4(gc.mul(ref('color', 'color')), 1.0);
+  })();
+  m.emissiveNode = materialEmissive.add(vec3(0.12, 0.7, 0.26).mul(glow));
+  settled(m.colorNode); settled(m.emissiveNode);   // (the crater's values are shared uniforms: nodes.js)
+  keyed(m, 'ground' + _grounds++);
 }
 
 export class Library {
@@ -237,6 +436,8 @@ export class Library {
     src.magFilter = src.minFilter = THREE.LinearFilter;
     src.generateMipmaps = false;
     src.needsUpdate = true;
+    // (WebGPU: the same pass as a node material, nodes.js)
+    if (WEBGPU) { drawNormalMap(this.renderer, rt, src, 1 / img.width, 1 / img.height, strength); src.dispose(); return; }
     if (!this.nmPass) {
       this.nmPass = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
         vertexShader: NM_VERT, fragmentShader: NM_FRAG, depthTest: false, depthWrite: false,
@@ -324,9 +525,13 @@ export class Library {
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x0a0a0a, shininess: 6 });
     m.userData.tileU = m.userData.tileV = 1;
     // the crater (crater.js): where it is, and how brightly its floor's cracks burn
-    m.userData.crater = { value: new THREE.Vector4(crater?.x ?? 1e5, crater?.z ?? 1e5, crater?.R ?? 1, crater?.reach ?? 1) };
-    m.userData.glow = { value: 1 };
+    const c4 = new THREE.Vector4(crater?.x ?? 1e5, crater?.z ?? 1e5, crater?.R ?? 1, crater?.reach ?? 1);
+    // (WebGPU: TSL uniforms, whose .value the game sets as it did the GLSL's; the render's, not the
+    // object's, so a static mesh still sees them change)
+    m.userData.crater = WEBGPU ? T.uniform(c4).setGroup(T.renderGroup) : { value: c4 };
+    m.userData.glow = WEBGPU ? T.uniform(1).setGroup(T.renderGroup) : { value: 1 };
     m.userData.noGlass = true; // out of doors, and its samplers are spoken for
+    if (WEBGPU) { groundNodes(m, { village, yard, layers, tex }); return m; }
     // one layer, sampled at its own scale and turn, in its tint
     // (the meadow's grasses take a blurrier mip a little sooner: a fine noisy texture otherwise
     // sparkles at middle distance)

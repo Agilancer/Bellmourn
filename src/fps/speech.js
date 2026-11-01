@@ -9,6 +9,7 @@
 // between one speaker and the next; a conversation keeps the floor between its own lines, so nobody
 // cuts in. A line kept waiting too long is let go (a passing remark), or said without its voice
 // (a conversation's, a line to you). Speakers too far off to be heard talk among themselves freely.
+// Someone you speak to answers at once (`now`): whoever has the floor falls quiet for them.
 //
 // Every speaker keeps `talk` = { text (the page shown), pages, pi, t (above 0 while they're
 // talking), age, toYou, state, hidden (out of earshot: no bubble) } while their bubble is up (state 'linger' a moment after the last
@@ -22,10 +23,13 @@ const LINGER = 0.6;        // s a bubble stays up after its last word
 const HOLD = 1.6;          // s a conversation keeps the floor between its lines
 const QUEUE = 8;           // lines waiting at most (a passing remark beyond it is let go)
 const AGE = 2.5;           // s of waiting that count as one step more pressing
-/** How long a line waits for its turn, by how pressing it is (0 chatter, 1 the enemy, 2 to you, 3 a quest). */
-const WAIT = [3, 3, 14, 30];
-/** How long, once its turn has come, a line waits for its voice to begin (then: said without it). */
-const CUE = [3, 3, 6, 6];
+const CUT = 0.14;          // s a voice takes to fall away when someone it's talking over must stop
+/** How long a line waits for its turn, by how pressing it is (0 chatter, 1 the enemy, 2 to you, 3 a
+ * quest, 4 an answer: you spoke to them). */
+const WAIT = [3, 3, 14, 30, 30];
+/** How long, once its turn has come, a line waits for its voice to begin (then: said in the browser's
+ * voice, then without one). An answer to you can't keep you standing there. */
+const CUE = [3, 3, 6, 6, 1.8];
 
 /** Split a line into bubble-sized pages, at sentence breaks where it can, else at words. */
 export function paginate(text, max = PAGE) {
@@ -72,14 +76,15 @@ export const speaking = () => ({ floor: floor ? floor.who.name || floor.who.id |
  * noBubble (the voice alone: a quest giver, whose words are in the quest's panel); group (a
  * conversation: its lines keep the floor between them); must (said whatever: kept waiting too long,
  * or its voice not coming, it's said without the voice; else it's let go); wait (s it may wait for
- * its turn); cut (anything of theirs still to say is let go first). Returns 0: wait on
- * talking(who) for it to end. */
+ * its turn); cut (anything of theirs still to say is let go first); now (an answer: you've just
+ * spoken to them, so they answer at once, whoever else was talking stopping for them). Returns 0:
+ * wait on talking(who) for it to end. */
 export function speak(who, text, toYou = false, opts = {}) {
   if (!who || !text) return 0;
-  hush(who, !opts.cut);                // (one line waiting each: a new one takes its place)
+  hush(who, !opts.cut && !opts.now);   // (one line waiting each: a new one takes its place)
   const pages = paginate(text);
   const vo = { toYou, ...opts.voice };
-  const pri = vo.pri ?? (toYou ? 2 : vo.kind && vo.kind !== 'villager' ? 1 : 0);
+  const pri = opts.now ? 4 : vo.pri ?? (toYou ? 2 : vo.kind && vo.kind !== 'villager' ? 1 : 0);
   const L = {
     who, full: String(text), pages, pi: 0, text: pages[0], t: 1, age: 0, toYou, pri, group: opts.group || null,
     noBubble: !!opts.noBubble, must: !!opts.must, wait: opts.wait ?? (opts.must ? 30 : WAIT[pri] ?? 3), waited: 0, state: 'queued', cue: 0, line: null,
@@ -96,8 +101,12 @@ export function speak(who, text, toYou = false, opts = {}) {
   if (!opts.quiet && voice.enabled) L.line = voice.say(who, L.full, { ...vo, pri, hold: true });   // (made now, played on its turn)
   who.pending = L;
   queue.push(L);
-  // a quest giver doesn't wait on the town's chatter: it stops for them
-  if (pri >= 3 && floor && floor.pri < 2) end(floor, true);
+  // an answer to you is heard at once: whoever has the floor stops (their voice falling away), and
+  // there's no pause first; a quest giver doesn't wait on the town's chatter either
+  if (opts.now) {
+    if (floor && floor.who !== who) end(floor, true, CUT);
+    quiet = 0; hold = null;
+  } else if (pri >= 3 && floor && floor.pri < 2) end(floor, true, CUT);
   return 0;
 }
 
@@ -122,6 +131,7 @@ export function hushAll() {
 
 /** Each frame: the floor passed on, and every bubble's pages run on. */
 export function tickSpeech(dt) {
+  voice.tick?.();                      // (every voice heard from where its speaker is now, as you move and turn)
   if (hold && (hold.t -= dt) <= 0) hold = null;
   // lines kept waiting too long
   for (let i = queue.length - 1; i >= 0; i--) {
@@ -136,8 +146,8 @@ export function tickSpeech(dt) {
   // the next speaker
   if (!floor && (quiet -= dt) <= 0 && queue.length) {
     // (the more pressing first, but the longer a line has waited the more pressing it gets: the
-    // enemy's taunts can't keep the town quiet for ever)
-    const score = (L) => L.pri + L.waited / AGE;
+    // enemy's taunts can't keep the town quiet for ever; an answer to you is never kept waiting)
+    const score = (L) => (L.pri >= 4 ? 100 : 0) + L.pri + L.waited / AGE;
     let best = -1;
     for (let i = 0; i < queue.length; i++) {
       const L = queue[i];
@@ -218,10 +228,10 @@ function over(L) {
   }
 }
 
-/** A line ends: its bubble comes down; cut: its voice stops too. */
-function end(L, cut = false) {
+/** A line ends: its bubble comes down; cut: its voice stops too (over `fade` s). */
+function end(L, cut = false, fade = 0) {
   live.delete(L);
-  if (cut) L.line?.cancel();
+  if (cut) L.line?.cancel(fade);
   if (L.who.talk === L) L.who.talk = null;
   if (L.who.pending === L) L.who.pending = null;
   const i = queue.indexOf(L);

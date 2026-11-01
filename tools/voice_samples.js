@@ -2,7 +2,7 @@
 // pitch, pace and effect), rendered to art/view/shots/voice_<name>.png (WAV bytes: rename to .wav).
 // In the page, once loaded:
 //   await (await import('/tools/voice_samples.js')).samples()
-import { neuralCast, fxInput } from '../src/fps/voice.js';
+import { neuralCast, fxInput, splitLine, sayable, paceOf, pauseAfter } from '../src/fps/voice.js';
 
 const LINES = [
   ['villager_woman', 'Elsie', { sex: 'f', kind: 'villager' }, "Morning, stranger. You look like you've seen things down there. Mind the graveyard on your way out."],
@@ -37,15 +37,24 @@ export async function samples(only = null) {
   for (const [name, key, o, text] of LINES) {
     if (only && !only.includes(name)) continue;
     const c = neuralCast(key, o);
-    const a = await ask({ type: 'say', id: id++, text, voice: c.voice, speed: c.speed });
-    const len = Math.ceil(a.audio.length / c.rate) + Math.round(a.rate * 0.6);
-    const ctx = new OfflineAudioContext(1, len, a.rate);
-    const buf = ctx.createBuffer(1, a.audio.length, a.rate); buf.copyToChannel(a.audio, 0);
-    const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = c.rate;
-    src.connect(fxInput(ctx, c.fx, ctx.destination)); src.start();
+    // (in its pieces, each said as the game says it, with the game's pauses between them)
+    const pieces = splitLine(text), parts = [];
+    let ms = 0;
+    for (const s of pieces) { const a = await ask({ type: 'say', id: id++, text: sayable(s), voice: c.voice, speed: Math.max(0.6, Math.min(1.6, c.speed * paceOf(s))) }); parts.push(a); ms += a.ms; }
+    const rate = parts[0].rate, gaps = pieces.map((s, i) => (i < pieces.length - 1 ? pauseAfter(s) / Math.max(0.6, c.rate) : 0));
+    const len = Math.ceil(parts.reduce((n, a, i) => n + a.audio.length / c.rate + gaps[i] * rate, 0)) + Math.round(rate * 0.6);
+    const ctx = new OfflineAudioContext(1, len, rate);
+    const input = fxInput(ctx, c.fx, ctx.destination);
+    let at = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const a = parts[i], buf = ctx.createBuffer(1, a.audio.length, a.rate); buf.copyToChannel(a.audio, 0);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = c.rate;
+      src.connect(input); src.start(at);
+      at += buf.duration / c.rate + gaps[i];
+    }
     const r = await ctx.startRendering();
-    await fetch('/shot?name=voice_' + name, { method: 'POST', body: wav(r.getChannelData(0), a.rate) });
-    out.push([name, c.voice, +c.rate.toFixed(2), c.fx, Math.round(a.ms) + ' ms']);
+    await fetch('/shot?name=voice_' + name, { method: 'POST', body: wav(r.getChannelData(0), rate) });
+    out.push([name, c.voice, +c.rate.toFixed(2), c.fx, Math.round(ms) + ' ms']);
   }
   worker.terminate();
   return out;

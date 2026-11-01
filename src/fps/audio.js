@@ -22,9 +22,11 @@ const SPELL_CAST = {
   arcaneblast: ['wave_attack', 0.9, 1.15], nova: ['ice_wall', 1], blizzard: ['ice_barrage', 0.9], lance: ['rock_meteor_throw', 1.2, 1.1],
   plague: ['rock_meteor_throw', 0.7, 1.35], blades: ['sword_unsheath', 1.1], spikes: ['rock_wall', 1.2], wisp: ['light_torch', 1], staff: ['spell_impact', 0.5, 0.7],
 };
+// how loud the recorded crowds play at the strike (tools/audio/crowd_preview.html tries them)
+const CROWD_VOL = { gasp: 0.8, panic: 1.2 };
 const clamp1 = (x) => Math.max(-1, Math.min(1, x));
 /** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
-function onset(b) {
+export function onset(b) {
   const d = b.getChannelData(0), n = Math.min(d.length, Math.round(b.sampleRate * 0.25));
   for (let i = 0; i < n; i++) if (Math.abs(d[i]) > 0.0025) return Math.max(0, i - b.sampleRate * 0.004) / b.sampleRate;
   return 0;
@@ -88,9 +90,21 @@ export class Sfx {
     } catch (e) { console.warn('sound', url, e?.message || e); return null; }
   }
 
+  /** The village's gasp and panic at the green star's strike (recorded crowds: the whole gasp, the
+   * panic's first 1.5 s), fetched first and on their own, so the opening can wait for just these. */
+  loadCrowd() {
+    if (this.crowding) return this.crowding;
+    this.crowding = Promise.all(['crowd_gasp', 'crowd_panic'].map(async (name) => {
+      const b = await this.decode(SFX_DIR + name + '.mp3');
+      if (b) this.bank[name] = [{ b, off: 0 }];
+    }));
+    return this.crowding;
+  }
+
   /** The effects, fetched and decoded a few at a time (each plays as soon as it's in). */
   loadBank() {
     if (this.banking) return this.banking;
+    this.loadCrowd();
     const files = [];
     for (const [name, k] of Object.entries(TAKES)) for (let i = 1; i <= Math.max(1, k); i++) files.push([name, k ? `${name}_${i}` : name]);
     let next = 0;
@@ -482,6 +496,36 @@ export class Sfx {
       // breath under the voice
       this._noise(t, dur * 0.8, { type: 'bandpass', f0: 2400, f1: 1800, q: 2, gain: 0.02, attack: 0.08 });
     }
+  }
+
+  /** A portal's seal waking: a low swell from under the stone, a cold open chord over it, and
+   * glassy notes climbing as the blue runs out to the rim. */
+  portalWake() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._tone(t, 2.8, { type: 'sine', f0: 49, f1: 98, gain: 0.16, attack: 0.8 });
+    this._noise(t, 2.4, { type: 'bandpass', f0: 220, f1: 2600, q: 1.4, gain: 0.07, attack: 1.3 });
+    [294, 440, 587, 880].forEach((f, i) => this._tone(t + 0.2 + i * 0.14, 2.4, { type: 'triangle', f0: f, f1: f * 1.004, gain: 0.03, attack: 0.45 }));
+    [1175, 1397, 1760, 2093, 2349, 2794].forEach((f, i) => this._tone(t + 0.55 + i * 0.12, 0.7, { type: 'triangle', f0: f, f1: f * 0.997, gain: 0.018 }));
+  }
+
+  /** Stepping through a portal: the air torn and drawn in, a deep thud, and a shimmer as you land. */
+  portalJump() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.6, { type: 'bandpass', f0: 3800, f1: 260, q: 0.9, gain: 0.45, attack: 0.04 });
+    this._tone(t, 0.55, { type: 'sine', f0: 140, f1: 38, gain: 0.22, attack: 0.01 });
+    this._tone(t + 0.05, 0.9, { type: 'sine', f0: 660, f1: 1320, gain: 0.04, attack: 0.2 });
+    [1568, 2093, 2637].forEach((f, i) => this._tone(t + 0.25 + i * 0.07, 0.9, { type: 'triangle', f0: f, f1: f, gain: 0.02 }));
+  }
+
+  /** The strike, heard from the village: everyone gasps and screams at once, the recorded crowds
+   * over the synthesized one (all three together). */
+  villageScreams() {
+    if (!this.ok) return;
+    this.scream(18, 0.6);
+    this.play('crowd_gasp', { vol: CROWD_VOL.gasp, vary: 0 });
+    this.play('crowd_panic', { vol: CROWD_VOL.panic, vary: 0 });
   }
 
   /** A level gained: a rising peal. */

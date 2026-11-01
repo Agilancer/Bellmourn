@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
+import { WEBGPU, T, ref, shared } from './nodes.js';
 
 const MODEL = 'templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : '') + 'villager_m09.glb';
 
@@ -41,8 +42,9 @@ function averageColour(tex) {
 /** Bare skin with the briefs drawn on: in the bind pose, between the waistband and the leg
  * openings (high at the hips, low at the crotch), the skin is black cloth. */
 function skinMaterial(skin, src) {
-  const m = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.62, metalness: 0 });
+  const m = new (WEBGPU ? THREE.MeshStandardNodeMaterial : THREE.MeshStandardMaterial)({ color: skin, roughness: 0.62, metalness: 0 });
   if (src?.normalMap) { /* the clothes' normal maps are their weave: bare skin has none */ }
+  if (WEBGPU) { m.name = 'tessariel_skin'; return skinNodes(m); }
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
@@ -63,6 +65,33 @@ function skinMaterial(skin, src) {
       roughnessFactor = mix(roughnessFactor, 0.85, step(mix(0.835, 0.955, smoothstep(0.035, 0.19, abs(vBind.x))), vBind.y) * step(vBind.y, 1.015));`);
   };
   m.name = 'tessariel_skin';
+  return m;
+}
+
+// (WebGPU) the same in TSL: one graph with a map, one without (skinNodes again once a map is given)
+const _skin = new Map();
+function skinNodes(m) {
+  const k = m.map ? 'map|' + m.map.colorSpace : 'none';
+  if (!_skin.has(k)) {
+    const { Fn, vec3, vec4, floor, fract, sin, dot, abs, mix, step, smoothstep, positionGeometry: vb } = T;
+    const hHash = (p) => fract(sin(dot(p, vec3(127.1, 311.7, 74.7))).mul(43758.5453));
+    // the briefs: waistband at 1.0 m, the leg openings rising from the crotch to the hips
+    const brief = step(mix(0.835, 0.955, smoothstep(0.035, 0.19, abs(vb.x))), vb.y).mul(step(vb.y, 1.015));
+    const tex = m.map ? shared((mat) => mat.map, m.map) : null;
+    const color = Fn(() => {
+      const b = (tex || vec4(1)).toVar();
+      const c = b.rgb.mul(ref('color', 'color')).toVar();
+      c.mulAssign(hHash(floor(vb.mul(90.0))).mul(0.1).add(0.93));   // a little mottling, so the skin isn't paint
+      const band = step(0.975, vb.y).mul(brief);
+      const cloth = vec3(0.018, 0.017, 0.02).mul(hHash(floor(vb.mul(220.0))).mul(0.3).add(0.85));
+      c.assign(mix(c, cloth.add(band.mul(vec3(0.03))), brief));
+      return vec4(c, b.a);
+    })();
+    _skin.set(k, { color, rough: mix(ref('roughness', 'float'), 0.85, brief) });
+  }
+  const g = _skin.get(k);
+  m.colorNode = g.color; m.roughnessNode = g.rough;
+  m.needsUpdate = true;
   return m;
 }
 
@@ -98,6 +127,7 @@ export async function loadHero({ curl = true } = {}) {
     if (/V_Skin_Body/.test(name)) {
       const m = skinMaterial(skin);
       m.map = o.material.map; m.color.set(0xffffff);
+      if (WEBGPU) skinNodes(m);
       o.material = m;
       return;
     }

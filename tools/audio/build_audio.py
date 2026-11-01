@@ -8,6 +8,7 @@
 #   mp3 - USE FOR MUSIC.rar             -> mp3/Action 1.mp3 .. Light Ambience 5.mp3 (alkakrab, 2022)
 #   Nature_Essentials_NOX_SOUND ... .rar -> Ambiance_*_Loop_*.wav
 #   SFX - SWORDS AND WHAT NOT.rar       -> SFX/**/*.ogg
+#   orthodox-church-bells-ringing-sound.zip -> orthodox-church-bells-ringing-sound.mp3 (the title's bells)
 #
 # Out (all MP3, which every browser plays, iPhones included):
 #   music/   every track, loudness-matched by its kind (dark ambient is lifted, action brought down);
@@ -18,7 +19,7 @@ import aud, os, re, sys, glob, json
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SRC = ARGS[0] if ARGS else '.'
-ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx'}
+ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx', 'crowd', 'bells'}
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'assets', 'audio')
 
@@ -122,9 +123,29 @@ if 'sfx' in ONLY:
         n += 1
     print(f'  {n} effects')
 
-with open(os.path.join(OUT, 'build_report.json'), 'w') as f:
-    old = {}
-    try: old = json.load(open(os.path.join(OUT, 'build_report.json')))
-    except Exception: pass
+# ------------------------------------------------------------------ the village's gasp and scream at the strike
+# crowd-gasp-sound-effect.mp3 (Free Sounds Library, CC BY 4.0) whole; the panic scream's first 1.5 s only
+if 'crowd' in ONLY:
+    print('crowd')
+    g = find(r'crowd-gasp')
+    if g: note('sfx/crowd_gasp.mp3', g[0], write(aud.Sound(g[0]), os.path.join(OUT, 'sfx', 'crowd_gasp.mp3'), 44100, 2, 128))
+    c = find(r'crowd-panic-scream.*\.mp3$')
+    if c: note('sfx/crowd_panic.mp3', c[0], write(aud.Sound(c[0]).limit(0, 1.5).fadeout(1.25, 0.25), os.path.join(OUT, 'sfx', 'crowd_panic.mp3'), 44100, 2, 128))
+
+# ------------------------------------------------------------------ Bellmourn's bells, as its logo comes up
+# orthodox-church-bells-ringing-sound.mp3 (Free Sounds Library, CC BY 4.0): its first 16 s (it opens on a
+# strike, 0.06 s in); title.js rings them out a few seconds and trails them away under the title's song
+if 'bells' in ONLY:
+    print('bells')
+    b = find(r'orthodox-church-bells.*\.mp3$')
+    if b: note('sfx/title_bells.mp3', b[0], write(aud.Sound(b[0]).limit(0.02, 16.02).fadeout(15.4, 0.6), os.path.join(OUT, 'sfx', 'title_bells.mp3'), 44100, 2, 160))
+
+# (the earlier entries read before the file is opened to write: opening it empties it)
+REPORT = os.path.join(OUT, 'build_report.json')
+old = {}
+try:
+    with open(REPORT, encoding='utf-8') as f: old = json.load(f)
+except Exception: pass
+with open(REPORT, 'w', encoding='utf-8') as f:
     json.dump({**old, **report}, f, indent=1, sort_keys=True)
 print('done:', len(report), 'files')
