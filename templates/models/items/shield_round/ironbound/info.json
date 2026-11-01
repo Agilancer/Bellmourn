@@ -35,5 +35,43 @@
   }
  ],
  "set": "set01",
- "set_name": "model 1"
+ "set_name": "model 1",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/ironbound_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/ironbound_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/ironbound_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/ironbound_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/ironbound_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/ironbound_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.997
+ }
 }

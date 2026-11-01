@@ -31,5 +31,43 @@
   }
  ],
  "set": "set04",
- "set_name": "model 4"
+ "set_name": "model 4",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/warmaul_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/warmaul_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/warmaul_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/warmaul_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/warmaul_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/warmaul_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.999
+ }
 }

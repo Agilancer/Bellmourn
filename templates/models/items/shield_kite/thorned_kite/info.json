@@ -87,5 +87,43 @@
   }
  ],
  "set": "set05",
- "set_name": "model 5"
+ "set_name": "model 5",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/thorned_kite_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/thorned_kite_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/thorned_kite_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/thorned_kite_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/thorned_kite_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/thorned_kite_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

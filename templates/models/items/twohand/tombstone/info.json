@@ -4,7 +4,7 @@
  "kind": "two-handed weapon",
  "description": "A chipped, moss-stained grave slab worn as a blade, clamped in an iron collar and bound with iron bands, on a leather grip with a grave-ring pommel.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 704,
  "files": [
   "tombstone.glb"
@@ -72,5 +72,10 @@
   }
  ],
  "set": "set15",
- "set_name": "model 15"
+ "set_name": "model 15",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.998
+ }
 }

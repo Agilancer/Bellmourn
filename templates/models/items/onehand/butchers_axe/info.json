@@ -4,7 +4,7 @@
  "kind": "one-handed weapon",
  "description": "A long forward-raked cleaver blade on a short haft bound with blackened iron bands, a top spike and a hanging hook.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 946,
  "files": [
   "butchers_axe.glb"
@@ -72,5 +72,10 @@
   }
  ],
  "set": "set13",
- "set_name": "model 13"
+ "set_name": "model 13",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.998
+ }
 }

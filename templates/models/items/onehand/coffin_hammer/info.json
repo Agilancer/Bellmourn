@@ -84,5 +84,10 @@
   }
  ],
  "set": "set15",
- "set_name": "model 15"
+ "set_name": "model 15",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.999
+ }
 }

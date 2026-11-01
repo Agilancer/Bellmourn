@@ -27,5 +27,43 @@
   }
  ],
  "set": "set08",
- "set_name": "model 8"
+ "set_name": "model 8",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/scythe_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/scythe_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/scythe_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/scythe_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/scythe_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/scythe_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.999
+ }
 }

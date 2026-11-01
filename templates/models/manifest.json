@@ -396,35 +396,70 @@
     "name": "Banded Kite",
     "set": "set02",
     "path": "items/shield_kite/banded_kite/banded_kite.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_kite/banded_kite/variants/banded_kite_worn.png",
+     "bright": "items/shield_kite/banded_kite/variants/banded_kite_bright.png",
+     "gilded": "items/shield_kite/banded_kite/variants/banded_kite_gilded.png",
+     "ancient": "items/shield_kite/banded_kite/variants/banded_kite_ancient.png",
+     "bloodforged": "items/shield_kite/banded_kite/variants/banded_kite_bloodforged.png",
+     "frostbound": "items/shield_kite/banded_kite/variants/banded_kite_frostbound.png"
+    }
    },
    {
     "id": "knights_kite",
     "name": "Knight's Kite",
     "set": "set01",
     "path": "items/shield_kite/knights_kite/knights_kite.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_kite/knights_kite/variants/knights_kite_worn.png",
+     "bright": "items/shield_kite/knights_kite/variants/knights_kite_bright.png",
+     "gilded": "items/shield_kite/knights_kite/variants/knights_kite_gilded.png",
+     "ancient": "items/shield_kite/knights_kite/variants/knights_kite_ancient.png",
+     "bloodforged": "items/shield_kite/knights_kite/variants/knights_kite_bloodforged.png",
+     "frostbound": "items/shield_kite/knights_kite/variants/knights_kite_frostbound.png"
+    }
    },
    {
     "id": "scale_kite",
     "name": "Drakescale Kite",
     "set": "set03",
     "path": "items/shield_kite/scale_kite/scale_kite.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_kite/scale_kite/variants/scale_kite_worn.png",
+     "bright": "items/shield_kite/scale_kite/variants/scale_kite_bright.png",
+     "gilded": "items/shield_kite/scale_kite/variants/scale_kite_gilded.png",
+     "ancient": "items/shield_kite/scale_kite/variants/scale_kite_ancient.png",
+     "bloodforged": "items/shield_kite/scale_kite/variants/scale_kite_bloodforged.png",
+     "frostbound": "items/shield_kite/scale_kite/variants/scale_kite_frostbound.png"
+    }
    },
    {
     "id": "templar_kite",
     "name": "Templar Kite",
     "set": "set04",
     "path": "items/shield_kite/templar_kite/templar_kite.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_kite/templar_kite/variants/templar_kite_worn.png",
+     "bright": "items/shield_kite/templar_kite/variants/templar_kite_bright.png",
+     "gilded": "items/shield_kite/templar_kite/variants/templar_kite_gilded.png",
+     "ancient": "items/shield_kite/templar_kite/variants/templar_kite_ancient.png",
+     "bloodforged": "items/shield_kite/templar_kite/variants/templar_kite_bloodforged.png",
+     "frostbound": "items/shield_kite/templar_kite/variants/templar_kite_frostbound.png"
+    }
    },
    {
     "id": "thorned_kite",
     "name": "Thorned Kite",
     "set": "set05",
     "path": "items/shield_kite/thorned_kite/thorned_kite.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_kite/thorned_kite/variants/thorned_kite_worn.png",
+     "bright": "items/shield_kite/thorned_kite/variants/thorned_kite_bright.png",
+     "gilded": "items/shield_kite/thorned_kite/variants/thorned_kite_gilded.png",
+     "ancient": "items/shield_kite/thorned_kite/variants/thorned_kite_ancient.png",
+     "bloodforged": "items/shield_kite/thorned_kite/variants/thorned_kite_bloodforged.png",
+     "frostbound": "items/shield_kite/thorned_kite/variants/thorned_kite_frostbound.png"
+    }
    }
   ],
   "shield_round": [
@@ -433,35 +468,70 @@
     "name": "Hide Targe",
     "set": "set03",
     "path": "items/shield_round/hide_targe/hide_targe.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_round/hide_targe/variants/hide_targe_worn.png",
+     "bright": "items/shield_round/hide_targe/variants/hide_targe_bright.png",
+     "gilded": "items/shield_round/hide_targe/variants/hide_targe_gilded.png",
+     "ancient": "items/shield_round/hide_targe/variants/hide_targe_ancient.png",
+     "bloodforged": "items/shield_round/hide_targe/variants/hide_targe_bloodforged.png",
+     "frostbound": "items/shield_round/hide_targe/variants/hide_targe_frostbound.png"
+    }
    },
    {
     "id": "ironbound",
     "name": "Iron-Bound Roundshield",
     "set": "set01",
     "path": "items/shield_round/ironbound/ironbound.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_round/ironbound/variants/ironbound_worn.png",
+     "bright": "items/shield_round/ironbound/variants/ironbound_bright.png",
+     "gilded": "items/shield_round/ironbound/variants/ironbound_gilded.png",
+     "ancient": "items/shield_round/ironbound/variants/ironbound_ancient.png",
+     "bloodforged": "items/shield_round/ironbound/variants/ironbound_bloodforged.png",
+     "frostbound": "items/shield_round/ironbound/variants/ironbound_frostbound.png"
+    }
    },
    {
     "id": "skull_boss",
     "name": "Skull-Boss Shield",
     "set": "set05",
     "path": "items/shield_round/skull_boss/skull_boss.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_round/skull_boss/variants/skull_boss_worn.png",
+     "bright": "items/shield_round/skull_boss/variants/skull_boss_bright.png",
+     "gilded": "items/shield_round/skull_boss/variants/skull_boss_gilded.png",
+     "ancient": "items/shield_round/skull_boss/variants/skull_boss_ancient.png",
+     "bloodforged": "items/shield_round/skull_boss/variants/skull_boss_bloodforged.png",
+     "frostbound": "items/shield_round/skull_boss/variants/skull_boss_frostbound.png"
+    }
    },
    {
     "id": "spiked_buckler",
     "name": "Spiked Buckler",
     "set": "set02",
     "path": "items/shield_round/spiked_buckler/spiked_buckler.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_round/spiked_buckler/variants/spiked_buckler_worn.png",
+     "bright": "items/shield_round/spiked_buckler/variants/spiked_buckler_bright.png",
+     "gilded": "items/shield_round/spiked_buckler/variants/spiked_buckler_gilded.png",
+     "ancient": "items/shield_round/spiked_buckler/variants/spiked_buckler_ancient.png",
+     "bloodforged": "items/shield_round/spiked_buckler/variants/spiked_buckler_bloodforged.png",
+     "frostbound": "items/shield_round/spiked_buckler/variants/spiked_buckler_frostbound.png"
+    }
    },
    {
     "id": "sun_bronze",
     "name": "Sun Shield",
     "set": "set04",
     "path": "items/shield_round/sun_bronze/sun_bronze.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/shield_round/sun_bronze/variants/sun_bronze_worn.png",
+     "bright": "items/shield_round/sun_bronze/variants/sun_bronze_bright.png",
+     "gilded": "items/shield_round/sun_bronze/variants/sun_bronze_gilded.png",
+     "ancient": "items/shield_round/sun_bronze/variants/sun_bronze_ancient.png",
+     "bloodforged": "items/shield_round/sun_bronze/variants/sun_bronze_bloodforged.png",
+     "frostbound": "items/shield_round/sun_bronze/variants/sun_bronze_frostbound.png"
+    }
    }
   ],
   "staff": [
@@ -470,70 +540,140 @@
     "name": "Antler Staff",
     "set": "set07",
     "path": "items/staff/antler_staff/antler_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/antler_staff/variants/antler_staff_worn.png",
+     "bright": "items/staff/antler_staff/variants/antler_staff_bright.png",
+     "gilded": "items/staff/antler_staff/variants/antler_staff_gilded.png",
+     "ancient": "items/staff/antler_staff/variants/antler_staff_ancient.png",
+     "bloodforged": "items/staff/antler_staff/variants/antler_staff_bloodforged.png",
+     "frostbound": "items/staff/antler_staff/variants/antler_staff_frostbound.png"
+    }
    },
    {
     "id": "brazier_staff",
     "name": "Brazier Staff",
     "set": "set09",
     "path": "items/staff/brazier_staff/brazier_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/brazier_staff/variants/brazier_staff_worn.png",
+     "bright": "items/staff/brazier_staff/variants/brazier_staff_bright.png",
+     "gilded": "items/staff/brazier_staff/variants/brazier_staff_gilded.png",
+     "ancient": "items/staff/brazier_staff/variants/brazier_staff_ancient.png",
+     "bloodforged": "items/staff/brazier_staff/variants/brazier_staff_bloodforged.png",
+     "frostbound": "items/staff/brazier_staff/variants/brazier_staff_frostbound.png"
+    }
    },
    {
     "id": "caged_orb",
     "name": "Caged Orb Staff",
     "set": "set06",
     "path": "items/staff/caged_orb/caged_orb.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/caged_orb/variants/caged_orb_worn.png",
+     "bright": "items/staff/caged_orb/variants/caged_orb_bright.png",
+     "gilded": "items/staff/caged_orb/variants/caged_orb_gilded.png",
+     "ancient": "items/staff/caged_orb/variants/caged_orb_ancient.png",
+     "bloodforged": "items/staff/caged_orb/variants/caged_orb_bloodforged.png",
+     "frostbound": "items/staff/caged_orb/variants/caged_orb_frostbound.png"
+    }
    },
    {
     "id": "crescent_staff",
     "name": "Crescent Staff",
     "set": "set04",
     "path": "items/staff/crescent_staff/crescent_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/crescent_staff/variants/crescent_staff_worn.png",
+     "bright": "items/staff/crescent_staff/variants/crescent_staff_bright.png",
+     "gilded": "items/staff/crescent_staff/variants/crescent_staff_gilded.png",
+     "ancient": "items/staff/crescent_staff/variants/crescent_staff_ancient.png",
+     "bloodforged": "items/staff/crescent_staff/variants/crescent_staff_bloodforged.png",
+     "frostbound": "items/staff/crescent_staff/variants/crescent_staff_frostbound.png"
+    }
    },
    {
     "id": "crosier",
     "name": "Bishop's Crosier",
     "set": "set08",
     "path": "items/staff/crosier/crosier.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/crosier/variants/crosier_worn.png",
+     "bright": "items/staff/crosier/variants/crosier_bright.png",
+     "gilded": "items/staff/crosier/variants/crosier_gilded.png",
+     "ancient": "items/staff/crosier/variants/crosier_ancient.png",
+     "bloodforged": "items/staff/crosier/variants/crosier_bloodforged.png",
+     "frostbound": "items/staff/crosier/variants/crosier_frostbound.png"
+    }
    },
    {
     "id": "gnarled_staff",
     "name": "Gnarled Crystal Staff",
     "set": "set01",
     "path": "items/staff/gnarled_staff/gnarled_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/gnarled_staff/variants/gnarled_staff_worn.png",
+     "bright": "items/staff/gnarled_staff/variants/gnarled_staff_bright.png",
+     "gilded": "items/staff/gnarled_staff/variants/gnarled_staff_gilded.png",
+     "ancient": "items/staff/gnarled_staff/variants/gnarled_staff_ancient.png",
+     "bloodforged": "items/staff/gnarled_staff/variants/gnarled_staff_bloodforged.png",
+     "frostbound": "items/staff/gnarled_staff/variants/gnarled_staff_frostbound.png"
+    }
    },
    {
     "id": "iron_crook",
     "name": "Iron Crook",
     "set": "set02",
     "path": "items/staff/iron_crook/iron_crook.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/iron_crook/variants/iron_crook_worn.png",
+     "bright": "items/staff/iron_crook/variants/iron_crook_bright.png",
+     "gilded": "items/staff/iron_crook/variants/iron_crook_gilded.png",
+     "ancient": "items/staff/iron_crook/variants/iron_crook_ancient.png",
+     "bloodforged": "items/staff/iron_crook/variants/iron_crook_bloodforged.png",
+     "frostbound": "items/staff/iron_crook/variants/iron_crook_frostbound.png"
+    }
    },
    {
     "id": "monk_staff",
     "name": "Ringed Monk Staff",
     "set": "set10",
     "path": "items/staff/monk_staff/monk_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/monk_staff/variants/monk_staff_worn.png",
+     "bright": "items/staff/monk_staff/variants/monk_staff_bright.png",
+     "gilded": "items/staff/monk_staff/variants/monk_staff_gilded.png",
+     "ancient": "items/staff/monk_staff/variants/monk_staff_ancient.png",
+     "bloodforged": "items/staff/monk_staff/variants/monk_staff_bloodforged.png",
+     "frostbound": "items/staff/monk_staff/variants/monk_staff_frostbound.png"
+    }
    },
    {
     "id": "serpent_staff",
     "name": "Serpent Staff",
     "set": "set05",
     "path": "items/staff/serpent_staff/serpent_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/serpent_staff/variants/serpent_staff_worn.png",
+     "bright": "items/staff/serpent_staff/variants/serpent_staff_bright.png",
+     "gilded": "items/staff/serpent_staff/variants/serpent_staff_gilded.png",
+     "ancient": "items/staff/serpent_staff/variants/serpent_staff_ancient.png",
+     "bloodforged": "items/staff/serpent_staff/variants/serpent_staff_bloodforged.png",
+     "frostbound": "items/staff/serpent_staff/variants/serpent_staff_frostbound.png"
+    }
    },
    {
     "id": "skull_staff",
     "name": "Skull Staff",
     "set": "set03",
     "path": "items/staff/skull_staff/skull_staff.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/staff/skull_staff/variants/skull_staff_worn.png",
+     "bright": "items/staff/skull_staff/variants/skull_staff_bright.png",
+     "gilded": "items/staff/skull_staff/variants/skull_staff_gilded.png",
+     "ancient": "items/staff/skull_staff/variants/skull_staff_ancient.png",
+     "bloodforged": "items/staff/skull_staff/variants/skull_staff_bloodforged.png",
+     "frostbound": "items/staff/skull_staff/variants/skull_staff_frostbound.png"
+    }
    }
   ],
   "twohand": [
@@ -556,7 +696,14 @@
     "name": "Claymore",
     "set": "set02",
     "path": "items/twohand/claymore/claymore.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/claymore/variants/claymore_worn.png",
+     "bright": "items/twohand/claymore/variants/claymore_bright.png",
+     "gilded": "items/twohand/claymore/variants/claymore_gilded.png",
+     "ancient": "items/twohand/claymore/variants/claymore_ancient.png",
+     "bloodforged": "items/twohand/claymore/variants/claymore_bloodforged.png",
+     "frostbound": "items/twohand/claymore/variants/claymore_frostbound.png"
+    }
    },
    {
     "id": "dane_axe",
@@ -577,7 +724,14 @@
     "name": "Flamberge",
     "set": "set07",
     "path": "items/twohand/flamberge/flamberge.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/flamberge/variants/flamberge_worn.png",
+     "bright": "items/twohand/flamberge/variants/flamberge_bright.png",
+     "gilded": "items/twohand/flamberge/variants/flamberge_gilded.png",
+     "ancient": "items/twohand/flamberge/variants/flamberge_ancient.png",
+     "bloodforged": "items/twohand/flamberge/variants/flamberge_bloodforged.png",
+     "frostbound": "items/twohand/flamberge/variants/flamberge_frostbound.png"
+    }
    },
    {
     "id": "glaive",
@@ -605,28 +759,56 @@
     "name": "Double Great Axe",
     "set": "set03",
     "path": "items/twohand/great_axe/great_axe.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/great_axe/variants/great_axe_worn.png",
+     "bright": "items/twohand/great_axe/variants/great_axe_bright.png",
+     "gilded": "items/twohand/great_axe/variants/great_axe_gilded.png",
+     "ancient": "items/twohand/great_axe/variants/great_axe_ancient.png",
+     "bloodforged": "items/twohand/great_axe/variants/great_axe_bloodforged.png",
+     "frostbound": "items/twohand/great_axe/variants/great_axe_frostbound.png"
+    }
    },
    {
     "id": "greatsword",
     "name": "Greatsword",
     "set": "set01",
     "path": "items/twohand/greatsword/greatsword.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/greatsword/variants/greatsword_worn.png",
+     "bright": "items/twohand/greatsword/variants/greatsword_bright.png",
+     "gilded": "items/twohand/greatsword/variants/greatsword_gilded.png",
+     "ancient": "items/twohand/greatsword/variants/greatsword_ancient.png",
+     "bloodforged": "items/twohand/greatsword/variants/greatsword_bloodforged.png",
+     "frostbound": "items/twohand/greatsword/variants/greatsword_frostbound.png"
+    }
    },
    {
     "id": "headsman",
     "name": "Headsman's Sword",
     "set": "set06",
     "path": "items/twohand/headsman/headsman.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/headsman/variants/headsman_worn.png",
+     "bright": "items/twohand/headsman/variants/headsman_bright.png",
+     "gilded": "items/twohand/headsman/variants/headsman_gilded.png",
+     "ancient": "items/twohand/headsman/variants/headsman_ancient.png",
+     "bloodforged": "items/twohand/headsman/variants/headsman_bloodforged.png",
+     "frostbound": "items/twohand/headsman/variants/headsman_frostbound.png"
+    }
    },
    {
     "id": "ogre_club",
     "name": "Ogre Greatclub",
     "set": "set09",
     "path": "items/twohand/ogre_club/ogre_club.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/ogre_club/variants/ogre_club_worn.png",
+     "bright": "items/twohand/ogre_club/variants/ogre_club_bright.png",
+     "gilded": "items/twohand/ogre_club/variants/ogre_club_gilded.png",
+     "ancient": "items/twohand/ogre_club/variants/ogre_club_ancient.png",
+     "bloodforged": "items/twohand/ogre_club/variants/ogre_club_bloodforged.png",
+     "frostbound": "items/twohand/ogre_club/variants/ogre_club_frostbound.png"
+    }
    },
    {
     "id": "penitents_greatsword",
@@ -647,14 +829,28 @@
     "name": "Poleaxe",
     "set": "set05",
     "path": "items/twohand/poleaxe/poleaxe.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/poleaxe/variants/poleaxe_worn.png",
+     "bright": "items/twohand/poleaxe/variants/poleaxe_bright.png",
+     "gilded": "items/twohand/poleaxe/variants/poleaxe_gilded.png",
+     "ancient": "items/twohand/poleaxe/variants/poleaxe_ancient.png",
+     "bloodforged": "items/twohand/poleaxe/variants/poleaxe_bloodforged.png",
+     "frostbound": "items/twohand/poleaxe/variants/poleaxe_frostbound.png"
+    }
    },
    {
     "id": "scythe",
     "name": "Reaper's Scythe",
     "set": "set08",
     "path": "items/twohand/scythe/scythe.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/scythe/variants/scythe_worn.png",
+     "bright": "items/twohand/scythe/variants/scythe_bright.png",
+     "gilded": "items/twohand/scythe/variants/scythe_gilded.png",
+     "ancient": "items/twohand/scythe/variants/scythe_ancient.png",
+     "bloodforged": "items/twohand/scythe/variants/scythe_bloodforged.png",
+     "frostbound": "items/twohand/scythe/variants/scythe_frostbound.png"
+    }
    },
    {
     "id": "tombstone",
@@ -675,7 +871,14 @@
     "name": "Warmaul",
     "set": "set04",
     "path": "items/twohand/warmaul/warmaul.glb",
-    "variants": {}
+    "variants": {
+     "worn": "items/twohand/warmaul/variants/warmaul_worn.png",
+     "bright": "items/twohand/warmaul/variants/warmaul_bright.png",
+     "gilded": "items/twohand/warmaul/variants/warmaul_gilded.png",
+     "ancient": "items/twohand/warmaul/variants/warmaul_ancient.png",
+     "bloodforged": "items/twohand/warmaul/variants/warmaul_bloodforged.png",
+     "frostbound": "items/twohand/warmaul/variants/warmaul_frostbound.png"
+    }
    }
   ],
   "wand": [

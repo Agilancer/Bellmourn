@@ -19,8 +19,15 @@ palette, written as <id>_texture.png and embedded in the .glb. The six rarity fi
 game shows (worn, bright, gilded, ancient, bloodforged, frostbound: see src/fps/gear.js) are
 remade from the new skin by material (manifest parts[].family), and manifest.json rewritten.
 A review sheet per model goes to templates/reskin/imports/<set>/.
+
+Round shields: the models unroll a dished board or boss ring by ring into a strip a few
+texels tall, which breaks planks, stripes and hammering into a mosaic. The importer gives
+each one a flat disc in the atlas's free space instead (planar_dishes) and moves the .glb's
+UVs onto it, so the painted disc is copied across as it was painted. It works from the pack's
+data, so it lands in the same place every time and a second import finds its own discs.
 """
 import argparse
+import copy
 import io
 import json
 import os
@@ -146,6 +153,110 @@ def canvas_coords(meta, lx, ly):
     return cx, cy, float(np.sqrt(area_c / max(area_l, 1e-9)))
 
 
+DISH_MARGIN = 1  # layout texels kept clear around a disc (the skin bleeds 2 past each island)
+
+
+def _largest_square(free):
+    """The largest all-True square in a boolean grid. -> (side, top row, left column)."""
+    h, w = free.shape
+    dp = np.zeros((h + 1, w + 1), int)
+    best = (0, 0, 0)
+    for y in range(h):
+        for x in range(w):
+            if free[y, x]:
+                dp[y + 1, x + 1] = 1 + min(dp[y, x], dp[y, x + 1], dp[y + 1, x])
+                if dp[y + 1, x + 1] > best[0]:
+                    best = (dp[y + 1, x + 1], y, x)
+    side, y, x = best
+    return side, y - side + 1, x - side + 1
+
+
+def planar_dishes(j):
+    """Round shields: each dished board and boss (the islands the pack carries by `warp`) moved
+    onto a flat disc in the atlas's free space, as the canvas shows it (seen from the front),
+    the board as large as it fits and the bosses at the same texel density where there's room.
+    -> (job with those islands carried by an affine, the island map to use, {island index:
+    (triangles, layout texels before, layout texels after)})."""
+    uv = np.array(Image.open(os.path.join(PACKDATA, "layouts", f"{j['id']}__uv.png")))
+    movers = [k for k, m in enumerate(j["islands"]) if m["warp"] and not m["skip"]]
+    if j["kind"] != "shield_round" or not movers:
+        return j, uv, {}
+    tex = j["layout_tex"]
+    n8 = LAYOUT_RES // tex
+    # the old strips stay taken, so a disc never lands where a strip's texels were
+    occ = uv.reshape(tex, n8, tex, n8).max((1, 3)) > 0
+    j = copy.deepcopy(j)
+    moves, density = {}, None
+
+    def extent(k):
+        cv = np.asarray(j["islands"][k]["warp"]["cv"])
+        return float((cv.max(0) - cv.min(0)).max())
+    for k in sorted(movers, key=lambda k: -extent(k)):
+        w = j["islands"][k]["warp"]
+        t = np.asarray(w["t"], int)
+        px, cv = np.asarray(w["px"], float), np.asarray(w["cv"], float)
+        side, y0, x0 = _largest_square(~occ)
+        room = side - 2 * DISH_MARGIN
+        if room < 4:
+            continue  # no room: it keeps its strip
+        s = room / extent(k) if density is None else min(density, room / extent(k))
+        density = density or s
+        lo = cv.min(0)
+        corner = np.array([x0, y0], float) + DISH_MARGIN
+        new = (cv - lo) * s + corner
+        # canvas = (layout - corner) / s + lo
+        j["islands"][k].update(warp=None, M=[[1 / s, 0.0, lo[0] - corner[0] / s],
+                                             [0.0, 1 / s, lo[1] - corner[1] / s]])
+        moves[k] = (t, px, new)
+        uv[uv == k + 1] = 0
+        im = Image.fromarray(uv)
+        d = ImageDraw.Draw(im)
+        for tri in t:
+            d.polygon([tuple(p) for p in new[tri] * n8], fill=k + 1)
+        uv = np.asarray(im).copy()
+        a = np.floor(new.min(0)).astype(int) - DISH_MARGIN
+        b = np.ceil(new.max(0)).astype(int) + DISH_MARGIN
+        occ[max(a[1], 0):b[1] + 1, max(a[0], 0):b[0] + 1] = True
+    return j, uv, moves
+
+
+def remap_uv(uv, moves, tex):
+    """A mesh's UVs (n x 2, 0..1) with the moved dishes' vertices on their discs; vertices are
+    found at their old place or (an earlier import) their new one. -> (uv, vertices moved)."""
+    uv = np.array(uv, float)
+    done = np.zeros(len(uv), bool)
+    for t, old, new in moves.values():
+        for src in (old / tex, new / tex):
+            d = ((uv[:, None, :] - src[None]) ** 2).sum(-1)
+            near = d.argmin(1)
+            hit = (d[np.arange(len(uv)), near] < 1e-8) & ~done
+            uv[hit] = new[near[hit]] / tex
+            done |= hit
+    return uv, int(done.sum())
+
+
+def retexcoord(path, moves, tex):
+    """Move a .glb's dish vertices onto their discs (TEXCOORD_0 rewritten in place)."""
+    js, binary = read_glb(path)
+    binary = bytearray(binary)
+    p = js["meshes"][0]["primitives"][0]
+    a = js["accessors"][p["attributes"]["TEXCOORD_0"]]
+    v = js["bufferViews"][a["bufferView"]]
+    if a["componentType"] != 5126 or a["type"] != "VEC2" or v.get("byteStride", 8) != 8:
+        raise ValueError(f"{path}: TEXCOORD_0 is not packed float pairs")
+    o = v.get("byteOffset", 0) + a.get("byteOffset", 0)
+    n = a["count"]
+    uv = np.frombuffer(bytes(binary[o:o + 8 * n]), np.float32).reshape(n, 2)
+    uv, moved = remap_uv(uv, moves, tex)
+    want = sum(len(old) for _, old, _ in moves.values())
+    if moved != want:
+        raise ValueError(f"{path}: found {moved} of the {want} dish vertices to move")
+    binary[o:o + 8 * n] = uv.astype(np.float32).tobytes()
+    if "min" in a:
+        a["min"], a["max"] = uv.min(0).tolist(), uv.max(0).tolist()
+    write_glb(path, js, binary)
+
+
 def _interior(uv, e):
     """Pixels whose whole (2e+1)^2 neighbourhood is the same island."""
     im = Image.fromarray(uv)
@@ -157,7 +268,7 @@ def _interior(uv, e):
 def skin_from_painting(j, painted, G, nudges, size=512, palette=None):
     """The model's texture (size x size) from a painting lined up by (G, nudges)."""
     rgb = np.asarray(T.load_rgb(painted), float)
-    uv = np.asarray(Image.open(os.path.join(PACKDATA, "layouts", f"{j['id']}__uv.png")))
+    uv = island_map(j)
     isl = j["islands"]
     n8 = LAYOUT_RES / j["layout_tex"]
     sx, sy, dx, dy = G
@@ -225,9 +336,15 @@ def block_islands(uv, size):
     return uv[k // 2::k, k // 2::k]
 
 
+def island_map(j):
+    """The layout's island index map (LAYOUT_RES square): planar_dishes' when it ran."""
+    if "_uv" in j:
+        return j["_uv"]
+    return np.asarray(Image.open(os.path.join(PACKDATA, "layouts", f"{j['id']}__uv.png")))
+
+
 def part_map(j, size):
-    uv = np.asarray(Image.open(os.path.join(PACKDATA, "layouts", f"{j['id']}__uv.png")))
-    isl = block_islands(uv, size)
+    isl = block_islands(island_map(j), size)
     lut = np.zeros(256, int)
     for k, meta in enumerate(j["islands"]):
         lut[k + 1] = meta["part"]
@@ -360,13 +477,24 @@ def finishes(j, base, palette=None):
     # texels between islands follow their nearest part (they show at island edges)
     filled = bleed(np.where(parts[..., None] > 0, parts[..., None], 0).astype(float),
                    parts > 0, 12)[..., 0].round().astype(int)
+    # bloodforged and frostbound keep gold, brass and bronze as the accent on recoloured parts;
+    # a model that is mostly one noble part (the sun shield's bronze board, the crosier's gold
+    # shaft) would come out unchanged, so that part takes the colour instead
+    area = {p["number"]: int((filled == p["number"]).sum()) for p in j["parts"]}
+    rest = sum(area[p["number"]] for p in j["parts"] if p["family"] not in NOBLE + ("gem", "glow"))
+    noble = [p for p in j["parts"] if p["family"] in NOBLE and area[p["number"]]]
+    top = max(noble, key=lambda p: area[p["number"]]) if noble else None
+    lead = top["number"] if top and area[top["number"]] > rest else None
     out = {}
     for fid in FINISH_ORDER:
         o = base.copy()
         for p in j["parts"]:
             m = filled == p["number"]
             if m.any():
-                o[m] = finish_rule(fid, p["family"], p["edge"])(base[m])
+                fam = p["family"]
+                if p["number"] == lead and fid in ("bloodforged", "frostbound"):
+                    fam = "steel"
+                o[m] = finish_rule(fid, fam, p["edge"])(base[m])
         out[fid] = T.snap(o, palette) if palette is not None else o
     return out
 
@@ -512,6 +640,8 @@ def import_one(j, data, args, palette, outdir):
     res = T.check_image(img, j)
     G, nudges = res.pop("_G"), res.pop("_nudges")
     canvas = res.pop("_canvas")
+    j, uvmap, moves = planar_dishes(j)  # (the check above works on the pack's own layout)
+    j = dict(j, _uv=uvmap)
     base = skin_from_painting(j, img, G, nudges, args.skin, palette)
     fins = finishes(j, base, palette)
     tag = "" if args.dry_run else "  -> game"
@@ -528,6 +658,8 @@ def import_one(j, data, args, palette, outdir):
         with open(os.path.join(folder, "info.json")) as f:
             info = json.load(f)
         for glb in info["files"]:
+            if moves:
+                retexcoord(os.path.join(folder, glb), moves, j["layout_tex"])
             embed_png(os.path.join(folder, glb), buf.getvalue())
         os.makedirs(os.path.join(folder, "variants"), exist_ok=True)
         info["variants"] = []
@@ -540,6 +672,8 @@ def import_one(j, data, args, palette, outdir):
         with open(os.path.join(folder, "info.json"), "w") as f:
             json.dump(info, f, indent=1)
     mesh = glb_mesh(os.path.join(folder, f"{j['id']}.glb"))
+    if moves and args.dry_run:  # the .glb wasn't touched: show it as it would be
+        mesh = (mesh[0], mesh[1], remap_uv(mesh[2], moves, j["layout_tex"])[0], mesh[3])
     review(j, canvas, base, fins, mesh, res, os.path.join(outdir, f"{j['job']:02d}__{j['id']}.png"))
     print(f"  {j['job']:02d} {j['id']:<22} {res['verdict']:<5} painted {res['coverage']:.0%}  "
           f"fit {res['iou']:.2f}{tag}" + (f"  ({'; '.join(res['reasons'])})" if res['reasons'] else ""))

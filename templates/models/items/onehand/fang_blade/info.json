@@ -4,7 +4,7 @@
  "kind": "one-handed weapon",
  "description": "A saw-toothed blade with a bone guard shaped like fangs and a bone pommel.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 224,
  "files": [
   "fang_blade.glb"
@@ -60,5 +60,10 @@
   }
  ],
  "set": "set09",
- "set_name": "model 9"
+ "set_name": "model 9",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }
