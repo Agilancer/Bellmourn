@@ -14,6 +14,7 @@
 // columns of rock up to the floor at every half metre, walls where the rock stands.
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
+import { WEBGPU, T, keyed, ref } from './nodes.js';
 
 /** The gulf's rock: torn strata on its walls (the layers the earthquake split, running level along
  * them), broken stone and grit underfoot, wrapped round the surface without stretching (triplanar),
@@ -23,6 +24,8 @@ function strataMaterial(lib) {
   const own = (id) => { const t = lib.texture(lib.surf.get(id)?.file || `surfaces/${id}.png`).clone(); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t; };
   const wallT = own('cave_dec_11'), floorT = own('cave_dec_03');
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x141210, shininess: 10, side: THREE.FrontSide });
+  m.userData = { tileU: 1, tileV: 1, noCast: true };   // (84k triangles: not drawn again into every torch's shadow cube)
+  if (WEBGPU) { strataNodes(m, wallT, floorT); keyed(m, 'gulf-strata'); return m; }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tWall = { value: wallT }; sh.uniforms.tFloor = { value: floorT };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 gP; varying vec3 gN;')
@@ -55,8 +58,45 @@ function strataMaterial(lib) {
         totalEmissiveRadiance += gRock * vec3(0.05, 0.13, 0.14) * (1.0 - smoothstep(-40.0, -29.0, gP.y)) * (0.4 + 0.6 * up);`);
   };
   m.customProgramCacheKey = () => 'gulf-strata';
-  m.userData = { tileU: 1, tileV: 1, noCast: true };   // (84k triangles: not drawn again into every torch's shadow cube)
   return m;
+}
+
+/** strataMaterial in TSL (WebGPU): the colour as above, and the low rock's cold glow from the same
+ * rock (handed from the colour to the light by a shader property). */
+function strataNodes(m, wallT, floorT) {
+  const { Fn, texture, property, positionWorld, normalWorldGeometry, cameraPosition, vec2, vec3, vec4, pow, abs, normalize, length, smoothstep, mix, floor, sin, materialEmissive } = T;
+  const tWall = texture(wallT), tFloor = texture(floorT);
+  const gRock = property('vec3', 'gStrataRock'), gUp = property('float', 'gStrataUp');
+  m.colorNode = Fn(() => {
+    const gP = positionWorld.toVar();
+    const nn = normalize(normalWorldGeometry).toVar(), tw0 = pow(abs(nn), vec3(5.0)), tw = tw0.div(tw0.x.add(tw0.y).add(tw0.z)).toVar();
+    // two samples at scales that never line up (no banding), and a fine one close to (no smear)
+    const near1 = smoothstep(4.0, 14.0, length(gP.sub(cameraPosition))).oneMinus();
+    const zy = vec2(gP.z, gP.y), xy = vec2(gP.x, gP.y);
+    const wx = mix(tWall.sample(zy.div(4.0)).rgb, tWall.sample(zy.div(6.47).add(0.37)).rgb, 0.5).toVar();
+    const wz = mix(tWall.sample(xy.div(4.0)).rgb, tWall.sample(xy.div(6.47).add(0.37)).rgb, 0.5).toVar();
+    const fy = mix(tFloor.sample(gP.xz.div(2.6)).rgb, tFloor.sample(gP.xz.div(4.13).add(0.21)).rgb, 0.5);
+    const fine = tWall.sample(vec2(gP.x.add(gP.z), gP.y).div(1.05)).rgb.toVar();
+    wx.assign(mix(wx, wx.mul(fine).mul(1.6), near1.mul(0.5))); wz.assign(mix(wz, wz.mul(fine).mul(1.6), near1.mul(0.5)));
+    const rk = wx.mul(tw.x).add(fy.mul(tw.y)).add(wz.mul(tw.z)).toVar();
+    const tint = mix(vec3(0.60, 0.53, 0.46), vec3(0.46, 0.47, 0.45), smoothstep(-36.0, -14.0, gP.y));
+    const wet = smoothstep(0.55, 0.95, nn.y).mul(smoothstep(-39.0, -34.0, gP.y).oneMinus()).toVar();
+    // the ledges catch what falls (grit, lichen): lighter and greener on top; under each bed, dark
+    const up = smoothstep(0.35, 0.8, nn.y).toVar(), dn = smoothstep(0.15, 0.75, nn.y.negate());
+    const lichen = mix(vec3(1.0), vec3(0.8, 0.93, 0.68), up.mul(wet.oneMinus()).mul(0.7));
+    // and the rift goes up into the dark: no roof to be seen over the rims
+    const lost = smoothstep(-15.0, -6.5, gP.y).mul(0.93).oneMinus().toVar();
+    // (the beds alternate, harder and paler, softer and darker; GLSL's mod, floored)
+    const bed = floor(gP.y.div(2.3).add(sin(gP.y.mul(0.7)).mul(0.18)).add(0.5));
+    const alt = bed.sub(floor(bed.mul(0.5)).mul(2.0));
+    lost.mulAssign(alt.mul(2.0).sub(1.0).mul(0.13).mul(up.oneMinus()).add(1.0));
+    gRock.assign(rk.mul(tint)); gUp.assign(up);
+    const c = rk.mul(tint).mul(lichen).mul(mix(1.25, 0.9, wet)).mul(up.mul(0.5).add(1.0)).mul(dn.mul(0.72).oneMinus()).mul(lost);
+    return vec4(c.mul(ref('color', 'color')), 1.0);
+  })();
+  // the stream's and the fungus's cold glow off the lowest rock, so the terraces stand out against
+  // it from the bridge
+  m.emissiveNode = materialEmissive.add(gRock.mul(vec3(0.05, 0.13, 0.14)).mul(smoothstep(-40.0, -29.0, positionWorld.y).oneMinus()).mul(gUp.mul(0.6).add(0.4)));
 }
 
 // (a cell at a drop's lip used to come off the dead's map; it stays now, and the flow search
