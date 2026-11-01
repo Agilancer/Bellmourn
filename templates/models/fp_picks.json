@@ -1,6 +1,7 @@
 {
  "onehand": "combo",
  "twohand": "combo",
- "spell": "push",
- "staff": "point"
+ "spell": "mocap",
+ "staff": "point",
+ "twospell": "mocap"
 }
