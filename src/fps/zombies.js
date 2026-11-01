@@ -639,6 +639,12 @@ export class Zombie {
     this.kind = KINDS[this.kindName];
     this.pace = 0.88 + Math.random() * 0.24;
     this.flank = [-1, 0, 1][this.id % 3];
+    // how it hunts you (each its own): shamble straight in, come round your side, grab hold, stalk
+    // you from out of reach till your back is turned or you're busy, pounce from further off, or
+    // lie down again and wait for you to come close
+    this.style = { shambler: ['shambler', 'shambler', 'flanker', 'grabber'], runner: ['stalker', 'pouncer', 'flanker', 'shambler'],
+      lurker: ['ambusher', 'pouncer', 'grabber', 'stalker'] }[o.kind || 'shambler'][Math.floor(Math.random() * 4)];
+    this.grabCool = 2 + Math.random() * 4;
     this.vy = 0; this.air = 0;
     this.hp = HP;
     this.limbHp = { ...LIMB_HP };
@@ -955,6 +961,7 @@ export class Zombie {
         g.spray(at, _w.set((Math.random() - 0.5) * 2, 1.2 + Math.random(), (Math.random() - 0.5) * 2), Math.round(30 + 60 * worn), { speed: 4 + 2 * worn, spread: 0.6, size: 0.012 });
       }
     }
+    if (this.state === 'grab') { this.state = 'move'; this.stagger = Math.max(this.stagger, 0.6); }   // (struck, it lets go)
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
@@ -1251,6 +1258,16 @@ export class Zombie {
         this.state = 'move';
         if (active && dist < 28) this.hunt(player.pos, true);
       }
+    } else if (this.state === 'grab') {
+      // holding you: you can barely move, and it tears at you, till it's struck off or you pull free
+      this.grabT -= dt; this.grabTick -= dt;
+      const turn = 3 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+      this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
+      if (dist < 1.6 && active) {
+        player.heldT = 0.2;
+        if (this.grabTick <= 0) { this.grabTick = 0.5; owner.onPlayerHit?.(3, this); }
+      }
+      if (this.grabT <= 0 || dist > 1.7 || this.done() && this.grabT < 0.6) { this.state = 'move'; this.cool = 0.8; }
     } else if (this.state === 'getup') {
       if (this.done()) this.state = 'move';
     } else if (this.state === 'playdead') {
@@ -1306,6 +1323,20 @@ export class Zombie {
         this.jitter += dt;
         target.x += Math.sin(this.jitter * 0.9) * Math.min(3, dist * 0.35);
         target.z += Math.cos(this.jitter * 0.7) * Math.min(3, dist * 0.35);
+      } else if (this.style === 'stalker' && !this.committed && dist > 2.6 && dist < 9.5 && this.canSee && !this.narrow) {
+        // stalking: out of reach, sidling round you, till your back is to it or another has you busy
+        const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), tx = this.pos.x - player.pos.x, tz = this.pos.z - player.pos.z, tl = Math.hypot(tx, tz) || 1;
+        const looking = (fx * tx + fz * tz) / tl, busy = owner.chasers > 1 && owner.engaged > 0;
+        if (looking < 0.15 || busy || this.stalkT > 9) { this.committed = true; this.rush = 3; owner.sound('groan', this.pos, true); }
+        else {
+          this.stalkT = (this.stalkT || 0) + dt;
+          const a = Math.atan2(tx, tz) + (this.flank || 1) * 0.6 * dt * 4;
+          target.set(player.pos.x + Math.sin(a) * 6.5, player.pos.y, player.pos.z + Math.cos(a) * 6.5);
+        }
+      } else if (this.style === 'flanker' && !this.narrow && dist > 2.4 && dist < 12) {
+        // round to your side and behind you, then in
+        const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), s = this.flank || (this.id % 2 ? 1 : -1);
+        target.x += -fz * s * 2.2 - fx * 1.2; target.z += fx * s * 2.2 - fz * 1.2;
       } else if (this.flank && !this.narrow && dist > 2.4 && dist < 10 && owner.chasers > 2) {
         // with company it comes at you from the side, so they close round you (not on a bridge's
         // deck or a ledge, where the side is a drop)
@@ -1331,6 +1362,7 @@ export class Zombie {
       }
       if (this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? CRAWL.hunt : kind.walk * 0.9; }
       if (this.searchT < 0) { this.aggro = false; this.goal = 'wander'; }
+      else if (this.style === 'ambusher' && this.searchT < 5 && !crawl && Math.random() < dt * 0.4) { this.state = 'playdead'; this.play('dead', 0.4); this.goal = 'wander'; this.aggro = false; return; }   // (lies down again, to wait for you)
     } else {
       this.wanderT -= dt;
       if (this.wanderT < 0) {
@@ -1365,6 +1397,14 @@ export class Zombie {
     const reach = crawl ? 1.55 : 1.35;
     const moves = crawl ? (this.arm('R') || this.has('head') ? ['crawl_attack'] : [])
       : [this.arm('R') && 'attack1', this.arm('L') && 'attack2', (this.arm('L') || this.arm('R') || this.has('head')) && 'attack3'].filter(Boolean);
+    this.grabCool -= dt;
+    if (chasing && !crawl && this.style === 'grabber' && this.grabCool < 0 && dist < 1.3 && facingErr < 0.5 && this.arm('L') && this.arm('R') && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+      // it takes hold of you: you can barely move, and it tears at you till you strike it off
+      this.state = 'grab'; this.grabT = 1.8; this.grabCool = 7 + Math.random() * 5; this.grabTick = 0;
+      this.play('attack1', 0.1); owner.sound('groan', this.pos, true);
+      owner.onGrab?.(this);
+      return;
+    }
     if (chasing && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
       this.state = 'attack';
       const mv = moves[Math.floor(Math.random() * moves.length)];
@@ -1372,7 +1412,7 @@ export class Zombie {
       this.play(mv, 0.12);
       return;
     }
-    if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < 3.4 && facingErr < 0.3 && moves.includes('attack3')) {
+    if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < (this.style === 'pouncer' ? 4.6 : 3.4) && facingErr < 0.3 && moves.includes('attack3')) {
       this.state = 'attack'; this.lungeT = 0.42; this.lungeCool = 4 + Math.random() * 4;
       this.play('attack3', 0.08);
       owner.sound('groan', this.pos, true);
@@ -1978,7 +2018,7 @@ export class Zombies {
     this.player = player;
     this.listener = camera.position;
     this.flowUpdate(player, dt);
-    let chasers = 0;
+    let engaged = 0, chasers = 0;
     const list = this.list;
     for (const z of list) {
       if (z.gone) continue;
@@ -1994,8 +2034,9 @@ export class Zombies {
         player.pos.x = z.pos.x + (player.pos.x - z.pos.x) * k; player.pos.z = z.pos.z + (player.pos.z - z.pos.z) * k;
       }
       if (z.goal === 'chase' && !z.dead && d < 12) chasers++;
+      if ((z.state === 'attack' || z.state === 'grab') && !z.dead && d < 2.6) engaged++;
     }
-    this.chasers = chasers;
+    this.chasers = chasers; this.engaged = engaged;   // (the stalkers wait for you to be busy)
     // they keep a little apart (and crawlers take more room)
     for (let i = 0; i < list.length; i++) {
       const a = list[i];

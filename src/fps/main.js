@@ -347,6 +347,7 @@ async function build() {
     { x: 230, z: -120, r: 20, n: few(2), haunt: 'fungal', ok: awayFromHomes },
   ]);
   zombies.onPlayerHit = hurtPlayer;
+  zombies.onGrab = () => hud.toast('It has hold of you! Strike it to break free');
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
@@ -719,7 +720,72 @@ const stats = {
 function spellDamage(def) {
   const w = char.equip.weapon;
   const base = def.kind === 'staff' && w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : SPELL_DMG[def.kind] ?? 30;
-  return base * (1 + st.spellPct / 100);
+  return base * (1 + st.spellPct / 100) * (def.dmgMul || 1);   // (a staff bolt held and gathered: up to two and a half times)
+}
+
+// ------------------------------------------------------------------ the shield and the staff
+// A shield raised just as the blow comes (a third of a second before it lands) turns it aside
+// whole: the Guard pays nothing, the one who swung reels, and your next blow, struck while it does,
+// lands nearly twice as hard. A swing with the shield up is a bash: a shove that knocks whatever's
+// in front of you back a stride and sets it reeling. A staff gathers its bolt while you hold the
+// button (the longer, the bigger and harder it flies), and with the left hand free it sweeps
+// round in front of you, knocking the dead back off you.
+let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1;
+/** Set something reeling for t seconds (and out of any blow it was in). */
+function reel(z, t) {
+  if (z.dead) return;
+  if (z.def) { z.state = 'hit'; z.play('hit', 0.06); z.cool = Math.max(z.cool || 0, t); z.comboQ = null; }
+  else {
+    if (z.state === 'attack' || z.state === 'grab') z.state = 'move';
+    z.stagger = Math.max(z.stagger || 0, t);
+    if (z.actions.hit) { z.holdT = 0; z.play('hit', 0.06); z.holdT = Math.min(t, z.actions.hit.getClip().duration); }
+  }
+}
+/** Knock something back along (dx, dz), about `m` metres. */
+function shove(z, dx, dz, m) { if (z.dead || z.mode === 'crawl') return; z.knock = new THREE.Vector3(dx * m * 9, 0, dz * m * 9); }
+/** What's in front of you, within reach and the cone (cos of its half-angle). */
+function inFront(reach, cone) {
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), out = [];
+  for (const z of zombies.list) {
+    if (z.dead || z.gone || z.state === 'buried' || z.state === 'playdead') continue;
+    const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1e-3;
+    if (d > reach || Math.abs(z.pos.y - player.pos.y) > 1.3 || (dx * fx + dz * fz) / d < cone) continue;
+    out.push({ z, dx: dx / d, dz: dz / d, d });
+  }
+  return out;
+}
+function parried(by) {
+  reel(by, 1.3);
+  riposteUntil = zombies.time + 1.6;
+  sfx.clang(false); sfx.clang(false);
+  shake = Math.max(shake, 0.5);
+  magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#ffffff'), new THREE.Color('#fff0b0'), new THREE.Color('#ffc040')], 34, { speed: 6, size: 0.035, grav: 7, life: 0.5 });
+  hud.toast('Parried! Strike while it reels');
+  answerBlow(by);
+}
+function shieldBash() {
+  if (bashCool > 0 || !st.shield || guard.broken) return;
+  bashCool = 1.1; guard.v = Math.max(0, guard.v - 12); guard.wait = 0.6;
+  const hit = inFront(2.3, 0.45);
+  for (const { z, dx, dz } of hit) {
+    const b = z.bones.chest || z.bones.spine;
+    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: 6 + Math.random() * 5, dir: new THREE.Vector3(dx, 0.1, dz), kind: 'blunt' });
+    reel(z, 0.9); shove(z, dx, dz, 1.4);       // (after the blow's own flinch, so the reel holds)
+  }
+  sfx.clang(!hit.length); shake = Math.max(shake, hit.length ? 0.8 : 0.35);
+  if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
+}
+function staffSweep() {
+  if (sweepCool > 0 || vm.busy('R')) return;
+  if (!vm.attackRight()) return;
+  sweepCool = 1.4;
+  const w = char.equip.weapon, roll = w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : 14;
+  for (const { z, dx, dz } of inFront(2.9, 0.25)) {
+    const b = z.bones.chest || z.bones.spine;
+    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: roll * 0.7, dir: new THREE.Vector3(dx, 0.15, dz), kind: 'blunt' });
+    reel(z, 0.75); shove(z, dx, dz, 1.8);
+  }
+  shake = Math.max(shake, 0.5);
 }
 
 function castSlot(slot) {
@@ -752,6 +818,7 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
     const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), dx = by.pos.x - player.pos.x, dz = by.pos.z - player.pos.z;
     front = (fx * dx + fz * dz) / (Math.hypot(dx, dz) || 1) > 0.25;
   }
+  if (vm.blocking && sh && !guard.broken && front && kind === 'melee' && by && !by.dead && zombies.time - blockAt < 0.33) { parried(by); return; }   // (raised just in time)
   if (vm.blocking && sh && !guard.broken && guard.v > 0 && front && (kind !== 'spell' || st.enchants.ward)) {
     const stop = d * sh.block;
     guard.v -= stop;
@@ -874,7 +941,10 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     const sw = sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];
     const edge = right.clone().multiplyScalar(sw[0]).addScaledVector(up, sw[1]).normalize();
     const blunt = BLUNT.test(it?.id || '');
-    const dmg = stats.meleeDamage(heavy, side) * power;   // (a chop, slower than a cut, lands harder)
+    // (a chop, slower than a cut, lands harder; struck while it reels from your parry, harder again)
+    const ripo = zombies.time < riposteUntil;
+    if (ripo) { riposteUntil = 0; heavy = true; hud.toast('Riposte!'); }
+    const dmg = stats.meleeDamage(heavy, side) * power * (ripo ? 1.8 : 1);
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     // a treasure's powers: the dead set burning, or chilled to a crawl
     // (it shows where the blade bit: char, or rime, about the wound, never the whole body)
@@ -1492,15 +1562,30 @@ function tick(dt) {
     // (a blade asked for again mid-blow goes on into the next of its combo: the view model
     // queues it; the swish comes with each blow's own whoosh)
     const bolt = BOLTS[vm.equip.R];
-    if (inp.held('Mouse0') && (!vm.busy('R') || !bolt)) {
-      if (bolt && player.mana < bolt.mana) { if (inp.was('Mouse0')) noMana(); }
-      else {
-        const did = vm.attackRight();
-        if (did && did !== 'queued' && bolt) { player.mana -= bolt.mana; pending.R = { def: bolt, side: 'R' }; }
-      }
-    }
-    // left hand (shields are held up as long as the button is)
+    bashCool -= dt; sweepCool -= dt;
+    if (vm.blocking && inp.was('Mouse0')) shieldBash();                 // (a swing with the shield up: a bash)
+    else if (bolt) {
+      // a staff: held, it gathers its bolt; let go, it flies (a tap, a plain bolt)
+      if (inp.held('Mouse0') && !vm.busy('R') && staffCharge < 0 && player.mana >= bolt.mana) staffCharge = 0;
+      if (staffCharge >= 0 && inp.held('Mouse0')) {
+        staffCharge += dt;
+        const k = Math.min(1, Math.max(0, staffCharge - 0.25) / 1.0);
+        if (k > 0 && Math.random() < dt * 40) magic.particles.burst(fromView(vm.castPoint('R'), 0.62), [new THREE.Color('#ffffff'), new THREE.Color('#c0fff0'), new THREE.Color('#30c8b0')], 1 + Math.round(k * 3), { speed: 0.4 + k, size: 0.015 + k * 0.03, grav: -1, life: 0.3 });
+      } else if (staffCharge >= 0) {
+        const k = 1 + Math.min(1, Math.max(0, staffCharge - 0.25) / 1.0) * 1.5, cost = Math.round(bolt.mana * (k > 1.05 ? 0.6 + k * 0.6 : 1));
+        staffCharge = -1;
+        if (player.mana < cost) noMana();
+        else {
+          const did = vm.attackRight();
+          if (did && did !== 'queued') { player.mana -= cost; pending.R = { def: k > 1.05 ? { ...bolt, size: bolt.size * (1 + (k - 1) * 0.6), power: bolt.power * k, burst: Math.round(bolt.burst * k), dmgMul: k } : bolt, side: 'R' }; }
+        }
+      } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
+    } else if (inp.held('Mouse0')) vm.attackRight();
+    // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
+    if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
+    const wasBlocking = vm.blocking;
     vm.actLeft(inp.held('Mouse2'));
+    if (vm.blocking && !wasBlocking) blockAt = zombies.time;
     for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
     if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(L.out < 0.5);
@@ -1660,7 +1745,7 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, input: () => gameInput, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
   setTimeout(() => voice.warm(), 4000);   // (the neural voices: a big download, so after the game is up)
 }).catch((e) => {
   console.error(e);
