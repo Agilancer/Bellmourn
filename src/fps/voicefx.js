@@ -24,10 +24,19 @@ const shaper = (ctx, fn, n = 1024) => { const w = ctx.createWaveShaper(), c = ne
 const osc = (ctx, f, type = 'sine') => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; return o; };
 function run(ctx, ...nodes) { const t = ctx.currentTime; for (const n of nodes) { n.start(t); n.stop(t + LIFE); } }
 
-/** A looping source of fn(phase 0..1) over `period` s, to drive an AudioParam. */
-function sweep(ctx, period, fn) {
-  const sr = ctx.sampleRate, n = Math.max(2, Math.round(period * sr)), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = fn(i / n);
+const sweeps = new WeakMap();
+/** A looping source of fn(phase 0..1) over `period` s, to drive an AudioParam; its buffer made once
+ * per context and `key` (a chorus's slow sweeps run to megabytes, and every piece of a line has one). */
+function sweep(ctx, period, fn, key) {
+  const have = sweeps.get(ctx) || new Map(), k = key + '|' + period.toFixed(5);
+  let b = have.get(k);
+  if (!b) {
+    const sr = ctx.sampleRate, n = Math.max(2, Math.round(period * sr));
+    b = ctx.createBuffer(1, n, sr);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = fn(i / n);
+    have.set(k, b); sweeps.set(ctx, have);
+  }
   const s = ctx.createBufferSource(); s.buffer = b; s.loop = true;
   return s;
 }
@@ -51,8 +60,8 @@ export function shifter(ctx, ratio, out, W = 0.07) {
   const input = gain(ctx, 1), T = W / Math.max(0.01, Math.abs(1 - ratio)), down = ratio < 1;
   for (const off of [0, 0.5]) {
     const dl = ctx.createDelay(W + 0.05); dl.delayTime.value = 0;
-    const ramp = sweep(ctx, T, (p) => { const q = (p + off) % 1; return (down ? q : 1 - q) * W; });
-    const fade = sweep(ctx, T, (p) => Math.sin(Math.PI * ((p + off) % 1)));
+    const ramp = sweep(ctx, T, (p) => { const q = (p + off) % 1; return (down ? q : 1 - q) * W; }, `ramp|${down}|${off}|${W}`);
+    const fade = sweep(ctx, T, (p) => Math.sin(Math.PI * ((p + off) % 1)), `fade|${off}`);
     const g = gain(ctx, 0);
     ramp.connect(dl.delayTime); fade.connect(g.gain);
     input.connect(dl); dl.connect(g); g.connect(out);

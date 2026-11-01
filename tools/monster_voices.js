@@ -92,15 +92,19 @@ export async function render(only = null) {
     const s = oc.createBufferSource(); s.buffer = src0;
     s.connect(fxInput(oc, fx, oc.destination)); s.start();
     const r = (await oc.startRendering()).getChannelData(0);
-    // one loudness for all (and no clipping), the silence after the echo dies cut off
-    let sq = 0, pk = 0, last = 0;
+    // one loudness for all (and no clipping), the silence after the echo dies cut off; and how much
+    // louder or softer the effect made it than the voice that went in (voice.js casts' `level`)
+    let sq = 0, pk = 0, last = 0, sq0 = 0;
     for (let i = 0; i < r.length; i++) { const x = r[i]; sq += x * x; if (Math.abs(x) > pk) pk = Math.abs(x); if (Math.abs(x) > 0.002) last = i; }
+    const d0 = dry[k].getChannelData(0);
+    for (let i = 0; i < d0.length; i++) sq0 += d0[i] * d0[i];
+    const ratio = Math.sqrt(sq / Math.max(1, last)) / Math.sqrt(sq0 / d0.length || 1e-12);
     const g = Math.min(0.1 / Math.sqrt(sq / r.length || 1e-9), 0.97 / (pk || 1));
     const y = r.subarray(0, Math.min(r.length, last + Math.round(0.15 * RATE)));
     for (let i = 0; i < y.length; i++) y[i] *= g;
     const file = `mv_${k}_${name}`;
     await fetch(`/shot?name=${file}&ext=wav`, { method: 'POST', body: wav(y, RATE) });
-    out.push({ file: file + '.wav', speaker: k, variant: name, what, fx: [].concat(fx).join(' + ') + (swell ? ' + swell' : ''), seconds: +(y.length / RATE).toFixed(2) });
+    out.push({ file: file + '.wav', speaker: k, variant: name, what, fx: [].concat(fx).join(' + ') + (swell ? ' + swell' : ''), seconds: +(y.length / RATE).toFixed(2), ratio: +ratio.toFixed(3) });
   }
   worker.terminate();
   return out;
