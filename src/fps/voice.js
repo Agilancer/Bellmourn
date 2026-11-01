@@ -33,6 +33,7 @@ function build() {
 }
 const LOUD = 0.12;           // every sentence's loudness (RMS) before its speaker's volume
 const CHUNK = 150;           // characters: a longer sentence is made in pieces (at a comma; each piece is said as a whole)
+const CACHE = 260;           // pieces kept made (a few seconds of audio each: some tens of MB in all)
 /** How loud a speaker d metres off is heard: all of it near, never less than a little over half. */
 const near = (d, pri) => (pri >= 2 ? 1 : Math.max(0.6, Math.min(1, 1.15 - (0.55 * d) / EARSHOT)));
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -266,6 +267,7 @@ const neural = {
 
   onMessage(m) {
     if (m.type === 'progress') { this.got = m.got; this.of = m.of; this.dl = null; return; }
+    if (m.type === 'peek') { this.peeked = m; return; }
     if (m.type === 'download') { this.dl = [m.loaded, m.total]; return; }
     if (m.type === 'model') { this.model = { dtype: m.dtype, threads: m.threads }; this.dl = null; return; }
     if (m.type === 'ready') { this.state = 'ready'; this.got = this.of; this.settle(true); console.info(`voices: the neural voices are ready (Kokoro-82M ${this.model?.dtype || ''}, ${this.model?.threads || 1} threads, ${this.of} voices)`); return; }
@@ -286,8 +288,11 @@ const neural = {
     for (let i = 0; i < m.audio.length; i++) { const x = m.audio[i]; sq += x * x; if (x > pk) pk = x; else if (-x > pk) pk = -x; }
     const rms = Math.sqrt(sq / Math.max(1, m.audio.length));
     const part = { audio: m.audio, rate: m.rate, gain: rms > 1e-5 ? Math.max(0.25, Math.min(8, LOUD / rms, 0.95 / Math.max(pk, 1e-5))) : 1 };
-    this.cache.set(w.key, part);
-    while (this.cache.size > 160) this.cache.delete(this.cache.keys().next().value);   // (the oldest go)
+    // (kept by when it was last made or wanted, the longest unwanted going first: a sentence made
+    // ahead, for someone you're walking up to, had kept its place in the queue from when it was asked
+    // for, and was among the first to go before it was ever said)
+    this.cache.delete(w.key); this.cache.set(w.key, part);
+    for (const [k, v] of this.cache) { if (this.cache.size <= CACHE) break; if (v.audio) this.cache.delete(k); }   // (what's still being made stays)
     for (const { line, i } of w.lines) { line.parts[i] = part; this.pump(line); }
   },
 
@@ -304,7 +309,7 @@ const neural = {
     const key = cast.voice + '|' + speed.toFixed(2) + '|' + text, hit = this.cache.get(key);
     const pri = line ? (line.hold ? line.pri ?? 0 : 9) : ahead;
     if (!/[A-Za-z]/.test(text)) { if (line) line.parts[i] = { audio: new Float32Array(240), rate: 24000, gain: 1 }; return; }   // (nothing in it to say)
-    if (hit?.audio) { if (line) line.parts[i] = hit; return; }
+    if (hit?.audio) { if (line) line.parts[i] = hit; this.cache.delete(key); this.cache.set(key, hit); return; }
     if (hit?.id && this.wait.has(hit.id)) {
       if (line) { this.wait.get(hit.id).lines.push({ line, i }); line.need.push(hit.id); }
       if (line || ahead > -1) this.worker.postMessage({ type: 'bump', ids: [hit.id], pri });
@@ -548,6 +553,8 @@ export const voice = {
   get natural() { return neural.state === 'ready' && neural.wanted(); },
   get neural() { return neural.state; },
   get debug() { return { state: neural.state, model: neural.model, waiting: neural.wait.size, cached: neural.cache.size, playing: neural.playing.length, audio: neural.ctx?.state || 'none' }; },
+  /** (for a test) What the worker has waiting and is making: resolves { n, top, ids, doing }. */
+  peek() { return new Promise((r) => { neural.peeked = null; neural.worker?.postMessage({ type: 'peek' }); const t0 = Date.now(); const k = setInterval(() => { if (neural.peeked || Date.now() - t0 > 3000) { clearInterval(k); r(neural.peeked); } }, 20); }); },
   get speed() { const m = neural.ms; return m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length) : null; },
 
   /** Whether something said at `pos` is heard (a quest giver always is). */

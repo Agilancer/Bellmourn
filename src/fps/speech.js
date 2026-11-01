@@ -145,8 +145,8 @@ export function tickSpeech(dt) {
   // the next speaker
   if (!floor && (quiet -= dt) <= 0 && queue.length) {
     // (the more pressing first, but the longer a line has waited the more pressing it gets: the
-    // enemy's taunts can't keep the town quiet for ever)
-    const score = (L) => L.pri + L.waited / AGE;
+    // enemy's taunts can't keep the town quiet for ever; an answer to you is never kept waiting)
+    const score = (L) => (L.pri >= 4 ? 100 : 0) + L.pri + L.waited / AGE;
     let best = -1;
     for (let i = 0; i < queue.length; i++) {
       const L = queue[i];
