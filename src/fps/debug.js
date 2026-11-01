@@ -17,8 +17,8 @@ const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls)
 // the switches: [key, name, what it does]
 const TOGGLES = [
   ['noDamage', 'No Enemy Damage', 'Nothing an enemy does can hurt you'],
-  ['fly', 'No-Clip / Inspect', 'Fly with WASD through anything; Space rises, C sinks, Shift is faster. Nothing sees you, you touch nothing, your hands are put away'],
-  ['god', 'GOD MODE', 'You take no damage, and everything dies at one blow from anything, the lords too'],
+  ['fly', 'No-Clip / Inspect', 'WASD flies through anything (Space up, C down, Shift fast); unseen, touching nothing, hands away'],
+  ['god', 'GOD MODE', 'No damage, and everything dies at one blow from anything, the lords too'],
 ];
 // what the little line under the skull says while a cheat is on
 const TAGS = { god: 'GOD', fly: 'NO-CLIP', noDamage: 'NO DMG' };
@@ -166,8 +166,8 @@ export class DebugMenu {
 
     P.append(el('h3', null, 'Gear'));
     const gear = el('div', 'dbg-gear');
-    const god = el('button', 'dbg-gearbtn god', '<b>GEAR GOD</b><em>Epic, Legendary and Mythic arms and armour of every kind, and a fortune in gold</em>');
-    const peasant = el('button', 'dbg-gearbtn peasant', '<b>GEAR PEASANT</b><em>Common, Uncommon and Rare arms and armour of every kind, and a fortune in gold</em>');
+    const god = el('button', 'dbg-gearbtn god', '<b>GEAR GOD</b><em>Epic, Legendary, Mythic: every kind, and a fortune in gold</em>');
+    const peasant = el('button', 'dbg-gearbtn peasant', '<b>GEAR PEASANT</b><em>Common, Uncommon, Rare: every kind, and a fortune in gold</em>');
     god.onclick = () => this.act(this.o.onGear?.('god'));
     peasant.onclick = () => this.act(this.o.onGear?.('peasant'));
     gear.append(god, peasant);
