@@ -108,7 +108,10 @@ runs for the town, falls back behind him, and the star goes past it into him; wh
 white: a smoking crater with nothing left
 of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
 bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
-staff, which can. The whole village screams at once (a synthesized crowd: `audio.js` `scream`).
+staff, which can. The whole village gasps and screams at once (`audio.js` `villageScreams`: a
+synthesized crowd under two recorded ones, the gasp "Crowd Gasp" from Free Sounds Library,
+freesoundslibrary.com, CC BY 4.0, and the first 1.5 s of a city crowd's panic scream; built by
+`tools/audio/build_audio.py --only crowd`, tried together in `tools/audio/crowd_preview.html`).
 Black; then your own eyes, standing in the crater with nothing in your hands or your bag. The
 Canticle's verses run under it as captions. Esc (or the skip button) skips it.
 

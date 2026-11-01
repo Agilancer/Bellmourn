@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crowd Scream Preview</title>
+<style>
+  body { background:#111; color:#ddd; font:16px system-ui, sans-serif; max-width:520px; margin:40px auto; padding:0 16px; }
+  button { font-size:22px; padding:14px 34px; background:#2c5a2c; color:#fff; border:0; border-radius:8px; cursor:pointer; }
+  label { display:block; margin:18px 0 4px; } input[type=range] { width:100%; } .v { float:right; color:#9c9; }
+</style></head><body>
+<h2>Meteor strike: village scream</h2>
+<p>All three start together, as in the intro. The sliders set each one's volume.</p>
+<button id="play">▶ Play</button>
+<label><input type="checkbox" id="on0" checked> Synth crowd scream (the current one) <span class="v" id="t0"></span></label><input type="range" id="v0" min="0" max="2" step="0.05" value="1">
+<label><input type="checkbox" id="on1" checked> Crowd gasp (whole file) <span class="v" id="t1"></span></label><input type="range" id="v1" min="0" max="2" step="0.05" value="0.8">
+<label><input type="checkbox" id="on2" checked> Panic scream (first 1.5 s) <span class="v" id="t2"></span></label><input type="range" id="v2" min="0" max="2" step="0.05" value="1.2">
+<script type="module">
+import { Sfx } from '../../src/fps/audio.js';
+const sfx = new Sfx(), $ = (id) => document.getElementById(id);
+for (const i of [0, 1, 2]) { const u = () => $('t' + i).textContent = (+$('v' + i).value).toFixed(2); $('v' + i).oninput = u; u(); }
+let loaded = null;
+async function load() {
+  sfx.start();
+  const [g, p] = await Promise.all([sfx.decode('../../assets/audio/sfx/crowd_gasp.mp3'), sfx.decode('../../assets/audio/sfx/crowd_panic.mp3')]);
+  sfx.bank.crowd_gasp = [{ b: g, off: 0 }]; sfx.bank.crowd_panic = [{ b: p, off: 0 }];
+}
+$('play').onclick = async () => {
+  loaded ||= load(); await loaded; sfx.start();
+  // the synth scream, through its own volume (scream() wires into sfx.out, so lend it a gain for the call)
+  if ($('on0').checked) { const save = sfx.out, g = sfx.ctx.createGain(); g.gain.value = +$('v0').value; g.connect(save); sfx.out = g; sfx.scream(18, 0.6); sfx.out = save; }
+  if ($('on1').checked) sfx.play('crowd_gasp', { vol: +$('v1').value, vary: 0 });
+  if ($('on2').checked) sfx.play('crowd_panic', { vol: +$('v2').value, vary: 0 });
+};
+</script>
+</body></html>

@@ -121,6 +121,7 @@ export class Intro {
     say('A knight rides out of Blackvigil…');
     this.knightVariant = await this.o.knight();
     await this.o.preload?.(say);
+    await this.o.sfx?.loadCrowd?.();   // the village's gasp and scream at the strike
     say('Lighting the sky…');
     await this.warm();
     return this;
@@ -428,7 +429,7 @@ export class Intro {
       if (!dry && Math.random() < dt * 30) o.smoke?.emit(new THREE.Vector3(CRATER.x + (Math.random() - 0.5) * 8, -1.5, CRATER.z + (Math.random() - 0.5) * 8),
         new THREE.Vector3((Math.random() - 0.5) * 0.8, 2.2 + Math.random() * 1.5, (Math.random() - 0.5) * 0.8), { life: 5, size: 2.2, grow: 2.6, alpha: 0.45, shade: 0.35 });
       o.light.position.set(CRATER.x, 1.5, CRATER.z); o.light.intensity = lerp(60, 6, ease(u)); o.light.distance = 40;
-      if (!this.screamed && u > 0.12 && !dry) { this.screamed = true; o.sfx.scream(18, 0.6); }
+      if (!this.screamed && u > 0.12 && !dry) { this.screamed = true; o.sfx.villageScreams(); }
       if (u > 0.88) fade = (u - 0.88) / 0.12;
     } else if (name === 'black' && !dry) {
       fade = 1;

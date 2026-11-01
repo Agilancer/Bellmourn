@@ -18,7 +18,7 @@ import aud, os, re, sys, glob, json
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SRC = ARGS[0] if ARGS else '.'
-ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx'}
+ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx', 'crowd'}
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'assets', 'audio')
 
@@ -121,6 +121,15 @@ if 'sfx' in ONLY:
         note(out, p, write(aud.Sound(p), os.path.join(OUT, out), 44100, 1, 96))
         n += 1
     print(f'  {n} effects')
+
+# ------------------------------------------------------------------ the village's gasp and scream at the strike
+# crowd-gasp-sound-effect.mp3 (Free Sounds Library, CC BY 4.0) whole; the panic scream's first 1.5 s only
+if 'crowd' in ONLY:
+    print('crowd')
+    g = find(r'crowd-gasp')
+    if g: note('sfx/crowd_gasp.mp3', g[0], write(aud.Sound(g[0]), os.path.join(OUT, 'sfx', 'crowd_gasp.mp3'), 44100, 2, 128))
+    c = find(r'crowd-panic-scream.*\.mp3$')
+    if c: note('sfx/crowd_panic.mp3', c[0], write(aud.Sound(c[0]).limit(0, 1.5).fadeout(1.25, 0.25), os.path.join(OUT, 'sfx', 'crowd_panic.mp3'), 44100, 2, 128))
 
 with open(os.path.join(OUT, 'build_report.json'), 'w') as f:
     old = {}
