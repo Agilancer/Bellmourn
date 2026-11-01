@@ -90,7 +90,14 @@ export function makeComposer(renderer, scene, camera, { samples = 4, bloom = tru
       rt.depthTexture = new THREE.DepthTexture(w, h);
       return rt;
     },
-    render() { pipeline.render(); },
+    // (each render a new frame for three's nodes: the world's pass, the shadow maps and anything else
+    // updated "once a frame" go by it, and three's own loop only steps it once per animation frame;
+    // the opening's warm-up draws several shots in one)
+    render() {
+      const nf = renderer._nodes?.nodeFrame;
+      if (nf) { nf.update(); renderer.info.frame = nf.frameId; }
+      pipeline.render();
+    },
     setSize() { /* (the passes follow the canvas: renderer.setSize) */ },
     setPixelRatio() {},
     bloom: { setSize() {}, get enabled() { return !!glow; } },

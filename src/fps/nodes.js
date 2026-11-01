@@ -27,7 +27,7 @@ import * as THREE from 'three';
 
 const store = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 /** 'crisp' (square texels, anti-aliased) or 'smooth' (plain bilinear). */
-export const TEXELS = store('bm.texels', 'crisp') === 'smooth' ? 'smooth' : 'crisp';
+export const TEXELS = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('texels')) === 'smooth' || store('bm.texels', 'crisp') === 'smooth' ? 'smooth' : 'crisp';   // (?texels=smooth: a test)
 /** Whether this run draws with WebGPU (three r187's WebGPURenderer). */
 export const WEBGPU = typeof window !== 'undefined' && window.BM_RENDERER === 'webgpu' && !!THREE.WebGPURenderer;
 /** TSL's functions (THREE.TSL), or null under WebGL. */
@@ -110,6 +110,25 @@ export function snoise(p) {
   return mix(mix(H(i), H(i.add(vec2(1, 0))), f.x), mix(H(i.add(vec2(0, 1))), H(i.add(vec2(1, 1))), f.x), f.y);
 }
 
+// ------------------------------------------------------------------ how often three refreshes a draw
+// three refreshes every draw of a material with any node of its own (its uniforms worked out and
+// written again) each frame, in case a node's value moved. A graph whose only inputs are the drawn
+// material's own properties (ref, shared) needs that only when the draw is first made or the
+// material changes (which three notices by itself), so it's marked settled() and three treats its
+// material as it treats a plain one; with `object.static` set (the built world: main.js), its draws
+// then cost almost nothing to repeat. Uniforms that change by themselves (time, the sun, a glow the
+// game sets) must therefore be shared ones: .setGroup(T.renderGroup), updated once a render for all.
+/** Mark a node graph settled (see above). Returns it. */
+export function settled(node) { node.bmSettled = true; return node; }
+if (WEBGPU && THREE.NodeMaterialObserver) {
+  THREE.NodeMaterialObserver.prototype.containsNode = function (builder) {
+    const material = builder.material;
+    for (const property in material) { const v = material[property]; if (v && v.isNode && !v.bmSettled) return true; }
+    const c = builder.context;
+    return !!(c.modelViewMatrix || c.modelNormalViewMatrix || c.getAO || c.getShadow || c.getGI);
+  };
+}
+
 // ------------------------------------------------------------------ materials
 /** Name a classic material's graph in its cache key (see the rules at the top). */
 export function keyed(m, kind) {
@@ -174,7 +193,7 @@ export function crispColor(m) {
     const s = sharpGrad(base, u, T.dFdx(u), T.dFdy(u));
     // (the sample that's drawn follows the material too: it and its base are one texture)
     s.onObjectUpdate((f) => sourceOf(f).map || undefined);
-    g = s.mul(ref('color', 'color'));
+    g = settled(s.mul(ref('color', 'color')));
     _crisp.set(k, g);
   }
   m.colorNode = g;
@@ -190,7 +209,9 @@ const _identity = new THREE.Matrix3();
  * (engine.js groundMist): a height fog along the eye's ray, thick on the ground, broken by noise. */
 export function fogNode(fog, mist = null) {
   const { Fn, reference, positionWorld, positionView, cameraPosition, vec2, vec3, vec4, float, smoothstep, step, min, max, abs, exp, clamp, length, normalize, mix, select, output, If } = T;
-  const color = reference('color', 'color', fog), near = reference('near', 'float', fog), far = reference('far', 'float', fog);
+  // (shared: the fog moves with the day, and a static draw isn't refreshed by itself)
+  const color = reference('color', 'color', fog).setGroup(T.renderGroup), near = reference('near', 'float', fog).setGroup(T.renderGroup),
+    far = reference('far', 'float', fog).setGroup(T.renderGroup);
   return Fn(() => {
     const c = output.rgb.toVar();
     const k = smoothstep(near, far, positionView.z.negate());

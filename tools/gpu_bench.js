@@ -58,6 +58,9 @@ function gpuTimer(bm) {
   };
 }
 
+/** The 10th percentile of a list of ms (what a frame takes when nothing else is in the way). */
+const p10 = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.floor(s.length * 0.1)].toFixed(2) : null; };
+
 /** Wait for the GPU to finish everything sent so far. */
 async function gpuSync(bm) {
   const r = bm.renderer;
@@ -123,16 +126,16 @@ export async function bench(prefix = 'b', { frames = 150, warm = 45, only = null
     await gpuSync(bm);
     // the picture's own share of each frame (the CPU's side of drawing it), and the GPU's time
     const C = bm.composer, draw = C.render;
-    let rcpu = 0;
+    let rcpu = 0; const drawT = [], cpuT = [];
     const T = gpuTimer(bm);
-    C.render = function (...a) { const s = performance.now(); T.begin(); const r = draw.apply(this, a); T.end(); rcpu += performance.now() - s; return r; };
+    C.render = function (...a) { const s = performance.now(); T.begin(); const r = draw.apply(this, a); T.end(); const d = performance.now() - s; rcpu += d; drawT.push(d); return r; };
     let cpu = 0;
     const t0 = performance.now();
     for (let i = 0; i < frames; i++) {
       put();
       const a = performance.now();
       frameNodes(); bm.tick(1 / 60);
-      cpu += performance.now() - a;
+      const c = performance.now() - a; cpu += c; cpuT.push(c);
       // (WebGPU: let the queue drain every few frames, as presenting would)
       if (i % 3 === 2 && bm.renderer.backend?.device) await new Promise((r) => setTimeout(r));
     }
@@ -140,7 +143,7 @@ export async function bench(prefix = 'b', { frames = 150, warm = 45, only = null
     const wall = performance.now() - t0;
     C.render = draw;
     const gpu = await T.result();
-    out.views[name] = { ms: +(wall / frames).toFixed(2), cpu: +(cpu / frames).toFixed(2), draw: +(rcpu / frames).toFixed(2), gpu: gpu != null ? +gpu.toFixed(2) : null, calls, tris };
+    out.views[name] = { ms: +(wall / frames).toFixed(2), cpu: +(cpu / frames).toFixed(2), draw: +(rcpu / frames).toFixed(2), gpu: gpu != null ? +gpu.toFixed(2) : null, calls, tris, cpu10: p10(cpuT), draw10: p10(drawT) };
   }
   window.requestAnimationFrame = raf;
   for (const f of held) raf(f);

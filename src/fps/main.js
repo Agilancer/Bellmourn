@@ -162,6 +162,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -319,6 +320,7 @@ async function build() {
   // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
   props.onChange = (at) => {
     for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+    sunShadows?.invalidate();   // (and the sun's map of the still world, where it's kept: sunshadow.js)
   };
   // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
   props.onBreak = (p, at, dir) => {
@@ -583,6 +585,18 @@ async function prepare(mark) {
   const skel = skels.size;
   // the world's matrices only where something's shown, and its small pieces left out far off
   visibleMatrices(scene);
+  // (WebGPU: the builders' meshes never move and their materials never change, but for the lit windows
+  // and lanterns: three needn't look them over again each frame; nodes.js settled)
+  if (WEBGPU && !/[?&]nostatic\b/.test(location.search)) {
+    const mutable = new Set([ctx.glass, ctx.lantern].filter(Boolean));
+    for (const m of [...(ctx.built || []), ...(ctx.builtUnder || [])]) if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
+  }
+  // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
+  // frame; made before the shaders are compiled, which take it in)
+  if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
+    const { installSunShadows } = await import('./sunshadow.js');
+    sunShadows = installSunShadows(sun, { isStatic: (o) => o.static === true, staticSize: touch ? 2048 : 4096, dynSize: touch ? 1024 : 2048 });
+  }
   ctx.detail = new DetailCull(ctx.built, { touch, under: ctx.builtUnder });
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
   // smooth-edged leaves, hair and lashes
@@ -639,6 +653,7 @@ async function warmWorldGPU() {
   const casters = [];
   scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
   for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
+  sunShadows?.invalidate(true);   // (the still world's sun map drawn whole, with everything in it)
   const was = renderer.getRenderTarget();
   renderer.setRenderTarget(small);
   try { renderer.render(scene, camera); } catch (e) {
@@ -1153,6 +1168,7 @@ function light(dt, t) {
     _c.addScaledVector(_lx, Math.round(px / tx) * tx - px).addScaledVector(_ly, Math.round(py / tx) * tx - py);
     sun.target.position.copy(_c);
     sun.position.copy(_c).addScaledVector(ld, 300);
+    sunShadows?.update();   // (WebGPU: the moving things' map follows; the world's is kept: sunshadow.js)
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
@@ -2047,7 +2063,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
-  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {
