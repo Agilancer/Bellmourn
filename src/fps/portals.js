@@ -151,7 +151,8 @@ function sideMaterial(map, normalMap, time) {
       .replace('#include <emissivemap_fragment>', /* glsl */`#include <emissivemap_fragment>
       {
         float t = uTime + vSeal.z * 7.0;
-        float tw = 0.6 + 0.4 * sin(t * 0.7 + floor(vMapUv.x * 2.0 + 0.5) * 2.4);
+        float gem = floor(vMapUv.x * 2.0 + 0.5);
+        float tw = (0.6 + 0.4 * sin(t * 0.7 + gem * 2.4)) * (0.7 + 0.6 * fract(sin(gem * 12.9898 + vSeal.z * 78.233) * 43758.5453));
         // (and a faint blue in the frieze's stone, so the band isn't black at night: not on the footing)
         float frieze = step(${V_FRIEZE[0].toFixed(4)}, vMapUv.y) * step(vMapUv.y, ${V_FRIEZE[1].toFixed(4)});
         totalEmissiveRadiance += sPaint * sBlue * (tw * 0.5 * sAwake + 0.03 * (1.0 - sAwake) + vSeal.y * 1.2) + vec3(0.01, 0.015, 0.04) * sAwake * frieze;
@@ -213,11 +214,11 @@ function moteMaterial(time, fog, px) {
         float life = fract(uTime * aRnd.y + aRnd.x);
         float ang = aRnd.z * 6.2832 + life * (1.5 + aRnd.w * 2.0);
         float rad = position.x * (1.0 - 0.45 * life);
-        vec3 p = aCenter + vec3(cos(ang) * rad, 0.1 + life * (1.6 + 2.4 * aRnd.w), sin(ang) * rad);
+        vec3 p = aCenter + vec3(cos(ang) * rad, 0.1 + life * (1.3 + 2.0 * aRnd.w), sin(ang) * rad);   // (3.4 m at most)
         vec4 mv = viewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
         float d = -mv.z;
-        gl_PointSize = clamp((0.035 + 0.05 * aRnd.w) * uPx / max(d, 0.5), 1.0, 12.0);
+        gl_PointSize = clamp((0.02 + 0.028 * aRnd.w) * uPx / max(d, 0.5), 1.0, 7.0);
         // (gone before they'd reach the eye: standing in the seal, they rise about you, not in your face)
         vA = sin(life * 3.14159) * aWake * (1.0 - smoothstep(uFog.x, uFog.y, d)) * smoothstep(1.8, 4.0, d);
       }`,
@@ -226,7 +227,7 @@ function moteMaterial(time, fog, px) {
       void main() {
         float d = length(gl_PointCoord - 0.5);
         float a = smoothstep(0.5, 0.05, d) * vA;
-        gl_FragColor = vec4(vec3(0.55, 0.75, 1.0) * a * 1.4, 1.0);
+        gl_FragColor = vec4(vec3(0.44, 0.69, 1.0) * a * 1.3, 1.0);
       }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
@@ -326,13 +327,13 @@ function topGeometry(r, h, n) {
  * darker where it meets the side (worn and shaded). */
 function lipGeometry(r, h, n) {
   const pos = [], nrm = [], uv = [], idx = [], col = [];
-  const k = (r - CHAMFER) / r;
+  const k = (r - CHAMFER) / r, k2 = 0.984;   // (to just inside the picture's dark outline)
   for (let i = 0; i <= n; i++) {
     const a = i / n * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
     pos.push(c * (r - CHAMFER), h, s * (r - CHAMFER), c * r, h - CHAMFER, s * r);
     nrm.push(c * 0.7, 0.7, s * 0.7, c * 0.7, 0.7, s * 0.7);
-    uv.push(0.5 + c * 0.5 * k, 0.5 - s * 0.5 * k, 0.5 + c * 0.5, 0.5 - s * 0.5);
-    col.push(0.94, 0.94, 0.94, 0.68, 0.68, 0.68);
+    uv.push(0.5 + c * 0.5 * k, 0.5 - s * 0.5 * k, 0.5 + c * 0.5 * k2, 0.5 - s * 0.5 * k2);
+    col.push(0.95, 0.95, 0.95, 0.8, 0.8, 0.8);
   }
   for (let i = 0; i < n; i++) { const j = i * 2; idx.push(j, j + 2, j + 1, j + 1, j + 2, j + 3); }
   return mesh(pos, nrm, uv, idx, col);
@@ -450,23 +451,31 @@ export class Portals {
     this.write();
   }
 
-  /** The meadow and the forest floor grown up to each footing (not on the village square, which is
-   * swept): grass tufts where the ground is the village's flat, and the downs' and the forest's own
-   * plants (built with the world: before the billboards and tufts are finished). */
+  /** The ground's own plants grown up to each footing (not on the village square, which is swept):
+   * a few clumps, thicker against the stone and thinning outward, ferns and shrubs on the forest's
+   * leaf litter, reeds, shrubs and flowers on the downs' grass (built with the world: before the
+   * billboards are finished). */
   overgrow(ctx) {
-    const { bill, lib, physics, tufts } = ctx;
-    const plants = lib.sprites('scatter', (q) => /fern|leafy_shrub|wildflowers|dry_reeds/.test(q.id)).map((q) => q.id);
+    const { bill, lib, physics } = ctx;
+    if (!bill) return;
+    const of = (re) => lib.sprites('scatter', (q) => re.test(q.id)).map((q) => q.id);
+    const forest = of(/fern|leafy_shrub/), meadow = of(/leafy_shrub|wildflowers|dry_reeds|fern/);
     let s = 4242;
     const R = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
     for (const p of this.list) {
       if (p.id === 'bellmourn') continue;
-      if (tufts && Math.abs(p.y) < 0.05) {
-        for (let k = 0; k < 26; k++) { const a = R() * Math.PI * 2, r = FOOT_R + 0.04 + R() * 0.55; tufts.add(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r); }
-      }
-      if (!plants.length || !bill) continue;
-      for (let k = 0; k < 7; k++) {
-        const a = R() * Math.PI * 2, r = FOOT_R + 0.15 + R() * 0.6, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
-        bill.add(plants[Math.floor(R() * plants.length)], x, physics.groundAt(x, z), z, 0.45 + R() * 0.3, 0.8 + R() * 0.15);
+      const plants = p.y > 0.5 ? meadow : forest;   // (the downs stand above the village's flat)
+      if (!plants.length) continue;
+      const clumps = 3 + Math.floor(R() * 3);
+      for (let c = 0; c < clumps; c++) {
+        const a = (c + R() * 0.6) / clumps * Math.PI * 2, d = FOOT_R + 0.15 + R() * 0.9;
+        const n = 2 + Math.floor(R() * 3);
+        for (let k = 0; k < n; k++) {
+          const r = d + R() * R() * 1.1, b = a + (R() - 0.5) * 0.5 / (r / FOOT_R);
+          const x = p.x + Math.cos(b) * r, z = p.z + Math.sin(b) * r;
+          const far = (r - FOOT_R) / 2;   // (smaller further out)
+          bill.add(plants[Math.floor(R() * plants.length)], x, physics.groundAt(x, z), z, (0.42 + R() * 0.28) * (1 - far * 0.35), 0.66 + R() * 0.14);
+        }
       }
     }
   }
@@ -506,7 +515,7 @@ export class Portals {
     for (const p of this.list) {
       if (p.wake < 0.3) continue;
       // (over it, not on it: a pool of blue on the ground about it, not a hot spot on its face)
-      const l = p.light ||= Object.assign([p.x, p.y + SEAL_H + 1.8, p.z, 0.3, true], { color: LIGHT, portal: p });
+      const l = p.light ||= Object.assign([p.x, p.y + SEAL_H + 1.4, p.z, 0.3, true], { color: LIGHT, portal: p });
       out.push(l);
     }
     return out;

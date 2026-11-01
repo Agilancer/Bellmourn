@@ -1122,7 +1122,8 @@ function light(dt, t) {
   if (lightTimer <= 0) {
     lightTimer = 0.25;
     const p = camera.position;
-    const ranked = (ctx.portals ? [...flameList, ...ctx.portals.lights] : flameList).map((f) => [f, (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2])
+    // (an awake portal's light ranks as if three times nearer: a lamp post doesn't crowd it out)
+    const ranked = (ctx.portals ? [...flameList, ...ctx.portals.lights] : flameList).map((f) => [f, ((f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2) / (f.portal ? 9 : 1)])
       .filter((a) => a[1] < 55 * 55).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
     // (a flame marked f[4] sits in its own brazier or candles, which would shadow it: never a shadow light)
     const shadowed = ranked.filter((f) => !f[4]).slice(0, TORCH_SHADOWS);
@@ -1149,8 +1150,9 @@ function light(dt, t) {
     if (f.portal) {   // an awake portal's own blue light, breathing (no light on the hands: it's no flame)
       const s = f.portal;
       l.color.setHex(f.color);
-      l.intensity = (11 + 6 * s.flash) * (0.85 + 0.15 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake) * Math.min(1.2, L.under + indoor + L.out * (0.05 + 0.95 * night) + 0.03);   // (by day, a glow; it's the night it lights)
-      l.distance = 9;
+      // (its own light by night, strong enough to pool on the ground about it; by day only a glow)
+      l.intensity = (1.2 + 15 * night + 6 * s.flash) * (0.88 + 0.12 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake);
+      l.distance = 10;
       return;
     }
     l.color.setHex(0xff9a48);
@@ -1220,6 +1222,7 @@ function setPortals(on) {
     if (bag.open) bag.show(false);
     if (map.open) map.show(false);
     quests.close();
+    hud.banner?.classList.remove('show');   // (no word of an old waking over the window)
     portalMenu.show(ctx.portals, ctx.portals.standing);
     sfx.chime?.();
   } else portalMenu.close();
@@ -1246,7 +1249,7 @@ function travel(to) {
   ctx.portals.flash(from); sealBurst(from);
   player.pos.set(to.x, to.y + SEAL_H, to.z);
   player.vel.set(0, 0, 0);
-  player.yaw = to.yaw; player.pitch = 0;
+  player.yaw = to.yaw; player.pitch = -0.21;   // (a little down: the seal you stand on, the sparks at its rim)
   ctx.portals.flash(to); sealBurst(to, 64, { speed: 1.6, size: 0.03, grav: 4, life: 0.9 }, 2.3);   // (a splash at the rim, falling)
   hud.banner?.classList.remove('show');   // (no word of an old waking over where you land)
   magic.screen.color.set(0x7aa4ff); magic.screen.amount = 0.9;
