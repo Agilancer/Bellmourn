@@ -45,6 +45,7 @@ const SETTINGS = `
     <label><span>Resolution</span><select id="optRes"><option value="1" selected>Full</option><option value="0.75">75%</option><option value="0.5">Half</option></select></label>
     <label><span>Graphics</span><select id="optGfx"><option value="high">High (shadows)</option><option value="low">Low</option></select></label>
     <label><span>Texels</span><select id="optTex"><option value="crisp" selected>Crisp</option><option value="smooth">Smooth</option></select></label>
+    <label><span>Voices</span><select id="optVoice"><option value="neural">Natural (Kokoro, a 90 MB download)</option><option value="basic">Basic (the browser's own)</option><option value="off">Off</option></select></label>
     <label><span>Time of day</span><select id="optTime"><option value="cycle">Day &amp; night</option><option value="golden">Golden hour</option><option value="noon">Noon</option><option value="night">Night</option></select></label>
   </div>
   <p class="t-note">Graphics and texels restart the game to take hold.</p>
@@ -52,7 +53,7 @@ const SETTINGS = `
 
 const KEYS = [['W A S D', 'move'], ['Mouse', 'look'], ['Shift', 'run'], ['Space', 'jump'],
   ['Left click', 'right hand: swing, shoot'], ['Right click', 'left hand: block, swing, shoot'],
-  ['F &nbsp; R', 'cast the spells set to F and R'], ['Q &nbsp; Z', 'drink healing, mana'],
+  ['F R X C V', 'cast the spells set to those keys'], ['Q &nbsp; Z', 'drink healing, mana'],
   ['E', 'open doors, search chests, speak'], ['1 – 5', 'quick-equip arms'],
   ['Tab / I', 'inventory &amp; spellbook'], ['M', 'map'], ['L &nbsp; T', 'quest log, quest tracker'], ['Esc', 'pause: save, load, settings']];
 const HOWTO = `
@@ -65,8 +66,11 @@ const HOWTO = `
   <h3>Along the way</h3>
   <ul class="t-tips">
     <li>A gold <b>!</b> over someone's head: they have work for you. A gold <b>?</b>: the work is done, go back to them.</li>
-    <li>A raised shield takes blows on its Guard; let it down a moment and the Guard comes back.</li>
-    <li>Spells cost mana. Set the two you want on F and R in the spellbook.</li>
+    <li>A raised shield takes blows on its Guard; let it down a moment and the Guard comes back. Raise it <b>just as a blow comes</b> and you parry it whole: the one who swung reels, and your next blow strikes nearly twice as hard.</li>
+    <li>Swing with the shield up to <b>bash</b>: what's in front of you is knocked back and reels.</li>
+    <li>A <b>staff</b>: hold the button to gather its bolt (the longer, the bigger and harder it flies). With the left hand free, right click <b>sweeps</b> it round, knocking the dead back off you.</li>
+    <li>The dead hunt each in their own way: some come round your side, some stalk you till your back is turned, some grab hold (strike them off), some lie still and wait.</li>
+    <li>Spells cost mana. Set up to five on F, R, X, C and V in the spellbook.</li>
     <li>The game keeps itself as you play: <b>Continue</b> picks up wherever you were last. Pause to keep a copy in one of ten save slots.</li>
   </ul>
   <div class="t-dbtns"><button class="t-btn" data-close><span>Done</span></button></div>`;
@@ -197,6 +201,18 @@ export class Title {
       try { localStorage.setItem('bm.volume', vol.value); } catch { /* no storage */ }
     };
     vol.onchange = () => this.tick(1.6);
+    // the voices: natural (neural, a computer's default), the browser's own (a phone's), or none
+    const vo = this.settings.querySelector('#optVoice'), get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const touch = matchMedia('(pointer: coarse)').matches;
+    vo.value = get('bm.voices') === '0' ? 'off' : get('bm.neural') === '1' || (get('bm.neural') !== '0' && !touch) ? 'neural' : 'basic';
+    vo.onchange = () => {
+      try {
+        localStorage.setItem('bm.voices', vo.value === 'off' ? '0' : '1');
+        localStorage.setItem('bm.neural', vo.value === 'neural' ? '1' : '0');
+      } catch { /* no storage */ }
+      const v = window.bellmourn?.voice;
+      if (v) { v.set(vo.value !== 'off'); if (vo.value === 'neural') v.warm(); }
+    };
   }
 
   /** One mote of gold dust at (x, y) of a logo, `delay` seconds on (loop: forever). */

@@ -5,6 +5,9 @@
 import { makeGear } from './gear.js';
 
 export const UNIQUES = {
+  garrowsoath: { name: "Garrow's Oath", kind: 'twohand', model: 'claymore', finish: 'worn', rarity: 3, ilvl: 3,
+    affixes: { dmgPct: 20, crit: 4, life: 18, critDmg: 20 },
+    lore: 'Garrow the smith forged it for his son, who took the cathedral stair and did not come back up. He gave it to the stranger who did.' },
   bellwarden: { name: 'Bellwarden', kind: 'onehand', model: 'reliquary_blade', finish: 'gilded', rarity: 3, ilvl: 6,
     affixes: { dmgPct: 22, crit: 5, lifeSteal: 2, burnHit: 6 },
     lore: 'Forged from the clapper of the first Mourning Bell. It hums when the dead are near, and they burn where it bites.' },

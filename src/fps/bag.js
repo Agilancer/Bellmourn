@@ -6,6 +6,7 @@
 // The spellbook is the second tab.
 import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats } from './gear.js';
 import { ATTRS, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
+import { SPELL_KEYS } from './hud.js';
 
 const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4],
   ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
@@ -422,7 +423,7 @@ export class Bag {
       card.innerHTML = `<img src="${spellIcons[id]}" alt=""><div class="nm">${s.name}</div>
         <div class="ty">${s.hands === 2 ? 'two hands' : 'one hand'} · ${s.mana} mana</div><div class="ds">${s.desc}</div>`;
       const row = el('div', 'hb');
-      for (const slot of ['F', 'R']) {
+      for (const slot of SPELL_KEYS) {
         const b = el('button', book[slot] === id ? 'sel' : '', slot);
         b.onclick = () => { this.o.onAssign(id, slot); this.render(); };
         row.append(b);
@@ -430,7 +431,7 @@ export class Bag {
       card.append(row);
       grid.append(card);
     }
-    this.body.append(el('h3', null, 'Spellbook <em>— set a spell to F or R, then press that key to cast. Every spell is open to you, at any level, while Bellmourn is in beta</em>'), grid);
+    this.body.append(el('h3', null, 'Spellbook <em>— set a spell to F, R, X, C or V, then press that key to cast. Every spell is open to you, at any level, while Bellmourn is in beta</em>'), grid);
   }
 }
 

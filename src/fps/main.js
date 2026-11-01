@@ -29,7 +29,9 @@ import { Player, EYE } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
-import { Hud } from './hud.js';
+import { Hud, SPELL_KEYS } from './hud.js';
+import { voice } from './voice.js';
+import { Chatter } from './chatter.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
@@ -135,7 +137,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
-let quests = null, saves = null, intro = null, introBusy = false, holdHour = false;
+let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -143,7 +145,7 @@ let progress = (() => { try { return JSON.parse(localStorage.getItem(PROGRESS) |
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried); the catacombs place their own, each where it would be (catacombs.js), and the
 // delves and caves fill theirs (delves.js)
-const YARD_DEAD = 28, YARD_BURIED = 6;
+const YARD_DEAD = 40, YARD_BURIED = 10;   // (more of them, and each easier to kill)
 // what each kind of spell does to flesh: a direct hit, its blast (radius, damage), and how
 // likely a direct hit is to blow off the head or limb it lands on (zombies.js BLOW: by where)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, staff: 30, wisp: 25 };
@@ -152,7 +154,7 @@ const SPELL_BLOW = { fire: 1, lightning: 1.25, staff: 0.85, frost: 0.5 };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
-let hour = { golden: 17.6, noon: 12, night: 23, cycle: 16.8 }[timeMode] ?? 16.8;
+let hour = { golden: 17.6, noon: 12, night: 23, cycle: 6 }[timeMode] ?? 6;   // (a new day begins at 06:00)
 let started = false, paused = false, lost = false;
 let W = 2, H = 2;
 let shake = 0, flameList = [], lightTimer = 0;
@@ -313,6 +315,7 @@ async function build() {
   await mark('arms');
   await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
+  voice.listener = player;            // (how loud each voice is: by how far from you it is)
   player.onFall = (d) => hurtPlayer(d, null, 'fall');      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
@@ -322,7 +325,8 @@ async function build() {
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
   // every place below ground, and out in the world the dead about the water, the bridge, the
   // cliff and the deep of the wood (a phone gets half)
-  const few = (n) => (touch && !HI ? Math.ceil(n / 2) : n);
+  // (more of the dead everywhere than there were, half again on a computer; a phone, fewer)
+  const few = (n) => (touch && !HI ? Math.ceil(n * 0.6) : Math.round(n * 1.5));
   for (const u of ctx.unders) {
     if (u.cat) continue;
     if (u.plan) zombies.populateCave(u.dg, u.plan.map(([tag, n, haunt]) => [tag, few(n), haunt]));
@@ -343,6 +347,7 @@ async function build() {
     { x: 230, z: -120, r: 20, n: few(2), haunt: 'fungal', ok: awayFromHomes },
   ]);
   zombies.onPlayerHit = hurtPlayer;
+  zombies.onGrab = () => hud.toast('It has hold of you! Strike it to break free');
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
@@ -352,6 +357,20 @@ async function build() {
   // them in before play (prepare waits; a phone brings the Sworn once the village is in, and the
   // clips once the Sworn are, so it never holds two loads at once)
   villagers = new Villagers(scene, ctx);
+  chatter = new Chatter(zombies);                       // (what the Sworn and the dead say)
+  villagers.extraSpeakers = () => chatter.talking();     // (their bubbles drawn with the villagers')
+  // a villager's gift: into your bag (or at your feet if it's full), remembered for this game
+  villagers.onGift = (id) => {
+    const it = makeUnique(id);
+    if (!it) return;
+    try { localStorage.setItem('bm.taken.gift.' + id, '1'); } catch { /* no storage */ }
+    // (into your hands at once; your old weapon goes back in the bag)
+    if (addToBag(char, it)) { const i = char.bag.indexOf(it); if (i >= 0) bag.equipFromBag(i, 'weapon'); }
+    else { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
+    hud.announce('A gift from Garrow', it.name);
+    hud.toast(`${it.name}: a great sword, swung with both hands`);
+    saveCharacter(char); bag.render();
+  };
   villagers.camera = camera;
   villagers.onLoading = (p) => { run.bringing = p?.name || ''; trace(); };   // who is coming in (null: they're in)
   villagers.populate(touch && !HI ? 10 : 22);
@@ -384,6 +403,9 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   // the quests (quests.js): who gives them, what's done, the tracker, the log
   quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
+    // (a quest giver reads you the quest aloud, in their own voice; closing the window hushes them)
+    speak: (name, text) => { const v = villagers.list.find((a) => a.name === name); voice.say(v || { name }, text, { toYou: true, pri: 3, key: name, sex: v && /_f\d/.test(v.m) ? 'f' : 'm', kind: 'villager', pos: v?.pos || player.pos }); },
+    hush: () => voice.stop(),
     onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
     onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
   villagers.quests = quests;
@@ -676,8 +698,7 @@ function dropFromBag(i) {
 }
 
 function assign(id, slot) {
-  const other = slot === 'F' ? 'R' : 'F';
-  if (book[other] === id) book[other] = book[slot];
+  for (const other of SPELL_KEYS) if (other !== slot && book[other] === id) book[other] = book[slot];   // (one spell, one key: they swap)
   book[slot] = id;
   localStorage.setItem('bm.book', JSON.stringify(book));
   hud.refresh(vm.equip, book);
@@ -699,7 +720,72 @@ const stats = {
 function spellDamage(def) {
   const w = char.equip.weapon;
   const base = def.kind === 'staff' && w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : SPELL_DMG[def.kind] ?? 30;
-  return base * (1 + st.spellPct / 100);
+  return base * (1 + st.spellPct / 100) * (def.dmgMul || 1);   // (a staff bolt held and gathered: up to two and a half times)
+}
+
+// ------------------------------------------------------------------ the shield and the staff
+// A shield raised just as the blow comes (a third of a second before it lands) turns it aside
+// whole: the Guard pays nothing, the one who swung reels, and your next blow, struck while it does,
+// lands nearly twice as hard. A swing with the shield up is a bash: a shove that knocks whatever's
+// in front of you back a stride and sets it reeling. A staff gathers its bolt while you hold the
+// button (the longer, the bigger and harder it flies), and with the left hand free it sweeps
+// round in front of you, knocking the dead back off you.
+let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1;
+/** Set something reeling for t seconds (and out of any blow it was in). */
+function reel(z, t) {
+  if (z.dead) return;
+  if (z.def) { z.state = 'hit'; z.play('hit', 0.06); z.cool = Math.max(z.cool || 0, t); z.comboQ = null; }
+  else {
+    if (z.state === 'attack' || z.state === 'grab') z.state = 'move';
+    z.stagger = Math.max(z.stagger || 0, t);
+    if (z.actions.hit) { z.holdT = 0; z.play('hit', 0.06); z.holdT = Math.min(t, z.actions.hit.getClip().duration); }
+  }
+}
+/** Knock something back along (dx, dz), about `m` metres. */
+function shove(z, dx, dz, m) { if (z.dead || z.mode === 'crawl') return; z.knock = new THREE.Vector3(dx * m * 9, 0, dz * m * 9); }
+/** What's in front of you, within reach and the cone (cos of its half-angle). */
+function inFront(reach, cone) {
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), out = [];
+  for (const z of zombies.list) {
+    if (z.dead || z.gone || z.state === 'buried' || z.state === 'playdead') continue;
+    const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1e-3;
+    if (d > reach || Math.abs(z.pos.y - player.pos.y) > 1.3 || (dx * fx + dz * fz) / d < cone) continue;
+    out.push({ z, dx: dx / d, dz: dz / d, d });
+  }
+  return out;
+}
+function parried(by) {
+  reel(by, 1.3);
+  riposteUntil = zombies.time + 1.6;
+  sfx.clang(false); sfx.clang(false);
+  shake = Math.max(shake, 0.5);
+  magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#ffffff'), new THREE.Color('#fff0b0'), new THREE.Color('#ffc040')], 34, { speed: 6, size: 0.035, grav: 7, life: 0.5 });
+  hud.toast('Parried! Strike while it reels');
+  answerBlow(by);
+}
+function shieldBash() {
+  if (bashCool > 0 || !st.shield || guard.broken) return;
+  bashCool = 1.1; guard.v = Math.max(0, guard.v - 12); guard.wait = 0.6;
+  const hit = inFront(2.3, 0.45);
+  for (const { z, dx, dz } of hit) {
+    const b = z.bones.chest || z.bones.spine;
+    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: 6 + Math.random() * 5, dir: new THREE.Vector3(dx, 0.1, dz), kind: 'blunt' });
+    reel(z, 0.9); shove(z, dx, dz, 1.4);       // (after the blow's own flinch, so the reel holds)
+  }
+  sfx.clang(!hit.length); shake = Math.max(shake, hit.length ? 0.8 : 0.35);
+  if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
+}
+function staffSweep() {
+  if (sweepCool > 0 || vm.busy('R')) return;
+  if (!vm.attackRight()) return;
+  sweepCool = 1.4;
+  const w = char.equip.weapon, roll = w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : 14;
+  for (const { z, dx, dz } of inFront(2.9, 0.25)) {
+    const b = z.bones.chest || z.bones.spine;
+    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: roll * 0.7, dir: new THREE.Vector3(dx, 0.15, dz), kind: 'blunt' });
+    reel(z, 0.75); shove(z, dx, dz, 1.8);
+  }
+  shake = Math.max(shake, 0.5);
 }
 
 function castSlot(slot) {
@@ -732,6 +818,7 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
     const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), dx = by.pos.x - player.pos.x, dz = by.pos.z - player.pos.z;
     front = (fx * dx + fz * dz) / (Math.hypot(dx, dz) || 1) > 0.25;
   }
+  if (vm.blocking && sh && !guard.broken && front && kind === 'melee' && by && !by.dead && zombies.time - blockAt < 0.33) { parried(by); return; }   // (raised just in time)
   if (vm.blocking && sh && !guard.broken && guard.v > 0 && front && (kind !== 'spell' || st.enchants.ward)) {
     const stop = d * sh.block;
     guard.v -= stop;
@@ -854,7 +941,10 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     const sw = sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];
     const edge = right.clone().multiplyScalar(sw[0]).addScaledVector(up, sw[1]).normalize();
     const blunt = BLUNT.test(it?.id || '');
-    const dmg = stats.meleeDamage(heavy, side) * power;   // (a chop, slower than a cut, lands harder)
+    // (a chop, slower than a cut, lands harder; struck while it reels from your parry, harder again)
+    const ripo = zombies.time < riposteUntil;
+    if (ripo) { riposteUntil = 0; heavy = true; hud.toast('Riposte!'); }
+    const dmg = stats.meleeDamage(heavy, side) * power * (ripo ? 1.8 : 1);
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     // a treasure's powers: the dead set burning, or chilled to a crawl
     // (it shows where the blade bit: char, or rime, about the wound, never the whole body)
@@ -1243,7 +1333,7 @@ async function startOver() {
   quests.load({});
   progress = { arrived: false };
   try { localStorage.removeItem(PROGRESS); } catch { /* no storage */ }
-  if (timeMode === 'cycle') hour = 18.3;      // sundown (held there till the village has met you)
+  if (timeMode === 'cycle') hour = 6;         // 06:00: the game begins at dawn (held there till the village has met you)
   holdHour = true;
   await applyGear(true);
   zombies.forget();
@@ -1472,17 +1562,31 @@ function tick(dt) {
     // (a blade asked for again mid-blow goes on into the next of its combo: the view model
     // queues it; the swish comes with each blow's own whoosh)
     const bolt = BOLTS[vm.equip.R];
-    if (inp.held('Mouse0') && (!vm.busy('R') || !bolt)) {
-      if (bolt && player.mana < bolt.mana) { if (inp.was('Mouse0')) noMana(); }
-      else {
-        const did = vm.attackRight();
-        if (did && did !== 'queued' && bolt) { player.mana -= bolt.mana; pending.R = { def: bolt, side: 'R' }; }
-      }
-    }
-    // left hand (shields are held up as long as the button is)
+    bashCool -= dt; sweepCool -= dt;
+    if (vm.blocking && inp.was('Mouse0')) shieldBash();                 // (a swing with the shield up: a bash)
+    else if (bolt) {
+      // a staff: held, it gathers its bolt; let go, it flies (a tap, a plain bolt)
+      if (inp.held('Mouse0') && !vm.busy('R') && staffCharge < 0 && player.mana >= bolt.mana) staffCharge = 0;
+      if (staffCharge >= 0 && inp.held('Mouse0')) {
+        staffCharge += dt;
+        const k = Math.min(1, Math.max(0, staffCharge - 0.25) / 1.0);
+        if (k > 0 && Math.random() < dt * 40) magic.particles.burst(fromView(vm.castPoint('R'), 0.62), [new THREE.Color('#ffffff'), new THREE.Color('#c0fff0'), new THREE.Color('#30c8b0')], 1 + Math.round(k * 3), { speed: 0.4 + k, size: 0.015 + k * 0.03, grav: -1, life: 0.3 });
+      } else if (staffCharge >= 0) {
+        const k = 1 + Math.min(1, Math.max(0, staffCharge - 0.25) / 1.0) * 1.5, cost = Math.round(bolt.mana * (k > 1.05 ? 0.6 + k * 0.6 : 1));
+        staffCharge = -1;
+        if (player.mana < cost) noMana();
+        else {
+          const did = vm.attackRight();
+          if (did && did !== 'queued') { player.mana -= cost; pending.R = { def: k > 1.05 ? { ...bolt, size: bolt.size * (1 + (k - 1) * 0.6), power: bolt.power * k, burst: Math.round(bolt.burst * k), dmgMul: k } : bolt, side: 'R' }; }
+        }
+      } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
+    } else if (inp.held('Mouse0')) vm.attackRight();
+    // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
+    if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
+    const wasBlocking = vm.blocking;
     vm.actLeft(inp.held('Mouse2'));
-    if (inp.was('KeyF')) castSlot('F');
-    if (inp.was('KeyR')) castSlot('R');
+    if (vm.blocking && !wasBlocking) blockAt = zombies.time;
+    for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
     if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(L.out < 0.5);
     lastBob = player.bob;
@@ -1575,7 +1679,9 @@ function tick(dt) {
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
+  foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
+  chatter.update(dt, player, active);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
@@ -1589,6 +1695,7 @@ function tick(dt) {
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
   light(dt, t);
   hud.update(player, book);
+  hud.clockTime(hour);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
@@ -1638,7 +1745,8 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, input: () => gameInput, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
+  setTimeout(() => voice.warm(), 4000);   // (the neural voices: a big download, so after the game is up)
 }).catch((e) => {
   console.error(e);
   window.bootError = e;
