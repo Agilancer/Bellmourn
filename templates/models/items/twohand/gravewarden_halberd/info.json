@@ -4,7 +4,7 @@
  "kind": "two-handed weapon",
  "description": "A halberd: a horned axe blade and back spike on an iron socket, a long top spike, iron langets and collars on a dark pole with a leather grip.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 1080,
  "files": [
   "gravewarden_halberd.glb"
@@ -88,5 +88,10 @@
   }
  ],
  "set": "set11",
- "set_name": "model 11"
+ "set_name": "model 11",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.999
+ }
 }

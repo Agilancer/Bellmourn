@@ -35,5 +35,43 @@
   }
  ],
  "set": "set05",
- "set_name": "model 5"
+ "set_name": "model 5",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/poleaxe_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/poleaxe_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/poleaxe_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/poleaxe_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/poleaxe_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/poleaxe_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

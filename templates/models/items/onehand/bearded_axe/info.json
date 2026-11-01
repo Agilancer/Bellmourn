@@ -60,5 +60,10 @@
   }
  ],
  "set": "set04",
- "set_name": "model 4"
+ "set_name": "model 4",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

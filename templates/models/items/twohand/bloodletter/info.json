@@ -4,7 +4,7 @@
  "kind": "two-handed weapon",
  "description": "A long notched two-hander of blackened steel with bright edges and tearing barbs at its base, dark-iron spiked guard, blood-red grip between iron rings.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 1088,
  "files": [
   "bloodletter.glb"
@@ -92,5 +92,10 @@
   }
  ],
  "set": "set12",
- "set_name": "model 12"
+ "set_name": "model 12",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

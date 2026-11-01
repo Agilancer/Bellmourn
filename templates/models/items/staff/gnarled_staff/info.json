@@ -35,5 +35,43 @@
   }
  ],
  "set": "set01",
- "set_name": "model 1"
+ "set_name": "model 1",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/gnarled_staff_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/gnarled_staff_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/gnarled_staff_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/gnarled_staff_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/gnarled_staff_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/gnarled_staff_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

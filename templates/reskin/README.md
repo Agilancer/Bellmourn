@@ -44,6 +44,17 @@ frostbound: what `src/fps/gear.js` shows for Common to Mythic), and rewrites
 sheet per model (the painting, the skin, the model in every finish) goes to
 `templates/reskin/imports/<set>/`.
 
+Round shields: the models unroll a dished front or boss ring by ring into a strip only 4
+texels tall, which turns planks, stripes and hammering into a mosaic. The importer gives each
+one a flat disc in the atlas's free space instead (as large as fits: 200-290 px across in the
+512 skin) and moves the `.glb`'s UVs onto it, so the painted disc goes on as painted. The
+placement comes from the pack's data alone, so it is the same every import, and a second
+import finds the discs where the first one put them.
+
+Bloodforged and frostbound keep gold, brass and bronze as the accent on the recoloured parts.
+A model that is mostly one noble part (the sun shield's bronze board, the crosier's gold
+shaft) has that part recoloured instead, so its Epic and Mythic finishes still show.
+
 ## The templates
 
 Each model's UV islands are laid out on a 1536 x 1024 canvas (the largest size ChatGPT

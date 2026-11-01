@@ -68,5 +68,10 @@
   }
  ],
  "set": "set06",
- "set_name": "model 6"
+ "set_name": "model 6",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

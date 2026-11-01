@@ -4,7 +4,7 @@
  "kind": "two-handed weapon",
  "description": "A broad two-handed blade pierced through with three Latin crosses, a heavy square dark-iron guard and pommel, long red leather grip.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 728,
  "files": [
   "penitents_greatsword.glb"
@@ -68,5 +68,10 @@
   }
  ],
  "set": "set14",
- "set_name": "model 14"
+ "set_name": "model 14",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.998
+ }
 }

@@ -4,7 +4,7 @@
  "kind": "two-handed weapon",
  "description": "A broad bearded crescent axe head strapped with riveted iron to a long crooked haft, leather where the hands go, an iron butt shoe.",
  "texture_size": 128,
- "skin_size": 1024,
+ "skin_size": 512,
  "triangles": 1140,
  "files": [
   "dane_axe.glb"
@@ -72,5 +72,10 @@
   }
  ],
  "set": "set13",
- "set_name": "model 13"
+ "set_name": "model 13",
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 1.0
+ }
 }

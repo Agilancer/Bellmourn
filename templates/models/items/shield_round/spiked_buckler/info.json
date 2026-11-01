@@ -39,5 +39,43 @@
   }
  ],
  "set": "set02",
- "set_name": "model 2"
+ "set_name": "model 2",
+ "variants": [
+  {
+   "id": "worn",
+   "name": "Worn",
+   "file": "variants/spiked_buckler_worn.png"
+  },
+  {
+   "id": "bright",
+   "name": "Bright",
+   "file": "variants/spiked_buckler_bright.png"
+  },
+  {
+   "id": "gilded",
+   "name": "Gilded",
+   "file": "variants/spiked_buckler_gilded.png"
+  },
+  {
+   "id": "ancient",
+   "name": "Ancient Bronze",
+   "file": "variants/spiked_buckler_ancient.png"
+  },
+  {
+   "id": "bloodforged",
+   "name": "Bloodforged",
+   "file": "variants/spiked_buckler_bloodforged.png"
+  },
+  {
+   "id": "frostbound",
+   "name": "Frostbound",
+   "file": "variants/spiked_buckler_frostbound.png"
+  }
+ ],
+ "skin_size": 512,
+ "reskin": {
+  "set": "velscour",
+  "verdict": "PASS",
+  "coverage": 0.999
+ }
 }
