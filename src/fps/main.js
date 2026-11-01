@@ -589,7 +589,11 @@ async function prepare(mark) {
   // and lanterns: three needn't look them over again each frame; nodes.js settled)
   if (WEBGPU && !/[?&]nostatic\b/.test(location.search)) {
     const mutable = new Set([ctx.glass, ctx.lantern].filter(Boolean));
-    for (const m of [...(ctx.built || []), ...(ctx.builtUnder || [])]) if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
+    for (const m of [...(ctx.built || []), ...(ctx.builtUnder || [])]) {
+      // (and their matrices worked out once, not every frame: engine.js visibleMatrices)
+      if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; }
+      if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
+    }
   }
   // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
   // frame; made before the shaders are compiled, which take it in)
