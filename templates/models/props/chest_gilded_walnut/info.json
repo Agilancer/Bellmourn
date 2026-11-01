@@ -1,0 +1,36 @@
+{
+ "id": "chest_gilded_walnut",
+ "model": "chest_gilded",
+ "shape": "chest",
+ "triangles": 1120,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.026,
+  0.592,
+  0.604
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.42,
+   -0.29
+  ]
+ },
+ "fills": {
+  "front": "obj_05_chest_ornate_01",
+  "back": "obj_05_chest_ornate_24",
+  "end": "obj_05_chest_ornate_16",
+  "top": "obj_05_chest_ornate_14",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ],
+  "trim": "obj_05_chest_ornate_30"
+ }
+}

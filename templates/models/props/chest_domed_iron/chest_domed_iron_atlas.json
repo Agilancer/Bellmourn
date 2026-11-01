@@ -1,0 +1,60 @@
+{
+ "model": "chest_domed",
+ "shape": "domed",
+ "form": null,
+ "frame": 0,
+ "dims": [
+  1.0,
+  0.56,
+  0.4,
+  0.17
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "lid": [
+   4,
+   4,
+   320,
+   160
+  ],
+  "back": [
+   4,
+   172,
+   320,
+   120
+  ],
+  "front": [
+   4,
+   300,
+   320,
+   120
+  ],
+  "end": [
+   332,
+   4,
+   160,
+   120
+  ],
+  "inner": [
+   332,
+   172,
+   128,
+   96
+  ]
+ },
+ "fills": {
+  "front": "obj_06_chest_ancient_01",
+  "back": "obj_06_chest_ancient_02",
+  "end": "obj_06_chest_ancient_06",
+  "lid": "obj_06_chest_ancient_03",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ]
+ }
+}

@@ -1,0 +1,315 @@
+{
+ "about": "Props modelled for the object texture sheets: tools/models/texprops.py",
+ "props": {
+  "crate_plank": {
+   "model": "crate_plank",
+   "shape": "crate",
+   "size": [
+    0.832,
+    0.78,
+    0.832
+   ],
+   "lid": false
+  },
+  "crate_braced": {
+   "model": "crate_braced",
+   "shape": "crate",
+   "size": [
+    0.832,
+    0.78,
+    0.832
+   ],
+   "lid": false
+  },
+  "crate_ironbound": {
+   "model": "crate_ironbound",
+   "shape": "crate",
+   "size": [
+    0.832,
+    0.8,
+    0.832
+   ],
+   "lid": false
+  },
+  "crate_slatted": {
+   "model": "crate_slatted",
+   "shape": "crate",
+   "size": [
+    0.832,
+    0.7,
+    0.732
+   ],
+   "lid": false
+  },
+  "crate_broken": {
+   "model": "crate_broken",
+   "shape": "crate",
+   "size": [
+    0.8,
+    0.76,
+    0.8
+   ],
+   "lid": false
+  },
+  "crate_long": {
+   "model": "crate_long",
+   "shape": "crate",
+   "size": [
+    1.5,
+    0.6,
+    0.62
+   ],
+   "lid": false
+  },
+  "barrel_oak": {
+   "model": "barrel",
+   "shape": "barrel",
+   "size": [
+    0.72,
+    0.95,
+    0.72
+   ],
+   "lid": false
+  },
+  "barrel_dark": {
+   "model": "barrel",
+   "shape": "barrel",
+   "size": [
+    0.72,
+    0.95,
+    0.72
+   ],
+   "lid": false
+  },
+  "chest_rustic_oak": {
+   "model": "chest_rustic",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.562,
+    0.584
+   ],
+   "lid": true
+  },
+  "chest_rustic_red": {
+   "model": "chest_rustic",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.562,
+    0.584
+   ],
+   "lid": true
+  },
+  "chest_rustic_moss": {
+   "model": "chest_rustic",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.562,
+    0.584
+   ],
+   "lid": true
+  },
+  "chest_rustic_carved": {
+   "model": "chest_rustic",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.562,
+    0.584
+   ],
+   "lid": true
+  },
+  "chest_gilded_walnut": {
+   "model": "chest_gilded",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.592,
+    0.604
+   ],
+   "lid": true
+  },
+  "chest_gilded_red": {
+   "model": "chest_gilded",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.592,
+    0.604
+   ],
+   "lid": true
+  },
+  "chest_gilded_blue": {
+   "model": "chest_gilded",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.592,
+    0.604
+   ],
+   "lid": true
+  },
+  "chest_gilded_iron": {
+   "model": "chest_gilded",
+   "shape": "chest",
+   "size": [
+    1.026,
+    0.592,
+    0.604
+   ],
+   "lid": true
+  },
+  "chest_domed_iron": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "chest_domed_red": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "chest_domed_gothic": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "chest_domed_moss": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "chest_domed_stone": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "chest_domed_bronze": {
+   "model": "chest_domed",
+   "shape": "domed",
+   "size": [
+    1.028,
+    0.6,
+    0.588
+   ],
+   "lid": true
+  },
+  "jar_storage": {
+   "model": "jar_storage",
+   "shape": "pot",
+   "size": [
+    0.54,
+    0.763,
+    0.54
+   ],
+   "lid": false
+  },
+  "jar_storage_sooted": {
+   "model": "jar_storage",
+   "shape": "pot",
+   "size": [
+    0.54,
+    0.763,
+    0.54
+   ],
+   "lid": false
+  },
+  "jar_glazed": {
+   "model": "jar_glazed",
+   "shape": "pot",
+   "size": [
+    0.48,
+    0.657,
+    0.48
+   ],
+   "lid": false
+  },
+  "amphora": {
+   "model": "amphora",
+   "shape": "pot",
+   "size": [
+    0.585,
+    0.95,
+    0.48
+   ],
+   "lid": false
+  },
+  "vase_painted": {
+   "model": "vase_painted",
+   "shape": "pot",
+   "size": [
+    0.4,
+    0.6,
+    0.4
+   ],
+   "lid": false
+  },
+  "vase_blue": {
+   "model": "vase_blue",
+   "shape": "pot",
+   "size": [
+    0.38,
+    0.56,
+    0.38
+   ],
+   "lid": false
+  },
+  "urn_worn": {
+   "model": "urn_worn",
+   "shape": "pot",
+   "size": [
+    0.52,
+    0.583,
+    0.52
+   ],
+   "lid": false
+  },
+  "crock_lidded": {
+   "model": "crock_lidded",
+   "shape": "pot",
+   "size": [
+    0.4,
+    0.382,
+    0.4
+   ],
+   "lid": false
+  },
+  "crock_lidded_sooted": {
+   "model": "crock_lidded",
+   "shape": "pot",
+   "size": [
+    0.4,
+    0.382,
+    0.4
+   ],
+   "lid": false
+  }
+ }
+}

@@ -1,0 +1,52 @@
+{
+ "model": "crate_plank",
+ "shape": "crate",
+ "form": null,
+ "frame": 0.1,
+ "dims": [
+  0.8,
+  0.8,
+  0.78
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "end": [
+   4,
+   4,
+   192,
+   192
+  ],
+  "side": [
+   204,
+   4,
+   192,
+   192
+  ],
+  "top": [
+   4,
+   204,
+   192,
+   192
+  ],
+  "inner": [
+   404,
+   4,
+   64,
+   64
+  ]
+ },
+ "fills": {
+  "side": "obj_01_crate_wood_09",
+  "end": "obj_01_crate_wood_16",
+  "top": "obj_03_crate_variants_03",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

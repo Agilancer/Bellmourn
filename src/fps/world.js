@@ -164,24 +164,24 @@ export function buildWorld(ctx) {
 
   // ------------------------------------------------------------ buildings
   const houses = [
-    { name: 'inn', shop: 'inn', doorArt: 'town_tavern_tankard', title: "The Tolling Bell Inn", x: 30, z: 18, w: 16, d: 11, h: 4.2, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'town_tavern_planks', door: 'w', chimney: [5, 0], sign: 0,
-      furnish: [['table', -3, 1, 0], ['table', 2, -2, 0], ['table', 3, 2.5, 0], ['stool', -3, 2.2], ['stool', -3, -0.3], ['stool', 2, -0.8], ['stool', 3, 3.6], ['barrel', 6.5, -4], ['barrel', 6.5, -3], ['barrel', 6.5, 4], ['candelabrum', -6.5, -4], ['bed', 6, 1, Math.PI / 2]] },
-    { name: 'blacksmith', shop: 'blacksmith', doorArt: 'town_smith_iron', title: "Hammerfall Smithy", x: -30, z: 18, w: 12, d: 10, h: 4.4, storeys: 1, wall: 'town_wall_fieldstone', roof: 'town_roof_blue_slate', floor: 'town_stable_yard', door: 'e', chimney: [-3, -2], sign: 1, forge: [-3, -2],
+    { name: 'inn', shop: 'inn', doorArt: 'town_tavern_tankard', title: "The Tolling Bell Inn", x: 30, z: 18, w: 16, d: 11, h: 4.2, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_straw_thatch', floor: 'int_09_floor_oak_planks_1_02', floorTile: 1.7, lining: 'int_03_wall_oak_panelling_1_02', door: 'w', chimney: [5, 0], sign: 0,
+      furnish: [['table', -3, 1, 0], ['table', 2, -2, 0], ['table', 3, 2.5, 0], ['stool', -3, 2.2], ['stool', -3, -0.3], ['stool', 2, -0.8], ['stool', 3, 3.6], ['barrel', 6.5, -4], ['barrel', 6.5, -3], ['barrel', 6.5, 4], ['candelabrum', -6.5, -4], ['bed', 6, 1, Math.PI / 2], ['jar_storage', -6.6, 4.4], ['crock_lidded', -5.8, 4.6, 0.4]] },
+    { name: 'blacksmith', shop: 'blacksmith', doorArt: 'town_smith_iron', title: "Hammerfall Smithy", x: -30, z: 18, w: 12, d: 10, h: 4.4, storeys: 1, wall: 'town_wall_fieldstone', roof: 'town_roof_blue_slate', floor: 'int_11_floor_stone_flagstone_1_02', lining: 'int_06_wall_rubble_stone_1_03', door: 'e', chimney: [-3, -2], sign: 1, forge: [-3, -2],
       furnish: [['anvil', 0, 0], ['barrel', -4.5, 3.5], ['crate', -4.2, 3.5 - 7], ['table', 3, -3, 0], ['candelabrum', 4.5, 3.5]] },
-    { name: 'general store', shop: 'general_goods', title: "Grimwald's Provisions", x: 30, z: -18, w: 14, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_pine_siding', upper: 'town_wall_oak_plaster', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
-      furnish: [['crate', 4, -3], ['crate', 4, -1.9], ['crate', 5.2, -3], ['barrel', 5.5, 3.2], ['barrel', 4.5, 3.6], ['table', -2, 0, Math.PI / 2], ['bookshelf', 0, -4.6, 0], ['treasure_chest', 1, 3.8, Math.PI]] },
-    { name: 'alchemist', shop: 'spells', doorArt: 'town_mage_star', title: "The Alchemist's Shop", x: -30, z: -18, w: 11, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_wattle_daub', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', sign: 0, chimney: [-3, 2],
-      furnish: [['bookshelf', -2, -4.1, 0], ['bookshelf', 1, -4.1, 0], ['table', 0, 1, 0], ['candelabrum', -4, 3], ['barrel', 4, -3]] },
-    { name: 'town hall', title: "Bellmourn Town Hall", x: 0, z: 42, w: 20, d: 13, h: 5.0, storeys: 2, wall: 'town_wall_dressed_limestone', upper: 'town_wall_oak_plaster', roof: 'town_roof_blue_slate', floor: 'castle_keep_royal_inlay_slab', door: 'n', dormers: 3,
-      furnish: [['table', 0, 1, 0], ['table', 0, 3, 0], ['pew', -4, -2, Math.PI], ['pew', 4, -2, Math.PI], ['candelabrum', -8.5, -5], ['candelabrum', 8.5, -5], ['bookshelf', -6, 5.6, Math.PI], ['bookshelf', 6, 5.6, Math.PI], ['treasure_chest', 0, 5.5, Math.PI]] },
-    { name: 'barracks', shop: 'armorer', doorArt: 'town_smith_iron', title: "The Watch Barracks", x: 52, z: 44, w: 16, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_wattle_daub', roof: 'castle_roof_black', floor: 'town_dark_pine', door: 'n', chimney: [6, 2],
+    { name: 'general store', shop: 'general_goods', title: "Grimwald's Provisions", x: 30, z: -18, w: 14, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_pine_siding', upper: 'town_wall_oak_plaster', roof: 'town_roof_oak_shingles', floor: 'int_09_floor_oak_planks_2_01', floorTile: 1.7, lining: 'int_01_wall_white_plaster_1_01', liningTint: 0xb0a490, wainscot: true, door: 'w', sign: 2,
+      furnish: [['crate', 4, -3], ['crate', 4, -1.9], ['crate', 5.2, -3], ['barrel', 5.5, 3.2], ['barrel', 4.5, 3.6], ['table', -2, 0, Math.PI / 2], ['bookshelf', 0, -4.6, 0], ['treasure_chest', 1, 3.8, Math.PI], ['jar_storage', -5.6, -4.1], ['crock_lidded', -4.8, -4.2, 1], ['crate_long', 5.7, -0.5, Math.PI / 2]] },
+    { name: 'alchemist', shop: 'spells', doorArt: 'town_mage_star', title: "The Alchemist's Shop", x: -30, z: -18, w: 11, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_wattle_daub', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'int_12_floor_slate_tile_1_03', floorTile: 1.4, floorTint: 0x9a9e9a, matte: true, lining: 'int_08_wall_painted_plaster_1_02', liningTint: 0xa89c8c, wainscot: true, door: 'e', sign: 0, chimney: [-3, 2],
+      furnish: [['bookshelf', -2, -4.1, 0], ['bookshelf', 1, -4.1, 0], ['table', 0, 1, 0], ['candelabrum', -4, 3], ['barrel', 4, -3], ['vase_blue', -4.6, -3.6], ['jar_glazed', -4.7, 0.5]] },
+    { name: 'town hall', title: "Bellmourn Town Hall", x: 0, z: 42, w: 20, d: 13, h: 5.0, storeys: 2, wall: 'town_wall_dressed_limestone', upper: 'town_wall_oak_plaster', roof: 'town_roof_blue_slate', floor: 'int_15_floor_parquet_1_04', floorTile: 1.2, lining: 'int_03_wall_oak_panelling_2_02', door: 'n', dormers: 3,
+      furnish: [['table', 0, 1, 0], ['table', 0, 3, 0], ['pew', -4, -2, Math.PI], ['pew', 4, -2, Math.PI], ['candelabrum', -8.5, -5], ['candelabrum', 8.5, -5], ['bookshelf', -6, 5.6, Math.PI], ['bookshelf', 6, 5.6, Math.PI], ['chest_gilded_walnut', 0, 5.5, Math.PI], ['vase_painted', -8.6, 5.6]] },
+    { name: 'barracks', shop: 'armorer', doorArt: 'town_smith_iron', title: "The Watch Barracks", x: 52, z: 44, w: 16, d: 10, h: 3.9, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_wattle_daub', roof: 'castle_roof_black', floor: 'int_10_floor_dark_wood_1_02', floorTile: 1.7, lining: 'int_07_wall_red_brick_1_01', liningTile: 0.9, door: 'n', chimney: [6, 2],
       furnish: [['bed', -5, 2], ['bed', -2.5, 2], ['bed', 0, 2], ['bed', 2.5, 2], ['table', 4.5, -2, 0], ['stool', 4.5, -0.8], ['crate', -6.5, -3.8], ['treasure_chest', 6.5, 3.8, -Math.PI / 2]] },
     { name: 'stable', shop: 'stables', title: "The Stables", x: 58, z: -6, w: 12, d: 14, h: 4.4, storeys: 1, timber: true, wall: 'town_wall_pine_siding', roof: 'town_roof_straw_thatch', floor: 'town_stable_yard', door: 'w', openFront: true,
       furnish: [['barrel', 4, -5.5], ['crate', 4, 5.5], ['crate', 3, 5.5], ['table', -2, 5, 0]] },
-    { name: 'bakery', shop: 'bakery', title: "The Bakehouse", x: -58, z: -8, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'town_herringbone_brick', door: 'e', chimney: [-3, 2], sign: 1,
-      furnish: [['table', 1, 0, Math.PI / 2], ['barrel', -4, -3.5], ['barrel', -4, 3.5], ['crate', -3, 3.6], ['stool', 2, 1.5]] },
-    { name: 'healer', shop: 'apothecary', title: "House of Mending", x: 44, z: -48, w: 12, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_oak_shingles', floor: 'town_oak_boards', door: 'w', sign: 2,
-      furnish: [['bed', 3, -2, Math.PI / 2], ['bed', 3, 2, Math.PI / 2], ['bookshelf', -1, -3.6, 0], ['table', -2.5, 1.5, 0], ['candelabrum', 5, 0]] },
+    { name: 'bakery', shop: 'bakery', title: "The Bakehouse", x: -58, z: -8, w: 12, d: 10, h: 3.8, storeys: 2, wall: 'town_wall_town_brick', upper: 'town_wall_oak_plaster', roof: 'town_roof_terracotta', floor: 'int_13_floor_terracotta_1_02', floorTile: 1.2, lining: 'int_01_wall_white_plaster_1_07', liningTint: 0xb0a490, wainscot: true, door: 'e', chimney: [-3, 2], sign: 1,
+      furnish: [['table', 1, 0, Math.PI / 2], ['barrel', -4, -3.5], ['barrel', -4, 3.5], ['crate', -3, 3.6], ['stool', 2, 1.5], ['jar_storage', -5.1, -1.4], ['crock_lidded', -5.1, -0.6, 2], ['jar_glazed', -5.1, 0.3]] },
+    { name: 'healer', shop: 'apothecary', title: "House of Mending", x: 44, z: -48, w: 12, d: 9, h: 3.8, storeys: 2, timber: true, wall: 'town_wall_oak_plaster', upper: 'town_wall_wattle_daub', roof: 'town_roof_oak_shingles', floor: 'int_09_floor_oak_planks_3_06', floorTile: 1.7, lining: 'int_04_wall_limestone_block_3_06', liningTint: 0xc8bca8, door: 'w', sign: 2,
+      furnish: [['bed', 3, -2, Math.PI / 2], ['bed', 3, 2, Math.PI / 2], ['bookshelf', -1, -3.6, 0], ['table', -2.5, 1.5, 0], ['candelabrum', 5, 0], ['jar_storage', -5, -3.4], ['crock_lidded', 0.6, -3.7]] },
   ];
   const hm = houseMaterials(lib, M);
   ctx.glass = hm.glass;
@@ -461,9 +461,9 @@ function cathedral(ctx, M) {
   const { b, props, lib, scene, physics } = ctx;
   const C = CATHEDRAL, F = C.floor, H = 14;
   ctx.zones.push({ x0: C.x0, z0: C.z0, x1: C.x1, z1: C.z1, y0: -1, y1: H, name: 'Cathedral of the Mourning Bell' });
-  const wallOut = M('castle_ashlar', 3), wallIn = M('castle_chapel', 3.5), roof = M('castle_roof_black', 2.5);
+  const wallOut = M('stone_01_gray_limestone_1_01', 3.2), wallIn = M('castle_chapel', 3.5), roof = M('castle_roof_black', 2.5);
   const nave = M('cathedral_graveyard_marble_checker', 2), plinth = M('castle_slatestone', 2);
-  const chancelFloor = M('castle_keep_royal_inlay_slab', 2.5), office = M('town_oak_parquet', 2);
+  const chancelFloor = M('castle_keep_royal_inlay_slab', 2.5), office = M('int_15_floor_parquet_1_04', 2.4);
   // the plinth (floor), leaving the stairwell open where the flight goes down
   const sw = { x0: STAIRS.x - 1.2, x1: STAIRS.x + 1.2, z0: C.z0, z1: STAIRS.z };
   b.box([C.x0, 0, C.z0 + 8], [C.x1, F, C.z1], { top: nave, side: plinth, bottom: plinth });
@@ -511,7 +511,7 @@ function cathedral(ctx, M) {
   b.box([C.x1 - t / 2 - 0.05, F, C.z0 + 8.4], [C.x1 - t / 2, F + 3.4, C.z1 - 0.5], dado, { solid: false, shade: 0.85, vbase: F });
   b.gable(C.x0, C.z0, C.x1, C.z1, H, 9, roof, wallOut, 'z', 0.8, 1);
   // pillars and the arcade beams they carry (the props are 4 m tall: scaled to 9 m)
-  const arcade = M('castle_ashlar', 3);
+  const arcade = M('stone_01_gray_limestone_1_01', 3.2);
   const chancelArch = !!ctx.cutouts && lib.biome.arches.has('cathedral_graveyard_nave_triumphal');
   for (const x of [-6, 6]) {
     // (the last pair, at the chancel step, gives way to the chancel arch)
@@ -595,7 +595,7 @@ function cathedral(ctx, M) {
   // the flight down to the dungeon: side walls the whole way, and over it one sloping stone
   // vault from the head of the stairs (inside the stair-house) down under the cathedral's north
   // wall, where it meets the wall's foot, and on underground to the bottom
-  const stone = M('castle_basalt', 3), steps = M('catacombs_charcoal_flagstone', 1.5);
+  const stone = M('stone_03_charcoal_basalt_1_03', 2, { bump: 0.5 }), steps = M('catacombs_charcoal_flagstone', 1.5);
   const run = b.stairs(STAIRS.x, STAIRS.z, F, -(F + 14), 2.4, '-z', steps, { step: 0.25, run: 0.34 });
   const zEnd = STAIRS.z - run, yEnd = F - Math.round((F + 14) / 0.25) * 0.25;
   for (const sx of [-1, 1]) b.box([STAIRS.x + sx * 1.2 - (sx > 0 ? 0 : 0.5), -15, zEnd], [STAIRS.x + sx * 1.2 + (sx > 0 ? 0.5 : 0), F, STAIRS.z], stone);

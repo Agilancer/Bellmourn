@@ -1,0 +1,49 @@
+{
+ "id": "vase_painted",
+ "model": "vase_painted",
+ "shape": "pot",
+ "triangles": 784,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 13,
+ "size": [
+  0.4,
+  0.6,
+  0.4
+ ],
+ "lid": null,
+ "fills": {
+  "belly": [
+   "obj_08_pottery_decorative_08",
+   {
+    "wrap": 2
+   }
+  ],
+  "shoulder": [
+   "obj_08_pottery_decorative_04",
+   {
+    "wrap": 2
+   }
+  ],
+  "neck": [
+   "obj_08_pottery_decorative_21",
+   {
+    "wrap": 2
+   }
+  ],
+  "foot": [
+   "obj_10_mixed_details_39",
+   {
+    "wrap": 1
+   }
+  ],
+  "inner": [
+   "obj_09_pottery_weathered_03",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

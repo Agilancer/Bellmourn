@@ -39,10 +39,10 @@ const STONE = {
   founders: { floor: 'castle_keep_royal_inlay_slab', wall: 'catacombs_wall_crypt_ashlar_back', roof: 'castle_keep_sootdark_great_hall', trim: 'castle_keep_pale_keep_limestone', step: 'castle_keep_weathered_gatehouse_flag' },
   plague: { floor: 'catacombs_ossuary_aggregate', wall: 'catacombs_wall_ossuary_niches', roof: 'castle_soot', trim: 'catacombs_burial_terracotta' },
   stairhall: { floor: 'castle_keep_weathered_gatehouse_flag', wall: 'catacombs_wall_drowned_crypt', roof: 'castle_keep_bluegray_bastion_slate', trim: 'castle_keep_pale_keep_limestone', step: 'castle_keep_charcoal_guardstone' },
-  shrine: { floor: 'castle_keep_charcoal_guardstone', wall: 'catacombs_wall_funerary_chapel_back', roof: 'catacombs_black_basalt', trim: 'met_04_tarnished_bronze' },
+  shrine: { floor: 'myth_10_shadow_crypt_1_02', wall: 'catacombs_wall_funerary_chapel_back', roof: 'catacombs_black_basalt', trim: 'met_04_tarnished_bronze' },
   abbots: { floor: 'catacombs_weathered_cobbles', wall: 'catacombs_wall_sealed_cells_back', roof: 'castle_soot', trim: 'castle_keep_sootdark_great_hall', step: 'catacombs_black_basalt' },
   charnel: { floor: 'catacombs_ossuary_aggregate', wall: 'catacombs_wall_drowned_crypt_back', roof: 'castle_soot', trim: 'catacombs_burial_terracotta' },
-  tomb: { floor: 'castle_keep_sootdark_great_hall', wall: 'catacombs_wall_drowned_crypt', roof: 'catacombs_black_basalt', trim: 'met_04_tarnished_bronze', step: 'catacombs_black_basalt', char: true },
+  tomb: { floor: 'myth_06_volcanic_shrine_1_01', wall: 'catacombs_wall_drowned_crypt', roof: 'catacombs_black_basalt', trim: 'met_04_tarnished_bronze', step: 'myth_06_volcanic_shrine_1_01', char: true },
 };
 
 export function buildCatacombs(ctx) {

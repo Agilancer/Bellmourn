@@ -1,0 +1,35 @@
+{
+ "id": "chest_domed_iron",
+ "model": "chest_domed",
+ "shape": "domed",
+ "triangles": 846,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.028,
+  0.6,
+  0.588
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.4,
+   -0.28
+  ]
+ },
+ "fills": {
+  "front": "obj_06_chest_ancient_01",
+  "back": "obj_06_chest_ancient_02",
+  "end": "obj_06_chest_ancient_06",
+  "lid": "obj_06_chest_ancient_03",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ]
+ }
+}

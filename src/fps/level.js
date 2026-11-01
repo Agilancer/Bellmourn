@@ -67,6 +67,7 @@ const XP_FOE = { knight: 46, sorcerer: 40, ghast: 24, grubber: 28 };
 const XP_STATS = { sworn: 75, adept: 85, lord: 1200 };
 /** Experience for killing z (a zombie, a foe, a Sworn or a champion). */
 export function xpFor(z) {
+  if (z.slime) return z.xp;   // (by its size: slimes.js)
   if (z.champ) return z.champ.xp || 500;
   if (z.def) return XP_STATS[z.def.stats] ?? XP_FOE[z.kindName] ?? 30;
   return (XP_GROTESQUE[z.variant] ?? 15) + (z.kindName === 'runner' ? 4 : z.kindName === 'lurker' ? 2 : 0);

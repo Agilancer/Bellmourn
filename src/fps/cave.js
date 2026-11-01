@@ -145,8 +145,10 @@ export function rockTexture() {
   return t;
 }
 
-/** Rock wrapped round any surface without stretching (triplanar), darkened in its folds. */
-export function rockMaterial(tex) {
+/** Rock wrapped round any surface without stretching (triplanar), darkened in its folds. `k`
+ * brightens the texture (the generated rock is drawn dark; a painted one is about right), `tile`
+ * metres per repeat. */
+export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   // two-sided: the roof's top shows as a ledge over the mouth from outside
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x181a1c, shininess: 14, side: THREE.DoubleSide });
   m.onBeforeCompile = (sh) => {
@@ -156,12 +158,13 @@ export function rockMaterial(tex) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 cP; varying vec3 cN; uniform sampler2D tRock;')
       .replace('#include <map_fragment>', `
         vec3 tw = pow(abs(normalize(cN)), vec3(4.0)); tw /= (tw.x + tw.y + tw.z);
-        vec3 rk = texture2D(tRock, cP.zy / 2.6).rgb * tw.x + texture2D(tRock, cP.xz / 2.2).rgb * tw.y + texture2D(tRock, cP.xy / 2.6).rgb * tw.z;
+        vec3 rk = texture2D(tRock, cP.zy / ${tile.toFixed(2)}).rgb * tw.x + texture2D(tRock, cP.xy / ${tile.toFixed(2)}).rgb * tw.z
+          + (normalize(cN).y < 0.0 ? texture2D(tRock, cP.zx / ${(tile * 1.9).toFixed(2)}).rgb : texture2D(tRock, cP.xz / ${(tile * 0.85).toFixed(2)}).rgb) * tw.y;
         float wet = smoothstep(0.6, 0.95, normalize(cN).y);
         rk = mix(rk, rk * vec3(0.78, 0.92, 0.86), wet * 0.6);
-        diffuseColor.rgb *= rk * 2.2;`);
+        diffuseColor.rgb *= rk * ${k.toFixed(2)};`);
   };
-  m.customProgramCacheKey = () => 'cave-rock';
+  m.customProgramCacheKey = () => `cave-rock-${k}-${tile}`;
   return m;
 }
 
@@ -195,7 +198,9 @@ const DECOR = {
 export class Cave {
   /** z: where along the cliff its mouth opens; layout: its passages and chambers (see layout());
    * water: {a, b, r} a pool in its own frame, or null; decor: as DECOR. */
-  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001 } = {}) {
+  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001, rock = null, rockK = 1 } = {}) {
+    this.rock = rock;   // a library surface for its rock (else a generated one), rockK as bright
+    this.rockK = rockK;
     this.ctx = ctx;
     this.name = name;
     this.decor = decor;
@@ -333,6 +338,46 @@ export class Cave {
 
   floorAt(x, z) { const j = this.idx(x, z); return j < 0 ? null : this.floor[j]; }
 
+  /** The rock as it is drawn at (x, z), between the grid's points (what the slimes stick to, see
+   * slimes.js): out.floor and out.roof, the two surfaces as they curl into each other at the walls
+   * (the roof Infinity out past the mouth), and out.s, the field (past 0.9, solid rock). Null off
+   * the grid. */
+  rockAt(x, z, out = {}) {
+    const fi = (x - this.px - this.a0) / G, fk = (z - this.pz - this.b0) / G;
+    const i = Math.floor(fi), k = Math.floor(fk);
+    if (i < 0 || k < 0 || i + 1 >= this.nx || k + 1 >= this.nz) return null;
+    const u = fi - i, v = fk - k;
+    let fl = 0, rf = 0, s = 0, open = false;
+    for (let c = 0; c < 4; c++) {
+      const di = c & 1, dk = c >> 1, w = (di ? u : 1 - u) * (dk ? v : 1 - v);
+      const j = (k + dk) * this.nx + i + di, a = this.a0 + (i + di) * G;
+      const l = a < 0 ? 0 : smooth(CURL, 0.9, this.s[j]) * (this.height[j] * 0.5 + 0.35) * smooth(-0.5, 1.5, a);
+      fl += w * (this.floor[j] + l);
+      if (a < 0.5) { if (w > 0) open = true; } else rf += w * (this.floor[j] + this.height[j] - l);
+      s += w * this.s[j];
+    }
+    out.floor = fl; out.roof = open ? Infinity : rf; out.s = s;
+    return out;
+  }
+
+  /** The way out of the rock's face at (x, z), into the open: the roof's (`roof`) or the floor's. */
+  rockNormal(x, z, roof, out) {
+    const e = 0.3, R = this._rk || (this._rk = {});
+    const y = (xx, zz) => { const r = this.rockAt(xx, zz, R); return r ? (roof ? r.roof : r.floor) : NaN; };
+    const xp = y(x + e, z), xm = y(x - e, z), zp = y(x, z + e), zm = y(x, z - e);
+    if (!Number.isFinite(xp + xm + zp + zm)) return out.set(0, roof ? -1 : 1, 0);
+    const gx = (xp - xm) / (2 * e), gz = (zp - zm) / (2 * e);
+    return roof ? out.set(gx, -1, gz).normalize() : out.set(-gx, 1, -gz).normalize();
+  }
+
+  /** Level, out of the rock's side at (x, z) (down the field's slope). */
+  wallNormal(x, z, out) {
+    const e = 0.4, R = this._rk || (this._rk = {});
+    const s = (xx, zz) => this.rockAt(xx, zz, R)?.s ?? 1;
+    out.set(s(x - e, z) - s(x + e, z), 0, s(x, z - e) - s(x, z + e));
+    return out.lengthSq() > 1e-8 ? out.normalize() : out.set(1, 0, 0);
+  }
+
   build() {
     const { nx, nz, s: S, floor: FL, height: HT, px, pz, a0, b0, ctx } = this;
     const X = (i) => px + a0 + i * G, Z = (k) => pz + b0 + k * G;
@@ -379,8 +424,10 @@ export class Cave {
     geo.setIndex([...idxF, ...idxC]);
     geo.computeVertexNormals();
     geo.computeBoundingSphere();
-    this.rockTex = rockTexture();
-    const mesh = this.mesh = new THREE.Mesh(geo, rockMaterial(this.rockTex));
+    const lib = this.ctx.lib, own = this.rock && lib?.surf.get(this.rock);
+    this.rockTex = own ? lib.texture(own.file) : rockTexture();
+    if (own) lib.used.add(this.rock);
+    const mesh = this.mesh = new THREE.Mesh(geo, own ? rockMaterial(this.rockTex, this.rockK, 3.2) : rockMaterial(this.rockTex));
     mesh.receiveShadow = true; mesh.castShadow = true;
     ctx.scene.add(mesh);
 
@@ -679,5 +726,6 @@ export function caveNav(cave) {
     spot: (tag, inset) => cave.spot(tag, inset),
     tags: cave.features.map((f) => f.tag),
     mouth: cave.mouth,
+    rock: cave,   // (its rock as drawn: rockAt, rockNormal, wallNormal, for the slimes)
   };
 }

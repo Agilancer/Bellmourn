@@ -1,0 +1,36 @@
+{
+ "id": "chest_gilded_red",
+ "model": "chest_gilded",
+ "shape": "chest",
+ "triangles": 1120,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.026,
+  0.592,
+  0.604
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.42,
+   -0.29
+  ]
+ },
+ "fills": {
+  "front": "obj_05_chest_ornate_02",
+  "back": "obj_05_chest_ornate_25",
+  "end": "obj_05_chest_ornate_17",
+  "top": "obj_05_chest_ornate_12",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ],
+  "trim": "obj_05_chest_ornate_49"
+ }
+}

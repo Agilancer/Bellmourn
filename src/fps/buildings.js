@@ -92,7 +92,13 @@ export function detailedHouse(ctx, h, M, mats) {
   const upperId = h.upper || 'town_wall_oak_plaster';
   const wallMat = M(h.wall, panel(h.wall) ? G - fl : 3), upperMat = M(upperId, panel(upperId) && U ? U - 0.28 : 3), roofMat = M(h.roof, 2.5);
   const wallBase = panel(h.wall) ? { vbase: base + fl } : {}, upperBase = panel(upperId) && U ? { vbase: base + G + 0.28 } : {};
-  const floorMat = M(h.floor, 2.5);
+  // the floor and the walls inside: the house's own (the interior sheets), each at the scale its
+  // boards, tiles or bricks really are (h.floorTile, h.liningTile, metres a repeat) and toned to
+  // sit in the lamplight (h.floorTint, h.liningTint); else the shared boards
+  const floorMat = M(h.floor, h.floorTile || 2.5, { tint: h.floorTint ?? 0xffffff, matte: !!h.matte });
+  const lining = h.lining ? M(h.lining, h.liningTile || (/panelling/.test(h.lining) ? 1.8 : 2.4), { tint: h.liningTint ?? 0xffffff }) : mats.lining;
+  // and in a plastered room a dark oak wainscot to waist height, as a lived-in house has
+  const wainscot = h.wainscot ? M('int_03_wall_oak_panelling_1_02', 0.95, { tint: 0xc0b0a0 }) : null;
   const timber = mats.timber, trim = mats.trim;
   const shutter = mats.shutters[(Math.abs(Math.round(h.x * 7 + h.z * 3))) % mats.shutters.length];
   const top = G + U;
@@ -124,7 +130,8 @@ export function detailedHouse(ctx, h, M, mats) {
       continue;
     }
     F.wall(alongU, a0, a1, at, fl, G, t, wallMat, ops, wallBase);
-    F.wall(alongU, a0, a1, at - (alongU ? n[1] : n[0]) * (t / 2 + 0.02), fl, G - 0.15, 0.03, mats.lining, ops, { solid: false, shade: 0.9 });
+    F.wall(alongU, a0, a1, at - (alongU ? n[1] : n[0]) * (t / 2 + 0.02), fl, G - 0.15, 0.03, lining, ops, { solid: false, shade: 0.9, vbase: base + fl });
+    if (wainscot) F.wall(alongU, a0, a1, at - (alongU ? n[1] : n[0]) * (t / 2 + 0.06), fl, fl + 0.95, 0.05, wainscot, ops, { solid: false, shade: 0.85, vbase: base + fl });
     face(F, alongU, a0, a1, at, n, fl, G, ops, h.timber ? timber : null, trim, shutter, mats, t, true);
   }
   // inside: ceiling with joists, a rug, a lamp on the back wall
@@ -528,7 +535,7 @@ export function gothicDetail(ctx, C, { F, H, t, M, windowsAt, pillarsZ, rise, ho
  * and a bronze bell, battlements, corner pinnacles and a tall spire. */
 export function belfry(ctx, tw, M, roof) {
   const { b } = ctx;
-  const stone = M('castle_ashlar', 3), trim = M('castle_keep_pale_keep_limestone', 1.5), lead = M('met_01_hammered_gunmetal', 1);
+  const stone = M('stone_01_gray_limestone_1_01', 3.2), trim = M('castle_keep_pale_keep_limestone', 1.5), lead = M('met_01_hammered_gunmetal', 1);
   const bronze = M('met_04_tarnished_bronze', 0.6), wood = M('ship_01_tarblack_oak', 1), gilt = M('gold_01_beaten_antique_gold', 0.5);
   const { x0, x1, z0, z1 } = tw, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   b.box([x0, 0, z0], [x1, 20, z1], stone);

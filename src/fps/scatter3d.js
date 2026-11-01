@@ -559,6 +559,11 @@ const KINDS = [
   [/cathedral_altar/, { prop: 'altar', fit: 1.2 }],
   [/village_well|stone_well|pulley_well/, { prop: 'well', fit: 2.2 }],
   [/stump|fallen_log|hollow_log/, K.stump],
+  // the pottery modelled for the object texture sheets (tools/models/texprops.py)
+  // (plain storage jars and crocks: under the ground, blackened by the crypts' smoke)
+  [/urn_cluster/, { pots: ['jar_storage', 'crock_lidded'], n: 3 }],
+  [/amphora/, { pots: ['jar_storage'], n: 1 }],
+  [/water_jar/, { pots: ['jar_storage'], n: 1 }],
   [/amphora|water_jar/, K.amphora],
   [/_urn|urn_|pottery/, K.urn],
   [/statue_head/, K.head],
@@ -626,9 +631,18 @@ export class Scatter3D {
     const s = (0.92 + r() * 0.16) * Math.min(1.4, Math.max(0.6, scale));
     const { ctx } = this;
     this.count++;
+    if (kind.pots) {   // one, or a huddle of them, each its own
+      for (let i = 0; i < kind.n; i++) {
+        const a = turn + i * 2.3, d = kind.n > 1 ? 0.32 + r() * 0.2 : 0;
+        const pot = kind.pots[Math.floor(r() * kind.pots.length)] + (y < -3 ? '_sooted' : '');
+        ctx.props.add(pot, x + Math.cos(a) * d, y, z + Math.sin(a) * d, r() * 6.28, (0.85 + r() * 0.25) * s);
+      }
+      return;
+    }
     if (kind.prop) {
       if (kind.stack) {
-        for (const [dx, dy, dz] of [[-0.48, 0, 0], [0.48, 0, 0.05], [0, 0.88, 0]]) ctx.props.add(kind.prop, x + dx * Math.cos(turn), y + dy, z - dx * Math.sin(turn), turn, 1, kind.fit * s);
+        const [a, b, top] = [[-0.48, 0, 0], [0.48, 0, 0.05], [0, 0.88, 0]].map(([dx, dy]) => ctx.props.add(kind.prop, x + dx * Math.cos(turn), y + dy, z - dx * Math.sin(turn), turn, 1, kind.fit * s));
+        a.above = b.above = top;   // (break either under it and the top one comes down too)
       } else ctx.props.add(kind.prop, x, y, z, turn, 1, kind.fit * s);
       return;
     }

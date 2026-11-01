@@ -1,0 +1,33 @@
+{
+ "about": "The tiles from the cut library (art/_texlib) that the game uses: tools/world/import_texpacks.py publish copies them to assets/textures/packs/ and lists them in assets/textures/packs.json. Grouped by where they go.",
+ "surfaces": [
+  "cliff_07_coarse_gravel_11_01",
+  "rock_05_overworld_granite_1_02",
+  "rock_06_overworld_mossy_rock_1_03",
+  "rock_01_cave_gray_limestone_1_02",
+  "rock_03_cave_wet_shale_2_01",
+  "rock_02_cave_dark_basalt_1_05",
+  "stone_03_charcoal_basalt_1_03",
+  "stone_01_gray_limestone_1_01",
+  "stone_06_mossy_fieldstone_1_03",
+  "keep_16_castle_stone_02",
+  "int_03_wall_oak_panelling_1_02",
+  "int_03_wall_oak_panelling_2_02",
+  "int_06_wall_rubble_stone_1_03",
+  "int_01_wall_white_plaster_1_01",
+  "int_01_wall_white_plaster_1_07",
+  "int_08_wall_painted_plaster_1_02",
+  "int_07_wall_red_brick_1_01",
+  "int_09_floor_oak_planks_1_02",
+  "int_09_floor_oak_planks_2_01",
+  "int_11_floor_stone_flagstone_1_02",
+  "int_12_floor_slate_tile_1_03",
+  "int_15_floor_parquet_1_04",
+  "int_10_floor_dark_wood_1_02",
+  "int_13_floor_terracotta_1_02",
+  "myth_10_shadow_crypt_1_02",
+  "myth_06_volcanic_shrine_1_01",
+  "int_09_floor_oak_planks_3_06",
+  "int_04_wall_limestone_block_3_06"
+ ]
+}

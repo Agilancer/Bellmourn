@@ -1,0 +1,52 @@
+{
+ "model": "crate_slatted",
+ "shape": "crate",
+ "form": null,
+ "frame": 0.1,
+ "dims": [
+  0.8,
+  0.7,
+  0.7
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "end": [
+   4,
+   4,
+   192,
+   192
+  ],
+  "side": [
+   204,
+   4,
+   192,
+   192
+  ],
+  "top": [
+   4,
+   204,
+   192,
+   192
+  ],
+  "inner": [
+   404,
+   4,
+   64,
+   64
+  ]
+ },
+ "fills": {
+  "side": "obj_03_crate_variants_02",
+  "end": "obj_03_crate_variants_04",
+  "top": "obj_03_crate_variants_01",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

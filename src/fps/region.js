@@ -83,8 +83,14 @@ export function buildRegion(ctx, M, hm) {
   bridge(ctx, [592, 30], hm);
 
   // ---------------------------------------------------------------- rocks, trees, grass
-  const rock = [M('castle_rubble', 2.4), M('castle_basalt', 2.6), M('castle_keep_rough_battlement_block', 2.4), M('castle_slate', 2.4)];
-  const moss = M('castle_mossy', 2);
+  // the cliff's own rock for everything fallen from it or lying in the stream (one in four
+  // gone mossy), and granite weathered warm on the hilltops: one stone, never dressed masonry.
+  // All wrapped by world position (triplanar), so a boulder has no seam at every facet
+  const cliffRock = M('cliff_07_coarse_gravel_11_01', 6.5, { tint: 0xc8c2b8, tri: true });
+  const mossRock = M('rock_06_overworld_mossy_rock_1_03', 3, { tint: 0xc8c0b0, tri: true });
+  const rock = [cliffRock, cliffRock, cliffRock, mossRock];
+  const granite = M('rock_05_overworld_granite_1_02', 3.2, { tint: 0xc4b8a8, tri: true });
+  const moss = M('rock_06_overworld_mossy_rock_1_03', 2, { tri: true });
   const clearOf = (x, z, pad) => !homes.some((h) => Math.hypot(x - h.x, z - h.z) < Math.max(h.w, h.d) + pad)
     && Math.hypot(x - farm.x, z - farm.z) > 24 + pad && Math.hypot(x - barn.x, z - barn.z) > 20 + pad && Math.hypot(x - mill.x, z - mill.z) > 12 + pad
     && !fields.some((f) => Math.abs(x - f.x) < f.w / 2 + pad && Math.abs(z - f.z) < f.d / 2 + pad)
@@ -94,12 +100,12 @@ export function buildRegion(ctx, M, hm) {
     const x = REGION.x0 + 60 + R() * (CLIFF.x - REGION.x0 - 80), z = REGION.z0 + 30 + R() * (REGION.z1 - REGION.z0 - 60);
     if (H(x, z) < 5 || !clearOf(x, z, 8)) continue;
     made++;
-    const n = 3 + Math.floor(R() * 4), m = rock[made % rock.length];
+    const n = 3 + Math.floor(R() * 4), m = made % 4 === 3 ? mossRock : granite;
     for (let k = 0; k < n; k++) {
       const a = R() * 6.28, d = R() * 5, sx = 2 + R() * 3.5, sy = 1.5 + R() * 4, cx = x + Math.cos(a) * d, cz = z + Math.sin(a) * d;
       b.place(cx, H(cx, cz) - 0.6, cz, R() * 6.28, 1, (B) => {
-        B.blob([0, sy * 0.5, 0], [sx, sy, sx * (0.7 + R() * 0.5)], m, { detail: 1, jitter: 0.22, seed: made * 13 + k });
-        if (R() < 0.5) B.blob([0, sy * 1.0, 0], [sx * 0.8, sy * 0.25, sx * 0.6], moss, { detail: 1, jitter: 0.3, seed: k });
+        B.blob([0, sy * 0.5, 0], [sx, sy, sx * (0.7 + R() * 0.5)], m, { detail: 2, jitter: 0.22, seed: made * 13 + k });
+        if (R() < 0.5) B.blob([0, sy * 1.0, 0], [sx * 0.8, sy * 0.25, sx * 0.6], moss, { detail: 2, jitter: 0.3, seed: k });
       }, { tag: 'rock' });
     }
   }
@@ -110,7 +116,7 @@ export function buildRegion(ctx, M, hm) {
     if (Object.values(CAVE_MOUTHS).some((mz) => Math.abs(z - mz) < 9)) continue;   // and the caves' mouths (delves.js frames them)
     const cx = CLIFF.x + Math.sin(z * 0.021) * 9 + Math.sin(z * 0.06) * 3, up = R();
     const x = cx - 7 + up * 9, s = 1.8 + R() * 3.2, y = H(x, z) - s * 0.4;
-    b.place(x, y, z, R() * 6.28, 1, (B) => B.blob([0, 0, 0], [s * (0.8 + R() * 0.5), s * (1 + R() * 0.8), s], rock[i % 4], { detail: 1, jitter: 0.25, seed: 900 + i }), { tag: 'rock' });
+    b.place(x, y, z, R() * 6.28, 1, (B) => B.blob([0, 0, 0], [s * (0.8 + R() * 0.5), s * (1 + R() * 0.8), s], rock[i % 4], { detail: 2, jitter: 0.25, seed: 900 + i }), { tag: 'rock' });
   }
   // boulders in the stream and round the pool
   for (let i = 0; i < 26; i++) {

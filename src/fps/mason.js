@@ -67,6 +67,8 @@ export class Mason {
   }
 
   mat(id, tile = 2, o = {}) {
+    // (volcanic rock's lava cracks glow, wherever it's laid, and its relief is kept low)
+    if (/volcanic_shrine/.test(id)) o = { cracks: 1.5, bump: 0.35, ...o };
     const k = id + '|' + tile + '|' + JSON.stringify(o);
     if (!this.mats.has(k)) this.mats.set(k, this.lib.material(id, { tile, ...o }));
     return this.mats.get(k);

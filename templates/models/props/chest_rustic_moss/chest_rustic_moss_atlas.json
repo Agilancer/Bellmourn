@@ -1,0 +1,77 @@
+{
+ "model": "chest_rustic",
+ "shape": "chest",
+ "form": null,
+ "frame": 0,
+ "dims": [
+  1.0,
+  0.56,
+  0.4,
+  0.15
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "top": [
+   4,
+   4,
+   320,
+   176
+  ],
+  "back": [
+   4,
+   188,
+   320,
+   128
+  ],
+  "front": [
+   4,
+   324,
+   320,
+   128
+  ],
+  "end": [
+   332,
+   4,
+   160,
+   128
+  ],
+  "inner": [
+   332,
+   188,
+   128,
+   96
+  ],
+  "trim": [
+   4,
+   460,
+   320,
+   24
+  ]
+ },
+ "fills": {
+  "front": "obj_04_chest_rustic_13",
+  "back": "obj_04_chest_rustic_14",
+  "end": "obj_04_chest_rustic_15",
+  "top": "obj_04_chest_rustic_41",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ],
+  "trim": [
+   "obj_04_chest_rustic_14",
+   {
+    "crop": [
+     0,
+     0,
+     1,
+     0.16
+    ]
+   }
+  ]
+ }
+}

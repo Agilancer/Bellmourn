@@ -182,6 +182,29 @@ export class Sfx {
     this._noise(t, heavy ? 0.42 : 0.28, { f0: heavy ? 300 : 500, f1: heavy ? 1400 : 2400, q: 1.6, gain: heavy ? 0.5 : 0.35, attack: 0.08 });
   }
 
+  /** Something smashed, heard from `at`: boards splitting with a crack and a clatter, or pottery
+   * shattering (the recordings; made-up sounds until they're in). */
+  smash(clay = false, at = null) {
+    if (!this.ok) return;
+    if (clay ? this.play('mine', { vol: 0.9, rate: 1.7, at }) : this.play('chop', { vol: 1.25, rate: 0.78, at })) {
+      if (clay) this.play('chop', { vol: 0.5, rate: 1.5, at, delay: 0.02 });
+      else this.play('chop', { vol: 0.6, rate: 1.15, at, delay: 0.14 });
+      return;
+    }
+    const t = this.ctx.currentTime;
+    if (clay) {
+      this._noise(t, 0.12, { type: 'highpass', f0: 3200, f1: 1800, gain: 0.55, attack: 0.002 });
+      for (let i = 0; i < 7; i++) {
+        const f = 2400 + Math.random() * 2600, at = t + 0.02 + Math.random() * 0.28;
+        this._tone(at, 0.09 + Math.random() * 0.1, { type: 'triangle', f0: f, f1: f * 0.96, gain: 0.04 + Math.random() * 0.04 });
+      }
+      return;
+    }
+    this._noise(t, 0.16, { type: 'bandpass', f0: 1600, f1: 500, q: 1.2, gain: 0.7, attack: 0.002 });
+    this._noise(t, 0.35, { type: 'lowpass', f0: 700, f1: 160, gain: 0.45, attack: 0.004 });
+    for (let i = 0; i < 6; i++) this._noise(t + 0.08 + Math.random() * 0.35, 0.04 + Math.random() * 0.05, { type: 'bandpass', f0: 900 + Math.random() * 900, f1: 400, q: 2, gain: 0.08 + Math.random() * 0.1, attack: 0.002 });
+  }
+
   /** Steel on steel (a blow on a shield, yours or theirs: `at` a place, or none for your own), or soft:
    * a dull knock. */
   clang(soft = false, at = null) {

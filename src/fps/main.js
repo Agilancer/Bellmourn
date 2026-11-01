@@ -45,6 +45,7 @@ import { SPOTS } from './region.js';
 import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
 import { Zombies } from './zombies.js';
 import { Foes } from './foes.js';
+import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
@@ -145,7 +146,7 @@ function trace() {
 }
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
-let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
+let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
 let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -286,6 +287,19 @@ async function build() {
   await props.finish();
   ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
   ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
+  props.onChange = (at) => {
+    for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+  };
+  // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
+  props.onBreak = (p, at, dir) => {
+    ctx.loot.broke(p.id, p.i, dir);
+    const clay = /^(jar_|amphora|vase_|urn_|crock_)/.test(p.id);
+    // (dust, soft, low and spreading: the pieces themselves are the debris)
+    for (let i = 0; i < 6; i++) smoke.emit(at.clone().setY(p.y + 0.15 + Math.random() * 0.3), new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.25, (Math.random() - 0.5) * 1.2), { life: 1.6, size: 0.5, grow: 0.9, alpha: 0.2, shade: clay ? 0.8 : 0.7 });
+    sfx.smash?.(clay, at);
+    zombies.noise(at, 14);
+  };
   ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
@@ -364,6 +378,16 @@ async function build() {
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
   foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; sfx.lock(true); music.stinger('triumph'); };
+  // the slimes of the caves, the Darkwood's bog, the wet meadow and the falls (slimes.js): they take
+  // the dead's blows, blasts and noises through zombies.kin
+  slimes = new Slimes(scene, physics, sfx, zombies);
+  slimes.populate(ctx, few);
+  zombies.kin.push(slimes);
+  ctx.slimes = slimes;
+  slimes.onPlayerHit = hurtPlayer;
+  slimes.onGrab = () => hud.toast('The ooze has closed over you! Strike it, or pull free');
+  slimes.fx = { particles: magic.particles, waves: magic.waves, flash: (p, c, k) => magic.flashAt(p, c, k), smoke };
+  slimes.loot = ctx.loot;
   // the people of the village (tools/villagers' men and women), fewer on a phone, Velscour's Sworn at
   // the keep, and the open country's knights and sorcerers onto the knight's clips (ual.js): all of
   // them in before play (prepare waits; a phone brings the Sworn once the village is in, and the
@@ -391,8 +415,8 @@ async function build() {
   foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
-  magic.hitAll = (p, d, far) => zombies.list.map((z) => z.ray(p, d, far)).filter(Boolean);
-  magic.targets = () => zombies.list;
+  magic.hitAll = (p, d, far) => [...zombies.list, ...slimes.list].map((z) => z.ray(p, d, far)).filter(Boolean);
+  magic.targets = () => zombies.list.concat(slimes.list);
   magic.nearest = (z, p) => zombies.nearest(z, p);
   // o: what a spell's own blow overrides (dmg, heavy, blow)
   magic.onHit = (def, at, d, h, o = {}) => h.z.hit(h, { dmg: (o.dmg ?? def.dmg ?? spellDamage(def)) * (def.dmg || o.dmg ? 1 + st.spellPct / 100 : 1), dir: d,
@@ -403,6 +427,7 @@ async function build() {
     const b = SPELL_BLAST[def.kind];
     if (b) zombies.blast(at, b[0], b[1], def.kind);
     if (b) ctx.catacombs.bridge.blast(at, b[0] * 2.2, b[1] * 0.12);   // (the bridge is thrown about)
+    if (b) ctx.props.blast(at, b[0], b[1]);                           // (crates, barrels and pots near it break)
     zombies.noise(at, def.size > 0.4 ? 26 : 16);   // the dead hear it go off
   };
 
@@ -429,6 +454,7 @@ async function build() {
   villagers.quests = quests;
   map.pins = () => quests.pins(villagers);
   zombies.onDeath = onDeath;
+  slimes.onDeath = onDeath;
   // (the save slots open over the title and the pause screen alike: in the title's layer)
   saves = new SaveMenu({ ui: title.modal, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
     onClose: () => { title.refresh(); if (paused || !started) return; if (!touch) lockPointer(); } });
@@ -439,6 +465,7 @@ async function build() {
   await prepare(mark);
   ready = true; run.step = 'loaded';
   await rehearse();
+  ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
 }
 
 /** Every spell cast once and one of the dead cut to pieces, out past the edge of the world where
@@ -477,6 +504,7 @@ async function rehearse() {
     await step(20);
     z.gone = true; z.root.removeFromParent();
     zombies.list.splice(zombies.list.indexOf(z), 1);
+    await slimes.rehearse(at, step);   // (and a slime of every body, struck, frozen and burst)
     if (magic.wisp) magic.wisp.t = 0;   // (the wisp would follow you for a minute and a half: sent off)
     await step(10);
   } catch (e) { console.warn('the rehearsal', e); }
@@ -770,7 +798,7 @@ function shove(z, dx, dz, m) { if (z.dead || z.mode === 'crawl') return; z.knock
 /** What's in front of you, within reach and the cone (cos of its half-angle). */
 function inFront(reach, cone) {
   const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), out = [];
-  for (const z of zombies.list) {
+  for (const z of zombies.list.concat(slimes.list)) {
     if (z.dead || z.gone || z.state === 'buried' || z.state === 'playdead') continue;
     const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1e-3;
     if (d > reach || Math.abs(z.pos.y - player.pos.y) > 1.3 || (dx * fx + dz * fz) / d < cone) continue;
@@ -988,6 +1016,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
   const p = o.clone().addScaledVector(best.d, best.t);
   const n = new THREE.Vector3(...best.normal);
   const tag = best.box ? best.box.tag : 'ground';
+  if (tag === 'prop') ctx.props.hit(best.box, stats.meleeDamage(heavy, side) * power, best.d);   // (a crate, a barrel or a pot may break)
   const wood = tag === 'tree' || tag === 'prop';
   const cols = tag === 'ground' ? ['#6a5a40', '#8a7858', '#4a3c2a'] : wood ? ['#8a6a40', '#5a4028', '#b08850'] : ['#fff0b0', '#ffb040', '#d0d0d0'];
   magic.particles.burst(p.addScaledVector(n, 0.04), cols.map((c) => new THREE.Color(c)), heavy ? 30 : 18,
@@ -1614,6 +1643,12 @@ function sounds(dt) {
       if (dx * dx + dz * dz > 24 * 24 || Math.abs(e.pos.y - p.y) > 6) continue;
       threat += e.kindName === 'knight' || e.kindName === 'sorcerer' ? 2 : 1;
     }
+    for (const e of slimes.list) {   // (a big slime counts as one of the dead; a small one, half)
+      if (e.dead || !e.aggro) continue;
+      const dx = e.pos.x - p.x, dz = e.pos.z - p.z;
+      if (dx * dx + dz * dz > 24 * 24 || Math.abs(e.pos.y - p.y) > 8) continue;
+      threat += e.big ? 1 : 0.5;
+    }
     if (foes.bossBar(player)) threat += 3;
   }
   music.update(dt, { set, threat, hurt: performance.now() - hurtAt < 4000, paused: paused || !started });
@@ -1770,6 +1805,7 @@ function tick(dt) {
   hud.guard(guard, vm.blocking);
   player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
+  ctx.props.update(dt);   // (searched chests' lids swinging open, broken things' pieces flying)
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
   ctx.tufts.update(t);
@@ -1788,6 +1824,7 @@ function tick(dt) {
   }
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
+  slimes.update(dt, player, active, camera, H);
   ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
   foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
@@ -1855,7 +1892,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {

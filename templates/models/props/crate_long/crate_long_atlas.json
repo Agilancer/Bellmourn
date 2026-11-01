@@ -1,0 +1,52 @@
+{
+ "model": "crate_long",
+ "shape": "crate",
+ "form": null,
+ "frame": 0,
+ "dims": [
+  1.5,
+  0.62,
+  0.6
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "top": [
+   4,
+   4,
+   384,
+   160
+  ],
+  "side": [
+   4,
+   172,
+   384,
+   144
+  ],
+  "end": [
+   4,
+   324,
+   144,
+   144
+  ],
+  "inner": [
+   396,
+   4,
+   64,
+   64
+  ]
+ },
+ "fills": {
+  "side": "obj_03_crate_variants_21",
+  "end": "obj_03_crate_variants_14",
+  "top": "obj_03_crate_variants_24",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}
