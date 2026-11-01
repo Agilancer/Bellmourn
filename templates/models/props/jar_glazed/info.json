@@ -1,0 +1,38 @@
+{
+ "id": "jar_glazed",
+ "model": "jar_glazed",
+ "shape": "pot",
+ "triangles": 1176,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 14,
+ "size": [
+  0.48,
+  0.657,
+  0.48
+ ],
+ "lid": null,
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_25",
+   {
+    "wrap": 2
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_35",
+   {
+    "wrap": 1
+   }
+  ],
+  "lid": "obj_10_mixed_details_29",
+  "inner": [
+   "obj_07_pottery_storage_25",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

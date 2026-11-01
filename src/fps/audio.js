@@ -52,6 +52,24 @@ export class Sfx {
     this._noise(t, heavy ? 0.42 : 0.28, { f0: heavy ? 300 : 500, f1: heavy ? 1400 : 2400, q: 1.6, gain: heavy ? 0.5 : 0.35, attack: 0.08 });
   }
 
+  /** Something smashed: boards splitting with a crack and a clatter, or pottery shattering into
+   * a ring of high chinks. */
+  smash(clay = false) {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    if (clay) {
+      this._noise(t, 0.12, { type: 'highpass', f0: 3200, f1: 1800, gain: 0.55, attack: 0.002 });
+      for (let i = 0; i < 7; i++) {
+        const f = 2400 + Math.random() * 2600, at = t + 0.02 + Math.random() * 0.28;
+        this._tone(at, 0.09 + Math.random() * 0.1, { type: 'triangle', f0: f, f1: f * 0.96, gain: 0.04 + Math.random() * 0.04 });
+      }
+      return;
+    }
+    this._noise(t, 0.16, { type: 'bandpass', f0: 1600, f1: 500, q: 1.2, gain: 0.7, attack: 0.002 });
+    this._noise(t, 0.35, { type: 'lowpass', f0: 700, f1: 160, gain: 0.45, attack: 0.004 });
+    for (let i = 0; i < 6; i++) this._noise(t + 0.08 + Math.random() * 0.35, 0.04 + Math.random() * 0.05, { type: 'bandpass', f0: 900 + Math.random() * 900, f1: 400, q: 2, gain: 0.08 + Math.random() * 0.1, attack: 0.002 });
+  }
+
   clang(soft = false) {
     if (!this.ok) return;
     const t = this.ctx.currentTime;

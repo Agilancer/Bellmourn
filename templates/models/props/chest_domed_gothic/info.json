@@ -1,0 +1,35 @@
+{
+ "id": "chest_domed_gothic",
+ "model": "chest_domed",
+ "shape": "domed",
+ "triangles": 846,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.028,
+  0.6,
+  0.588
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.4,
+   -0.28
+  ]
+ },
+ "fills": {
+  "front": "obj_06_chest_ancient_12",
+  "back": "obj_06_chest_ancient_13",
+  "end": "obj_06_chest_ancient_15",
+  "lid": "obj_06_chest_ancient_14",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ]
+ }
+}

@@ -1,0 +1,72 @@
+{
+ "model": "amphora",
+ "shape": "pot",
+ "form": "amphora",
+ "frame": 0,
+ "dims": [
+  0.24,
+  0.95
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "body": [
+   4,
+   4,
+   384,
+   192
+  ],
+  "neck": [
+   4,
+   204,
+   256,
+   80
+  ],
+  "rim": [
+   4,
+   292,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_09",
+   {
+    "wrap": 2
+   }
+  ],
+  "neck": [
+   "obj_07_pottery_storage_03",
+   {
+    "wrap": 2,
+    "crop": [
+     0,
+     0.1,
+     1,
+     0.6
+    ]
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_38",
+   {
+    "wrap": 1
+   }
+  ],
+  "inner": [
+   "obj_07_pottery_storage_01",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

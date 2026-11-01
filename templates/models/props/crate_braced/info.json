@@ -1,0 +1,28 @@
+{
+ "id": "crate_braced",
+ "model": "crate_braced",
+ "shape": "crate",
+ "triangles": 1100,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 12,
+ "size": [
+  0.832,
+  0.78,
+  0.832
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_01_crate_wood_04",
+  "end": "obj_01_crate_wood_15",
+  "top": "obj_01_crate_wood_02",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

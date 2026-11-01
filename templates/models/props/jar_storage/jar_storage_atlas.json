@@ -1,0 +1,61 @@
+{
+ "model": "jar_storage",
+ "shape": "pot",
+ "form": "jar",
+ "frame": 0,
+ "dims": [
+  0.27,
+  0.72
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "body": [
+   4,
+   4,
+   384,
+   192
+  ],
+  "lid": [
+   4,
+   204,
+   128,
+   128
+  ],
+  "rim": [
+   140,
+   204,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_33",
+   {
+    "wrap": 2
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_33",
+   {
+    "wrap": 1
+   }
+  ],
+  "lid": "obj_10_mixed_details_30",
+  "inner": [
+   "obj_07_pottery_storage_01",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

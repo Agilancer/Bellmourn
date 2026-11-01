@@ -1,0 +1,61 @@
+{
+ "model": "jar_glazed",
+ "shape": "pot",
+ "form": "jar",
+ "frame": 0,
+ "dims": [
+  0.24,
+  0.62
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "body": [
+   4,
+   4,
+   384,
+   192
+  ],
+  "lid": [
+   4,
+   204,
+   128,
+   128
+  ],
+  "rim": [
+   140,
+   204,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_25",
+   {
+    "wrap": 2
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_35",
+   {
+    "wrap": 1
+   }
+  ],
+  "lid": "obj_10_mixed_details_29",
+  "inner": [
+   "obj_07_pottery_storage_25",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

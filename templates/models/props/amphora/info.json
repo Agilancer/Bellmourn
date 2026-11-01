@@ -1,0 +1,49 @@
+{
+ "id": "amphora",
+ "model": "amphora",
+ "shape": "pot",
+ "triangles": 1456,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 14,
+ "size": [
+  0.585,
+  0.95,
+  0.48
+ ],
+ "lid": null,
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_09",
+   {
+    "wrap": 2
+   }
+  ],
+  "neck": [
+   "obj_07_pottery_storage_03",
+   {
+    "wrap": 2,
+    "crop": [
+     0,
+     0.1,
+     1,
+     0.6
+    ]
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_38",
+   {
+    "wrap": 1
+   }
+  ],
+  "inner": [
+   "obj_07_pottery_storage_01",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

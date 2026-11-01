@@ -1,0 +1,61 @@
+{
+ "model": "crock_lidded",
+ "shape": "pot",
+ "form": "crock",
+ "frame": 0,
+ "dims": [
+  0.2,
+  0.36
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "body": [
+   4,
+   4,
+   384,
+   192
+  ],
+  "lid": [
+   4,
+   204,
+   128,
+   128
+  ],
+  "rim": [
+   140,
+   204,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_21",
+   {
+    "wrap": 2
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_33",
+   {
+    "wrap": 1
+   }
+  ],
+  "lid": "obj_10_mixed_details_28",
+  "inner": [
+   "obj_07_pottery_storage_21",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

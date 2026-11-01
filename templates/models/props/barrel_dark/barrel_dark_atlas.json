@@ -1,0 +1,66 @@
+{
+ "model": "barrel",
+ "shape": "barrel",
+ "form": null,
+ "frame": 0,
+ "dims": [
+  0.36,
+  0.95
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "staves": [
+   4,
+   4,
+   384,
+   192
+  ],
+  "head": [
+   4,
+   204,
+   160,
+   160
+  ],
+  "inner": [
+   396,
+   4,
+   64,
+   64
+  ],
+  "iron": [
+   172,
+   204,
+   96,
+   32
+  ]
+ },
+ "fills": {
+  "staves": [
+   "obj_10_mixed_details_01",
+   {
+    "wrap": 3
+   }
+  ],
+  "head": "obj_10_mixed_details_23",
+  "iron": [
+   "obj_10_mixed_details_06",
+   {
+    "crop": [
+     0,
+     0.3,
+     1,
+     0.7
+    ]
+   }
+  ],
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

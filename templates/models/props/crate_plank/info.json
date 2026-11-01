@@ -1,0 +1,28 @@
+{
+ "id": "crate_plank",
+ "model": "crate_plank",
+ "shape": "crate",
+ "triangles": 1100,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 12,
+ "size": [
+  0.832,
+  0.78,
+  0.832
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_01_crate_wood_09",
+  "end": "obj_01_crate_wood_16",
+  "top": "obj_03_crate_variants_03",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

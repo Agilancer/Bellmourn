@@ -1,0 +1,49 @@
+{
+ "id": "vase_blue",
+ "model": "vase_blue",
+ "shape": "pot",
+ "triangles": 784,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 14,
+ "size": [
+  0.38,
+  0.56,
+  0.38
+ ],
+ "lid": null,
+ "fills": {
+  "belly": [
+   "obj_10_mixed_details_42",
+   {
+    "wrap": 2
+   }
+  ],
+  "shoulder": [
+   "obj_08_pottery_decorative_12",
+   {
+    "wrap": 2
+   }
+  ],
+  "neck": [
+   "obj_08_pottery_decorative_16",
+   {
+    "wrap": 2
+   }
+  ],
+  "foot": [
+   "obj_10_mixed_details_40",
+   {
+    "wrap": 1
+   }
+  ],
+  "inner": [
+   "obj_09_pottery_weathered_03",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

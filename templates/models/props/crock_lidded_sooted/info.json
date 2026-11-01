@@ -1,0 +1,60 @@
+{
+ "id": "crock_lidded_sooted",
+ "model": "crock_lidded",
+ "shape": "pot",
+ "triangles": 1176,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 13,
+ "size": [
+  0.4,
+  0.382,
+  0.4
+ ],
+ "lid": null,
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_21",
+   {
+    "wrap": 2,
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_33",
+   {
+    "wrap": 1,
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "lid": [
+   "obj_10_mixed_details_28",
+   {
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "inner": [
+   "obj_07_pottery_storage_21",
+   {
+    "dark": 0.25
+   }
+  ]
+ }
+}
