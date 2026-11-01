@@ -1591,6 +1591,7 @@ export class Zombies {
     this.yard = null;         // {x0, z0, x1, z1, target, graves, spawnT}
     this.dg = null;           // the dungeon: {nav, y, ...}
     this.flow = null; this.flowKey = -1; this.flowT = 0;
+    this.kin = [];            // other foes that answer the same blows, blasts and noises (slimes.js)
   }
 
   async load(variants = [], monsters = [], grotesques = GROTESQUES) {
@@ -1793,11 +1794,13 @@ export class Zombies {
       if (z.state === 'playdead') { if (d < r * 0.4) z.wake(p); continue; }
       z.hunt(p, z.aggro);
     }
+    for (const k of this.kin) k.noise(p, r);
   }
 
   /** You died: they lose you. */
   forget() {
     for (const z of this.list) { z.aggro = false; z.goal = 'wander'; z.hasLast = false; }
+    for (const k of this.kin) k.forget();
   }
 
   // -------------------------------------------------------------- the dungeon's flow field
@@ -1885,6 +1888,10 @@ export class Zombies {
       const h = z.ray(o, d, far);
       if (h && (!best || h.t < best.t)) best = h;
     }
+    for (const k of this.kin) {
+      const h = k.ray(o, d, far);
+      if (h && (!best || h.t < best.t)) best = h;
+    }
     return best;
   }
 
@@ -1900,6 +1907,7 @@ export class Zombies {
       z.hit({ ...best, t: 0, z }, { dmg: dmg * k, dir, heavy: k > 0.6, kind });
       hit.push({ z, k, dir });
     }
+    for (const kn of this.kin) hit.push(...kn.blast(at, radius, dmg, kind));
     return hit;
   }
 

@@ -116,7 +116,7 @@ export class Arcana {
   // -------------------------------------------------------------- helpers
   /** The dead that can be struck (not the buried, nor those lying still to fool you). */
   foes() { return (this.m.targets?.() || []).filter((z) => !z.dead && !z.gone && z.state !== 'buried' && z.state !== 'playdead'); }
-  chest(z, out = new THREE.Vector3()) { return out.set(z.pos.x, z.pos.y + (z.mode === 'crawl' ? 0.35 : 1.15), z.pos.z); }
+  chest(z, out = new THREE.Vector3()) { if (z.chestAt) return z.chestAt(out); return out.set(z.pos.x, z.pos.y + (z.mode === 'crawl' ? 0.35 : 1.15), z.pos.z); }
   cols(def) { return def.colors.slice(0, 3).map((c) => new THREE.Color(c)); }
 
   /** Nothing solid between a and b. */
