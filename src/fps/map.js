@@ -222,7 +222,9 @@ export class WorldMap {
     const cx = this.zoom > 1 ? ppx - this.pan[0] * PX : this.W / 2 - this.pan[0] * PX, cz = this.zoom > 1 ? ppz - this.pan[1] * PX : this.H / 2 - this.pan[1] * PX;
     g.fillStyle = '#1a140c'; g.fillRect(0, 0, w, h);
     g.drawImage(this.chart, cx - w / 2 / fit, cz - h / 2 / fit, w / fit, h / fit, 0, 0, w, h);
-    this.drawPins(g, (x, z) => { const [a, b] = this.px(x, z); return [(a - cx) * fit + w / 2, (b - cz) * fit + h / 2]; }, fit / PX, w, h, true);
+    const toBig = (x, z) => { const [a, b] = this.px(x, z); return [(a - cx) * fit + w / 2, (b - cz) * fit + h / 2]; };
+    this.drawPortals(g, toBig, w, h, true);
+    this.drawPins(g, toBig, fit / PX, w, h, true);
     this.arrow(g, (ppx - cx) * fit + w / 2, (ppz - cz) * fit + h / 2, p.yaw, 10);
     this.title.textContent = 'Bellmourn, the Darkwood and the Green Downs';
   }
@@ -250,6 +252,34 @@ export class WorldMap {
         g.fillStyle = q.kind === 'g' ? '#a8a296' : '#ffd21a'; g.fillText(glyph, x, y);
         g.textBaseline = 'alphabetic';
         if (big && k > 1.6) { g.font = '600 10px Cinzel, Georgia, serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(232, 220, 190, 0.85)'; g.strokeText(q.label, x, y + 18); g.fillStyle = INK; g.fillText(q.label, x, y + 18); }
+      }
+    }
+    g.restore();
+  }
+
+  /** The portals woken so far (portals.js): a blue seal with its four-pointed star, named when the
+   * chart is zoomed in. */
+  drawPortals(g, to, w, h, big) {
+    const list = this.portals?.() || [];
+    if (!list.length) return;
+    g.save();
+    const r = big ? 7 : 4.6;
+    for (const q of list) {
+      const [x, y] = to(q.x, q.z);
+      if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
+      const glow = g.createRadialGradient(x, y, 0, x, y, r * 2.2);
+      glow.addColorStop(0, 'rgba(120, 170, 255, 0.55)'); glow.addColorStop(1, 'rgba(80, 130, 255, 0)');
+      g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 2.2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#1c2c6c'; g.strokeStyle = '#d8e4ff'; g.lineWidth = big ? 1.6 : 1.2;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#9cc0ff';
+      g.beginPath();
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.22 : r * 0.82; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+      g.closePath(); g.fill();
+      if (big && this.zoom >= 2.4) {   // (zoomed out, the chart's own names say where they are)
+        g.font = '700 10px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+        g.lineWidth = 3; g.strokeStyle = 'rgba(232, 220, 190, 0.85)'; g.strokeText(q.name, x, y + r + 12);
+        g.fillStyle = '#1c2c6c'; g.fillText(q.name, x, y + r + 12);
       }
     }
     g.restore();
@@ -289,6 +319,7 @@ export class WorldMap {
       g.imageSmoothingEnabled = false;
       g.drawImage(this.chart, x - span / 2, z - span / 2, span, span, 0, 0, S, S);
       const k = S / 160;   // pixels a metre
+      this.drawPortals(g, (wx, wz) => [S / 2 + (wx - p.pos.x) * k, S / 2 + (wz - p.pos.z) * k], S, S, false);
       this.drawPins(g, (wx, wz) => [S / 2 + (wx - p.pos.x) * k, S / 2 + (wz - p.pos.z) * k], k, S, S, false);
     }
     g.restore();

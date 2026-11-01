@@ -484,6 +484,27 @@ export class Sfx {
     }
   }
 
+  /** A portal's seal waking: a low swell from under the stone, a cold open chord over it, and
+   * glassy notes climbing as the blue runs out to the rim. */
+  portalWake() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._tone(t, 2.8, { type: 'sine', f0: 49, f1: 98, gain: 0.16, attack: 0.8 });
+    this._noise(t, 2.4, { type: 'bandpass', f0: 220, f1: 2600, q: 1.4, gain: 0.07, attack: 1.3 });
+    [294, 440, 587, 880].forEach((f, i) => this._tone(t + 0.2 + i * 0.14, 2.4, { type: 'triangle', f0: f, f1: f * 1.004, gain: 0.03, attack: 0.45 }));
+    [1175, 1397, 1760, 2093, 2349, 2794].forEach((f, i) => this._tone(t + 0.55 + i * 0.12, 0.7, { type: 'triangle', f0: f, f1: f * 0.997, gain: 0.018 }));
+  }
+
+  /** Stepping through a portal: the air torn and drawn in, a deep thud, and a shimmer as you land. */
+  portalJump() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.6, { type: 'bandpass', f0: 3800, f1: 260, q: 0.9, gain: 0.45, attack: 0.04 });
+    this._tone(t, 0.55, { type: 'sine', f0: 140, f1: 38, gain: 0.22, attack: 0.01 });
+    this._tone(t + 0.05, 0.9, { type: 'sine', f0: 660, f1: 1320, gain: 0.04, attack: 0.2 });
+    [1568, 2093, 2637].forEach((f, i) => this._tone(t + 0.25 + i * 0.07, 0.9, { type: 'triangle', f0: f, f1: f, gain: 0.02 }));
+  }
+
   /** A level gained: a rising peal. */
   levelUp() {
     if (!this.ok) return;

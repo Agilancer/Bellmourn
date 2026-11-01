@@ -274,6 +274,30 @@
 
   /* ---------------- the bag (after Velscour's inventory) */
   .panel.bag { width: min(1040px, 97vw); }
+  /* the portals' window (portals.js): every other portal, by land; the woken ones to step through to */
+  .panel.portals { width: min(540px, 94vw); padding: 18px 22px 16px; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(70, 110, 220, .2), transparent 70%), linear-gradient(#141420, #0a0a10);
+                   border-color: #4a5a8a; box-shadow: 0 0 0 1px #000, 0 0 40px rgba(60, 100, 255, .18), 0 24px 70px rgba(0, 0, 0, .92); }
+  .panel.portals h2 { text-align: center; color: #b8ccff; text-shadow: 0 0 14px rgba(90, 140, 255, .55), 0 2px 6px #000; }
+  .panel.portals h3 { color: #9ab0e8; border-bottom-color: #2a3050; }
+  .p-here { text-align: center; color: #a8a0b8; font-size: 13px; margin-bottom: 4px; } .p-here b { color: #dce6ff; }
+  .p-list { display: grid; gap: 6px; }
+  .p-row { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; text-align: left; padding: 7px 12px 7px 8px;
+           background: linear-gradient(90deg, rgba(40, 60, 130, .28), rgba(20, 22, 36, .6)); border: 1px solid #36406a; color: #e4e8f8; font: 14px Cinzel, Georgia, serif; }
+  button.p-row { cursor: pointer; min-width: 0; }
+  button.p-row:hover, button.p-row:focus-visible { border-color: #8aa8ff; background: linear-gradient(90deg, rgba(60, 95, 210, .45), rgba(24, 28, 50, .7)); outline: none; }
+  .p-seal { width: 38px; height: 38px; border-radius: 50%; background: url(assets/textures/portal/portal_top.webp) center / cover; box-shadow: 0 0 10px rgba(90, 140, 255, .6); }
+  .p-name b { display: block; font-weight: 700; letter-spacing: .03em; } .p-name em { display: block; font: italic 600 12px 'Alegreya Sans', sans-serif; color: #98a4c8; }
+  .p-go { font: 700 11px Cinzel, serif; letter-spacing: .16em; text-transform: uppercase; color: #cfdcff; border: 1px solid #5a6eb0; padding: 5px 10px; background: rgba(40, 60, 140, .45); }
+  .p-row.locked { background: rgba(16, 16, 22, .7); border-color: #262630; color: #6a6872; }
+  .p-row.locked .p-seal { filter: grayscale(1) brightness(.45); box-shadow: none; }
+  .p-row.locked .p-name em { color: #5a5866; }
+  .p-lock { width: 12px; height: 10px; margin: 6px 6px 0; border: 2px solid #4a4852; border-radius: 2px; position: relative; }
+  .p-lock::before { content: ''; position: absolute; left: 1px; top: -9px; width: 6px; height: 7px; border: 2px solid #4a4852; border-bottom: none; border-radius: 5px 5px 0 0; }
+  .p-foot { text-align: center; margin-top: 12px; }
+  @media (max-height: 500px) {   /* a phone on its side: more rows to a screen */
+    .panel.portals { padding: 10px 14px 10px; } .panel.portals h2 { font-size: 18px; margin: 0; } .panel.portals h3 { margin: 8px 0 6px; }
+    .p-here { font-size: 12px; } .p-list { gap: 4px; } .p-row { padding: 4px 10px 4px 6px; grid-template-columns: 30px 1fr auto; } .p-seal { width: 30px; height: 30px; }
+  }
   .bag .tabs { display: flex; gap: 6px; margin: 0 40px 10px 0; }
   .bag .tabs button { font-size: 13px; padding: 7px 14px; }
   .inv-wrap { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
