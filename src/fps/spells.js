@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { Decals, Waves, Arcs } from './effects.js';
 import { Arcana } from './arcana.js';
+import { WEBGPU, T } from './nodes.js';
 
 const FIRE = ['#fff6c0', '#ffb040', '#e0501c', '#701c10'], ICE = ['#ffffff', '#bfe8ff', '#5aa8e8', '#23407a'];
 const ARCANE = ['#ffffff', '#d8a0ff', '#9050e0', '#3a1060'];
@@ -109,6 +110,63 @@ const pFrag = /* glsl */`
     gl_FragColor = vec4(vC * vA * boost * k, 1.0);
   }`;
 
+// ------------------------------------------------------------------ point sprites under WebGPU
+// WebGPU draws a point one pixel wide whatever its size, and has no gl_PointCoord: there a set of
+// point sprites is a quad per point, drawn instanced. The points' attributes are per instance (the
+// same names and arrays, so whatever moves a point still finds it in geometry.attributes), the
+// quad's corner comes from the vertex index, and it is as many pixels across as gl_PointSize was.
+/** The quad geometry for `n` point sprites with these per-point (instanced) attributes. */
+export function spriteGeometry(attrs, n) {
+  const g = new THREE.InstancedBufferGeometry();
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  for (const [k, a] of Object.entries(attrs)) g.setAttribute(k, a);
+  g.instanceCount = n;
+  return g;
+}
+
+/** A point sprite's vertex: `clip` (the point's clip position) moved out to this vertex's corner of
+ * a square `px` pixels across; and `coord`, gl_PointCoord's like (0..1, y down) for the fragments. */
+export function pointSprite(clip, px) {
+  const { float, vec2, vec4, vertexIndex, abs, step, select, viewportSize, varying } = T;
+  const i = float(vertexIndex);   // (0..3: the index buffer's)
+  const corner = vec2(select(abs(i.sub(1.5)).lessThan(1.0), float(0.5), float(-0.5)), step(1.5, i).sub(0.5));
+  const at = vec4(clip.xy.add(corner.mul(px).mul(2.0).div(viewportSize).mul(clip.w)), clip.zw);
+  return { at, coord: varying(vec2(corner.x.add(0.5), float(0.5).sub(corner.y))) };
+}
+
+/** A mesh for point sprites (never in the way of a ray). */
+export function spriteMesh(g, m) {
+  const o = new THREE.Mesh(g, m);
+  o.raycast = () => {};
+  return o;
+}
+
+let _particles = null;
+/** The particles' material: one graph for every set (pVert / pFrag). */
+function particleMaterial() {
+  if (!_particles) {
+    const { Fn, attribute, uniform, renderGroup, vec4, max, length, step, modelViewMatrix, cameraProjectionMatrix, varying } = T;
+    const u = { scale: uniform(300).setGroup(renderGroup), boost: uniform(2.2).setGroup(renderGroup) };
+    const mv = modelViewMatrix.mul(vec4(attribute('position', 'vec3'), 1.0));
+    const px = max(1.0, attribute('size', 'float').mul(u.scale).div(mv.z.negate()));
+    const { at, coord } = pointSprite(cameraProjectionMatrix.mul(mv), px);
+    const vC = varying(attribute('color', 'vec3')), vA = varying(attribute('alpha', 'float'));
+    const frag = Fn(() => {
+      vA.lessThanEqual(0.01).discard();
+      const d = length(coord.sub(0.5)).mul(2.0);
+      d.greaterThan(1.0).discard();
+      const k = d.oneMinus().mul(d.oneMinus()).mul(1.6).add(step(d, 0.35).mul(0.6));   // a hot core in a soft glow
+      return vec4(vC.mul(vA).mul(u.boost).mul(k), 1.0);
+    })();
+    _particles = { u, at, frag };
+  }
+  const m = new THREE.NodeMaterial();
+  m.vertexNode = _particles.at; m.fragmentNode = _particles.frag;
+  m.blending = THREE.AdditiveBlending; m.depthWrite = false; m.transparent = true; m.fog = false;
+  m.uniforms = _particles.u;   // (update() sets scale: shared, once a frame)
+  return m;
+}
+
 /** Square, additive particles: sparks, embers, motes. One draw call for all of them; bright
  * enough to bloom. Sparks with `bounce` skip off the floor they fall onto. */
 export class Particles {
@@ -119,17 +177,18 @@ export class Particles {
     this.col = new Float32Array(max * 3); this.size = new Float32Array(max);
     this.alpha = new Float32Array(max); this.life = new Float32Array(max); this.age = new Float32Array(max);
     this.grav = new Float32Array(max); this.drag = new Float32Array(max); this.floor = new Float32Array(max).fill(-1e9);
-    const g = new THREE.BufferGeometry();
-    this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aCol = new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
-    this.aAlpha = new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+    const Attr = WEBGPU ? THREE.InstancedBufferAttribute : THREE.BufferAttribute;   // (WebGPU: a quad each, spriteGeometry)
+    this.aPos = new Attr(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+    this.aCol = new Attr(this.col, 3).setUsage(THREE.DynamicDrawUsage);
+    this.aSize = new Attr(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+    this.aAlpha = new Attr(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+    const g = WEBGPU ? spriteGeometry({}, 0) : new THREE.BufferGeometry();
     g.setAttribute('position', this.aPos); g.setAttribute('color', this.aCol);
     g.setAttribute('size', this.aSize); g.setAttribute('alpha', this.aAlpha);
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
-    this.mat = new THREE.ShaderMaterial({ vertexShader: pVert, fragmentShader: pFrag, uniforms: { scale: { value: 300 }, boost: { value: 2.2 } },
+    this.mat = WEBGPU ? particleMaterial() : new THREE.ShaderMaterial({ vertexShader: pVert, fragmentShader: pFrag, uniforms: { scale: { value: 300 }, boost: { value: 2.2 } },
       blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-    this.points = new THREE.Points(g, this.mat);
+    this.points = WEBGPU ? spriteMesh(g, this.mat) : new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;
     this.points.renderOrder = 5;
     this.geo = g;
@@ -179,7 +238,7 @@ export class Particles {
       w++;
     }
     this.n = w;
-    this.geo.setDrawRange(0, w);
+    if (WEBGPU) this.geo.instanceCount = w; else this.geo.setDrawRange(0, w);
     for (const a of [this.aPos, this.aCol, this.aSize, this.aAlpha]) a.needsUpdate = true;
   }
 }
@@ -213,19 +272,53 @@ const fFrag = /* glsl */`
     gl_FragColor = vec4(c, 1.0);
   }`;
 
+let _flames = null;
+/** The flames' material under WebGPU (fVert / fFrag): one graph for the torches' and every wall
+ * of fire's (their time and scale shared: set once a frame). */
+function flameMaterial() {
+  if (!_flames) {
+    const { Fn, attribute, uniform, renderGroup, vec3, vec4, max, abs, sin, floor, smoothstep, select, modelViewMatrix, cameraProjectionMatrix, varying } = T;
+    const u = { time: uniform(0).setGroup(renderGroup), scale: uniform(300).setGroup(renderGroup) };
+    const phase = attribute('phase', 'float'), size = attribute('size', 'float');
+    const mv = modelViewMatrix.mul(vec4(attribute('position', 'vec3').add(vec3(0.0, size.mul(0.25), 0.0)), 1.0));
+    const flick = sin(u.time.mul(17.0).add(phase.mul(7.0))).mul(sin(u.time.mul(5.3).add(phase))).mul(0.15).add(0.85);
+    const { at, coord } = pointSprite(cameraProjectionMatrix.mul(mv), max(2.0, size.mul(flick).mul(u.scale).div(mv.z.negate())));
+    const vPhase = varying(phase);
+    // a pixelated teardrop flame drawn inside the sprite, flickering per flame; HDR so it blooms
+    const frag = Fn(() => {
+      const q = floor(coord.mul(10.0)).div(10.0).add(0.05);
+      const qy = q.y.oneMinus();
+      const sway = sin(u.time.mul(9.0).add(vPhase.mul(5.0)).add(qy.mul(4.0))).mul(qy).mul(0.07);
+      const x = abs(q.x.sub(0.5).sub(sway));
+      const w = qy.oneMinus().mul(0.36).mul(smoothstep(0.0, 0.25, qy.add(0.08))).add(qy.oneMinus().mul(0.06));
+      const h = sin(u.time.mul(13.0).add(vPhase.mul(3.0))).mul(0.12).add(0.82);
+      x.greaterThan(w).or(qy.greaterThan(h)).discard();
+      const k = x.div(max(w, 0.001)).mul(0.6).add(qy.div(h).mul(0.6));
+      const c = select(k.lessThan(0.45), vec3(1.0, 0.95, 0.7).mul(3.2), select(k.lessThan(0.75), vec3(1.0, 0.62, 0.18).mul(2.4), vec3(0.85, 0.25, 0.06).mul(1.6)));
+      return vec4(c, 1.0);
+    })();
+    _flames = { u, at, frag };
+  }
+  const m = new THREE.NodeMaterial();
+  m.vertexNode = _flames.at; m.fragmentNode = _flames.frag; m.fog = false;
+  m.uniforms = _flames.u;
+  return m;
+}
+
 /** Every flame in the world (torches, candles, braziers): animated sprites, one draw call. */
 export class Flames {
   constructor(scene, list) {
     const n = list.length;
     const pos = new Float32Array(n * 3), phase = new Float32Array(n), size = new Float32Array(n);
     list.forEach((p, i) => { pos.set(p.slice(0, 3), i * 3); phase[i] = Math.random() * 10; size[i] = p[3] || 0.32; });
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
-    g.setAttribute('size', new THREE.BufferAttribute(size, 1));
-    this.mat = new THREE.ShaderMaterial({ vertexShader: fVert, fragmentShader: fFrag,
+    const Attr = WEBGPU ? THREE.InstancedBufferAttribute : THREE.BufferAttribute;   // (WebGPU: a quad each, spriteGeometry)
+    const g = WEBGPU ? spriteGeometry({}, n) : new THREE.BufferGeometry();
+    g.setAttribute('position', new Attr(pos, 3));
+    g.setAttribute('phase', new Attr(phase, 1));
+    g.setAttribute('size', new Attr(size, 1));
+    this.mat = WEBGPU ? flameMaterial() : new THREE.ShaderMaterial({ vertexShader: fVert, fragmentShader: fFrag,
       uniforms: { scale: { value: 300 }, time: { value: 0 } } });
-    this.points = new THREE.Points(g, this.mat);
+    this.points = WEBGPU ? spriteMesh(g, this.mat) : new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;
     scene.add(this.points);
   }

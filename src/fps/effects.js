@@ -1,7 +1,13 @@
 // World effects that run on the GPU: the sky (sun, moon, stars and drifting clouds across a
 // day and night), sunbeams through the cathedral's stained glass, graveyard mist, chimney
 // smoke, scorch and frost marks, shockwave rings and lightning arcs.
+//
+// Under WebGPU (nodes.js WEBGPU) each shader here is a TSL node graph beside its GLSL, the same sums:
+// one graph per class (there's one of each), its `uniforms` TSL uniforms the game sets through
+// `.value` as before. Points are drawn as quads there (pointQuads, pointQuad: water.js and comet.js
+// use them too).
 import * as THREE from 'three';
+import { WEBGPU, T } from './nodes.js';
 
 const NOISE = /* glsl */`
   float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -10,6 +16,75 @@ const NOISE = /* glsl */`
     return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x), f.y);
   }
   float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.03 + 7.1; a *= 0.5; } return s; }`;
+
+// ------------------------------------------------------------------ WebGPU: helpers
+let _fx = null;
+/** NOISE as TSL functions (WGSL functions of their own): hash2, vnoise (the same as water.js's fn), fbm. */
+export function fxNoise() {
+  if (_fx) return _fx;
+  const { Fn, vec2, float, fract, sin, dot, floor, mix } = T;
+  const hash2 = Fn(([p]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)))
+    .setLayout({ name: 'fxHash2', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
+  const vnoise = Fn(([p]) => {
+    const i = floor(p).toVar(), f0 = fract(p).toVar(), f = f0.mul(f0).mul(f0.mul(-2.0).add(3.0)).toVar();
+    return mix(mix(hash2(i), hash2(i.add(vec2(1, 0))), f.x), mix(hash2(i.add(vec2(0, 1))), hash2(i.add(vec2(1, 1))), f.x), f.y);
+  }).setLayout({ name: 'fxNoise', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
+  const fbm = Fn(([p0]) => {
+    const p = vec2(p0).toVar(), s = float(0).toVar();
+    for (let i = 0, a = 0.5; i < 5; i++, a *= 0.5) { s.addAssign(vnoise(p).mul(a)); p.assign(p.mul(2.03).add(7.1)); }
+    return s;
+  }).setLayout({ name: 'fxFbm', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
+  return (_fx = { hash2, vnoise, fbm });
+}
+
+/** GLSL's smoothstep(a, b, x) with a > b (falling), which WGSL leaves undefined: 1 - smoothstep(b, a, x). */
+export const fall = (a, b, x) => T.smoothstep(b, a, x).oneMinus();
+
+/** A TSL uniform that changes from frame to frame, read once per render (not per object: static
+ * objects stop refreshing theirs). */
+export const live = (v) => T.uniform(v).setGroup(T.renderGroup);
+
+/** A NodeMaterial with these material settings (and fog off unless asked: GLSL ShaderMaterials
+ * have none by default). */
+export function nodeMaterial(params) {
+  const m = new THREE.NodeMaterial();
+  m.fog = false;
+  m.setValues(params);
+  return m;
+}
+
+/** Under WebGPU, where a point is drawn a pixel wide: `g` (a THREE.Points geometry) as quads, an
+ * instance of one per point. Its attributes are the same arrays, per instance, so the code that fills
+ * them and flags needsUpdate goes on as before, and setDrawRange(0, n) draws the first n. Draw it as a
+ * Mesh whose material's vertexNode is pointQuad()'s. */
+export function pointQuads(g) {
+  const q = new THREE.InstancedBufferGeometry(), n = g.attributes.position.count;
+  q.setIndex([0, 1, 2, 0, 2, 3]);
+  q.setAttribute('corner', new THREE.Float32BufferAttribute([-1, -1, 1, -1, 1, 1, -1, 1], 2));
+  for (const [k, a] of Object.entries(g.attributes)) q.setAttribute(k, new THREE.InstancedBufferAttribute(a.array, a.itemSize).setUsage(a.usage));
+  q.instanceCount = n;
+  q.boundingSphere = g.boundingSphere ? g.boundingSphere.clone() : new THREE.Sphere(new THREE.Vector3(), 1e5);
+  q.setDrawRange = (start, count) => { q.instanceCount = Math.max(0, Math.min(count, n)); return q; };
+  return q;
+}
+
+/** The vertex stage of a point drawn as a quad (pointQuads): its clip position, `px` pixels across
+ * (a node, as gl_PointSize was), and `coord`, gl_PointCoord's like (0..1, y down) for the fragment. */
+export function pointQuad(px) {
+  const { Fn, vec2, vec4, attribute, positionView, cameraProjectionMatrix, screenSize } = T;
+  const corner = attribute('corner', 'vec2');
+  const vertex = Fn(() => {
+    const clip = cameraProjectionMatrix.mul(vec4(positionView, 1.0)).toVar();
+    return clip.add(vec4(corner.mul(px).div(screenSize).mul(clip.w), 0.0, 0.0));
+  })();
+  return { vertex, coord: vec2(corner.x.mul(0.5).add(0.5), corner.y.mul(-0.5).add(0.5)) };
+}
+
+/** What the game's point `scale` uniforms hold ((height / 2) * projectionMatrix[5]), from the picture
+ * being drawn and its camera (so it's right however big the picture is). */
+export function pointScale() {
+  return T.screenSize.y.mul(0.5).mul(T.cameraProjectionMatrix.mul(T.vec4(0, 1, 0, 0)).y);
+}
 
 /** Times of day: 0..24. The palette the sky, sun, ambient light and fog all follow. */
 const KEYS = [ // hour, zenith, horizon, sun colour, sun power, ambient, fog
@@ -47,12 +122,16 @@ export function dayState(hour) {
 
 export class Sky {
   constructor(scene) {
-    this.uniforms = {
+    this.uniforms = WEBGPU ? {
+      zenith: live(new THREE.Color()), horizon: live(new THREE.Color()),
+      sunDir: live(new THREE.Vector3(0, 1, 0)), moonDir: live(new THREE.Vector3(0, 1, 0)),
+      sunColor: live(new THREE.Color()), day: live(1), time: live(0), dim: live(1),
+    } : {
       zenith: { value: new THREE.Color() }, horizon: { value: new THREE.Color() },
       sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, 1, 0) },
       sunColor: { value: new THREE.Color() }, day: { value: 1 }, time: { value: 0 }, dim: { value: 1 },
     };
-    const m = new THREE.ShaderMaterial({
+    const m = WEBGPU ? skyMaterial(this.uniforms) : new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: this.uniforms,
       vertexShader: 'varying vec3 vP; void main() { vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }',
       fragmentShader: /* glsl */`
@@ -105,6 +184,52 @@ export class Sky {
   }
 }
 
+/** The sky's shader in TSL (u: Sky's uniforms). */
+function skyMaterial(u) {
+  const { Fn, If, vec2, vec3, vec4, float, normalize, mix, pow, smoothstep, max, dot, atan, asin, clamp, floor, fract, step, length, sin,
+    positionGeometry, positionLocal, modelViewMatrix, cameraProjectionMatrix } = T;
+  const { hash2, fbm } = fxNoise();
+  const { zenith, horizon, sunColor, sunDir, moonDir, day, time, dim } = u;
+  // on the far plane wherever it is
+  const vertex = Fn(() => {
+    const c = cameraProjectionMatrix.mul(modelViewMatrix.mul(vec4(positionGeometry, 1.0))).toVar();
+    return vec4(c.x, c.y, c.w, c.w);
+  })();
+  const fragment = Fn(() => {
+    const d = normalize(positionLocal).toVar();
+    const c = mix(horizon, zenith, pow(smoothstep(-0.02, 0.6, d.y), 0.7)).toVar();
+    // the sun's glow, wider and redder near the horizon
+    const sd = max(dot(d, sunDir), 0.0).toVar();
+    c.addAssign(sunColor.mul(pow(sd, 6.0).mul(0.35).add(pow(sd, 64.0).mul(0.6))).mul(day.mul(0.6).add(0.4)));
+    c.addAssign(sunColor.mul(smoothstep(0.9993, 0.9997, sd)).mul(6.0));              // the disc
+    const md = max(dot(d, moonDir), 0.0).toVar();
+    c.addAssign(vec3(0.85, 0.9, 1.0).mul(smoothstep(0.9990, 0.9994, md)).mul(2.5).mul(day.oneMinus()));
+    c.addAssign(vec3(0.4, 0.5, 0.8).mul(pow(md, 24.0)).mul(0.12).mul(day.oneMinus()));
+    // stars: hashed points on a grid of directions, twinkling ((asin's argument kept in range: a NaN
+    // at the zenith would bloom into a black box)
+    const sp = vec2(atan(d.z, d.x), asin(clamp(d.y, -1.0, 1.0))).mul(140.0).toVar();
+    const cell = floor(sp), f = fract(sp).sub(0.5);
+    const hs = hash2(cell).toVar();
+    const st = step(0.985, hs).mul(step(length(f), 0.28)).mul(smoothstep(0.04, 0.3, d.y));
+    const night = pow(day.oneMinus(), 3.0);
+    c.addAssign(vec3(0.9, 0.95, 1.0).mul(st).mul(night).mul(sin(time.mul(2.0).add(hs.mul(60.0))).mul(0.45).add(0.55)).mul(fract(hs.mul(91.0)).mul(2.0).add(1.0)));
+    // clouds: a moving fbm layer projected on a dome
+    If(d.y.greaterThan(0.0), () => {
+      const cp = d.xz.div(d.y.add(0.12)).mul(1.6).add(vec2(time.mul(0.012), time.mul(0.004))).toVar();
+      const cov = smoothstep(0.48, 0.78, fbm(cp));
+      const lit = mix(vec3(0.16, 0.17, 0.24), vec3(1.0), day).mul(sunColor.mul(pow(sd, 3.0)).mul(0.35).add(0.75)).toVar();
+      const cc = mix(lit.mul(0.55), lit, smoothstep(0.5, 0.9, fbm(cp.add(sunDir.xz.mul(0.08)))));
+      c.assign(mix(c, cc.mul(mix(horizon, vec3(1.0), day.mul(0.5).add(0.5))), cov.mul(smoothstep(0.0, 0.18, d.y)).mul(0.9)));
+    });
+    c.assign(mix(c, horizon.mul(0.7), fall(0.0, -0.25, d.y)));   // below the horizon
+    return vec4(c.mul(dim), float(1.0));
+  })();
+  const m = nodeMaterial({ side: THREE.BackSide, depthWrite: false });
+  m.vertexNode = vertex; m.fragmentNode = fragment;
+  m.uniforms = u;
+  return m;
+}
+
 /** Light pouring through the cathedral's stained glass: prisms swept from each window along
  * the sun's direction, brightest at the glass, fading as they cross the nave. */
 export class Shafts {
@@ -112,7 +237,7 @@ export class Shafts {
     this.windows = windows;
     this.group = new THREE.Group();
     scene.add(this.group);
-    this.mat = new THREE.ShaderMaterial({
+    this.mat = WEBGPU ? shaftsMaterial() : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       uniforms: { time: { value: 0 }, power: { value: 0 } },
       vertexShader: /* glsl */`
@@ -169,12 +294,31 @@ export class Shafts {
   }
 }
 
+/** The shafts' shader in TSL. */
+function shaftsMaterial() {
+  const { Fn, vec2, vec4, smoothstep, attribute, positionLocal } = T;
+  const { vnoise } = fxNoise();
+  const time = live(0), power = live(0);
+  const st = attribute('st', 'vec2'), tint = attribute('tint', 'vec3');
+  const fragment = Fn(() => {
+    const along = st.x, across = st.y, vW = positionLocal;
+    const a = along.oneMinus().mul(along.oneMinus()).mul(smoothstep(0.0, 0.25, across)).mul(fall(1.0, 0.75, across)).toVar();
+    a.mulAssign(vnoise(vec2(vW.x.mul(1.5).add(time.mul(0.2)), vW.y.mul(1.5).add(vW.z.mul(0.7)))).mul(0.3).add(0.7));   // drifting dust
+    return vec4(tint.mul(a).mul(power).mul(0.16), 1.0);
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  m.fragmentNode = fragment;
+  m.uniforms = { time, power };
+  return m;
+}
+
 /** Low drifting mist: a few stacked sheets with noise in them, lit by the sky. */
 export class Mist {
   constructor(scene, rect, { layers = 4, base = 0.12, height = 1.1, color = 0xc8d0d8, density = 0.22, exclude = [] } = {}) {
-    this.uniforms = { time: { value: 0 }, color: { value: new THREE.Color(color) }, light: { value: 1 }, density: { value: density } };
+    this.uniforms = WEBGPU ? { time: live(0), color: T.uniform(new THREE.Color(color)), light: live(1), density: T.uniform(density) }
+      : { time: { value: 0 }, color: { value: new THREE.Color(color) }, light: { value: 1 }, density: { value: density } };
     const [x0, z0, x1, z1] = rect;
-    const m = new THREE.ShaderMaterial({
+    const m = WEBGPU ? mistMaterial(this.uniforms, rect, exclude) : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: this.uniforms, fog: false,
       vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
       fragmentShader: /* glsl */`
@@ -206,6 +350,33 @@ export class Mist {
   update(t, light) { this.uniforms.time.value = t; this.uniforms.light.value = light; }
 }
 
+/** The mist's shader in TSL (u: Mist's uniforms; its box and the rooms it keeps out of baked in, to
+ * a tenth of a metre as the GLSL has them). */
+function mistMaterial(u, [x0, z0, x1, z1], exclude) {
+  const { Fn, vec2, vec4, float, smoothstep, min, max, abs, length, select, positionWorld, cameraPosition } = T;
+  const { fbm } = fxNoise();
+  const r = (v) => Number(v.toFixed(1));
+  const { time, color, light, density } = u;
+  const fragment = Fn(() => {
+    const vW = positionWorld;
+    const n = fbm(vW.xz.mul(0.08).add(vec2(time.mul(0.03), time.mul(0.017))).add(vW.y.mul(3.0)));
+    const a = smoothstep(0.35, 0.8, n).mul(density).toVar();
+    const e = min(vW.xz.sub(vec2(r(x0), r(z0))), vec2(r(x1), r(z1)).sub(vW.xz));
+    a.mulAssign(smoothstep(0.0, 10.0, min(e.x, e.y)));
+    // a sheet seen edge-on fades: no hard line where the top layers run off to the horizon
+    const v = vW.sub(cameraPosition);
+    a.mulAssign(smoothstep(0.0, 0.14, abs(v.y).div(max(length(v), 1e-3))));
+    for (const [a0, b0, a1, b1] of exclude) {
+      a.assign(select(vW.x.greaterThan(r(a0)).and(vW.x.lessThan(r(a1))).and(vW.z.greaterThan(r(b0))).and(vW.z.lessThan(r(b1))), float(0.0), a));
+    }
+    return vec4(color.mul(light), a);
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  m.fragmentNode = fragment;
+  m.uniforms = u;
+  return m;
+}
+
 /** Soft, normally blended puffs: chimney smoke, spell smoke, dust. */
 export class Smoke {
   constructor(scene, max = 600) {
@@ -216,8 +387,8 @@ export class Smoke {
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('pdata', new THREE.BufferAttribute(this.data, 4).setUsage(THREE.DynamicDrawUsage));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
-    this.geo = g;
-    this.mat = new THREE.ShaderMaterial({
+    this.geo = WEBGPU ? pointQuads(g) : g;
+    this.mat = WEBGPU ? smokeMaterial() : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, uniforms: { scale: { value: 300 }, light: { value: new THREE.Color(1, 1, 1) } },
       vertexShader: /* glsl */`
         attribute vec4 pdata; uniform float scale; varying vec2 vA; varying float vT;
@@ -237,7 +408,7 @@ export class Smoke {
           gl_FragColor = vec4(light * vA.y * tint, a * 0.8);
         }`,
     });
-    this.points = new THREE.Points(g, this.mat);
+    this.points = WEBGPU ? new THREE.Mesh(this.geo, this.mat) : new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;
     this.points.renderOrder = 4;
     scene.add(this.points);
@@ -277,6 +448,31 @@ export class Smoke {
     this.mat.uniforms.scale.value = height / 2 * camera.projectionMatrix.elements[5];
     this.mat.uniforms.light.value.setScalar(light);
   }
+}
+
+/** The smoke's shader in TSL: its puffs as quads (pointQuads), as big as the GLSL's points (its
+ * `scale` worked out from the picture: pointScale). */
+function smokeMaterial() {
+  const { Fn, vec3, vec4, length, sin, atan, smoothstep, select, attribute, positionView, Discard } = T;
+  const light = live(new THREE.Color(1, 1, 1));
+  const pdata = attribute('pdata', 'vec4');
+  const { vertex, coord } = pointQuad(pdata.x.mul(pointScale()).div(positionView.z.negate()));
+  const fragment = Fn(() => {
+    const vA = pdata.yz, vT = pdata.w;
+    const q = coord.sub(0.5).toVar();
+    const d = length(q).mul(2.0).toVar();
+    Discard(d.greaterThan(1.0));
+    // a soft lumpy puff: radial falloff broken up by a few lobes
+    const lobes = sin(atan(q.y, q.x).mul(5.0).add(vA.y.mul(17.0))).mul(0.18).add(0.82);
+    const a = vA.x.mul(fall(1.0, 0.15, d.div(lobes)));
+    // a tint (pdata.w): 1 plague green, 2 arcane violet, 3 frost blue
+    const tint = select(vT.lessThan(0.5), vec3(1.0), select(vT.lessThan(1.5), vec3(0.62, 1.0, 0.32), select(vT.lessThan(2.5), vec3(0.75, 0.45, 1.0), vec3(0.7, 0.88, 1.15))));
+    return vec4(light.mul(vA.y).mul(tint), a.mul(0.8));
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  m.vertexNode = vertex; m.fragmentNode = fragment;
+  m.uniforms = { scale: { value: 300 }, light };   // (scale: set by the game as before, not read here)
+  return m;
 }
 
 function radialTexture(draw, n = 64) {

@@ -26,6 +26,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { POOL, REGION, streamAt, streamLevel } from './terrain.js';
+import { WEBGPU, T, keyed, ref } from './nodes.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const GRAV = 16;                 // (heavier than the world's: a slime's hop is quick and snappy)
@@ -197,6 +198,13 @@ function shellShader(sh) {
 /** Lit by its own colour (instanced goo, the innards): an emissive share of the vertex/instance colour. */
 function selfLit(m, k, key) {
   const u = { uSelf: { value: k } };
+  if (WEBGPU) {
+    // (TSL: the instances' colour (the goo) or the vertices' (the innards), as vColor was)
+    const inst = !m.vertexColors;
+    m.emissiveNode = selfLight(inst);
+    m.userData.self = u;
+    return keyed(m, 'slime-self-' + (inst ? 'i' : 'v'));
+  }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uSelf = u.uSelf;
     sh.fragmentShader = sh.fragmentShader
@@ -205,6 +213,100 @@ function selfLit(m, k, key) {
   };
   m.customProgramCacheKey = () => key;
   m.userData.self = u;
+  return m;
+}
+
+// ------------------------------------------------------------------ the same under WebGPU (TSL)
+const _self = {};
+/** selfLit's light: the material's emissive plus its share (userData.self) of the colour. */
+function selfLight(inst) {
+  const { materialEmissive, instanceColor, vertexColor } = T;
+  return (_self[inst] ||= materialEmissive.add((inst ? instanceColor : vertexColor().xyz).mul(ref('userData.self.uSelf.value', 'float'))));
+}
+
+let SHELL = null;
+/** The jelly's material (one kind, one graph, for every slime): MeshStandard, its shape deformed as
+ * slimeShape does (squash and stretch, lean, wobble, ripples, a dent, the swell), its normals by the
+ * squash, its edges thicker and lit by the rim's sheen. Each slime's numbers from its own materials:
+ * userData.slime (the shape's, shared by its near and far sides) and userData.own (uRim, uFres). */
+function shellKind() {
+  if (SHELL) return SHELL;
+  const { Fn, vec3, clamp, atan, sin, length, max, min, pow, dot, abs, normalize, positionGeometry: p, positionLocal, normalLocal, normalGeometry,
+    normalView, positionViewDirection, materialOpacity, materialEmissive } = T;
+  const sq = ref('userData.slime.uSq.value', 'vec3'), lean = ref('userData.slime.uLean.value', 'vec3'), wob = ref('userData.slime.uWob.value', 'vec4');
+  const dent = ref('userData.slime.uDent.value', 'vec4'), pulse = ref('userData.slime.uPulse.value', 'float');
+  const rim = ref('userData.own.uRim.value', 'color'), fres = ref('userData.own.uFres.value', 'float');
+  const shape = Fn(() => {
+    const h = clamp(p.y, 0.0, 1.0).toVar();
+    const ang = atan(p.z, p.x).toVar();
+    // a wobble in two modes (up and down; round the sides), ripples running out from the base
+    const w = wob.x.mul(sin(wob.y.add(h.mul(3.3))).mul(0.6).add(sin(wob.y.mul(1.73).add(ang.mul(3.0)).add(h.mul(2.1))).mul(0.4))).toVar();
+    const kxz = w.mul(h.mul(0.5).add(0.35)).add(1.0).add(pulse.mul(sin(ang.mul(5.0).add(h.mul(9.0)).add(wob.y.mul(3.0))).mul(0.25).add(1.0))).toVar();
+    const qy = p.y.mul(w.mul(0.45).oneMinus().add(pulse.mul(0.7))).add(wob.z.mul(sin(wob.w.sub(length(p.xz).mul(7.0)))).mul(h.oneMinus()).mul(0.12));
+    const q = vec3(p.x.mul(kxz), qy, p.z.mul(kxz)).toVar();
+    // a dent where it was struck
+    const r = q.sub(vec3(0.0, 0.45, 0.0)).toVar();
+    const rl = max(length(r), 1e-4).toVar();
+    const rn = r.div(rl).toVar();
+    q.subAssign(rn.mul(pow(max(dot(rn, dent.xyz), 0.0), 3.0)).mul(dent.w).mul(min(rl, 0.6)));
+    q.mulAssign(sq);
+    const hl = pow(h, 1.4).toVar();
+    return vec3(q.x.add(lean.x.mul(hl)), q.y, q.z.add(lean.z.mul(hl)));
+  })();
+  // the edges thicker (more of it to look through) and lit by the rim's sheen
+  const fr = Fn(() => {
+    const f = clamp(abs(dot(normalView, positionViewDirection)).oneMinus(), 0.0, 1.0).toVar();
+    return f.mul(f).mul(f.mul(0.4).add(0.6));
+  })();
+  class SlimeShellMaterial extends THREE.MeshStandardNodeMaterial {
+    static get type() { return 'SlimeShellMaterial'; }
+    constructor(parameters) {
+      super(parameters);
+      this.opacityNode = clamp(materialOpacity.add(fr.mul(fres)), 0.0, 0.97);
+      this.emissiveNode = materialEmissive.add(rim.mul(fr));
+    }
+    setupPosition(builder) {
+      const out = super.setupPosition(builder);
+      normalLocal.assign(normalize(normalGeometry.div(sq)));
+      positionLocal.assign(shape);
+      return out;
+    }
+  }
+  SHELL = SlimeShellMaterial;
+  return SHELL;
+}
+
+/** The drops (WebGPU, where a point is a pixel across): each a quad, an instance of a geometry of
+ * the drops' own (aPos, aCol, aSize), as many pixels across as gl_PointSize made it. */
+function dropMaterial() {
+  const { Fn, uniform, renderGroup, attribute, modelViewMatrix, vec2, vec4, uv, dot, length, clamp, pow, max, screenDPR } = T;
+  const scale = uniform(300).setGroup(renderGroup);
+  const m = new THREE.PointsNodeMaterial({ sizeAttenuation: false, fog: false });
+  m.transparent = false;
+  const pos = attribute('aPos', 'vec3');
+  m.positionNode = pos;
+  m.sizeNode = max(1.5, attribute('aSize', 'float').mul(scale).div(modelViewMatrix.mul(vec4(pos, 1.0)).z.negate())).div(screenDPR);
+  m.colorNode = Fn(() => {
+    const t = uv(), q = vec2(t.x, t.y.oneMinus()).mul(2.0).sub(1.0).toVar(), d = dot(q, q).toVar();   // (gl_PointCoord's way up)
+    d.greaterThan(1.0).discard();
+    const hl = pow(clamp(length(q.sub(vec2(-0.35, -0.35))).mul(1.7).oneMinus(), 0.0, 1.0), 3.0);
+    return vec4(attribute('aCol', 'vec3').mul(d.oneMinus().mul(0.45).add(0.55)).add(hl.mul(0.55)), 1.0);
+  })();
+  m.uniforms = { scale };
+  return m;
+}
+
+/** The soft shadows under them (WebGPU): a disc on each instance's quad, its darkness aAlpha. */
+function blobMaterial() {
+  const { Fn, attribute, vec4, uv, length, smoothstep } = T;
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, fog: false });
+  m.lights = false;
+  m.colorNode = Fn(() => {
+    const d = length(uv().sub(0.5)).mul(2.0);
+    const a = smoothstep(0.25, 1.0, d).oneMinus().mul(attribute('aAlpha', 'float')).toVar();
+    a.lessThan(0.004).discard();
+    return vec4(0.0, 0.0, 0.0, a);
+  })();
   return m;
 }
 
@@ -289,16 +391,30 @@ class Goo {
     this.n = 0;
     this.pos = new Float32Array(M * 3); this.vel = new Float32Array(M * 3); this.col = new Float32Array(M * 3);
     this.size = new Float32Array(M); this.floor = new Float32Array(M); this.mark = new Uint8Array(M);
-    const g = new THREE.BufferGeometry();
-    this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aCol = new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('position', this.aPos); g.setAttribute('aCol', this.aCol); g.setAttribute('aSize', this.aSize);
-    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
-    g.setDrawRange(0, 0);
-    this.dropGeo = g;
-    this.dropMat = new THREE.ShaderMaterial({ vertexShader: DROP_V, fragmentShader: DROP_F, uniforms: { scale: { value: 300 } } });
-    this.points = new THREE.Points(g, this.dropMat);
+    if (WEBGPU) {
+      // (each drop an instance of a quad: three r187 draws a point a pixel across)
+      const A = (a, n) => new THREE.InstancedBufferAttribute(a, n).setUsage(THREE.DynamicDrawUsage);
+      this.aPos = A(this.pos, 3); this.aCol = A(this.col, 3); this.aSize = A(this.size, 1);
+      const q = new THREE.PlaneGeometry(1, 1), g = new THREE.InstancedBufferGeometry();
+      g.setIndex(q.index); g.setAttribute('position', q.attributes.position); g.setAttribute('uv', q.attributes.uv);
+      g.setAttribute('aPos', this.aPos); g.setAttribute('aCol', this.aCol); g.setAttribute('aSize', this.aSize);
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+      g.instanceCount = 0;
+      this.dropGeo = g;
+      this.dropMat = dropMaterial();
+      this.points = new THREE.Mesh(g, this.dropMat);
+    } else {
+      const g = new THREE.BufferGeometry();
+      this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.aCol = new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage);
+      this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('position', this.aPos); g.setAttribute('aCol', this.aCol); g.setAttribute('aSize', this.aSize);
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+      g.setDrawRange(0, 0);
+      this.dropGeo = g;
+      this.dropMat = new THREE.ShaderMaterial({ vertexShader: DROP_V, fragmentShader: DROP_F, uniforms: { scale: { value: 300 } } });
+      this.points = new THREE.Points(g, this.dropMat);
+    }
     this.points.frustumCulled = false;
     scene.add(this.points);
     // splashes: on floors, walls and roofs alike (each laid along its surface)
@@ -341,7 +457,7 @@ class Goo {
     const shg = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     this.alpha = new Float32Array(this.shadowMax);
     shg.setAttribute('aAlpha', new THREE.InstancedBufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage));
-    this.shadows = new THREE.InstancedMesh(shg, new THREE.ShaderMaterial({ vertexShader: SHADOW_V, fragmentShader: SHADOW_F, transparent: true, depthWrite: false,
+    this.shadows = new THREE.InstancedMesh(shg, WEBGPU ? blobMaterial() : new THREE.ShaderMaterial({ vertexShader: SHADOW_V, fragmentShader: SHADOW_F, transparent: true, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), this.shadowMax);
     this.shadows.count = 0;
     this.shadows.renderOrder = 0.52;
@@ -449,7 +565,8 @@ class Goo {
       w++;
     }
     this.n = w;
-    this.dropGeo.setDrawRange(0, w);
+    if (WEBGPU) this.dropGeo.instanceCount = w;   // (a quad for each drop)
+    else this.dropGeo.setDrawRange(0, w);
     this.aPos.needsUpdate = this.aCol.needsUpdate = this.aSize.needsUpdate = true;
     // the splashes dry
     for (let i = 0; i < this.splats.count; i++) {
@@ -1296,10 +1413,11 @@ export class Slimes {
       uDent: { value: new THREE.Vector4(0, 1, 0, 0) }, uPulse: { value: 0 } };
     const make = (back) => {
       const col = new THREE.Color(sp.color);
-      const m = new THREE.MeshStandardMaterial({ color: back ? col.clone().multiplyScalar(0.4) : col, roughness: back ? 0.4 : 0.1, metalness: 0,
+      const m = new (WEBGPU ? shellKind() : THREE.MeshStandardMaterial)({ color: back ? col.clone().multiplyScalar(0.4) : col, roughness: back ? 0.4 : 0.1, metalness: 0,
         transparent: true, depthWrite: false, opacity: back ? sp.opacity * 0.6 : sp.opacity, side: back ? THREE.BackSide : THREE.FrontSide,
         emissive: col.clone().multiplyScalar(sp.glow * (back ? 1.4 : 0.8)) });
       const own = { uRim: { value: new THREE.Color(sp.rim).multiplyScalar(back ? 0.12 : 0.3 + sp.glow) }, uFres: { value: back ? 0.2 : 0.6 } };
+      if (WEBGPU) { m.userData.slime = u; m.userData.own = own; return m; }   // (TSL: shellKind)
       m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, u, own); shellShader(sh); };
       m.customProgramCacheKey = () => 'slime-shell';
       return m;

@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
+import { WEBGPU, T } from './nodes.js';
 
 const ROOT = 'templates/models/';
 const _p = new THREE.Vector3();
@@ -39,6 +40,47 @@ const SHIELD = { shield_round: 'round', shield_kite: 'kite' };
 const SLOT_OF = { onehand: 'onehand', twohand: 'twohand', staff: 'staff' };
 const CHAIN_FADE = 0.1;   // the blend from one blow of a combo into the next
 const EVENTS = new Set(['hit', 'fire', 'whoosh']);   // the catalog's times that are told to the game
+
+/** (WebGPU) The bare arms' skin as a node material of its own kind: Phong, but the sun's (and the
+ * torch's) light wraps a little past the shadow's edge, warmer just there; the sky's and the ground's
+ * mostly greyed; and in dim light the skin goes grey, not chocolate (what's lit faintly a quarter
+ * greyed, before any fog). The GLSL patch in flesh() does the same to lights_phong_pars_fragment. */
+let Flesh = null;
+function fleshKind() {
+  if (Flesh) return Flesh;
+  const { vec3, dot, mix, smoothstep, normalView, positionViewDirection, specularColor, shininess, diffuseColor, materialSpecularStrength,
+    BRDF_Lambert, F_Schlick } = T;
+  const LUMA = vec3(0.299, 0.587, 0.114);
+  class FleshLighting extends THREE.PhongLightingModel {
+    direct({ lightDirection, lightColor, reflectedLight }) {
+      const nlw = normalView.dot(lightDirection);
+      const tint = mix(vec3(1.0, 0.88, 0.82), vec3(1.0), smoothstep(-0.05, 0.2, nlw));
+      reflectedLight.directDiffuse.addAssign(nlw.add(0.25).div(1.25).clamp().mul(tint).mul(lightColor).mul(BRDF_Lambert({ diffuseColor: diffuseColor.rgb })));
+      // (the sheen as Phong's: BRDF_BlinnPhong times the shine map)
+      const irradiance = nlw.clamp().mul(lightColor);
+      const half = lightDirection.add(positionViewDirection).normalize();
+      const dotNH = normalView.dot(half).clamp(), dotVH = positionViewDirection.dot(half).clamp();
+      const F = F_Schlick({ f0: specularColor, f90: 1.0, dotVH });
+      const D = shininess.mul(0.5).add(1.0).mul(1 / Math.PI).mul(dotNH.pow(shininess));
+      reflectedLight.directSpecular.addAssign(irradiance.mul(F.mul(0.25).mul(D)).mul(materialSpecularStrength));
+    }
+    indirect(builder) {
+      const { ambientOcclusion, irradiance, reflectedLight } = builder.context;
+      reflectedLight.indirectDiffuse.addAssign(mix(irradiance, vec3(dot(irradiance, LUMA)), 0.65).mul(BRDF_Lambert({ diffuseColor: diffuseColor.rgb })));
+      reflectedLight.indirectDiffuse.mulAssign(ambientOcclusion);
+    }
+  }
+  Flesh = class FleshMaterial extends THREE.MeshPhongNodeMaterial {
+    static get type() { return 'FleshMaterial'; }
+    setupLightingModel() { return new FleshLighting(); }
+    setupLighting(builder) {
+      const out = super.setupLighting(builder);
+      const l = dot(out, LUMA);
+      return mix(out, vec3(l), smoothstep(0.08, 0.3, l).oneMinus().mul(0.25));
+    }
+  };
+  return Flesh;
+}
 
 /** The move set: catalog + each side's clips (smoothed once), fetched on first use. */
 let movesP = null;
@@ -118,6 +160,9 @@ export class ViewModel {
     this.lib = lib; // for normal maps made from each model's skin
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
+    // (WebGPU's depth runs 0..1, not WebGL's -1..1: three sets the camera's coordinate system and asks
+    // for its projection again, which is the rigs' own: resize)
+    this.camera.updateProjectionMatrix = () => this.resize(this.aspect ?? 1.6);
     this.hemi = new THREE.HemisphereLight(0xfff0dd, 0x302838, 1.2);
     this.sun = new THREE.DirectionalLight(0xffe0b0, 1.4);
     this.sun.position.set(-0.5, 0.8, 0.4);
@@ -166,7 +211,9 @@ export class ViewModel {
     this.camera.projectionMatrix.set(
       fx, 0, 0, 0,
       0, fy, 2 * CY / H - 1, 0,
-      0, 0, -(far + near) / (far - near), -2 * far * near / (far - near),
+      ...(this.camera.coordinateSystem === THREE.WebGPUCoordinateSystem
+        ? [0, 0, -far / (far - near), -far * near / (far - near)]
+        : [0, 0, -(far + near) / (far - near), -2 * far * near / (far - near)]),
       0, 0, -1, 0);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
   }
@@ -292,10 +339,11 @@ export class ViewModel {
    * metal/rough slot) raises on the knuckles, fingertips and nails and lowers on the palm; and light
    * that wraps a little past the shadow's edge, warmer just there, as it does through skin. */
   flesh(m) {
-    const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide, specular: 0x2a231e, shininess: 24 });
+    const out = new (WEBGPU ? fleshKind() : THREE.MeshPhongMaterial)({ map: m.map, side: THREE.DoubleSide, specular: 0x2a231e, shininess: 24 });
     if (m.aoMap && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.aoMap, 0.9);
     const shine = m.metalnessMap || m.roughnessMap;
     if (shine) out.specularMap = shine;
+    if (WEBGPU) return crisp(out);   // (its light is its kind's own: fleshKind)
     out.onBeforeCompile = (sh) => {
       // (and the sky's and the ground's light on it mostly greyed: the world's warm fill made skin clay)
       sh.fragmentShader = sh.fragmentShader.replace('#include <lights_phong_pars_fragment>', THREE.ShaderChunk.lights_phong_pars_fragment.replace(

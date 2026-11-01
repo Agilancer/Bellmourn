@@ -10,9 +10,16 @@
 // pool, spray thrown up and falling back, and mist that rolls out over the water (with a bow in
 // it when the sun is behind you). Flecks of foam ride the current round the pool and down the
 // stream and the river.
+//
+// Under WebGPU (nodes.js WEBGPU) the same shaders are TSL node graphs: the surface a Phong node
+// material (both its materials one graph, the falls' rings per material), the falls, the spray and
+// foam (drawn as quads: effects.js pointQuads) and the mist each one graph, their uniforms TSL
+// uniforms the update below sets through `.value` as before.
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
 import { POOL, STREAM, FALLS, RIVER, terrainHeight, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
+import { fogUniforms, WEBGPU, T, ref } from './nodes.js';
+import { fxNoise, fall as falling, live, nodeMaterial, pointQuads, pointQuad, pointScale } from './effects.js';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 function rng(seed) {
@@ -103,6 +110,7 @@ function rippleTexture(n = 256) {
 /** Phong (so the sun, sky light, shadows and fog are the world's) with the water put in: each
  * vertex carries its current (wflow, m/s) and [depth, foam, fade] (wdata). */
 function waterMaterial(U, ring) {
+  if (WEBGPU) return waterNodeMaterial(U, ring);
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0xb8c8d0, shininess: 180, transparent: true, depthWrite: false, side: THREE.DoubleSide });
   m.userData.noGlass = true;
   m.onBeforeCompile = (sh) => {
@@ -157,6 +165,69 @@ function waterMaterial(U, ring) {
       outgoingLight = mix(outgoingLight - wSpec, wSky, wFr * (1.0 - wFoam) * 0.85) + wSpec * (1.0 - wFoam * 0.8);
       diffuseColor.a = clamp(max(mix(wAlpha, 1.0, wFr * 0.85), wFoam * 0.95) * smoothstep(-0.02, 0.22, wDepth) * vWData.z, 0.0, 1.0);`);
   };
+  return m;
+}
+
+/** The surface's graph in TSL (one for both its materials: the falls' rings come from each
+ * material's userData.wRing): its colour, opacity and normal, and the sky mixed into the light. */
+function waterGraph(U) {
+  const { vec2, vec3, vec4, float, fract, floor, mix, abs, length, max, min, clamp, smoothstep, step, exp, cos, sin, normalize, dot, pow,
+    reflect, select, texture, attribute, positionWorld, positionViewDirection, cameraViewMatrix, cameraWorldMatrix } = T;
+  const tex = texture(U.wTex.value), wTime = U.wTime;
+  const wflow = attribute('wflow', 'vec2'), wdata = attribute('wdata', 'vec3'), wRing = ref('userData.wRing', 'vec4');
+  // the ripple map carried by the current: two phases half a cycle apart, each reset while unseen
+  const flowed = (p, flow, scale, rate, seed) => {
+    const ph = wTime.mul(rate).add(seed), a = fract(ph), b = fract(ph.add(0.5)), f = flow.div(rate * scale);
+    const s0 = tex.sample(p.div(scale).sub(f.mul(a.sub(0.5))).add(floor(ph).mul(vec2(0.37, 0.21))).add(seed));
+    const s1 = tex.sample(p.div(scale).sub(f.mul(b.sub(0.5))).add(floor(ph.add(0.5)).mul(vec2(0.29, 0.43))).add(seed + 0.5));
+    return mix(s0, s1, abs(a.mul(-2.0).add(1.0)));
+  };
+  const wp = positionWorld.xz, wDepth = wdata.x, wSpeed = length(wflow);
+  const r1 = flowed(wp, wflow, 7.5, 0.3, 0.0);          // long swells
+  const r2 = flowed(wp, wflow, 2.4, 0.75, 0.31);        // the chop
+  const r3 = tex.sample(wp.div(4.3).add(wTime.mul(vec2(0.012, -0.008))));          // wind over still water
+  const r4 = tex.sample(wp.div(2.9).add(wTime.mul(vec2(-0.010, 0.015))).add(0.5));
+  // rings spreading from where the falls come down
+  const rv = wp.sub(vec2(wRing.x, clamp(wp.y, wRing.y.sub(wRing.w), wRing.y.add(wRing.w))));
+  const rd = length(rv), ph = rd.mul(2.4).sub(wTime.mul(5.5));
+  const ring = rv.div(max(rd, 0.01)).mul(cos(ph)).mul(exp(rd.div(-7.0))).mul(wRing.z).mul(sin(ph.mul(0.31).add(wp.y)).mul(0.4).add(0.6));
+  const grad = r1.xy.sub(0.5).mul(0.8).add(r2.xy.sub(0.5).mul(min(wSpeed, 2.5).mul(0.45).add(0.55))).add(r3.xy.add(r4.xy).sub(1.0).mul(0.3))
+    .add(select(wRing.z.greaterThan(0.0), ring, vec2(0.0)));
+  // foam: churned up by the falls, along the shore where the water laps, and where it runs fast
+  const wH = r1.w.mul(0.45).add(r2.w.mul(0.55));
+  const shore = smoothstep(0.04, 0.35, wDepth).oneMinus().mul(smoothstep(0.3, 0.7, r1.w.add(sin(wTime.mul(1.3).add(r3.w.mul(8.0))).mul(0.25))));
+  const wF = clamp(wdata.y.mul(0.95).add(shore.mul(0.35)).add(max(wSpeed.sub(1.5), 0.0).mul(0.3)), 0.0, 0.93);
+  const foam = smoothstep(wF.oneMinus(), wF.oneMinus().add(0.25), wH).mul(step(0.01, wF)).mul(r4.w.mul(0.25).add(0.75));
+  const deepK = exp(max(wDepth, 0.0).mul(-0.75)).oneMinus();
+  const color = vec4(mix(mix(U.wShallow, U.wDeep, deepK), vec3(0.9, 0.93, 0.95), foam), 1.0);
+  const wN = normalize(vec3(grad.x.negate().mul(foam.mul(0.4).add(0.5)), 1.0, grad.y.negate().mul(foam.mul(0.4).add(0.5))));
+  const normal = normalize(cameraViewMatrix.mul(vec4(wN, 0.0)).xyz);
+  // the sky in it, strongest at a glance (Fresnel), and less where it's white
+  const V = positionViewDirection;
+  const fr = pow(clamp(dot(normal, V), 0.0, 1.0).oneMinus(), 5.0).mul(0.98).add(0.02);
+  const R = cameraWorldMatrix.mul(vec4(reflect(V.negate(), normal), 0.0)).xyz;
+  const sky = mix(U.wSkyLo, U.wSkyHi, smoothstep(-0.05, 0.55, R.y));
+  const opacity = clamp(max(mix(mix(0.28, 0.9, deepK), float(1.0), fr.mul(0.85)), foam.mul(0.95)).mul(smoothstep(-0.02, 0.22, wDepth)).mul(wdata.z), 0.0, 1.0);
+  // what the GLSL's envmap_fragment did to the light: the sky mixed in, the sun's glint kept
+  class Lighting extends THREE.PhongLightingModel {
+    finish(builder) {
+      super.finish(builder);
+      const { outgoingLight, reflectedLight } = builder.context, spec = reflectedLight.directSpecular;
+      outgoingLight.assign(mix(outgoingLight.sub(spec), sky, fr.mul(foam.oneMinus()).mul(0.85)).add(spec.mul(foam.mul(0.8).oneMinus())));
+    }
+  }
+  return { U, color, opacity, normal, Lighting };
+}
+let _water = null;
+
+function waterNodeMaterial(U, ring) {
+  if (_water?.U !== U) _water = waterGraph(U);
+  const g = _water;
+  const m = new THREE.MeshPhongNodeMaterial({ color: 0xffffff, specular: 0xb8c8d0, shininess: 180, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  m.userData.noGlass = true;
+  m.userData.wRing = ring;
+  m.colorNode = g.color; m.opacityNode = g.opacity; m.normalNode = g.normal;
+  m.setupLightingModel = () => new g.Lighting();
   return m;
 }
 
@@ -230,7 +301,49 @@ const NOISE = /* glsl */`
   float fn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     return mix(mix(fh(i), fh(i + vec2(1.0, 0.0)), f.x), mix(fh(i + vec2(0.0, 1.0)), fh(i + vec2(1.0, 1.0)), f.x), f.y); }`;
 
-function fallsMesh(L) {
+/** The falls' shader in TSL (time: the water's clock, U.wTime). */
+function fallsMaterial(L, time) {
+  const { Fn, vec2, vec3, vec4, float, clamp, smoothstep, mix, normalize, dot, max, pow, reflect, sin, select, attribute,
+    positionGeometry, normalGeometry, positionWorld, cameraPosition } = T;
+  const fn = fxNoise().vnoise, { sunCol, amb, sunDir } = L;
+  const F = attribute('fall', 'vec4');
+  // the sheet shivers and bellies more the further it has fallen
+  const shiver = sin(time.mul(2.7).add(F.y.mul(11.0)).add(F.x.mul(17.0))).mul(0.1).add(sin(time.mul(1.3).add(F.x.mul(6.0))).mul(0.12));
+  const position = positionGeometry.add(normalGeometry.mul(shiver.mul(F.y).mul(F.z.mul(0.6).add(1.0))));
+  const fragment = Fn(() => {
+    const u = F.x, v = F.y, layer = F.z, x = u.mul(F.w);
+    // the pattern rides the water: at flight time v * T it left the brink (time - v * T) ago,
+    // so streaks stretch as the water speeds up
+    const tt = v.mul(Number(FALL_T.toFixed(3))).sub(time.mul(select(layer.lessThan(0.5), float(0.8), select(layer.greaterThan(1.5), float(1.12), float(1.0))))).toVar();
+    const n1 = fn(vec2(x.mul(0.7).add(layer.mul(13.0)), tt.mul(1.5))).toVar();
+    const n2 = fn(vec2(x.mul(2.4).add(layer.mul(7.0)), tt.mul(3.3))).toVar();
+    const n3 = fn(vec2(x.mul(6.5).add(layer.mul(3.0)), tt.mul(7.5))).toVar();
+    const ropes = fn(vec2(x.mul(1.1).add(5.0), v.mul(2.0).sub(time.mul(0.05)))).toVar();   // thicker and thinner falls of water across it
+    const e0 = fn(vec2(v.mul(5.0).sub(time.mul(0.4)), layer.add(1.0))), e1 = fn(vec2(v.mul(5.0).sub(time.mul(0.4)), layer.add(9.0)));
+    const edge = smoothstep(0.0, e0.mul(v).mul(0.16).add(0.05), u).mul(smoothstep(0.0, e1.mul(v).mul(0.16).add(0.05), u.oneMinus())).toVar();
+    // glassy as it rolls over the brink, aerated and white lower down, all white at the foot
+    const aer0 = clamp(v.mul(1.2).sub(0.1).add(n2.sub(0.5).mul(0.9)).add(n1.sub(0.5).mul(0.6)).add(edge.oneMinus().mul(0.4)).add(float(0.5).sub(ropes).mul(0.4)), 0.0, 1.0);
+    const w = smoothstep(0.2, 0.85, mix(aer0, float(1.0), smoothstep(0.82, 1.0, v))).toVar();
+    // lit: the sun on it, through the white water when it's behind, a glint off the glassy part
+    const N = normalize(normalGeometry.add(vec3(0.0, 0.0, n2.sub(0.5).mul(0.6))).add(vec3(n3.sub(0.5).mul(0.3)))).toVar();
+    const V = normalize(cameraPosition.sub(positionWorld));
+    const lit = max(dot(N, sunDir), 0.0).mul(0.65).add(0.35), thru = max(dot(N.negate(), sunDir), 0.0).mul(w).mul(0.5);
+    const spec = pow(max(dot(reflect(sunDir.negate(), N), V), 0.0), 40.0).mul(w.oneMinus()).mul(n3.add(0.5));
+    const col = mix(vec3(0.07, 0.2, 0.21), vec3(0.9, 0.94, 0.96), w).mul(amb.add(sunCol.mul(lit.add(thru)))).add(sunCol.mul(spec).mul(1.5)).toVar();
+    const aBack = edge.mul(0.55).mul(smoothstep(0.25, 0.55, n1.add(v.mul(0.3))));
+    const aBody = mix(0.62, 0.97, w).mul(ropes.mul(0.2).add(0.8)).mul(edge)
+      .mul(smoothstep(0.1, 0.32, n3.mul(0.55).add(n1.mul(0.45)).add(0.12).add(v.mul(0.1)).sub(edge.oneMinus().mul(0.25))));   // torn through here and there
+    const aVeil = smoothstep(0.56, 0.9, n2.mul(0.55).add(n3.mul(0.45))).mul(0.8).mul(edge).mul(smoothstep(0.02, 0.2, v));   // threads
+    return vec4(select(layer.lessThan(0.5), col.mul(0.75), col), select(layer.lessThan(0.5), aBack, select(layer.lessThan(1.5), aBody, aVeil)));
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  m.fog = true;
+  m.positionNode = position; m.fragmentNode = fragment;
+  m.uniforms = { time, ...L };
+  return m;
+}
+
+function fallsMesh(L, time = null) {
   // three sheets, back to front: the dim water behind, the body, a torn veil in front
   const ROWS = 44, COLS = 18, P = [], A = [], N = [], I = [], q = {};
   [[-0.5, 0.92], [0, 1], [0.45, 1.06]].forEach(([off, wide], layer) => {
@@ -252,9 +365,9 @@ function fallsMesh(L) {
   g.setAttribute('fall', new THREE.Float32BufferAttribute(A, 4));
   g.setIndex(I);
   g.computeBoundingSphere();
-  const mat = new THREE.ShaderMaterial({
+  const mat = WEBGPU ? fallsMaterial(L, time) : new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 } }]),
+    uniforms: { ...fogUniforms(), time: { value: 0 } },
     vertexShader: /* glsl */`
       uniform float time; attribute vec4 fall; varying vec4 vF; varying vec3 vN, vW;
       #include <fog_pars_vertex>
@@ -323,10 +436,10 @@ class Points {
     g.setAttribute('position', new THREE.BufferAttribute(this.p, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('pdata', new THREE.BufferAttribute(this.data, 3).setUsage(THREE.DynamicDrawUsage));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
-    this.geo = g;
-    this.mat = new THREE.ShaderMaterial({
+    this.geo = WEBGPU ? pointQuads(g) : g;
+    this.mat = WEBGPU ? pointsMaterial(L, flecks) : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, fog: true,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { scale: { value: 300 }, time: { value: 0 } }]),
+      uniforms: { ...fogUniforms(), scale: { value: 300 }, time: { value: 0 } },
       vertexShader: /* glsl */`
         uniform float scale; attribute vec3 pdata; varying float vA, vSeed;
         #include <fog_pars_vertex>
@@ -352,7 +465,7 @@ class Points {
         }`,
     });
     Object.assign(this.mat.uniforms, L);
-    this.points = new THREE.Points(g, this.mat);
+    this.points = WEBGPU ? new THREE.Mesh(this.geo, this.mat) : new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;
     this.points.renderOrder = flecks ? 2 : 4;
     scene.add(this.points);
@@ -385,6 +498,62 @@ class Points {
   }
 }
 
+/** The spray's or the flecks' shader in TSL: round points drawn as quads (effects.js pointQuads), as
+ * big as the GLSL's (never under a pixel and a half: fainter instead). */
+function pointsMaterial(L, flecks) {
+  const { Fn, vec3, vec4, length, step, fract, max, min, attribute, positionView, varying, Discard } = T;
+  const { sunCol, amb } = L, time = live(0);
+  const pdata = attribute('pdata', 'vec3');
+  const px = pdata.x.mul(pointScale()).div(positionView.z.negate());
+  const { vertex, coord } = pointQuad(max(px, 1.5));
+  const vA = varying(pdata.y.mul(min(1.0, px.div(1.5))));    // too small to see: fainter, not smaller
+  const fragment = Fn(() => {
+    const d = length(coord.sub(0.5)).mul(2.0).toVar();
+    Discard(d.greaterThan(1.0));
+    const col = (flecks ? vec3(0.86, 0.9, 0.9) : vec3(0.8, 0.9, 0.95)).mul(amb.add(sunCol.mul(0.8))).toVar();
+    if (!flecks) col.addAssign(sunCol.mul(1.6).mul(step(0.9, fract(pdata.z.mul(7.13).add(time.mul(1.7))))));   // a drop catching the sun
+    return vec4(col, vA.mul(falling(1.0, 0.4, d)));
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  m.fog = true;
+  m.vertexNode = vertex; m.fragmentNode = fragment;
+  m.uniforms = { scale: { value: 300 }, time };   // (scale: set as before, worked out in the shader: pointScale)
+  return m;
+}
+
+/** The mist's shader in TSL: billows on quads turned to the eye, with the bow in them. */
+function billowsMaterial(L) {
+  const { Fn, vec2, vec3, vec4, cos, sin, length, normalize, dot, max, abs, pow, acos, clamp, degrees, smoothstep, attribute, varying,
+    positionGeometry, positionWorld, cameraWorldMatrix, cameraViewMatrix, cameraPosition, Discard } = T;
+  const fn = fxNoise().vnoise, { sunCol, amb, sunDir } = L, time = live(0), bow = live(0);
+  const ipos = attribute('ipos', 'vec3'), idat = attribute('idat', 'vec4');
+  const c = cos(idat.z), s = sin(idat.z), q = positionGeometry;
+  const r = vec2(c.mul(q.x).sub(s.mul(q.y)), s.mul(q.x).add(c.mul(q.y))).mul(idat.x);
+  const right = cameraWorldMatrix.mul(vec4(1, 0, 0, 0)).xyz, up = cameraWorldMatrix.mul(vec4(0, 1, 0, 0)).xyz;
+  const position = ipos.add(right.mul(r.x)).add(up.mul(r.y));
+  // a puff the eye is in (or nearly) thins away rather than filling the view
+  const vA = varying(idat.y.mul(smoothstep(0.25, 1.1, length(cameraViewMatrix.mul(vec4(ipos, 1.0)).xyz).div(idat.x))));
+  const vQ = varying(q.xy.mul(2.0)), seed = idat.w;
+  const fragment = Fn(() => {
+    const d = length(vQ).toVar();
+    Discard(d.greaterThan(1.0));
+    const n = fn(vQ.mul(1.8).add(seed.mul(31.0))).mul(0.6).add(fn(vQ.mul(4.1).add(seed.mul(17.0)).add(time.mul(0.15))).mul(0.4));
+    const a = vA.mul(pow(max(d.oneMinus(), 0.0), 1.4)).mul(n.mul(0.9).add(0.35));
+    const V = normalize(positionWorld.sub(cameraPosition)).toVar();
+    const col = vec3(0.86, 0.9, 0.93).mul(amb.add(sunCol.mul(pow(max(dot(V, sunDir), 0.0), 8.0).mul(1.3).add(0.5)))).toVar();
+    // the bow, 40.5 to 42.5 degrees out from the point opposite the sun, violet inside, red out
+    const k = degrees(acos(clamp(dot(V, sunDir.negate()), -1.0, 1.0))).sub(40.5).div(2.0).toVar();
+    const hue = clamp(vec3(smoothstep(0.35, 0.8, k).add(smoothstep(0.0, 0.25, k).oneMinus().mul(0.5)), abs(k.sub(0.5)).mul(2.4).oneMinus(), smoothstep(0.1, 0.5, k).oneMinus()), 0.0, 1.0);
+    col.addAssign(hue.mul(sunCol).mul(bow).mul(smoothstep(0.0, 0.15, k)).mul(falling(1.0, 0.85, k)).mul(0.9));
+    return vec4(col, a);
+  })();
+  const m = nodeMaterial({ transparent: true, depthWrite: false });
+  m.fog = true;
+  m.positionNode = position; m.fragmentNode = fragment;
+  m.uniforms = { time, bow };
+  return m;
+}
+
 /** Mist: soft billows on camera-facing quads (instanced: a puff can be far bigger than a point
  * may be drawn), lit by the sun (brightest looking toward it) and the sky, with the bow in them. */
 class Billows {
@@ -401,9 +570,9 @@ class Billows {
     g.instanceCount = 0;
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
     this.geo = g;
-    this.mat = new THREE.ShaderMaterial({
+    this.mat = WEBGPU ? billowsMaterial(L) : new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, fog: true,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 }, bow: { value: 0 } }]),
+      uniforms: { ...fogUniforms(), time: { value: 0 }, bow: { value: 0 } },
       vertexShader: /* glsl */`
         attribute vec3 ipos; attribute vec4 idat; varying vec2 vQ; varying float vA, vSeed; varying vec3 vW;
         #include <fog_pars_vertex>
@@ -487,11 +656,13 @@ export function buildWater(ctx) {
   const { scene } = ctx;
   const lite = TOUCH;
   // what everything here is lit by, set each frame from the world's own lights
-  const L = { sunCol: { value: new THREE.Color() }, amb: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) } };
+  // (under WebGPU each a TSL uniform, read once a render: effects.js live)
+  const u = WEBGPU ? live : (value) => ({ value });
+  const L = { sunCol: u(new THREE.Color()), amb: u(new THREE.Color()), sunDir: u(new THREE.Vector3(0, 1, 0)) };
   const U = {
-    wTex: { value: rippleTexture() }, wTime: { value: 0 },
-    wSkyLo: { value: new THREE.Color() }, wSkyHi: { value: new THREE.Color() },
-    wDeep: { value: new THREE.Color(0x0a2a30) }, wShallow: { value: new THREE.Color(0x3a7a74) },
+    wTex: { value: rippleTexture() }, wTime: u(0),
+    wSkyLo: u(new THREE.Color()), wSkyHi: u(new THREE.Color()),
+    wDeep: u(new THREE.Color(0x0a2a30)), wShallow: u(new THREE.Color(0x3a7a74)),
   };
   const poolMat = waterMaterial(U, new THREE.Vector4(FOOT_X, FALLS.z, 1.1, FOOT_W / 2));
   const flowMat = waterMaterial(U, new THREE.Vector4(0, 0, 0, 0));
@@ -535,7 +706,7 @@ export function buildWater(ctx) {
   });
   scene.add(river);
 
-  const fall = fallsMesh(L);
+  const fall = fallsMesh(L, U.wTime);
   fall.material.uniforms.time = U.wTime;
   scene.add(fall);
 

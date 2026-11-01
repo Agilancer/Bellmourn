@@ -23,7 +23,8 @@
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Zombie, goreMaterial, wrap } from './zombies.js';
+import { Zombie, goreMaterial, goreShell, wrap } from './zombies.js';
+import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
 import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
@@ -142,7 +143,9 @@ function foeMaterial(src, lib, u = null) {
     mat.emissive = src.emissive.clone().multiplyScalar(src.emissiveIntensity);
     mat.map = null;
     mat.userData.eyes = true;
+    if (WEBGPU) mat.colorNode = null;   // (the crisp map it had is gone: its colour alone)
   }
+  if (WEBGPU) return goreShell(mat);    // (TSL: zombies.js goreKind, its shell variant)
   const base = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh) => {
     base(sh);

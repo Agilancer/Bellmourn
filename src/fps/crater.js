@@ -13,6 +13,8 @@
 // be taken up. His sword, shield and staff can (main.js lays them out for a new game).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { WEBGPU, T } from './nodes.js';
+import { pointQuads, pointQuad } from './effects.js';
 
 export const CRATER = { x: -74, z: -58, R: 13, depth: 3.4, rim: 1.15, reach: 25, k: 1 };   // k: how far it's formed (0 before he lands)
 
@@ -133,6 +135,28 @@ export const glowTex = (() => {
   };
 })();
 
+/** Soft glowing points (embers, fireflies): `size` metres across, the glow texture in each point's own
+ * vertex colour, added on. three's PointsMaterial under WebGL; under WebGPU, where a point is drawn a
+ * pixel wide, a quad each (effects.js pointQuads), sized as PointsMaterial sizes them, so the code that
+ * moves them (geometry.attributes.position / color, setXYZ, needsUpdate) works on either. */
+export const glowPoints = (() => {
+  const mats = new Map();
+  return (geo, size) => {
+    if (!WEBGPU) return new THREE.Points(geo, new THREE.PointsMaterial({ size, map: glowTex(), vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
+    let m = mats.get(size);
+    if (!m) {
+      const { vec4, attribute, texture, positionView, screenSize } = T;
+      const { vertex, coord } = pointQuad(T.float(size).mul(screenSize.y.mul(0.5)).div(positionView.z.negate().max(0.05)));
+      m = new THREE.MeshBasicNodeMaterial({ blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
+      m.vertexNode = vertex;
+      const g = texture(glowTex()).sample(coord);
+      m.colorNode = vec4(g.rgb.mul(attribute('color', 'vec3')), g.a);
+      mats.set(size, m);
+    }
+    return new THREE.Mesh(pointQuads(geo), m);
+  };
+})();
+
 // the knight's armour, cut into its pieces by the bone that carries each triangle
 const PIECES = {
   Hips: 'faulds', Abdomen: 'cuirass', Torso: 'cuirass', Chest: 'cuirass', Neck: 'cuirass', Body: 'faulds',
@@ -209,7 +233,7 @@ export class Crater {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
-    this.embers = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.09, map: glowTex(), vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
+    this.embers = glowPoints(geo, 0.09);
     this.embers.frustumCulled = false;
     this.group.add(this.embers);
   }

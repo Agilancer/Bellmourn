@@ -26,11 +26,30 @@
 <link rel="preload" as="image" href="assets/title/blastorama.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/herrington.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/bellmourn.webp" fetchpriority="high">
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-} }
+<script>
+  // The renderer (engine.js), chosen before any module loads, since each runs on its own three.js:
+  // WebGPU (three r187's WebGPURenderer, the custom shaders in TSL) where the browser has it, else
+  // WebGL (three r170, the shaders in GLSL). ?renderer=webgl|webgpu, else Settings (bm.renderer:
+  // auto, webgpu, webgl). 'auto' takes WebGPU on a computer; a phone keeps WebGL unless asked. A
+  // WebGPU start that fails sets bm.nogpu and comes back here as WebGL for the rest of the session.
+  (() => {
+    let want = new URLSearchParams(location.search).get('renderer'), failed = false;
+    try { want ||= localStorage.getItem('bm.renderer'); failed = sessionStorage.getItem('bm.nogpu') === '1'; } catch (e) { /* no storage */ }
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const R = navigator.gpu && !failed && (want === 'webgpu' || ((!want || want === 'auto') && !touch)) ? 'webgpu' : 'webgl';
+    window.BM_RENDERER = R;
+    const cdn = 'https://cdn.jsdelivr.net/npm/three@', b = cdn + '0.187.0/build/';
+    // (r187's builds import one another by relative path: those are sent to the minified copies)
+    const imports = R === 'webgpu'
+      ? { three: b + 'three.webgpu.min.js', 'three/webgpu': b + 'three.webgpu.min.js', 'three/tsl': b + 'three.tsl.min.js',
+          'three/addons/': cdn + '0.187.0/examples/jsm/', [b + 'three.core.js']: b + 'three.core.min.js',
+          [b + 'three.webgpu.js']: b + 'three.webgpu.min.js', [b + 'three.tsl.js']: b + 'three.tsl.min.js' }
+      : { three: cdn + '0.170.0/build/three.module.min.js', 'three/addons/': cdn + '0.170.0/examples/jsm/' };
+    const map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({ imports });
+    document.currentScript.after(map);
+  })();
 </script>
 <style>
   :root { --gold: #d8b870; --gold-dim: #8a7448; --ink: #07060a; --panel: rgba(16, 12, 18, .92); --edge: #5a4a3a; }
@@ -275,12 +294,12 @@
   /* ---------------- the bag (after Velscour's inventory) */
   .panel.bag { width: min(1040px, 97vw); }
   /* the portals' window (portals.js): every other portal, by land; the woken ones to step through to */
-  .panel.portals { width: min(540px, 94vw); padding: 18px 22px 16px; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(70, 110, 220, .2), transparent 70%), linear-gradient(#141420, #0a0a10);
+  .panel.portals { width: min(880px, 94vw); padding: 18px 22px 16px; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(70, 110, 220, .2), transparent 70%), linear-gradient(#141420, #0a0a10);
                    border-color: #4a5a8a; box-shadow: 0 0 0 1px #000, 0 0 40px rgba(60, 100, 255, .18), 0 24px 70px rgba(0, 0, 0, .92); }
   .panel.portals h2 { text-align: center; color: #b8ccff; text-shadow: 0 0 14px rgba(90, 140, 255, .55), 0 2px 6px #000; }
   .panel.portals h3 { color: #9ab0e8; border-bottom-color: #2a3050; }
   .p-here { text-align: center; color: #a8a0b8; font-size: 13px; margin-bottom: 4px; } .p-here b { color: #dce6ff; }
-  .p-list { display: grid; gap: 6px; }
+  .p-list { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; }   /* (two columns: every portal on one screen) */
   .p-row { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; text-align: left; padding: 7px 12px 7px 8px;
            background: linear-gradient(90deg, rgba(40, 60, 130, .28), rgba(20, 22, 36, .6)); border: 1px solid #36406a; color: #e4e8f8; font: 14px Cinzel, Georgia, serif; }
   button.p-row { cursor: pointer; min-width: 0; }
@@ -294,10 +313,12 @@
   .p-lock { width: 12px; height: 10px; margin: 6px 6px 0; border: 2px solid #4a4852; border-radius: 2px; position: relative; }
   .p-lock::before { content: ''; position: absolute; left: 1px; top: -9px; width: 6px; height: 7px; border: 2px solid #4a4852; border-bottom: none; border-radius: 5px 5px 0 0; }
   .p-foot { text-align: center; margin-top: 12px; }
-  @media (max-height: 500px) {   /* a phone on its side: more rows to a screen */
-    .panel.portals { padding: 10px 14px 10px; } .panel.portals h2 { font-size: 18px; margin: 0; } .panel.portals h3 { margin: 8px 0 6px; }
-    .p-here { font-size: 12px; } .p-list { gap: 4px; grid-template-columns: 1fr 1fr; } .p-row { padding: 4px 8px 4px 5px; gap: 8px; grid-template-columns: 30px 1fr auto; font-size: 12.5px; } .p-seal { width: 30px; height: 30px; }
-    .p-go { padding: 4px 7px; letter-spacing: .1em; } .panel.portals { width: min(760px, 96vw); }   /* (two columns: every row on one screen) */
+  @media (max-width: 620px) { .p-list { grid-template-columns: 1fr; } }   /* (a narrow screen: one column) */
+  @media (max-height: 500px) {   /* a phone on its side: three columns of names, every portal on one screen; a woken one is lit and taps to travel */
+    .panel.portals { padding: 8px 12px 8px; width: min(800px, 97vw); } .panel.portals h2 { font-size: 17px; margin: 0; } .panel.portals h3 { margin: 6px 0 5px; font-size: 11px; }
+    .p-here { font-size: 11px; margin: 0; } .p-list { gap: 4px; grid-template-columns: 1fr 1fr 1fr; }
+    .p-row { padding: 3px 6px 3px 4px; gap: 7px; grid-template-columns: 26px 1fr; font-size: 12px; min-height: 34px; } .p-seal { width: 26px; height: 26px; }
+    .p-name em, .p-go, .p-lock, .p-foot { display: none; }
   }
   .bag .tabs { display: flex; gap: 6px; margin: 0 40px 10px 0; }
   .bag .tabs button { font-size: 13px; padding: 7px 14px; }
