@@ -369,7 +369,7 @@ $('rmodel').onchange = async () => { await vm.setModel($('rkind').value, $('rmod
 $('lkind').onchange = equip;
 fillModels();
 
-const SLOT_HANDS = { onehand: ['onehand', null], twohand: ['twohand', null], spell: ['', null], staff: ['staff', null] };
+const SLOT_HANDS = { onehand: ['onehand', null], twohand: ['twohand', null], spell: ['', null], twospell: ['', null], staff: ['staff', null] };
 function renderSlots() {
   $('slots').innerHTML = Object.entries(cat.slots).map(([slot, s]) => `
     <div class="slot"><h3>${s.title}<small>${s.options.find((o) => o.id === picks[slot])?.name || ''}</small></h3>
@@ -385,7 +385,7 @@ async function choose(slot, id) {
   if ($('rkind').value !== r) { $('rkind').value = r; fillModels(); }
   if (slot === 'spell' && $('lkind').value === '') $('lkind').value = 'shield_round';
   await equip();
-  last = slot === 'spell' ? 'cast1' : (cat.slots[slot].options.find((o) => o.id === id).chain.length > 1 ? 'combo' : 'attack');
+  last = slot === 'spell' ? 'cast1' : slot === 'twospell' ? 'cast2' : (cat.slots[slot].options.find((o) => o.id === id).chain.length > 1 ? 'combo' : 'attack');
   act(last);
 }
 renderSlots();
@@ -503,7 +503,7 @@ window.review = async (spec) => {
     if (s.action === 'attack') vm.attackRight();
     if (s.action === 'left') vm.actLeft(true);
     if (s.action === 'cast1' || s.action === 'cast2') lastCast = vm.cast({ hands: s.action === 'cast2' ? 2 : 1 }, { charge: !!s.charge });
-    let charged = !s.charge;
+    let charged = !s.charge; const done = new Map();
     const holdUntil = s.holdFor ?? 0.5;
     const notes = [];
     for (let i = 0; i < n; i++) {
@@ -511,6 +511,8 @@ window.review = async (spec) => {
         const sub = 12;
         for (let j = 0; j < sub; j++) {
           if (left > 0) { const r = vm.attackRight(); if (r && r !== 'spell') left--; }
+          // timed clicks (s.clicks: seconds) and stabs with the shield up (s.stabs)
+          for (const [list, fn] of [[s.clicks, () => vm.attackRight()], [s.stabs, () => vm.stab()], [s.ghosts, () => vm.shoveGhost()]]) for (const tc of list || []) if (!done.has(list) || !done.get(list).has(tc)) { if (simT >= tc) { if (!done.has(list)) done.set(list, new Set()); done.get(list).add(tc); fn(); } }
           if (s.action === 'block') vm.actLeft((i - 1 + j / sub) * s.step < holdUntil);
           simT += s.step / sub;
           if (!charged && simT >= s.charge) { charged = true; for (const sd of ['R', 'L']) if (vm.state[sd]) vm.state[sd].hold = null; }
@@ -545,7 +547,8 @@ const want = new URLSearchParams(location.search).get('review');
 if (want) {
   const specs = await (await fetch(want, { cache: 'no-store' })).json();
   const log = [];
-  for (const s of specs) { try { log.push(await window.review(s)); } catch (e) { log.push(`${s.name}: ${e.stack || e}`); } }
+  // a spec naming a tool runs that module's run(spec) instead (e.g. tools/grip_shots.js)
+  for (const s of specs) { try { log.push(s.tool ? String(await (await import(s.tool)).run(s)) : await window.review(s)); } catch (e) { log.push(`${s.name || s.tool}: ${e.stack || e}`); } }
   await fetch('/shot?name=__done', { method: 'POST', body: log.join('\n') });
 }
 </script>

@@ -908,11 +908,13 @@ function spellDamage(def) {
 // ------------------------------------------------------------------ the shield and the staff
 // A shield raised just as the blow comes (a third of a second before it lands) turns it aside
 // whole: the Guard pays nothing, the one who swung reels, and your next blow, struck while it does,
-// lands nearly twice as hard. A swing with the shield up is a bash: a shove that knocks whatever's
-// in front of you back a stride and sets it reeling. A staff gathers its bolt while you hold the
+// lands nearly twice as hard. Raising the shield shoves: what's in front of it, across a width and
+// out to a reach that go by the shield's own size, is knocked back and set reeling, before the
+// shield settles to block. With the shield up the sword only stabs, round its edge (vm.stab).
+// A staff gathers its bolt while you hold the
 // button (the longer, the bigger and harder it flies), and with the left hand free it sweeps
 // round in front of you, knocking the dead back off you.
-let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1;
+let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1, shoveAt = 0;
 /** Set something reeling for t seconds (and out of any blow it was in). */
 function reel(z, t) {
   if (z.dead) return;
@@ -946,17 +948,25 @@ function parried(by) {
   hud.toast('Parried! Strike while it reels');
   answerBlow(by);
 }
-function shieldBash() {
+/** The shove as the shield comes up (its SHOVE frame): everything in a box in front of you, as
+ * wide as the shield and a stride or two deep (a bigger shield pushes wider and further, and a
+ * little harder), is knocked back and set reeling. */
+function shieldShove() {
   if (bashCool > 0 || !st.shield || guard.broken) return;
-  bashCool = 1.1; guard.v = Math.max(0, guard.v - 12); guard.wait = 0.6;
-  const hit = inFront(2.3, 0.45);
+  const size = vm.shieldSize() || { w: 0.45, h: 0.6 };
+  const half = 0.35 + size.w * 1.3, reach = 1.3 + size.h * 1.4, push = 1.0 + size.w * size.h * 2.2;
+  bashCool = 0.9; guard.v = Math.max(0, guard.v - 8); guard.wait = 0.5;
+  vm.shoveGhost();   // (the push made visible: a ghost of the shield thrown out ahead)
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  const hit = inFront(Math.hypot(reach, half), -1).filter(({ dx, dz, d }) => {
+    const ahead = (dx * fx + dz * fz) * d, across = Math.abs(dx * fz - dz * fx) * d;
+    return ahead > -0.2 && ahead <= reach && across <= half;
+  });
   for (const { z, dx, dz } of hit) {
-    const b = z.bones.chest || z.bones.spine;
-    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: 6 + Math.random() * 5, dir: new THREE.Vector3(dx, 0.1, dz), kind: 'blunt' });
-    reel(z, 0.9); shove(z, dx, dz, 1.4);       // (after the blow's own flinch, so the reel holds)
+    reel(z, 0.7); shove(z, dx, dz, push);
   }
   if (hit.length) sfx.hit('blunt', true); else sfx.swing(true, true);
-  shake = Math.max(shake, hit.length ? 0.8 : 0.35);
+  shake = Math.max(shake, hit.length ? 0.8 : 0.5);   // (the shove's kick, landing or not)
   if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
 }
 function staffSweep() {
@@ -1101,20 +1111,22 @@ function onEvent(kind, side, clip, info) {
     const dir = aimPoint().sub(from).normalize();
     magic.cast(p.def, from, dir, player, camera);
   } else if (kind === 'whoosh') sfx.swing(!!info?.heavy, BLUNT.test((ITEMS[vm.equip[side]] || ITEMS[vm.equip.R])?.id || ''));
-  else if (kind === 'hit' && info?.attack) melee(info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power);
+  else if (kind === 'hit' && info?.attack) melee(info.stab ? 3.2 : info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power, info.stab);
 }
 
 // the weapons that crush rather than cut (no gash: a split in the flesh where they land)
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
-function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
+function melee(reach, heavy, side = 'R', sweep = null, power = 1, stab = false) {
   player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
   // the rays fan out along the blade's sweep across the view (a chop's fan stands up, a
   // sweep's lies flat), a little either side of it
   const sx = sweep ? sweep[0] : 1, sy = sweep ? sweep[1] : 0;
-  for (const [a, b] of [[-0.35, 0], [-0.15, 0], [0, 0], [0.15, 0], [0.35, 0], [0, -0.1], [0, 0.1]]) {
+  // (a stab goes where you look: a narrow bundle of rays, a little further)
+  const fan = stab ? [[-0.05, 0], [0, 0], [0.05, 0], [0, -0.04], [0, 0.04]] : [[-0.35, 0], [-0.15, 0], [0, 0], [0.15, 0], [0.35, 0], [0, -0.1], [0, 0.1]];
+  for (const [a, b] of fan) {
     const d = new THREE.Vector3(a * sx - b * sy, -0.05 + a * sy + b * sx, -1)
       .applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ')).normalize();
     const hit = physics.ray([o.x, o.y, o.z], [d.x, d.y, d.z], reach);
@@ -1126,7 +1138,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     const it = ITEMS[vm.equip[side]] || ITEMS[vm.equip.R];
     // the edge's sweep across the view, as the blow travels on screen (fp_moves.json)
     const right = _v.set(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-    const sw = sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];
+    const sw = stab ? [0.15, 1] : sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];   // (a stab: a short upright wound)
     const edge = right.clone().multiplyScalar(sw[0]).addScaledVector(up, sw[1]).normalize();
     const blunt = BLUNT.test(it?.id || '');
     // (a chop, slower than a cut, lands harder; struck while it reels from your parry, harder again)
@@ -2082,7 +2094,7 @@ function tick(dt) {
     // queues it; the swish comes with each blow's own whoosh)
     const bolt = BOLTS[vm.equip.R];
     bashCool -= dt; sweepCool -= dt;
-    if (vm.blocking && inp.was('Mouse0')) shieldBash();                 // (a swing with the shield up: a bash)
+    if (vm.blocking) { if (inp.was('Mouse0')) vm.stab(); }               // (shield up: the sword only stabs, round its edge)
     else if (bolt) {
       // a staff: held, it gathers its bolt; let go, it flies (a tap, a plain bolt)
       if (inp.held('Mouse0') && !vm.busy('R') && staffCharge < 0 && player.mana >= bolt.mana) staffCharge = 0;
@@ -2099,12 +2111,17 @@ function tick(dt) {
           if (did && did !== 'queued') { player.mana -= cost; pending.R = { def: k > 1.05 ? { ...bolt, size: bolt.size * (1 + (k - 1) * 0.6), power: bolt.power * k, burst: Math.round(bolt.burst * k), dmgMul: k } : bolt, side: 'R' }; }
         }
       } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
-    } else if (inp.held('Mouse0')) vm.attackRight();
+    } else if (inp.was('Mouse0')) vm.attackRight();   // (a click for every blow: between a combo's blows the next waits cocked a moment)
     // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
     if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
     const wasBlocking = vm.blocking;
     vm.actLeft(inp.held('Mouse2'));
-    if (vm.blocking && !wasBlocking) blockAt = zombies.time;
+    if (vm.blocking && !wasBlocking) {   // raised: it shoves on its SHOVE frame, then blocks
+      blockAt = zombies.time;
+      const c = vm.clipInfo(vm.state.L?.name), i = c ? c.names.indexOf('SHOVE') : -1;
+      shoveAt = zombies.time + (i >= 0 ? c.starts[i] + 0.03 : 0.1);
+    }
+    if (shoveAt && zombies.time >= shoveAt) { shoveAt = 0; if (vm.blocking) shieldShove(); }
     for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
     if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(underfoot(), player.speed > 7.5, inMail());
