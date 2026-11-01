@@ -14,7 +14,7 @@
 // columns of rock up to the floor at every half metre, walls where the rock stands.
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
-import { WEBGPU, T, keyed, ref } from './nodes.js';
+import { WEBGPU, T, keyed, ref, settled } from './nodes.js';
 
 /** The gulf's rock: torn strata on its walls (the layers the earthquake split, running level along
  * them), broken stone and grit underfoot, wrapped round the surface without stretching (triplanar),
@@ -25,7 +25,7 @@ function strataMaterial(lib) {
   const wallT = own('cave_dec_11'), floorT = own('cave_dec_03');
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x141210, shininess: 10, side: THREE.FrontSide });
   m.userData = { tileU: 1, tileV: 1, noCast: true };   // (84k triangles: not drawn again into every torch's shadow cube)
-  if (WEBGPU) { strataNodes(m, wallT, floorT); keyed(m, 'gulf-strata'); return m; }
+  if (WEBGPU) { strataNodes(m, wallT, floorT); settled(m.colorNode); settled(m.emissiveNode); keyed(m, 'gulf-strata'); return m; }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tWall = { value: wallT }; sh.uniforms.tFloor = { value: floorT };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 gP; varying vec3 gN;')

@@ -12,7 +12,7 @@
 // also drops the outdoor ground there so the boxes are what you walk on. Foes find their way
 // to you along the passages by a flow field over the open cells.
 import * as THREE from 'three';
-import { WEBGPU, T, shared, keyed, ref } from './nodes.js';
+import { WEBGPU, T, shared, keyed, ref, settled } from './nodes.js';
 
 const G = 0.5;                                    // grid step (metres)
 const DEEP = -9;                                  // the cavern floor (well under the 'under' line)
@@ -156,7 +156,7 @@ export function rockMaterial(tex, k = 2.2, tile = 2.6) {
     ROCK_TEX.set(m, tex);
     m.userData.rockK = k; m.userData.rockTile = tile;
     const g = rockNode(tex);
-    m.colorNode = g.node;
+    m.colorNode = settled(g.node);
     keyed(m, 'cave-rock-' + g.key);
     return m;
   }

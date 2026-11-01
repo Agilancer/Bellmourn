@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { SHARP_GLSL } from './engine.js';
 import { craterHeight } from './crater.js';
-import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref } from './nodes.js';
+import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, settled } from './nodes.js';
 
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
@@ -232,7 +232,7 @@ function downsMaterial(lib) {
   const tint = layers.map(([, c]) => T(c));
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x080808, shininess: 6 });
   m.userData.noGlass = true;
-  if (WEBGPU) { m.colorNode = downsNode(tex, layers.map(([, c]) => c)); keyed(m, 'downs'); return m; }
+  if (WEBGPU) { m.colorNode = settled(downsNode(tex, layers.map(([, c]) => c))); keyed(m, 'downs'); return m; }
   m.onBeforeCompile = (sh) => {
     tex.forEach((t, i) => { sh.uniforms['dT' + i] = { value: t }; });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 downs;\nvarying vec3 vDP; varying vec3 vDN; varying vec3 vDA;')

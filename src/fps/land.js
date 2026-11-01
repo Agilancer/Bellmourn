@@ -16,7 +16,7 @@
 // rock round anything steep, and dusts the cold country with snow.
 import * as THREE from 'three';
 import { REGION, POOL, STREAM, terrainHeight as downsHeight, streamAt } from './terrain.js';
-import { WEBGPU, T, keyed, ref } from './nodes.js';
+import { WEBGPU, T, keyed, ref, settled } from './nodes.js';
 
 export const WORLD = { x0: -1150, x1: 1250, z0: -1200, z1: 1200 };
 export const CORE_R = 300;   // the village clearing and the Darkwood: flat ground (y = 0)
@@ -319,6 +319,7 @@ export class Land {
       const box = Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)), top = new Array(8).fill(0);
       this.holes = { box: { value: box }, top: { value: top }, n: T.uniform(0).setGroup(T.renderGroup) };
       m.colorNode = landNode({ arr, map: this.map, rect: new THREE.Vector4(WORLD.x0 - STEP / 2, WORLD.z0 - STEP / 2, NX * STEP, NZ * STEP), kitU: kit.U, holes: this.holes });
+      settled(m.colorNode);
       keyed(m, 'land');
       return m;
     }

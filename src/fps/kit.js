@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { crisp, WEBGPU } from './engine.js';
-import { drawNormalMap, T, sharpGrad, shared, keyed, ref, sourceOf } from './nodes.js';
+import { drawNormalMap, T, sharpGrad, shared, keyed, ref, sourceOf, settled } from './nodes.js';
 
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
@@ -229,7 +229,7 @@ export class Kit {
     if (WEBGPU) {   // (one graph for every kit material: its weathering and its map are its own)
       m.userData.kW = [w.grime, w.damp, w.moss, w.snow];
       m.userData.kBuilt = built ? 1 : 0;
-      m.colorNode = this.weatherNode(m.map);
+      m.colorNode = settled(this.weatherNode(m.map));
       keyed(m, 'kit');
       return;
     }

@@ -5,7 +5,7 @@
 // that haven't been used yet (every Velscour texture ends up somewhere).
 import * as THREE from 'three';
 import { SHARP_GLSL, crisp, WEBGPU } from './engine.js';
-import { drawNormalMap, T, sharpGrad, untiled, untileMask, vnoise, snoise, shared, keyed, ref, sourceOf } from './nodes.js';
+import { drawNormalMap, T, sharpGrad, untiled, untileMask, vnoise, snoise, shared, keyed, ref, sourceOf, settled } from './nodes.js';
 
 const ROOT = 'assets/textures/';
 const SHINY = /iron|met_|gold|marble|slate|wet|sewer|ice|glass|polish|lacquer|obsidian|basalt|tile|inlay|salt/;
@@ -42,7 +42,7 @@ function feathered(m, f) {
   m.userData.noCast = true;
   if (WEBGPU) {   // (one graph per grain and tracks; the track gauge and the tiles are the material's)
     const grain = !!m.userData.grain, tracks = !!m.userData.tracks;
-    m.colorNode = featherNode(grain, tracks, m.map);
+    m.colorNode = settled(featherNode(grain, tracks, m.map));
     keyed(m, `feather${grain ? '-grain' : ''}${tracks ? '-tracks' : ''}`);
     return;
   }
@@ -98,7 +98,7 @@ function triplanar(m, tile) {
   if (WEBGPU) {   // (as in GLSL, an overlay's own sampling, laid first, stays)
     if (m.colorNode) return;
     m.userData.tri = tile;
-    m.colorNode = triNode(m.map);
+    m.colorNode = settled(triNode(m.map));
     keyed(m, 'tri');
     return;
   }
@@ -131,8 +131,8 @@ function glowCracks(m, k) {
     const g = cracksNode(m.map);
     // (the plain crisp map, as crisp() would draw it, and the glow read off that same sample; over
     // an overlay's or a triplanar's own colour, a plain crisp sample of the map for the glow)
-    if (!m.colorNode) m.colorNode = g.color;
-    m.emissiveNode = g.emissive;
+    if (!m.colorNode) m.colorNode = settled(g.color);
+    m.emissiveNode = settled(g.emissive);
     keyed(m, 'cracks');
     return;
   }
@@ -325,6 +325,7 @@ function groundNodes(m, { village, yard, layers, tex }) {
     return vec4(gc.mul(ref('color', 'color')), 1.0);
   })();
   m.emissiveNode = materialEmissive.add(vec3(0.12, 0.7, 0.26).mul(glow));
+  settled(m.colorNode); settled(m.emissiveNode);   // (the crater's values are shared uniforms: nodes.js)
   keyed(m, 'ground' + _grounds++);
 }
 
