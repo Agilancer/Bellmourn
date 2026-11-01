@@ -259,23 +259,33 @@ export class WorldMap {
 
   /** The portals woken so far (portals.js): a blue seal with its four-pointed star, named when the
    * chart is zoomed in. */
+  sealIcon(big) {
+    const key = big ? 'iconBig' : 'iconSmall';
+    if (this[key]) return this[key];
+    const r = big ? 7 : 4.6, R = Math.ceil(r * 2.2), c = document.createElement('canvas');
+    c.width = c.height = R * 2;
+    const g = c.getContext('2d'), x = R, y = R;
+    const glow = g.createRadialGradient(x, y, 0, x, y, r * 2.2);
+    glow.addColorStop(0, 'rgba(120, 170, 255, 0.55)'); glow.addColorStop(1, 'rgba(80, 130, 255, 0)');
+    g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 2.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1c2c6c'; g.strokeStyle = '#d8e4ff'; g.lineWidth = big ? 1.6 : 1.2;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#9cc0ff';
+    g.beginPath();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.22 : r * 0.82; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    g.closePath(); g.fill();
+    return (this[key] = c);
+  }
+
   drawPortals(g, to, w, h, big) {
     const list = this.portals?.() || [];
     if (!list.length) return;
     g.save();
-    const r = big ? 7 : 4.6;
+    const r = big ? 7 : 4.6, icon = this.sealIcon(big), half = icon.width / 2;
     for (const q of list) {
       const [x, y] = to(q.x, q.z);
       if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
-      const glow = g.createRadialGradient(x, y, 0, x, y, r * 2.2);
-      glow.addColorStop(0, 'rgba(120, 170, 255, 0.55)'); glow.addColorStop(1, 'rgba(80, 130, 255, 0)');
-      g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 2.2, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#1c2c6c'; g.strokeStyle = '#d8e4ff'; g.lineWidth = big ? 1.6 : 1.2;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
-      g.fillStyle = '#9cc0ff';
-      g.beginPath();
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.22 : r * 0.82; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
-      g.closePath(); g.fill();
+      g.drawImage(icon, x - half, y - half);
       if (big && this.zoom >= 2.4) {   // (zoomed out, the chart's own names say where they are)
         g.font = '700 10px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
         g.lineWidth = 3; g.strokeStyle = 'rgba(232, 220, 190, 0.85)'; g.strokeText(q.name, x, y + r + 12);

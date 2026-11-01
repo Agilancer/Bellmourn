@@ -180,6 +180,8 @@ function columnMaterial(time, fog) {
         vDist = length(mv.xyz);
         vNear = length(cameraPosition.xz - c.xz);
         gl_Position = projectionMatrix * mv;
+        // (nothing to show: you stand in it, or the seal sleeps; out of the picture, no pixels drawn)
+        if (vNear < 0.7 || (aSeal.x <= 0.375 && aSeal.y <= 0.0)) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */`
       uniform float uTime, uDay; uniform vec2 uFog;
@@ -221,6 +223,7 @@ function moteMaterial(time, fog, px) {
         gl_PointSize = clamp((0.02 + 0.028 * aRnd.w) * uPx / max(d, 0.5), 1.0, 7.0);
         // (gone before they'd reach the eye: standing in the seal, they rise about you, not in your face)
         vA = sin(life * 3.14159) * aWake * (1.0 - smoothstep(uFog.x, uFog.y, d)) * smoothstep(1.8, 4.0, d);
+        if (vA <= 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);   // (asleep or gone: not drawn)
       }`,
     fragmentShader: /* glsl */`
       varying float vA;
@@ -466,12 +469,15 @@ export class Portals {
       if (p.id === 'bellmourn') continue;
       const plants = p.y > 0.5 ? meadow : forest;   // (the downs stand above the village's flat)
       if (!plants.length) continue;
-      const clumps = 3 + Math.floor(R() * 3);
-      for (let c = 0; c < clumps; c++) {
-        const a = (c + R() * 0.6) / clumps * Math.PI * 2, d = FOOT_R + 0.15 + R() * 0.9;
+      const clumps = 3 + Math.floor(R() * 3), at = [];
+      for (let c = 0, tries = 0; c < clumps && tries < 40; tries++) {
+        const a = R() * Math.PI * 2;
+        if (at.some((b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.7)) continue;   // (apart, but not evenly)
+        at.push(a); c++;
         const n = 2 + Math.floor(R() * 3);
         for (let k = 0; k < n; k++) {
-          const r = d + R() * R() * 1.1, b = a + (R() - 0.5) * 0.5 / (r / FOOT_R);
+          // (the first against the stone, the rest straggling out from it)
+          const r = FOOT_R + 0.08 + (k ? R() * R() * 1.6 : 0), b = a + (k ? (R() - 0.5) * 0.6 / (r / FOOT_R) : 0);
           const x = p.x + Math.cos(b) * r, z = p.z + Math.sin(b) * r;
           const far = (r - FOOT_R) / 2;   // (smaller further out)
           bill.add(plants[Math.floor(R() * plants.length)], x, physics.groundAt(x, z), z, (0.42 + R() * 0.28) * (1 - far * 0.35), 0.66 + R() * 0.14);

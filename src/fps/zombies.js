@@ -1168,7 +1168,7 @@ export class Zombie {
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
     const d = this.dist = Math.hypot(dx, dz);
     this.canSee = false;
-    if (!active) return;
+    if (!active || player.unseenUntil > performance.now()) return;   // (just come through a portal: not yet seen)
     const same = Math.abs(player.pos.y - this.pos.y) < (this.dg?.sameY ?? 2.6);
     const eyes = this.has('head');
     if (eyes && same && d < this.kind.sight * (this.zone === 'dungeon' ? 0.8 : 1)) {

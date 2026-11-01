@@ -682,7 +682,7 @@ class Slime {
   // -------------------------------------------------------------- the brain
   sense(player, active) {
     this.canSee = false;
-    if (!active) return;
+    if (!active || player.unseenUntil > performance.now()) return;   // (just come through a portal: not yet seen)
     const o = this.owner, P = player.pos, c = this.center(_a);
     const dx = P.x - c.x, dz = P.z - c.z, dy = P.y + 1.1 - c.y, d = Math.hypot(dx, dz);
     this.dist = d;

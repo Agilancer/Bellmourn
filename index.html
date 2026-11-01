@@ -296,7 +296,8 @@
   .p-foot { text-align: center; margin-top: 12px; }
   @media (max-height: 500px) {   /* a phone on its side: more rows to a screen */
     .panel.portals { padding: 10px 14px 10px; } .panel.portals h2 { font-size: 18px; margin: 0; } .panel.portals h3 { margin: 8px 0 6px; }
-    .p-here { font-size: 12px; } .p-list { gap: 4px; } .p-row { padding: 4px 10px 4px 6px; grid-template-columns: 30px 1fr auto; } .p-seal { width: 30px; height: 30px; }
+    .p-here { font-size: 12px; } .p-list { gap: 4px; grid-template-columns: 1fr 1fr; } .p-row { padding: 4px 8px 4px 5px; gap: 8px; grid-template-columns: 30px 1fr auto; font-size: 12.5px; } .p-seal { width: 30px; height: 30px; }
+    .p-go { padding: 4px 7px; letter-spacing: .1em; } .panel.portals { width: min(760px, 96vw); }   /* (two columns: every row on one screen) */
   }
   .bag .tabs { display: flex; gap: 6px; margin: 0 40px 10px 0; }
   .bag .tabs button { font-size: 13px; padding: 7px 14px; }

@@ -1122,8 +1122,13 @@ function light(dt, t) {
   if (lightTimer <= 0) {
     lightTimer = 0.25;
     const p = camera.position;
-    // (an awake portal's light ranks as if three times nearer: a lamp post doesn't crowd it out)
-    const ranked = (ctx.portals ? [...flameList, ...ctx.portals.lights] : flameList).map((f) => [f, ((f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2) / (f.portal ? 9 : 1)])
+    // (an awake portal's light, out of doors only: within 30 m it ranks as if three times nearer, so
+    // a lamp post doesn't crowd it out; below ground or indoors it never takes a torch's place)
+    const seals = ctx.portals && L.under < 0.5 && indoor < 0.5 ? ctx.portals.lights : [];
+    const ranked = (seals.length ? [...flameList, ...seals] : flameList).map((f) => {
+      const d2 = (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2;
+      return [f, f.portal && d2 < 900 ? d2 / 9 : d2];
+    })
       .filter((a) => a[1] < 55 * 55).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
     // (a flame marked f[4] sits in its own brazier or candles, which would shadow it: never a shadow light)
     const shadowed = ranked.filter((f) => !f[4]).slice(0, TORCH_SHADOWS);
@@ -1254,7 +1259,8 @@ function travel(to) {
   hud.banner?.classList.remove('show');   // (no word of an old waking over where you land)
   magic.screen.color.set(0x7aa4ff); magic.screen.amount = 0.9;
   sfx.portalJump?.();
-  zombies.forget(); slimes.forget();
+  zombies.forget();   // (and its kin: the slimes)
+  player.unseenUntil = performance.now() + 1500;   // (while the blue clears, nothing has seen you come)
   saveProgress();
 }
 
