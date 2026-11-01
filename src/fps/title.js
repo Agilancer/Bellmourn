@@ -1,15 +1,17 @@
 // The title screen. Two cards first, Blastorama Gaming and then Jamie Herrington, each fading in with
-// sparkles glinting about it and a tinkle of little bells for every glint, then out; then Bellmourn's
-// own logo, with a distant bell and a couple of tinkles, over a black cover while the whole game loads
-// behind it; then the menu (New Game, Continue, Load, Settings, How to Play) and the village drifting
-// by through a dark veil. Here too: the confirm box, the Settings and How to Play windows (the pause
-// screen opens them as well), and the "click to begin" a browser asks for before it plays a sound.
+// sparkles glinting about it and a tinkle of little bells for every glint, then out (a click, a tap or
+// a key fades the one up at once and brings on the next); then Bellmourn's own logo, its church bells
+// ringing out a few seconds and trailing away under the title's song, and a couple of tinkles, over a
+// black cover while the whole game loads behind it; then the menu (New Game, Continue, Load, Settings,
+// How to Play) and the village drifting by through a dark veil. Here too: the confirm box, the Settings
+// and How to Play windows (the pause screen opens them as well), and the "click to begin" a browser
+// asks for before it plays a sound.
 //
 // The cards, their glints and the logo's fade are CSS animations of opacity and transform only, all
 // set going at one moment with their delays, and every sound is booked on the audio clock at that same
 // moment: the compositor and the audio thread play them, so they keep time with each other however
 // hard the loading holds the main thread.
-import { Sfx } from './audio.js';
+import { Sfx, onset } from './audio.js';
 import { Music } from './music.js';
 import { TOUCH } from './input.js';
 
@@ -18,12 +20,17 @@ const LOGOS = {
   herrington: 'assets/title/herrington.webp',
   bellmourn: 'assets/title/bellmourn.webp',
 };
+const CARDS = [['blastorama', 1], ['herrington', 3]];   // the cards in turn (and the note each one's tinkles start from)
 const CARD = 5.2, GAP = 0.45;                  // each card's time on screen, and the black between them
+const CUT = 0.3;                               // a card cut short: how fast it fades, and the next comes up
 const CARD_GLINTS = [0.85, 1.4, 1.95, 2.55, 3.1];
 const SHINE_AT = 1.0;                          // the light sweeping across each card's letters
-const MAIN_AT = 2 * (CARD + GAP);              // when Bellmourn's logo begins to come up
-const MAIN_IN = 1.9;                           // its fade
+const MAIN_IN = 1.9;                           // Bellmourn's logo's fade
 const MAIN_GLINTS = [1.25, 2.05];              // its couple of tinkles
+// Bellmourn's bells as its logo comes up (a recording: tools/audio/build_audio.py): how loud, how long
+// they ring out, then how long they take to trail away (s), and how far down (dB) they've gone by then
+const BELLS_URL = 'assets/audio/sfx/title_bells.mp3';
+const BELLS = { vol: 0.85, hold: 4.2, trail: 10.5, down: 42 };
 // where on a logo each glint lands, in turn: its ends first, then between
 const ZONES = [[0, 0.2], [0.8, 1], [0.24, 0.5], [0.5, 0.76], [0.02, 0.3], [0.7, 0.98]];
 // little bells: E major pentatonic, high (E6 .. F#7)
@@ -176,6 +183,12 @@ export class Title {
     this.skipEl = el('div', 't-skip', TOUCH ? 'Tap to skip' : 'Click or press a key to skip');
     this.lastEl = el('div', 't-last');
     this.screen.append(this.cards, this.main, this.gate, this.skipEl, this.lastEl);
+    // a click or a tap while the cards are up: the one showing fades out and the next comes on
+    this.screen.addEventListener('pointerdown', (e) => {
+      if (this.mode !== 'splash' || e.button > 0) return;
+      e.preventDefault();
+      this.next();
+    });
     // ambient gold dust about Bellmourn's logo, drifting up while the title is up
     const motes = this.mainLogo.querySelector('.t-motes');
     for (let i = 0; i < 16; i++) motes.append(this.mote(rnd(0.02, 0.98), rnd(-0.1, 1.15), rnd(0, 7), true));
@@ -253,12 +266,14 @@ export class Title {
   async boot() {
     let skip = false;
     try { skip = sessionStorage.getItem('bm.skipSplash') === '1'; sessionStorage.removeItem('bm.skipSplash'); } catch { /* no storage */ }
-    // the pictures in hand (and their edges found), and the title's song fetched and decoded, before
-    // anything fades in: it's booked to start the instant Bellmourn's logo does (music.js)
+    // the pictures in hand (and their edges found), and the title's song and its bells fetched and
+    // decoded, before anything fades in: they're booked to start the instant Bellmourn's logo does
+    // (the song: music.js)
     this.sfx.start();
     const song = this.music.preloadTitle();
+    const bells = this.sfx.decode(BELLS_URL).then((b) => { this.bellsBuf = b; });
     const imgs = Object.entries(LOGOS).map(([k, src]) => { const i = new Image(); i.src = src; return [k, i]; });
-    await Promise.race([Promise.all([...imgs.map(([, i]) => i.decode().catch(() => {})), song]), wait(20000)]);
+    await Promise.race([Promise.all([...imgs.map(([, i]) => i.decode().catch(() => {})), song, bells]), wait(20000)]);
     // (a song slower than that is booked when it comes, from then; then the effects come in)
     song.then((ok) => { if (ok && this.mainAt != null && !this.music.titleSong) this.music.bookTitle(Math.max(this.mainAt, this.sfx.ctx.currentTime)); })
       .finally(() => { this.sfx.loadBank(); this.music.preloadIntro(); });
@@ -289,17 +304,50 @@ export class Title {
   run(skip) {
     if (this.mode === 'hidden') return;
     this.mode = skip ? 'main' : 'splash';
-    const c = this.audio(), lead = 0.08;
-    this.t0 = performance.now() + lead * 1000;
+    if (!skip) { this.skipEl.classList.add('on'); this.splash(0, 0); return; }
+    const c = this.audio();
     this.bus = this.newBus();
-    const at0 = c ? c.currentTime + lead : 0;
-    if (!skip) {
-      this.cardEls = [this.card('blastorama', 0, at0, 1), this.card('herrington', CARD + GAP, at0, 3)];
-      this.cards.append(...this.cardEls);
-      this.skipEl.classList.add('on');
-      this.splashT = setTimeout(() => this.skip(true), MAIN_AT * 1000);
+    this.beginMain(0, c ? c.currentTime + 0.08 : 0);
+  }
+
+  /** The cards from the `from`th on, the first of them `at` seconds from now, then Bellmourn's logo. */
+  splash(from, at) {
+    const c = this.audio(), lead = 0.08, at0 = c ? c.currentTime + lead : 0;
+    this.bus = this.newBus();
+    this.cardFrom = from;
+    this.t0 = performance.now() + (lead + at) * 1000;   // (when the first of these comes up)
+    this.cardEls = CARDS.slice(from).map(([name, note], k) => this.card(name, at + k * (CARD + GAP), at0, note));
+    this.cards.append(...this.cardEls);
+    const main = at + this.cardEls.length * (CARD + GAP);
+    clearTimeout(this.splashT);
+    this.splashT = setTimeout(() => this.skip(true), main * 1000);
+    this.beginMain(main, at0);
+  }
+
+  /** A click, a tap or a key while the cards are up: the one showing fades out at once and the next
+   * comes up (after the last, Bellmourn's logo). */
+  next() {
+    if (this.mode !== 'splash') return;
+    const into = (performance.now() - this.t0) / 1000;
+    if (into < 0) return;   // (the next isn't up yet: a quick second click doesn't skip it unseen)
+    // the card up, or the one gone in the black just after it
+    const k = Math.min(this.cardEls.length - 1, Math.floor(into / (CARD + GAP))), n = this.cardFrom + k + 1;
+    if (n >= CARDS.length) { this.skip(); return; }
+    this.fadeCards();
+    this.hush(0.08);
+    this.splash(n, CUT);
+  }
+
+  /** The cards up fading out from wherever they are, and then gone. */
+  fadeCards() {
+    for (const c of this.cardEls || []) {
+      const s = getComputedStyle(c), o = s.opacity, t = s.transform;
+      c.style.animation = 'none'; c.style.opacity = o; c.style.transform = t;
+      void c.offsetWidth;
+      c.style.transition = `opacity ${CUT}s ease-out`; c.style.opacity = '0';
+      setTimeout(() => c.remove(), CUT * 1000 + 120);
     }
-    this.beginMain(skip ? 0 : MAIN_AT, at0);
+    this.cardEls = [];
   }
 
   /** One splash card: its logo fading in and out at `at` seconds, its glints and their tinkles. */
@@ -320,7 +368,7 @@ export class Title {
     return c;
   }
 
-  /** Bellmourn's logo coming up `at` seconds on: a bell far off, then a couple of tinkles. */
+  /** Bellmourn's logo coming up `at` seconds on: its bells ringing, then a couple of tinkles. */
   beginMain(at, at0) {
     const L = this.mainLogo, taken = [], shine = L.querySelector('.t-shine i');
     // (cleared and set again, so they start over from now: a new delay alone would count from before)
@@ -331,7 +379,7 @@ export class Title {
     shine.style.animation = `t-shine 1.7s ease-in-out ${at + 0.9}s both`;
     const glints = L.querySelector('.t-glints');
     glints.querySelectorAll('.t-glint').forEach((g) => g.remove());
-    if (this.bus) this.toll(this.bus, at0 + at + 0.05);
+    if (this.bus) this.ring(this.bus, at0 + at + 0.05);
     // the title's song, from the logo's first moment
     this.mainAt = at0 + at;
     if (this.sfx.ctx) this.music.bookTitle(this.mainAt);   // (booked on a context not yet let run, it plays once it is)
@@ -344,33 +392,28 @@ export class Title {
     this.inT = setTimeout(() => { this.logoIn = true; this.maybeMenu(); }, (at + MAIN_IN * 0.75) * 1000);
   }
 
-  /** Past the cards (a click, a key, or their end): straight on to Bellmourn's logo. */
+  /** Past the cards (their end, or the last cut short): on to Bellmourn's logo. */
   skip(ended = false) {
     if (this.mode !== 'splash') return;
     this.mode = 'main';
     clearTimeout(this.splashT);
     this.skipEl.classList.remove('on');
-    if (ended) { for (const c of this.cardEls || []) c.remove(); return; }
+    if (ended) { for (const c of this.cardEls || []) c.remove(); this.cardEls = []; return; }
     // cut short: the cards fade from where they are, their booked bells are hushed, and the logo
     // comes up now
-    for (const c of this.cardEls || []) {
-      const o = getComputedStyle(c).opacity;
-      c.style.animation = 'none'; c.style.opacity = o;
-      void c.offsetWidth;
-      c.style.transition = 'opacity .35s'; c.style.opacity = '0';
-      setTimeout(() => c.remove(), 450);
-    }
-    this.hush();
+    this.fadeCards();
+    this.hush(0.08);
     const c = this.audio();
     this.bus = this.newBus();
-    this.beginMain(0.3, c ? c.currentTime : 0);
+    this.beginMain(CUT, c ? c.currentTime : 0);
   }
 
-  /** The booked bells hushed (the cards skipped, or the title put away). */
-  hush() {
+  /** The booked bells hushed (a card cut short, or the title put away). */
+  hush(tc = 0.06) {
     const old = this.bus, c = this.audio();
     this.bus = null;
-    if (old && c) { old.gain.setTargetAtTime(0, c.currentTime, 0.06); setTimeout(() => old.disconnect(), 600); }
+    if (old && c) { old.gain.setTargetAtTime(0, c.currentTime, tc); setTimeout(() => old.disconnect(), 600); }
+    this.stopBells();
   }
 
   // ------------------------------------------------------------------ what the game tells it
@@ -434,6 +477,8 @@ export class Title {
   hide(now = false) {
     if (this.mode === 'hidden') return;
     if (this.mode === 'splash') { this.skip(true); this.hush(); }
+    this.stopBells(1.5);   // (still trailing away: they go with the title's song)
+    this.bellsBuf = null;
     this.mode = 'hidden';
     clearTimeout(this.idleT); clearTimeout(this.inT); clearTimeout(this.splashT);
     this.gate.classList.remove('on'); this.skipEl.classList.remove('on');
@@ -522,12 +567,12 @@ export class Title {
     return true;
   }
 
-  /** Keys: any skips the cards; Esc shuts the top window; the arrows walk the buttons. The game's
-   * own keys (input.js) don't hear what's used here. */
+  /** Keys: any brings on the next card (as a click does); Esc shuts the top window; the arrows walk
+   * the buttons. The game's own keys (input.js) don't hear what's used here. */
   key(e) {
     if (this.mode === 'gate') { this.gateKey?.(e); e.stopPropagation(); return; }
     if (this.mode === 'splash') {
-      if (!MODS.has(e.key)) { e.preventDefault(); this.skip(); }
+      if (!MODS.has(e.key)) { e.preventDefault(); if (!e.repeat) this.next(); }
       e.stopPropagation();
       return;
     }
@@ -598,7 +643,42 @@ export class Title {
     s.start(when, Math.random() * 0.5); s.stop(when + 0.35);
   }
 
-  /** The bell of Bellmourn, far off. */
+  /** Bellmourn's bells (a recording) as its logo comes up at `when`: ringing out a few seconds, then
+   * trailing away, farther and farther off, under the title's song. (Not in: the old bell, made here.) */
+  ring(bus, when) {
+    this.stopBells(0);
+    const b = this.bellsBuf;
+    if (!b) { this.toll(bus, when); return; }
+    const c = bus.context, { vol, hold, trail, down } = BELLS, fall = when + hold, end = fall + trail;
+    const src = c.createBufferSource(), lp = c.createBiquadFilter(), env = c.createGain(), cut = c.createGain();
+    src.buffer = b;
+    // softly at first, then away: the level falls `down` dB along u^1.6, and the high notes go first
+    const curve = new Float32Array(64);
+    for (let i = 0; i < 64; i++) curve[i] = vol * Math.pow(10, -down * Math.pow(i / 63, 1.6) / 20);
+    curve[63] = 0;
+    env.gain.setValueAtTime(vol, when);
+    env.gain.setValueCurveAtTime(curve, fall, trail);
+    const top = Math.min(18000, c.sampleRate * 0.45);
+    lp.type = 'lowpass'; lp.frequency.value = top;
+    lp.frequency.setValueAtTime(top, fall);
+    lp.frequency.exponentialRampToValueAtTime(1200, end);
+    src.connect(lp); lp.connect(env); env.connect(cut); cut.connect(this.sfx.out);
+    src.start(when, onset(b)); src.stop(end + 0.05);
+    const p = this.peal = { src, cut };
+    src.onended = () => { cut.disconnect(); if (this.peal === p) this.peal = null; };
+  }
+
+  /** The bells let go, hushed over `fade` s (booked and not yet begun: they never sound). */
+  stopBells(fade = 0.08) {
+    const p = this.peal, c = this.sfx.ctx;
+    this.peal = null;
+    if (!p || !c) return;
+    const n = c.currentTime;
+    p.cut.gain.setTargetAtTime(0, n, Math.max(0.01, fade / 3));
+    try { p.src.stop(n + fade + 0.05); } catch { /* done */ }
+  }
+
+  /** The bell of Bellmourn, far off (only while the recording isn't in). */
   toll(bus, when) {
     const c = bus.context, lp = c.createBiquadFilter();
     lp.type = 'lowpass'; lp.frequency.value = 1700; lp.connect(bus);

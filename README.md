@@ -75,14 +75,19 @@ sheets of them headless.
 Gaming's card fades in and out, then Jamie Herrington's, each with four-pointed glints flaring on
 the edges of its letters (found from the logo's own alpha), a sheen of light across them, gold dust
 rising, and a tinkle of little glass bells for every glint (synthesized, E major pentatonic, each
-panned to where its glint is). Then Bellmourn's logo, with a bell far off and a couple of tinkles,
-over a black cover while the whole game loads behind it ("Raising the village…" and a line of
+panned to where its glint is). Then Bellmourn's logo with its church bells ringing out a few
+seconds and trailing slowly away under the title's song, farther off as they go (a recording,
+"Orthodox Church Bells Ringing" from Free Sounds Library, freesoundslibrary.com, CC BY 4.0: its
+first 16 s, cut by `tools/audio/build_audio.py --only bells`), and a couple of tinkles, over a
+black cover while the whole game loads behind it ("Raising the village…" and a line of
 gold); once it's in, the logo rises, the menu comes up under it, and the black lifts to the
 village drifting by through a dark veil. The cards and their glints are CSS animations of opacity
 and transform, all started at one moment, and every bell is booked on the audio clock at that
-moment, so they keep time however hard the loading holds the main thread. A click or a key skips
-the cards. A browser plays no sound until it's been clicked, so where it won't, the title first
-asks you to click (or tap) to begin; a phone goes full screen on that tap.
+moment, so they keep time however hard the loading holds the main thread. A click, a tap or a key
+fades the card up at once and brings on the next (after the last, Bellmourn's logo). A browser
+plays no sound until it's been clicked, so where it won't, the title first asks you to click (or
+tap) to begin; a phone goes full screen on that tap. New Game keeps the title's song under the
+getting-ready; the opening's song starts with its first shot.
 
 **New Game**, **Continue**, **Load**, **Settings**, **How to Play**. Continue picks up the newest
 game there is, the one kept as you played (`bm.char` and `bm.progress`, which now notes when) or a
@@ -103,8 +108,11 @@ stripped at load, his clothes turned to skin and the briefs drawn on in the bind
 turning each bone so its child lies along the curl). It streaks across the sunset over the
 Darkwood; one of Velscour's Sworn walks out of the wood behind the town on his round (on the
 animation library's clips, `ual.js`), stops as the green light grows behind him, turns, looks up,
-flinches with a yell and cowers under his shield; the camera dives behind the star as he turns and
-runs for the town, falls back behind him, and the star goes past it into him; white. Out of the
+cries out in terror "LORD VELSCOUR, WHAT HAVE I DONE TO ANGER YOU?!", flinches and cowers under his
+shield; the camera dives behind the star as he turns and runs for the town screaming "AHHHHHHHHHH!",
+falls back behind him, and the star goes past it into him; white. (His words are said aloud in a
+Sworn's Kokoro voice made terrified, `voice.js` `fear`: pitched up, rushed, shaking, behind his helm;
+and in a bubble over his head. `tools/audio/knight_cry_preview.html` plays them.) Out of the
 white: a smoking crater with nothing left
 of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
 bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
