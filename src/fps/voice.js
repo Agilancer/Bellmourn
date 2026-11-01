@@ -50,7 +50,7 @@ const KOKORO = {
 
 /** How a speaker sounds through the neural voices: { voice, rate (pitch: the playback rate), speed
  * (the model's pace, set so pitch and pace come out right together), fx }. */
-export function neuralCast(key, { sex = 'm', kind = 'villager', age = null } = {}) {
+export function neuralCast(key, { sex = 'm', kind = 'villager', age = null, fear = false } = {}) {
   const h = hash(kind + '|' + key), r = (n) => ((h >>> n) & 1023) / 1023;
   const list = kind === 'knight' ? (sex === 'f' ? KOKORO.knightF : KOKORO.knight) : kind === 'villager' ? KOKORO[sex === 'f' ? 'f' : 'm'] : KOKORO[kind] || KOKORO.m;
   let rate = 0.97 + r(5) * 0.06, fx = null;
@@ -60,11 +60,33 @@ export function neuralCast(key, { sex = 'm', kind = 'villager', age = null } = {
   if (kind === 'sorcerer') { rate = 0.98 + r(5) * 0.06; fx = 'echo'; }
   if (kind === 'undead') { rate = 0.6 + r(5) * 0.12; fx = 'undead'; }
   if (kind === 'beast') { rate = 1.45 + r(5) * 0.2; fx = 'undead'; }
+  // terrified (the opening's knight as the star comes for him): his voice up and strained, rushed,
+  // shaking, still behind his helm
+  if (fear) return { voice: list[h % list.length], rate: 1.04, speed: 1.3, fx: kind === 'knight' || kind === 'lord' ? 'fear-helm' : 'fear' };
   return { voice: list[h % list.length], rate, speed: Math.max(0.6, Math.min(1.6, (0.96 + r(13) * 0.08) / rate)), fx };
 }
 
 /** A speaker's effect, feeding `out`: what to connect their voice to. */
 export function fxInput(ctx, fx, out) {
+  if (fx === 'fear' || fx === 'fear-helm') {   // terror: the voice wavers in pitch and quavers in breath, a little hoarse
+    const t = ctx.currentTime, end = t + 12;   // (its wobblers run a while, then stop: a line is said by then)
+    const into = fx === 'fear-helm' ? fxInput(ctx, 'helm', out) : out;
+    const ws = ctx.createWaveShaper(), n = 1024, curve = new Float32Array(n), k = 2.2;
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x)) * 0.8; }
+    ws.curve = curve;
+    // pitch: a delay swept by a fast, uneven wobble
+    const dl = ctx.createDelay(0.05); dl.delayTime.value = 0.006;
+    const w1 = ctx.createOscillator(), g1 = ctx.createGain(); w1.frequency.value = 6.8; g1.gain.value = 0.0014;
+    const w2 = ctx.createOscillator(), g2 = ctx.createGain(); w2.frequency.value = 2.3; g2.gain.value = 0.0009;
+    w1.connect(g1); g1.connect(dl.delayTime); w2.connect(g2); g2.connect(dl.delayTime);
+    // breath: the level quavering
+    const trem = ctx.createGain(); trem.gain.value = 0.78;
+    const w3 = ctx.createOscillator(), g3 = ctx.createGain(); w3.frequency.value = 9.5; g3.gain.value = 0.22;
+    w3.connect(g3); g3.connect(trem.gain);
+    for (const o of [w1, w2, w3]) { o.start(t); o.stop(end); }
+    ws.connect(dl); dl.connect(trem); trem.connect(into);
+    return ws;
+  }
   if (fx === 'helm') {             // muffled behind steel, a little ring of it
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3100; lp.Q.value = 0.9;
     const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 900; pk.gain.value = 4; pk.Q.value = 1.4;
@@ -157,10 +179,10 @@ const neural = {
 
   /** A sentence in a voice: from the cache, or asked for (line i of `line` gets it when it comes).
    * Made in order of how pressing: a line being said now (9), one waiting its turn (its priority, 0
-   * to 3), one made ahead (-1). */
-  want(cast, s, line = null, i = 0) {
+   * to 3), one made ahead (`ahead`: -1, or more for one due soon). */
+  want(cast, s, line = null, i = 0, ahead = -1) {
     const key = cast.voice + '|' + cast.speed.toFixed(2) + '|' + s, hit = this.cache.get(key);
-    const pri = line ? (line.hold ? line.pri ?? 0 : 9) : -1;
+    const pri = line ? (line.hold ? line.pri ?? 0 : 9) : ahead;
     if (hit?.audio) { if (line) line.parts[i] = hit; return; }
     if (hit?.id && this.wait.has(hit.id)) {
       if (line) { this.wait.get(hit.id).lines.push({ line, i }); line.need.push(hit.id); this.worker.postMessage({ type: 'bump', ids: [hit.id], pri }); }
@@ -173,8 +195,9 @@ const neural = {
     this.worker.postMessage({ type: 'say', id, text: s, voice: cast.voice, speed: cast.speed, pri });
   },
 
-  /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time. */
-  prefetch(text, cast) { if (this.state === 'ready') for (const s of this.sentences(text)) this.want(cast, s); },
+  /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time
+   * (pri: made before what's made ahead with less). */
+  prefetch(text, cast, pri = -1) { if (this.state === 'ready') for (const s of this.sentences(text)) this.want(cast, s, null, 0, pri); },
 
   /** The game's own sound (voice.useSound): its context, and a line for the voices under its master
    * volume, evened by a compressor. */
@@ -404,10 +427,11 @@ export const voice = {
     return browserSay(who, text, oo, d);
   },
 
-  /** Make lines ahead of time: [[who, text, o], ...] (o as for say). */
-  prefetch(list) {
+  /** Make lines ahead of time: [[who, text, o], ...] (o as for say). pri: before other lines made
+   * ahead (-1) with a higher one (the opening's, due before the rest). */
+  prefetch(list, pri = -1) {
     if (!this.enabled || neural.state !== 'ready') return;
-    for (const [who, text, o = {}] of list) neural.prefetch(text, neuralCast(o.key || who?.name || 'someone', o));
+    for (const [who, text, o = {}] of list) neural.prefetch(text, neuralCast(o.key || who?.name || 'someone', o), pri);
   },
 
   stop() { neural.stop(); synth?.cancel(); browserCur = null; },

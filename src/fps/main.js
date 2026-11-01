@@ -55,6 +55,7 @@ import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
 import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
+import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -161,7 +162,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
-let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
+let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -290,6 +291,8 @@ async function build() {
     return true;
   };
   await mark('library');
+  // (the portals' ground is left bare as the world is built: portals.js)
+  const portalsClear = keepPortalsClear(ctx);
   buildWorld(ctx); await mark('world');
   // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
   // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
@@ -299,6 +302,8 @@ async function build() {
   buildKeep(ctx); await mark('keep');
   ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', cat: true }, { dg: ctx.deep, haunt: 'deep', cat: true }, { dg: ctx.catacombs.gulfDg, haunt: 'undercroft', cat: true }, ...buildDelves(ctx)];
   await mark('delves');
+  portalsClear();
+  ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
@@ -477,6 +482,9 @@ async function build() {
     onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
   villagers.quests = quests;
   map.pins = () => quests.pins(villagers);
+  map.portals = () => ctx.portals.woken();
+  portalMenu = new PortalMenu({ ui, onPick: travel, onClose: () => setPortals(false) });
+  ctx.portals.onWake = portalWoken;
   zombies.onDeath = onDeath;
   slimes.onDeath = onDeath;
   // (the save slots open over the title and the pause screen alike: in the title's layer)
@@ -1176,7 +1184,13 @@ function light(dt, t) {
   if (lightTimer <= 0) {
     lightTimer = 0.25;
     const p = camera.position;
-    const ranked = flameList.map((f) => [f, (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2])
+    // (an awake portal's light, out of doors only: within 30 m it ranks as if three times nearer, so
+    // a lamp post doesn't crowd it out; below ground or indoors it never takes a torch's place)
+    const seals = ctx.portals && L.under < 0.5 && indoor < 0.5 ? ctx.portals.lights : [];
+    const ranked = (seals.length ? [...flameList, ...seals] : flameList).map((f) => {
+      const d2 = (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2;
+      return [f, f.portal && d2 < 900 ? d2 / 9 : d2];
+    })
       .filter((a) => a[1] < 55 * 55).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
     // (a flame marked f[4] sits in its own brazier or candles, which would shadow it: never a shadow light)
     const shadowed = ranked.filter((f) => !f[4]).slice(0, TORCH_SHADOWS);
@@ -1200,6 +1214,15 @@ function light(dt, t) {
   torchPool.forEach((l, i) => {
     const f = l.userData.flame;
     if (!f) { l.intensity = 0; return; }
+    if (f.portal) {   // an awake portal's own blue light, breathing (no light on the hands: it's no flame)
+      const s = f.portal;
+      l.color.setHex(f.color);
+      // (its own light by night, strong enough to pool on the ground about it; by day only a glow)
+      l.intensity = (1.2 + 15 * night + 6 * s.flash) * (0.88 + 0.12 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake);
+      l.distance = 10;
+      return;
+    }
+    l.color.setHex(0xff9a48);
     const big = f[3] > 0.2;
     const flick = 0.84 + 0.1 * Math.sin(t * 11 + i * 3.1) * Math.sin(t * 4.3 + i) + 0.06 * Math.sin(t * 23 + i * 7);
     // torches read best at night and underground; by day outdoors they're a glow
@@ -1243,6 +1266,7 @@ function begin() {
 }
 
 function setMap(on) {
+  if (on && portalMenu?.open) portalMenu.close();
   map.show(on, player);
   if (on && bag.open) bag.show(false);
   if (touch) { gameInput.release(); }
@@ -1251,22 +1275,76 @@ function setMap(on) {
 
 function setInventory(on) {
   if (on && map.open) map.show(false);
+  if (on && portalMenu?.open) portalMenu.close();
   bag.show(on);
   if (touch) { hud.showTouch(!on); gameInput.release(); } // the thumb controls would lie over the bag
   if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book); }
   else if (!touch) lockPointer();
 }
 
+/** The portals' window: opened standing on an awake seal (E); every other portal, by land. */
+function setPortals(on) {
+  if (on) {
+    if (!ctx.portals.standing) return;
+    if (bag.open) bag.show(false);
+    if (map.open) map.show(false);
+    quests.close();
+    hud.banner?.classList.remove('show');   // (no word of an old waking over the window)
+    portalMenu.show(ctx.portals, ctx.portals.standing);
+    sfx.chime?.();
+  } else portalMenu.close();
+  if (touch) { hud.showTouch(!on); gameInput.release(); }
+  else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer();
+}
+
+const PORTAL_BLUE = ['#ffffff', '#a8c8ff', '#5a86ff'].map((c) => new THREE.Color(c));
+// (from the heart, or from eight points round the rim: where you land, not in your face)
+const sealBurst = (p, n = 70, o = {}, ring = 0) => {
+  for (let k = 0; k < (ring ? 8 : 1); k++) {
+    const a = k / 8 * Math.PI * 2;
+    magic.particles.burst(new THREE.Vector3(p.x + Math.cos(a) * ring, p.y + SEAL_H + 0.15, p.z + Math.sin(a) * ring), PORTAL_BLUE, ring ? Math.ceil(n / 8) : n,
+      { speed: 3.0, size: 0.045, grav: -2.5, life: 1.3, drag: 1, ...o });
+  }
+};
+
+/** Step through: a flash of blue and a rush of air, and you stand on the other seal facing what it
+ * serves (its gate, its door, its cave). What hunted you loses you. */
+function travel(to) {
+  const from = ctx.portals.standing;
+  setPortals(false);
+  if (!to || !from || to === from) return;
+  ctx.portals.flash(from); sealBurst(from);
+  player.pos.set(to.x, to.y + SEAL_H, to.z);
+  player.vel.set(0, 0, 0);
+  player.yaw = to.yaw; player.pitch = -0.21;   // (a little down: the seal you stand on, the sparks at its rim)
+  ctx.portals.flash(to); sealBurst(to, 64, { speed: 1.6, size: 0.03, grav: 4, life: 0.9 }, 2.3);   // (a splash at the rim, falling)
+  hud.banner?.classList.remove('show');   // (no word of an old waking over where you land)
+  magic.screen.color.set(0x7aa4ff); magic.screen.amount = 0.9;
+  sfx.portalJump?.();
+  zombies.forget();   // (and its kin: the slimes)
+  player.unseenUntil = performance.now() + 1500;   // (while the blue clears, nothing has seen you come)
+  saveProgress();
+}
+
+/** A seal woken as you came near: the blue floods out from its heart, a peal, and word of it. */
+function portalWoken(p) {
+  sfx.portalWake?.();
+  sealBurst(p, 110, { speed: 2.2, size: 0.05, grav: -1.6, life: 2.2, drag: 1.2 });
+  hud.announce('Portal Awakened', p.name);
+  if (ctx.portals.found.size === 1) hud.toast(touch ? 'Stand on a portal and tap E to travel' : 'Stand on a portal and press E to travel');
+  saveProgress();
+}
+
 function pause() {
   if (introBusy) return;
   paused = true;
-  bag?.show(false); map?.show(false); quests?.close(); saves?.show(null);
+  bag?.show(false); map?.show(false); quests?.close(); saves?.show(null); portalMenu?.close();
   hud.showOverlay('pause', touch);
   if (touch) { hud.showTouch(false); gameInput.release(); }
 }
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !introBusy) pause();
+  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !portalMenu?.open && !introBusy) pause();
 });
 
 // ------------------------------------------------------------------ a new game, a game picked up, saved and loaded
@@ -1304,6 +1382,7 @@ function makeProgress() {
   const p = player.pos;
   // (welcomed: the village has had its say at the edge of town, and gifts: what they've given so far)
   return { arrived: true, at: Date.now(), welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
+    portals: ctx.portals.save(),
     player: { x: p.x, y: p.y, z: p.z, yaw: player.yaw, pitch: player.pitch } };
 }
 function saveProgress() {
@@ -1327,6 +1406,7 @@ function applyProgress(pr) {
   formCrater(1);
   holdHour = false;
   quests.load(pr?.quests || {});
+  ctx.portals.load(pr?.portals || []);
   if (pr?.hour != null && timeMode === 'cycle') hour = pr.hour;
   if (pr?.book) { Object.assign(book, pr.book); hud.refresh(vm.equip, book); }
   const P = pr?.player;
@@ -1447,9 +1527,10 @@ async function newGame() {
 }
 
 async function startOver() {
-  music.intro();   // (the opening's song from this moment, over the getting-ready and the whole of it)
+  music.toIntro();   // (a game's music gives way; the title's song plays on under the getting-ready)
   found.clear(); try { localStorage.removeItem('bm.found'); } catch { /* no storage */ }
-  saves.show(null); quests.close(); bag.show(false); map.show(false);
+  saves.show(null); quests.close(); bag.show(false); map.show(false); portalMenu.close();
+  ctx.portals.load([]);   // (every seal asleep again)
   hud.showOverlay(null);
   if (touch) hud.showTouch(false);
   await title.show('The sky is opening…');   // (black over the world before anything in it moves)
@@ -1541,6 +1622,7 @@ async function startOver() {
     await intro.prepare(say);
   }
   title.hide();   // (it fades off the opening's first shot)
+  music.intro();  // (the opening's song from its first shot)
   intro.start(touch);
 }
 
@@ -1749,14 +1831,16 @@ function tick(dt) {
     intro.update(dt);
     if (inp.was('Escape') || inp.was('Space')) intro.skip();
   }
-  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !introBusy;
+  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !introBusy;
 
   if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { quests.close(); setInventory(!bag.open); }
   if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
-  if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); quests.showLog(!quests.open); }
+  if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); if (portalMenu.open) setPortals(false); quests.showLog(!quests.open); }
   if (started && !paused && !introBusy && inp.was('KeyT')) quests.toggleTracker();
+  if (started && !introBusy && portalMenu.open && inp.was('KeyE')) setPortals(false);   // (E again: off, and back to it)
   if (started && !introBusy && inp.was('Escape')) {
-    if (quests.open) quests.close();
+    if (portalMenu.open) { portalMenu.close(); pause(); }   // (as the map and the bag: Esc can't take the mouse back)
+    else if (quests.open) quests.close();
     else if (saves.open) { saves.show(null); if (!paused && !touch) lockPointer(); }
     else if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause();
   }
@@ -1834,6 +1918,9 @@ function tick(dt) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
     if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); } }
+  } else if (active && ctx.portals.standing) {   // on an awake seal: the portals' window
+    hud.prompt('E — use the portal');
+    if (inp.was('KeyE')) setPortals(true);
   } else if (active && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
@@ -1903,6 +1990,7 @@ function tick(dt) {
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
+  ctx.portals.update(dt, { player, playing: started && !introBusy && !paused, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
   light(dt, t);
   hud.update(player, book);
   hud.clockTime(hour);
