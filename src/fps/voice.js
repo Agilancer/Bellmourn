@@ -5,8 +5,9 @@
 // its model fetched once and cached by the browser. Villagers speak in its British and American
 // voices; Velscour's Sworn in its deepest men's voices, pitched down further and muffled as if from
 // behind a helm, their lord deeper still; the sorcerers with a ring to them; the dead dragged low,
-// slowed and roughened into a moan over the gibberish they mutter. Each line is played where its
-// speaker stands: quieter further off, to the left or the right. A long line is said a sentence
+// slowed and roughened into a moan over the gibberish they mutter. Each line is heard in 3D from where
+// its speaker stands, following them as they move and you as you turn, softer the further off it is
+// (an inverse-distance falloff: chain, tick). A long line is said a sentence
 // at a time, so it starts at once; the model's own quiet is cut from each sentence and the pauses
 // between them come from the punctuation, so a line runs as it's spoken (pauseAfter, paceOf), and
 // what it's given to say is a copy it can't spell out letter by letter (sayable).
@@ -15,9 +16,9 @@
 // once; a new game waits for them: ready), on a phone too. While they're still coming, or if they
 // can't, the browser's own speech synthesis speaks instead.
 //
-// Every voice is heard at one level: each sentence is brought to the same loudness as it's made, it
-// plays through the game's own sound (the master volume, the limiter), and distance only softens a
-// voice a little (all of a crowd round you is heard).
+// Every voice starts at one level: each sentence is brought to the same loudness as it's made, and
+// plays through the game's own sound (the master volume, the limiter); then only distance (and
+// which way you face) makes one louder than another.
 //
 // Settings: localStorage bm.voices = '0' turns all voices off; bm.neural = '0' keeps to the
 // browser's voices.
@@ -38,7 +39,27 @@ const CHUNK = 150;           // characters: a longer sentence is made in pieces 
 const CACHE = 260;           // pieces kept made (a few seconds of audio each: some tens of MB in all)
 const SWELL = 1.1;           // s a sorcerer's reversed echo rises before each piece
 /** How loud a speaker d metres off is heard: all of it near, never less than a little over half. */
-const near = (d, pri) => (pri >= 2 ? 1 : Math.max(0.6, Math.min(1, 1.15 - (0.55 * d) / EARSHOT)));
+// Every voice is heard from where its speaker stands, in 3D (an HRTF panner: left and right, in
+// front and behind, above and below, turning as you turn), and softer with distance as a voice in
+// the open is: full within REF metres, then the inverse of the distance (half at 5 m, a quarter at
+// 10, a tenth at 25); nothing past EARSHOT is said aloud at all.
+const REF = 2.5, ROLL = 1;
+const EAR = 1.6, MOUTH = 1.55;   // m above the feet: your ears; a speaker's mouth (times their size)
+const falloff = (d) => REF / (REF + ROLL * (Math.max(d, REF) - REF));
+/** Where a line's speaker's mouth is now (they move as they talk), or null if they've no place. */
+function mouth(line, out = {}) {
+  const p = line.o?.pos || line.who?.pos || line.who?.root?.position;
+  if (!p) return null;
+  out.x = p.x; out.y = (p.y ?? 0) + MOUTH * (line.who?.size || 1); out.z = p.z;
+  return out;
+}
+/** An AudioParam to `v`: at once (a new voice), or eased over a few hundredths (one that's moving). */
+function ease(param, v, t, now) { if (now) param.value = v; else param.setTargetAtTime(v, t, 0.04); }
+function place(panner, at, t, now = false) {
+  if (!at) return;
+  if (panner.positionX) { ease(panner.positionX, at.x, t, now); ease(panner.positionY, at.y, t, now); ease(panner.positionZ, at.z, t, now); }
+  else panner.setPosition(at.x, at.y, at.z);
+}
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
 
@@ -379,17 +400,19 @@ const neural = {
   },
 
   /** The game's own sound (voice.useSound): its context, and a line for the voices under its master
-   * volume, evened by a compressor. */
+   * volume. Each voice is evened by a compressor of its own before it's placed (chain); the line they
+   * all go down has only a limiter, so a near voice and a far one keep their difference. */
   audio() {
     const S = voice.sound;
     if (S && !S.ctx) S.start();
     if (S?.ctx && this.ctx !== S.ctx) {
       this.ctx = S.ctx;
-      const comp = this.ctx.createDynamicsCompressor();
-      comp.threshold.value = -20; comp.knee.value = 10; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.2;
-      const out = this.ctx.createGain(); out.gain.value = 1.6;
-      comp.connect(out); out.connect(S.out);
-      this.bus = comp;
+      const lim = this.ctx.createDynamicsCompressor();
+      lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.15;
+      const out = this.ctx.createGain(); out.gain.value = 1.3;   // (a voice at arm's length as loud as before it was placed: measured)
+      lim.connect(out); out.connect(S.out);
+      this.bus = lim;
+      this.tap = out;      // (where a test listens in: voice.meter)
     }
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -453,6 +476,7 @@ const neural = {
     if (line.dead || line.hold) return;
     const ctx = this.audio();
     if (!ctx) return;
+    voice.tick(true);    // (the listener where you are before a voice is placed about you)
     while (line.at < line.parts.length && line.parts[line.at]) {
       const i = line.at, p = line.parts[line.at++];
       const buf = ctx.createBuffer(1, p.audio.length, p.rate);
@@ -468,7 +492,7 @@ const neural = {
       src.start(start);
       line.starts.push(start); line.durs.push(buf.duration / line.cast.rate);
       line.when = start + buf.duration / line.cast.rate + line.pauses[i];
-      const rec = { src, g: out.input, pri: line.pri, who: line.who, end: line.when };
+      const rec = { src, g: out.input, panner: out.panner, line, pri: line.pri, who: line.who, end: line.when };
       line.recs.push(rec);
       this.playing.push(rec);
       src.onended = () => { const i = this.playing.indexOf(rec); if (i >= 0) this.playing.splice(i, 1); };
@@ -476,23 +500,29 @@ const neural = {
   },
 
   /** Where it's heard: the speaker's effect, then how loud and which side, by where they stand. */
+  /** Where a piece is heard: the speaker's effect, at one loudness, then a 3D panner at their mouth
+   * (moved with them each frame: voice.tick), softer with distance. */
   chain(ctx, line, level = 1) {
-    const o = line.o, gain = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    const pos = o.pos || line.who?.pos, l = voice.listener;
-    let vol = 1, side = 0;
-    if (pos && l?.pos) {
-      const dx = pos.x - l.pos.x, dz = pos.z - l.pos.z, d = Math.hypot(dx, dz, (pos.y ?? 0) - (l.pos.y ?? 0));
-      vol = near(d, o.pri);
-      const yaw = l.yaw || 0, rx = Math.cos(yaw), rz = -Math.sin(yaw);   // (the listener's right)
-      side = d > 0.5 ? Math.max(-0.85, Math.min(0.85, (dx * rx + dz * rz) / d)) : 0;
-    }
-    // (the dead's rasp drives the voice hard: brought back down after it)
-    gain.gain.value = vol * (line.cast.level ?? 1);   // (each effect brought back to one loudness: MONSTER_VOICE)
-    if (pan) { pan.pan.value = side; gain.connect(pan); pan.connect(this.bus); } else gain.connect(this.bus);
+    const gain = ctx.createGain();
+    gain.gain.value = line.cast.level ?? 1;   // (each effect brought back to one loudness: MONSTER_VOICE)
+    // (evened here, before distance: on the line all voices share, it squeezed a near voice and a far
+    // one together, so the far one was heard at nearly twice the falloff's level)
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.knee.value = 10; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.2;
+    gain.connect(comp);
+    const at = mouth(line);
+    let panner = null;
+    if (at && ctx.createPanner) {
+      panner = ctx.createPanner();
+      panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
+      panner.refDistance = REF; panner.rolloffFactor = ROLL; panner.maxDistance = 1000;
+      place(panner, at, ctx.currentTime, true);
+      comp.connect(panner); panner.connect(this.bus);
+    } else comp.connect(this.bus);
     const lv = ctx.createGain();
     lv.gain.value = level;
     lv.connect(fxInput(ctx, line.cast.fx, gain));
-    return { input: lv };
+    return { input: lv, panner };
   },
 
   drop(line) {
@@ -554,7 +584,7 @@ function browserSay(who, text, o, d) {
   const u = new SpeechSynthesisUtterance(clean);
   if (v) u.voice = v;
   u.pitch = pitch; u.rate = rate;
-  u.volume = near(d, o.pri) * (voice.sound ? Math.min(1, voice.sound.volume * 2) : 1);
+  u.volume = falloff(d) * (voice.sound ? Math.min(1, voice.sound.volume * 2) : 1);   // (the browser's voice can't be placed: only softened)
   const h = {
     started: false, done: false, failed: false, at: 0, t0: 0, est: 0.6 + (clean.length * 0.075) / rate,
     progress() {
@@ -595,6 +625,19 @@ export const voice = {
   get natural() { return neural.state === 'ready' && neural.wanted(); },
   get neural() { return neural.state; },
   get debug() { return { state: neural.state, model: neural.model, waiting: neural.wait.size, cached: neural.cache.size, playing: neural.playing.length, audio: neural.ctx?.state || 'none' }; },
+  /** (for a test) How loud the voices are coming out now, left and right: { l, r } (RMS). */
+  meter() {
+    const ctx = neural.ctx, tap = neural.tap;
+    if (!ctx || !tap) return null;
+    if (!neural.meters) {
+      const split = ctx.createChannelSplitter(2), l = ctx.createAnalyser(), r = ctx.createAnalyser();
+      l.fftSize = r.fftSize = 2048;
+      tap.connect(split); split.connect(l, 0); split.connect(r, 1);
+      neural.meters = [l, r, new Float32Array(2048)];
+    }
+    const [l, r, buf] = neural.meters, rms = (a) => { a.getFloatTimeDomainData(buf); let s = 0; for (const x of buf) s += x * x; return Math.sqrt(s / buf.length); };
+    return { l: rms(l), r: rms(r) };
+  },
   /** (for a test) What the worker has waiting and is making: resolves { n, top, ids, doing }. */
   peek() { return new Promise((r) => { neural.peeked = null; neural.worker?.postMessage({ type: 'peek' }); const t0 = Date.now(); const k = setInterval(() => { if (neural.peeked || Date.now() - t0 > 3000) { clearInterval(k); r(neural.peeked); } }, 20); }); },
   get speed() { const m = neural.ms; return m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length) : null; },
@@ -632,6 +675,24 @@ export const voice = {
   made(who, text, o = {}) { return neural.state === 'ready' && neural.made(text, neuralCast(o.key || who?.name || 'someone', o)); },
 
   stop() { neural.stop(); synth?.cancel(); browserCur = null; },
+
+  /** Each frame (speech.js tickSpeech): the ears where you are and the way you face, and every voice
+   * still sounding moved to where its speaker is now. now: at once (no easing). */
+  tick(now = false) {
+    const ctx = neural.ctx, l = this.listener;
+    if (!ctx || !l?.pos) return;
+    const t = ctx.currentTime, L = ctx.listener, yaw = l.yaw || 0, pitch = l.pitch || 0;
+    const fx = -Math.sin(yaw) * Math.cos(pitch), fy = Math.sin(pitch), fz = -Math.cos(yaw) * Math.cos(pitch);
+    const ex = l.pos.x, ey = (l.pos.y ?? 0) + EAR, ez = l.pos.z;
+    if (L.positionX) {
+      ease(L.positionX, ex, t, now); ease(L.positionY, ey, t, now); ease(L.positionZ, ez, t, now);
+      ease(L.forwardX, fx, t, now); ease(L.forwardY, fy, t, now); ease(L.forwardZ, fz, t, now);
+      if (now) { L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+    } else { L.setPosition(ex, ey, ez); L.setOrientation(fx, fy, fz, 0, 1, 0); }
+    if (now) return;
+    const at = {};
+    for (const r of neural.playing) if (r.panner && r.line) place(r.panner, mouth(r.line, at), t);
+  },
 };
 
 voice.ready = new Promise((r) => { neural.done = r; });

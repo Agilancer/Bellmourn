@@ -131,6 +131,7 @@ export function hushAll() {
 
 /** Each frame: the floor passed on, and every bubble's pages run on. */
 export function tickSpeech(dt) {
+  voice.tick?.();                      // (every voice heard from where its speaker is now, as you move and turn)
   if (hold && (hold.t -= dt) <= 0) hold = null;
   // lines kept waiting too long
   for (let i = queue.length - 1; i >= 0; i--) {
