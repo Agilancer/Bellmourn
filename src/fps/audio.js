@@ -22,6 +22,8 @@ const SPELL_CAST = {
   arcaneblast: ['wave_attack', 0.9, 1.15], nova: ['ice_wall', 1], blizzard: ['ice_barrage', 0.9], lance: ['rock_meteor_throw', 1.2, 1.1],
   plague: ['rock_meteor_throw', 0.7, 1.35], blades: ['sword_unsheath', 1.1], spikes: ['rock_wall', 1.2], wisp: ['light_torch', 1], staff: ['spell_impact', 0.5, 0.7],
 };
+// how loud the recorded crowds play at the strike (tools/audio/crowd_preview.html tries them)
+const CROWD_VOL = { gasp: 0.8, panic: 1.2 };
 const clamp1 = (x) => Math.max(-1, Math.min(1, x));
 /** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
 function onset(b) {
@@ -88,9 +90,21 @@ export class Sfx {
     } catch (e) { console.warn('sound', url, e?.message || e); return null; }
   }
 
+  /** The village's gasp and panic at the green star's strike (recorded crowds: the whole gasp, the
+   * panic's first 1.5 s), fetched first and on their own, so the opening can wait for just these. */
+  loadCrowd() {
+    if (this.crowding) return this.crowding;
+    this.crowding = Promise.all(['crowd_gasp', 'crowd_panic'].map(async (name) => {
+      const b = await this.decode(SFX_DIR + name + '.mp3');
+      if (b) this.bank[name] = [{ b, off: 0 }];
+    }));
+    return this.crowding;
+  }
+
   /** The effects, fetched and decoded a few at a time (each plays as soon as it's in). */
   loadBank() {
     if (this.banking) return this.banking;
+    this.loadCrowd();
     const files = [];
     for (const [name, k] of Object.entries(TAKES)) for (let i = 1; i <= Math.max(1, k); i++) files.push([name, k ? `${name}_${i}` : name]);
     let next = 0;
@@ -503,6 +517,15 @@ export class Sfx {
     this._tone(t, 0.55, { type: 'sine', f0: 140, f1: 38, gain: 0.22, attack: 0.01 });
     this._tone(t + 0.05, 0.9, { type: 'sine', f0: 660, f1: 1320, gain: 0.04, attack: 0.2 });
     [1568, 2093, 2637].forEach((f, i) => this._tone(t + 0.25 + i * 0.07, 0.9, { type: 'triangle', f0: f, f1: f, gain: 0.02 }));
+  }
+
+  /** The strike, heard from the village: everyone gasps and screams at once, the recorded crowds
+   * over the synthesized one (all three together). */
+  villageScreams() {
+    if (!this.ok) return;
+    this.scream(18, 0.6);
+    this.play('crowd_gasp', { vol: CROWD_VOL.gasp, vary: 0 });
+    this.play('crowd_panic', { vol: CROWD_VOL.panic, vary: 0 });
   }
 
   /** A level gained: a rising peal. */
