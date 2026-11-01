@@ -394,7 +394,8 @@ class Foe extends Zombie {
 
   // -------------------------------------------------------------- being hit
   hit(h, opts) {
-    if (!this.dead && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
+    // (GOD MODE, the Debug Menu: no shield or parry turns a blow)
+    if (!this.dead && !this.owner.oneHit && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
       const f = this.forward(_t);
       if (f.dot(opts.dir) < -0.3) return this.deflect(h, opts);
     }

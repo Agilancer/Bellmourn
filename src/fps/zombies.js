@@ -711,6 +711,7 @@ export class Zombie {
     if (this.burnT > 0 && !this.dead) {
       this.burnT -= dt;
       this.hp -= (this.burnDps || 3) * dt;
+      if (this.owner.oneHit) this.hp = Math.min(this.hp, 0);
       if (Math.random() < dt * 24) this.owner.gore.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.6 + Math.random(), (Math.random() - 0.5) * 0.5)),
         _w.set((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4), 0.014, EMBER[Math.floor(Math.random() * 3)]);
       if (this.hp <= 0) this.die();
@@ -908,6 +909,7 @@ export class Zombie {
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
+    if (owner.oneHit && dmg > 0) dmg = 1e6;   // (GOD MODE, the Debug Menu: anything dies at one blow, and comes apart where it's struck)
     const max = this.champ?.max || (this.kindName && this.kind?.hp) || HP;
     // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
     // the rim, anything else a ragged hole
@@ -1113,6 +1115,7 @@ export class Zombie {
   harm(dmg) {
     if (this.dead || this.gone) return;
     this.hp -= dmg * (this.kind.armor ?? 1) * (this.frozen > 0 ? 1.5 : 1);
+    if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
     if (this.state === 'playdead' || this.state === 'buried') this.wake(this.owner.player?.pos);
     else this.hunt(this.owner.player?.pos, true);
     if (this.hp <= 0) this.die();

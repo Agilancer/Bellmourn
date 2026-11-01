@@ -38,7 +38,7 @@ import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
 import { Loot } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion, RARITY } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
@@ -55,11 +55,12 @@ import { Intro } from './intro.js';
 import { Ambience } from './ambience.js';
 import { Quests, GIVERS } from './quests.js';
 import { SaveMenu, SLOT_COUNT, readSlot } from './saves.js';
-import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
+import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL, POINTS_PER_LEVEL } from './level.js';
 import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
+import { DebugMenu } from './debug.js';
 
 const touch = TOUCH;
 // mist lying on the graveyard's ground (in the fog shader, so made before anything is compiled)
@@ -149,6 +150,10 @@ addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } cat
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
+// the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
+// no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
+const cheats = { noDamage: false, fly: false, god: false };
+let debugMenu = null, debugFrom = null, flyFrom = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -461,6 +466,33 @@ async function build() {
   map.portals = () => ctx.portals.woken();
   portalMenu = new PortalMenu({ ui, onPick: travel, onClose: () => setPortals(false) });
   ctx.portals.onWake = portalWoken;
+  // Velscour's Skull by the corner map: the word, then the Debug Menu (debug.js)
+  debugMenu = new DebugMenu({ ui, cheats,
+    onOpen: () => {
+      debugFrom = paused ? 'pause' : 'play';
+      if (paused) hud.showOverlay(null);
+      if (touch) hud.showTouch(false);
+      gameInput.release();
+      document.exitPointerLock?.();
+      sfx.chime?.(false);
+    },
+    onUnlock: () => sfx.lock?.(true),
+    // (the wrong word, or Cancel: back to where you were; the menu closed: back to the game, or with Esc
+    // on a computer to the pause screen, as the map and the bag, since Esc can't take the mouse back)
+    onClose: (how) => {
+      const from = debugFrom;
+      debugFrom = null;
+      if (how === 'cancel' && from === 'pause') hud.showOverlay('pause', touch);
+      else if (how === 'key' && !touch) pause();
+      else begin();
+    },
+    onToggle: setCheat,
+    onPortals: wakeAllPortals,
+    portals: () => [ctx.portals.found.size, ctx.portals.list.length],
+    onGear: gearDrop,
+    onLevel: shiftLevel,
+    level: () => [char.level, MAX_LEVEL],
+  });
   zombies.onDeath = onDeath;
   slimes.onDeath = onDeath;
   // (the save slots open over the title and the pause screen alike: in the title's layer)
@@ -871,6 +903,8 @@ function castSlot(slot) {
  * whatever gets through. If it kills you, you wake in the village. */
 function hurtPlayer(dmg, by = null, kind = 'melee') {
   if (introBusy) return;
+  // (the Debug Menu: GOD MODE and no-clip take no harm at all; with enemy damage off, only a fall hurts)
+  if (cheats.god || cheats.fly || (cheats.noDamage && kind !== 'fall')) return;
   // (a fall costs health and the climb back, never your life: it leaves you on your last legs)
   if (kind === 'fall') { shake = Math.max(shake, 1.4); sfx.impact?.(); player.health = Math.max(Math.min(player.health, 8), player.health - dmg); hud.toast('The fall all but breaks you'); return; }
   let d = dmg * (by?.champ?.dmg || 1);   // a quest's champion hits harder
@@ -1273,6 +1307,116 @@ function portalWoken(p) {
   saveProgress();
 }
 
+// ------------------------------------------------------------------ the Debug Menu's cheats (debug.js)
+/** A switch thrown in the Debug Menu (cheats[k] is already set): what it says, shown in the menu. */
+function setCheat(k, on) {
+  sfx.equip?.();
+  if (k === 'god') {
+    zombies.oneHit = slimes.oneHit = on;   // (zombies.js, foes.js, slimes.js: every blow, spell and burn kills)
+    if (on) { player.health = player.maxHealth; player.mana = player.maxMana; }
+    return on ? 'GOD MODE: nothing can hurt you, and everything dies at one blow' : 'God mode is off';
+  }
+  if (k === 'noDamage') return on ? 'Enemies can no longer hurt you' : 'Enemies can hurt you again';
+  if (k === 'fly') {
+    setFly(on);
+    return on ? (touch ? 'No-clip: the stick flies you where you look; the jump button rises' : 'No-clip: WASD flies you where you look; Space rises, C sinks, Shift is faster')
+      : 'No-clip is off: you stand where you were';
+  }
+  return '';
+}
+
+/** No-clip on: you fly (Player.fly), nothing sees or hears you (whatever hunted you loses you), you
+ * touch nothing and your hands are put away. Off: you're set down on whatever is under you. */
+function setFly(on) {
+  player.vel.set(0, 0, 0);
+  if (on) {
+    flyFrom = player.pos.clone();
+    zombies.forget();   // (and its kin: the slimes)
+    player.unseenUntil = Infinity;
+    vm.blocking = false; player.blocking = false; staffCharge = -1;
+    pending.R = pending.L = null;
+    magic.endCharge(); magic.arcana.endChannels();
+    hud.prompt('');
+  } else {
+    land();
+    flyFrom = null;
+    player.unseenUntil = performance.now() + 1500;   // (a moment's grace, as through a portal)
+  }
+  hud.touch.classList.toggle('fly', on);
+}
+
+/** Down out of the air onto the floor below you (or up out of the hillside you flew into), with no fall. */
+function land() {
+  const p = player.pos;
+  const below = ctx.unders.some((u) => u.dg.contains?.(p)) || physics.belowGround?.some((inside) => inside(p));
+  const g = physics.groundAt(p.x, p.z);
+  if (!below && p.y < g) p.y = g;
+  const f = physics.floorAt(p.x, p.z, p.y, 0.32, 0.42);
+  if (Number.isFinite(f)) p.y = f;
+  player.vel.set(0, 0, 0);
+  player.onGround = true;
+  camera.position.set(p.x, p.y + EYE, p.z);
+}
+
+/** Every seal in the land woken at once (with a flash on each): travel from any to any. */
+function wakeAllPortals() {
+  const P = ctx.portals, had = P.found.size;
+  if (had >= P.list.length) return 'Every portal is already awake';
+  for (const p of P.list) if (!P.found.has(p.id)) { P.wake(p, true); p.flash = 1; }
+  P.write();
+  sfx.portalWake?.();
+  saveProgress();
+  return `All ${P.list.length} portals are awake: stand on any seal and ${touch ? 'tap' : 'press'} E to travel to any other`;
+}
+
+// every kind of thing there is to wear or carry: the arms, the shields, and each place armour goes
+const GEAR_KINDS = [{ kind: 'onehand' }, { kind: 'twohand' }, { kind: 'staff' }, { kind: 'shield_round' }, { kind: 'shield_kite' },
+  { slot: 'head' }, { slot: 'body' }, { slot: 'hands' }, { slot: 'legs' }, { slot: 'feet' }, { slot: 'ring' }];
+/** GEAR GOD (Epic, Legendary, Mythic) or GEAR PEASANT (Common, Uncommon, Rare): one of every kind at
+ * each of those rarities, at your level, and a fortune in gold, dropped about you in rings (gold
+ * nearest, then each rarity further out; kept this side of any wall). */
+function gearDrop(which) {
+  const tiers = which === 'god' ? [3, 4, 5] : [0, 1, 2];
+  const lv = char.level, p = player.pos;
+  let gold = 0;
+  const piles = Array.from({ length: 8 }, () => {
+    const amount = Math.round((300 + lv * 300) * (0.75 + Math.random() * 0.5));
+    gold += amount;
+    return { type: 'gold', amount };
+  });
+  const rings = [piles, ...tiers.map((r) => GEAR_KINDS.map((o) => makeGear({ ilvl: lv, rarity: r, ...o })))];
+  rings.forEach((ring, i) => {
+    const r = 1.7 + i, turn = i * 0.37;
+    ring.forEach((it, j) => {
+      const a = turn + j / ring.length * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+      const hit = physics.ray([p.x, p.y + 1.0, p.z], [dx, 0, dz], r + 0.6);
+      const d = hit ? Math.max(0.5, hit.t - 0.6) : r;
+      ctx.loot.spawn(it, p.x + dx * d, p.y + 1.3, p.z + dz * d, { pop: true });
+    });
+  });
+  sfx.coin?.();
+  const n = rings.length - 1, names = tiers.map((r) => RARITY[r].name);
+  return `${n * GEAR_KINDS.length} ${names[0]}, ${names[1]} and ${names[2]} pieces of every kind (item level ${lv}), and ${gold.toLocaleString()} gold, lie about you${cheats.fly ? '. Land to take them up' : ''}`;
+}
+
+/** A level more or less. Up: three more points to spend. Down: three fewer (if they're already spent,
+ * every point is handed back to spend again, as the free respec does). Life and mana filled. */
+function shiftLevel(d) {
+  fitLevel(char);
+  const to = Math.max(1, Math.min(MAX_LEVEL, char.level + d));
+  if (to === char.level) return '';
+  let back = false;
+  if (d > 0) char.points += POINTS_PER_LEVEL;
+  else if (char.points >= POINTS_PER_LEVEL) char.points -= POINTS_PER_LEVEL;
+  else { for (const k of Object.keys(char.attrs)) char.attrs[k] = 0; char.points = (to - 1) * POINTS_PER_LEVEL; back = true; }
+  char.level = to; char.xp = 0;
+  if (d > 0) sfx.levelUp?.(); else sfx.equip?.();
+  applyGear().then(() => { player.health = player.maxHealth; player.mana = player.maxMana; });
+  bag.render();
+  saveCharacter(char);
+  return `Level ${to}: ${char.points} point${char.points === 1 ? '' : 's'} to spend${back ? ' (your spent points were handed back)' : ''}`;
+}
+
 function pause() {
   if (introBusy) return;
   paused = true;
@@ -1282,7 +1426,7 @@ function pause() {
 }
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !portalMenu?.open && !introBusy) pause();
+  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !portalMenu?.open && !debugMenu?.open && !introBusy) pause();
 });
 
 // ------------------------------------------------------------------ a new game, a game picked up, saved and loaded
@@ -1317,7 +1461,7 @@ function menu(a) {
 
 /** Where things stand, beyond the character: kept as you play (Continue) and in each save. */
 function makeProgress() {
-  const p = player.pos;
+  const p = cheats.fly && flyFrom ? flyFrom : player.pos;   // (flying in no-clip: kept where you took off, not in mid-air)
   // (welcomed: the village has had its say at the edge of town, and gifts: what they've given so far)
   return { arrived: true, at: Date.now(), welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
     portals: ctx.portals.save(),
@@ -1350,6 +1494,7 @@ function applyProgress(pr) {
   const P = pr?.player;
   if (P && Number.isFinite(P.x)) { player.pos.set(P.x, P.y, P.z); player.yaw = P.yaw || 0; player.pitch = P.pitch || 0; } else player.pos.set(0, 0, 12);
   player.vel.set(0, 0, 0);
+  if (cheats.fly) flyFrom = player.pos.clone();   // (still flying: this is where you took off now)
   layArms(pr?.arms || []);
   zombies.forget();
   villagers.endGather();
@@ -1808,7 +1953,10 @@ function tick(dt) {
     intro.update(dt);
     if (inp.was('Escape') || inp.was('Space')) intro.skip();
   }
-  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !introBusy;
+  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !debugMenu.open && !introBusy;
+  const acting = active && !cheats.fly;   // (no-clip: you fly, unseen, and touch nothing)
+  // Velscour's Skull by the corner map, over the pause screen too, but not over the other windows
+  debugMenu.showSkull(started && !introBusy && !lost && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !debugMenu.open);
 
   if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { quests.close(); setInventory(!bag.open); }
   if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
@@ -1821,7 +1969,8 @@ function tick(dt) {
     else if (saves.open) { saves.show(null); if (!paused && !touch) lockPointer(); }
     else if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause();
   }
-  if (active) {
+  if (active && cheats.fly) player.fly(dt, inp);
+  else if (active) {
     player.update(dt, inp);
     for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
     if (inp.was('KeyQ')) drink('life');
@@ -1870,7 +2019,7 @@ function tick(dt) {
     camera.lookAt(0, 6, -60);
   }
 
-  vm.update(dt, active ? player.speed : 0);
+  vm.update(dt, acting ? player.speed : 0);
   camera.updateMatrixWorld();
   // spells gathering in the hand before they leave it; a charged one holds there, growing,
   // until it's ready, then the cast plays on and lets it go
@@ -1890,7 +2039,7 @@ function tick(dt) {
   // doors: the one you're looking at, and E to open or close it
   // and the chest, crate, barrel or sack you're looking at, to search with E
   // and the person in front of you, to speak with (and take work from)
-  const who = active ? villagers.aimed(camera) : null;
+  const who = acting ? villagers.aimed(camera) : null;
   if (who) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
@@ -1899,16 +2048,16 @@ function tick(dt) {
     const words = !who.gathered && quests.words(who.name);
     if (words && who.wordsMade !== words) { who.wordsMade = words; voice.prefetch([[who, words, villagers.voiceOf(who)]], 8); }
     if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; } }
-  } else if (active && ctx.portals.standing) {   // on an awake seal: the portals' window
+  } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
-  } else if (active && ctx.catacombs.prompt) {
+  } else if (acting && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
-  } else if (active && ctx.catacombs.bell?.prompt) {
+  } else if (acting && ctx.catacombs.bell?.prompt) {
     hud.prompt(ctx.catacombs.bell.prompt);
     if (inp.was('KeyE')) ctx.catacombs.bell.ring(zombies, sfx, hud);
-  } else if (active) {
+  } else if (acting) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
@@ -1936,7 +2085,7 @@ function tick(dt) {
   player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
   ctx.props.update(dt);   // (searched chests' lids swinging open, broken things' pieces flying)
-  if (active) ctx.loot.update(dt, player);
+  if (active) ctx.loot.update(dt, player, !cheats.fly);
   ctx.trees3d.update(t);
   ctx.tufts.update(t);
   ctx.crater.update(dt, t, camera);
@@ -1953,17 +2102,18 @@ function tick(dt) {
     if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
   }
   for (const f of ctx.animated) f(dt, t);
-  zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
-  slimes.update(dt, player, active, camera, H);
-  ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
+  // (in no-clip nothing sees, hears or wakes for you: as while a window is up)
+  zombies.update(dt, player, acting, camera, H, 0.3 + 0.7 * day.day);
+  slimes.update(dt, player, acting, camera, H);
+  ctx.catacombs.update(dt, player, zombies, acting);   // the bridge, its ambush, the First Bell
   foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
-  chatter.update(dt, player, active);
+  chatter.update(dt, player, acting);
   tickSpeech(dt);                       // (everyone's words, in turn: speech.js)
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
-  if (active || started) quests.update(dt, player);
+  if (started && !cheats.fly) quests.update(dt, player);   // (a quest's things, taken up as you walk over them)
   hud.xp(char.level, char.xp, char.level >= MAX_LEVEL ? 0 : xpToNext(char.level));
   if ((saveT -= dt) <= 0 && started && !introBusy) { saveT = 10; saveProgress(); }
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
@@ -1971,13 +2121,13 @@ function tick(dt) {
   magic.update(dt, camera, H, player);
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
-  ctx.portals.update(dt, { player, playing: started && !introBusy && !paused, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
+  ctx.portals.update(dt, { player, playing: started && !introBusy && !paused && !cheats.fly, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
   light(dt, t);
   hud.update(player, book);
   hud.clockTime(hour);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
-  vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
+  vmPass.enabled = started && !introBusy && !cheats.fly; // no arms behind the title screen, in the opening, or in no-clip
   if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
   sounds(dt);
   res.timer.begin(); composer.render(dt); res.timer.end();
@@ -2025,7 +2175,8 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
+    cheats, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

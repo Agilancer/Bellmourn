@@ -346,6 +346,78 @@
   .map-title { font: 700 20px 'Cinzel Decorative', Cinzel, serif; color: var(--gold); letter-spacing: .06em; }
   .map-hint { font-size: 11px; color: #9a8a6a; }
 
+  /* ---------------- Velscour's Skull by the corner map, the word it asks for, and the Debug Menu (debug.js) */
+  .vskull { position: absolute; z-index: 2; pointer-events: auto; right: calc(max(16px, env(safe-area-inset-right)) + 140px); top: 14px; width: 46px; height: 46px;
+            display: grid; place-items: center; padding: 3px; min-width: 0; box-sizing: border-box; border: 1px solid #765b38; border-radius: 6px;
+            background: linear-gradient(#29180f, #0c0705); box-shadow: 0 0 0 1px #000, 0 2px 6px #000; transition: border-color .2s, box-shadow .2s, transform .1s; }
+  .vskull img { display: block; width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 0 2px #000); -webkit-user-drag: none; pointer-events: none; }
+  .vskull:hover:not(:disabled) { border-color: #ffb050; box-shadow: 0 0 0 1px #000, 0 0 12px rgba(255, 140, 50, .6); }
+  .vskull:active { transform: scale(.94); }
+  .vskull.lit { border-color: #c8402a; box-shadow: 0 0 0 1px #000, 0 0 12px rgba(220, 40, 20, .55); }
+  .vskull.lit img { animation: vskull-eyes 2.4s ease-in-out infinite; }
+  @keyframes vskull-eyes { 50% { filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 5px rgba(255, 60, 20, .8)); } }
+  .vskull-tag { position: absolute; right: calc(max(16px, env(safe-area-inset-right)) + 140px); top: 63px; width: 120px; text-align: right; pointer-events: none;
+                font: 700 9px Cinzel, serif; letter-spacing: .1em; color: #ff6a4a; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+  .vskull.off, .vskull-tag.off { display: none; }
+  .panel.vpass { width: min(360px, 92vw); padding: 18px 24px 18px; text-align: center; overflow: visible;
+                 background: radial-gradient(ellipse 80% 45% at 50% 0%, rgba(170, 30, 16, .28), transparent 70%), linear-gradient(#1c100d, #0c0706);
+                 border-color: #7a2a20; box-shadow: 0 0 0 1px #000, 0 0 40px rgba(200, 30, 10, .2), 0 24px 70px rgba(0, 0, 0, .92); }
+  .vpass .vp-skull { width: 76px; height: 76px; image-rendering: pixelated; margin: -2px auto 2px; display: block; -webkit-user-drag: none;
+                     filter: drop-shadow(0 0 3px #000) drop-shadow(0 0 10px rgba(255, 70, 20, .45)); animation: vskull-eyes 2.4s ease-in-out infinite; }
+  .vpass h2 { margin: 0; color: #f0c0a0; text-shadow: 0 0 12px rgba(200, 40, 10, .7), 0 2px 6px #000; }
+  .vpass .vp-line { margin: 4px 0 12px; font: italic 600 15px 'Alegreya Sans', Georgia, serif; color: #c8a890; }
+  .vpass .vp-input { display: block; box-sizing: border-box; width: 100%; padding: 9px 12px; text-align: center; font: 700 20px Cinzel, Georgia, serif; letter-spacing: .5em;
+                     color: #ffe8d0; background: #0d0706; border: 1px solid #6a2a1e; outline: none; box-shadow: inset 0 0 8px #000; -webkit-user-select: text; user-select: text; }
+  .vpass .vp-input:focus { border-color: #d05030; box-shadow: inset 0 0 8px #000, 0 0 10px rgba(220, 70, 30, .4); }
+  .vpass .vp-input::placeholder { color: #5a3a30; letter-spacing: .3em; }
+  .vp-btns { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+  .vp-btns button { min-width: 110px; padding: 9px 16px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+  .vp-btns .vp-unlock { background: #5a1c12; border-color: #c8502a; color: #fff0e0; }
+  .vp-btns .vp-unlock:hover { border-color: #ff9a60; }
+  .panel.debug { width: min(560px, 94vw); padding: 14px 20px 16px; background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(170, 30, 16, .24), transparent 70%), linear-gradient(#1a110e, #0b0807);
+                 border-color: #7a2a20; box-shadow: 0 0 0 1px #000, 0 0 40px rgba(200, 30, 10, .18), 0 24px 70px rgba(0, 0, 0, .92); }
+  .dbg-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 30px 2px; }
+  .dbg-head img { width: 44px; height: 44px; image-rendering: pixelated; filter: drop-shadow(0 0 6px rgba(255, 70, 20, .45)); -webkit-user-drag: none; }
+  .dbg-head h2 { margin: 0; color: #f0c0a0; text-shadow: 0 0 12px rgba(200, 40, 10, .7), 0 2px 6px #000; }
+  .panel.debug h3 { color: #d89a7a; border-bottom-color: #3a2420; margin: 12px 0 7px; }
+  .dbg-list { display: grid; gap: 6px; }
+  .dbg-tog, .dbg-act { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 10px 8px 12px;
+                       background: rgba(30, 20, 18, .7); border: 1px solid #3e2a24; min-width: 0; font: 14px Cinzel, Georgia, serif; }
+  .dbg-act { grid-template-columns: 1fr; }
+  .dbg-name b { display: block; font-weight: 700; letter-spacing: .04em; color: #f0e2c8; }
+  .dbg-name em { display: block; margin-top: 1px; font: italic 600 12.5px/1.3 'Alegreya Sans', sans-serif; color: #a8968a; }
+  .dbg-sw { font: 700 11px Cinzel, serif; font-style: normal; letter-spacing: .14em; width: 46px; padding: 4px 0; text-align: center; color: #8a7a70; border: 1px solid #4a3a34; background: #120c0b; }
+  .dbg-tog.on { border-color: #b8402a; background: linear-gradient(90deg, rgba(120, 26, 14, .5), rgba(30, 18, 16, .8)); }
+  .dbg-tog.on .dbg-sw { color: #fff0d8; background: #a8301c; border-color: #ff8a5a; box-shadow: 0 0 8px rgba(255, 80, 40, .5); }
+  .dbg-tog.god .dbg-name b { color: #ffd88a; letter-spacing: .12em; }
+  .dbg-tog.god.on { border-color: #ffc860; background: linear-gradient(90deg, rgba(150, 90, 10, .5), rgba(60, 20, 10, .8)); box-shadow: 0 0 14px rgba(255, 190, 80, .3); }
+  .dbg-tog.god.on .dbg-sw { background: #c88a20; border-color: #ffe0a0; box-shadow: 0 0 8px rgba(255, 200, 90, .6); }
+  .dbg-act:disabled { opacity: .55; }
+  .dbg-gear { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dbg-gearbtn { display: grid; gap: 3px; padding: 10px 12px; text-align: center; min-width: 0; }
+  .dbg-gearbtn b { font: 700 17px 'Cinzel Decorative', Cinzel, serif; letter-spacing: .08em; }
+  .dbg-gearbtn em { font: italic 600 12px/1.3 'Alegreya Sans', sans-serif; color: #b8a898; }
+  .dbg-gearbtn.god { background: linear-gradient(135deg, rgba(110, 40, 150, .45), rgba(170, 80, 10, .45) 55%, rgba(150, 20, 40, .5)); border-color: #c8803a; }
+  .dbg-gearbtn.god b { color: #ffd070; text-shadow: 0 0 10px rgba(255, 150, 40, .6); }
+  .dbg-gearbtn.god:hover { border-color: #ffd080; box-shadow: 0 0 14px rgba(255, 170, 60, .35); }
+  .dbg-gearbtn.peasant { background: linear-gradient(135deg, rgba(90, 90, 90, .35), rgba(30, 90, 40, .35) 50%, rgba(30, 50, 110, .4)); border-color: #6a7a6a; }
+  .dbg-gearbtn.peasant b { color: #d8e0d0; }
+  .dbg-level { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .dbg-step { width: 52px; height: 44px; font: 700 24px Cinzel, serif; padding: 0; }
+  .dbg-lv { min-width: 130px; text-align: center; } .dbg-lv b { display: block; font: 700 20px Cinzel, serif; color: var(--gold); } .dbg-lv em { font: italic 12px 'Alegreya Sans', sans-serif; color: #9a8a7a; }
+  .dbg-foot { text-align: center; margin-top: 14px; display: grid; justify-items: center; gap: 6px; }
+  .dbg-note { max-width: 100%; font: italic 600 14px/1.35 'Alegreya Sans', Georgia, serif; color: #ffd8a0; text-shadow: 0 1px 3px #000; }
+  .dbg-note:empty { display: none; }
+  .dbg-foot button { min-width: 140px; padding: 8px 18px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+  .touch.fly .tbtn:is(.big, .left, .spellF, .spellR, .use, .potion) { display: none; }
+  @media (max-height: 500px) {   /* a phone on its side: the menu in two columns, all on one screen */
+    .panel.debug { width: min(820px, 96vw); padding: 8px 14px 10px; }
+    .panel.debug h3 { margin: 6px 0 4px; } .dbg-head img { width: 32px; height: 32px; } .dbg-head h2 { font-size: 18px; }
+    .dbg-list { grid-template-columns: 1fr 1fr 1fr; } .dbg-tog { grid-template-columns: 1fr; gap: 4px; padding: 6px 8px; } .dbg-name em { font-size: 11px; }
+    .dbg-gearbtn { padding: 6px 8px; } .dbg-gearbtn b { font-size: 15px; } .dbg-foot { margin-top: 8px; }
+    .panel.vpass { padding: 10px 18px 12px; } .vpass .vp-skull { width: 52px; height: 52px; } .vpass .vp-line { margin: 2px 0 8px; } .vp-btns { margin-top: 8px; }
+  }
+
   /* ---------------- pause (the title screen is above, title.js) */
   .overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center;
              background: radial-gradient(ellipse at center, rgba(7, 6, 10, .55), rgba(7, 6, 10, .92)); }
@@ -460,6 +532,8 @@
   @media (pointer: coarse) {
     .bars { bottom: auto; top: 14px; width: 30vw; }
     .minimap { top: 70px; width: 104px; height: 104px; }
+    .vskull { top: 70px; right: calc(max(16px, env(safe-area-inset-right)) + 112px); }
+    .vskull-tag { top: 119px; right: calc(max(16px, env(safe-area-inset-right)) + 112px); }
     .clock { top: 178px; width: 104px; font-size: 14px; }
     .slots { display: none; }
     .hands { bottom: auto; top: 54px; left: max(18px, env(safe-area-inset-left)); transform: none; }
