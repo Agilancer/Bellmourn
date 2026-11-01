@@ -66,7 +66,7 @@ const HOWTO = `
   <ul class="t-tips">
     <li>A gold <b>!</b> over someone's head: they have work for you. A gold <b>?</b>: the work is done, go back to them.</li>
     <li>A raised shield takes blows on its Guard; let it down a moment and the Guard comes back.</li>
-    <li>Spells cost mana. Set the two you want on F and R in the spellbook.</li>
+    <li>Spells cost mana. Set up to five on F, R, X, C and V in the spellbook.</li>
     <li>The game keeps itself as you play: <b>Continue</b> picks up wherever you were last. Pause to keep a copy in one of ten save slots.</li>
   </ul>
   <div class="t-dbtns"><button class="t-btn" data-close><span>Done</span></button></div>`;

@@ -12,6 +12,9 @@
 // Geometry goes through the Builder, so it is merged per material and chunk like the rest.
 import * as THREE from 'three';
 
+// (a cell at a drop's lip used to come off the dead's map; it stays now, and the flow search
+// (zombies.js) keeps to steps it can climb, so open-sided stairs and pits stay reachable)
+const LIPS = false;
 const G = 0.25;                   // the raster's step (metres)
 const SKIRT = 0.6;                // floors run on this far under the walls
 const ARCH_N = 12;                // segments in a half-circle
@@ -67,6 +70,13 @@ export class Mason {
     const k = id + '|' + tile + '|' + JSON.stringify(o);
     if (!this.mats.has(k)) this.mats.set(k, this.lib.material(id, { tile, ...o }));
     return this.mats.get(k);
+  }
+
+  /** How much to stretch a face's u (metres along it) so a whole number of the material's repeats
+   * fits its length L exactly: a carved panel (a cross, an arch) is never cut at a corner. */
+  fit(mat, L) {
+    const tu = mat?.userData?.tileU || 1, k = Math.max(1, Math.round(L / tu));
+    return L > 1e-3 ? k * tu / L : 1;
   }
 
   // ------------------------------------------------------------------ the raster
@@ -181,7 +191,8 @@ export class Mason {
     for (let e = 0; e < n; e++) {
       const ed = edges[e], ops = s.openings.filter((o) => o.e === e).sort((p, q) => p.t - q.t);
       const at = (t, h) => [ed.a[0] + ed.ux * t, y + h, ed.a[1] + ed.uz * t];
-      const uv = (t, h) => [ed.per + t, h];
+      // (each wall face starts its own run of panels and holds a whole number of them)
+      const su = this.fit(wall, ed.L), uv = (t, h) => [t * su, h];
       const inside = [s.cx, y + wallH / 2, s.cz];
       // solid stretches between the openings, full height; over each opening, the wall above its arch
       let t = 0;
@@ -412,8 +423,9 @@ export class Mason {
       for (const sgn of [1, -1]) {
         const p = side(i, sgn), q = side(i + 1, sgn), lo = stair ? 0.4 : 0.05;
         if (s.niches && !stair) this.nicheWall(s, wall, p, q, ay, lo, spring, a0, mid, i, sgn);
-        else this.sheet(wall, [[[p[0], ay - lo, p[1]], [q[0], by - lo, q[1]]], [[p[0], ay + spring, p[1]], [q[0], by + spring, q[1]]]],
-          [[[a0, -lo], [a0 + L, -lo]], [[a0, spring], [a0 + L, spring]]], mid, 0.85);
+        else { const Lw = Math.hypot(q[0] - p[0], q[1] - p[1]), u1 = Lw * this.fit(wall, Lw);   // (whole panels on each run)
+          this.sheet(wall, [[[p[0], ay - lo, p[1]], [q[0], by - lo, q[1]]], [[p[0], ay + spring, p[1]], [q[0], by + spring, q[1]]]],
+            [[[0, -lo], [u1, -lo]], [[0, spring], [u1, spring]]], mid, 0.85); }
         const P0 = side(i, sgn, 0.25), P1 = side(i + 1, sgn, 0.25);
         this.phys.addSeg(P0[0], P0[1], P1[0], P1[1], Math.min(ay, by) - 1, Math.max(ay, by) + spring + r + 1, 0.5, 'wall');
       }
@@ -545,7 +557,7 @@ export class Mason {
         const a = i + di, b = k + dk;
         if (a < 0 || b < 0 || a >= W || b >= D) continue;
         const o = b * W + a;
-        if (cell[o] >= 0 && h[c] - h[o] > 0.65) { cell[c] = -2; break; }   // (marked, then cleared below)
+        if (cell[o] >= 0 && h[c] - h[o] > 0.65 && LIPS) { cell[c] = -2; break; }   // (marked, then cleared below)
       }
     }
     for (let c = 0; c < cell.length; c++) if (cell[c] === -2) cell[c] = -1;

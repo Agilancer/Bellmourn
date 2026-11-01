@@ -3,6 +3,9 @@
 // screen for phones. (The inventory and spellbook are bag.js.)
 
 // 12x12 pixel-art spell icons: one character per pixel
+
+/** The keys the spell slots are cast with (Z is the mana potion, Q the life one). */
+export const SPELL_KEYS = ['F', 'R', 'X', 'C', 'V'];
 const ICONS = {
   firebolt: { pal: { r: '#701c10', o: '#e0501c', y: '#ffb040', w: '#fff6c0' }, px: [
     '.....r......', '....ro......', '....roo.....', '...roor.r...', '...royor.r..', '..royyyor...',
@@ -106,7 +109,7 @@ export class Hud {
     bars.append(this.hp, this.mp, this.gd);
     this.slots = el('div', 'slots');
     this.slotEl = {};
-    for (const k of ['F', 'R']) {
+    for (const k of SPELL_KEYS) {
       const s = el('div', 'slot', `<img alt=""><b>${k}</b><small></small>`);
       s.dataset.slot = k;
       this.slotEl[k] = s;
@@ -179,12 +182,12 @@ export class Hud {
   }
 
   updateSlots(book) {
-    for (const k of ['F', 'R']) {
+    for (const k of SPELL_KEYS) {
       const id = book[k], s = this.o.spells[id];
       const slot = this.slotEl[k];
       slot.querySelector('img').src = id ? this.spellIcons[id] : '';
       slot.querySelector('small').textContent = s ? s.name : '—';
-      const t = this.touch.querySelector(k === 'F' ? '.spellF img' : '.spellR img');
+      const t = this.touch.querySelector('.spell' + k + ' img');   // (a phone has buttons for F and R only)
       if (t) t.src = id ? this.spellIcons[id] : '';
     }
   }
@@ -195,7 +198,7 @@ export class Hud {
     this.mp.querySelector('i').style.width = (mp * 100).toFixed(1) + '%';
     this.hp.querySelector('span').textContent = Math.round(player.health);
     this.mp.querySelector('span').textContent = Math.round(player.mana);
-    for (const k of ['F', 'R']) {
+    for (const k of SPELL_KEYS) {
       const s = this.o.spells[book[k]];
       this.slotEl[k].classList.toggle('low', !!s && player.mana < s.mana);
     }

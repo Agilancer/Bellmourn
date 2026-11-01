@@ -29,7 +29,7 @@ import { Player, EYE } from './player.js';
 import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
-import { Hud } from './hud.js';
+import { Hud, SPELL_KEYS } from './hud.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
@@ -676,8 +676,7 @@ function dropFromBag(i) {
 }
 
 function assign(id, slot) {
-  const other = slot === 'F' ? 'R' : 'F';
-  if (book[other] === id) book[other] = book[slot];
+  for (const other of SPELL_KEYS) if (other !== slot && book[other] === id) book[other] = book[slot];   // (one spell, one key: they swap)
   book[slot] = id;
   localStorage.setItem('bm.book', JSON.stringify(book));
   hud.refresh(vm.equip, book);
@@ -1481,8 +1480,7 @@ function tick(dt) {
     }
     // left hand (shields are held up as long as the button is)
     vm.actLeft(inp.held('Mouse2'));
-    if (inp.was('KeyF')) castSlot('F');
-    if (inp.was('KeyR')) castSlot('R');
+    for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
     if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(L.out < 0.5);
     lastBob = player.bob;

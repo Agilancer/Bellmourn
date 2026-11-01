@@ -1199,12 +1199,13 @@ export class Zombie {
       if (this.zone === 'dungeon' && (!this.canSee || Math.abs(player.pos.y - this.pos.y) > 0.8) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       if (crawl) speed = CRAWL.chase[0] + CRAWL.chase[1] * (this.arm('L') + this.arm('R'));
       else if (!this.feet) speed = 0.65;
-      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.7 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
+      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.9 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
       // (the corridors' flow leads to you: not for one going back from an edge it gave up at)
       if (this.zone === 'dungeon' && !(this.balkT > owner.time) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
-      speed = crawl ? CRAWL.hunt : kind.walk;
+      // (one sent at you, the bell's horde, hurries even when it can't see you: runners run)
+      speed = crawl ? CRAWL.hunt : this.rush > 0 ? (kind.run && this.has('head') ? kind.run : kind.walk * 1.9) : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
       this.searchT -= dt; this.wanderT -= dt;
@@ -1295,9 +1296,12 @@ export class Zombie {
       // (felt for with the rest, five times a second)
       if (this.feelT === 0.2) {
         const y = this.pos.y;
-        this.edgeAhead = phys.floorAt(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75, y + 0.3, 0.2, 0.75) < y - 1.5;
+        // (a drop: a floor found well below. None found at all is a wall or a step too high, the side
+        // of a stair or a plinth, not an edge: it walks round or climbs, it doesn't stop and groan)
+        const drop = (x, z) => { const fa = phys.floorAt(x, z, y + 0.3, 0.2, 0.75); return fa > -1e9 && fa < y - 1.5; };
+        this.edgeAhead = drop(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75);
         // (narrow footing: a drop a metre to either side)
-        this.narrow = phys.floorAt(this.pos.x + f.z, this.pos.z - f.x, y + 0.3, 0.2, 0.75) < y - 1.5 || phys.floorAt(this.pos.x - f.z, this.pos.z + f.x, y + 0.3, 0.2, 0.75) < y - 1.5;
+        this.narrow = drop(this.pos.x + f.z, this.pos.z - f.x) || drop(this.pos.x - f.z, this.pos.z + f.x);
       }
       // one sent at you (rush) doesn't stop at an edge with footing beyond it: it leaps for it (and one
       // in three falls short). With nothing to land on, it stops like the rest.
@@ -1317,7 +1321,7 @@ export class Zombie {
         sp = 0;
         if ((this.edgeT = (this.edgeT || 0) - dt) < 0) { this.edgeT = 3 + Math.random() * 3; owner.sound('groan', this.pos, true); }
       }
-      phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, 0.45);
+      phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, crawl ? 0.45 : 0.55);
       if (crawl) this.play('crawl', 0.3, Math.max(0.45, speed / 0.55));
       else if (speed > 2) this.play('run', 0.25, speed / 3.0);
       else this.play('walk', 0.3, Math.max(0.5, speed / 0.85));
@@ -1334,7 +1338,7 @@ export class Zombie {
       phys.slide(this.pos, this.knock.x * dt, this.knock.z * dt, 0.3, 1.6, 0.45);
       this.knock.multiplyScalar(Math.exp(-9 * dt));
     }
-    const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, 0.45);
+    const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, this.mode === 'crawl' ? 0.45 : 0.55);
     if (fl === -Infinity) return;
     if (this.pos.y > fl + 0.02) {
       if (!this.air) this.fallFrom = this.pos.y;
@@ -1529,13 +1533,16 @@ export class Zombies {
       const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5, fy = floorY(x, z);
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
-        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
-        if (b.seg) {   // (a prop set at an angle: by its distance from the line, not its bounds)
+        // (a wall segment at any angle, a prop set at an angle: by distance from its line, not its
+        // bounds; a wall standing into a cell's middle (a room's wall across a wide passage's mouth)
+        // closes it, so the dead are routed through the open part)
+        if (b.seg && (b.tag === 'prop' || b.tag === 'wall') && b.max[1] >= fy + 0.45 && b.min[1] <= fy + 1.6) {
           const t = Math.max(0, Math.min(b.len, (x - b.ax) * b.ux + (z - b.az) * b.uz));
-          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half) { open = false; break; }
+          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half + (b.tag === 'wall' ? 0.35 : 0)) { open = false; break; }   // (a wall: a body's width clear of it)
           continue;
         }
-        if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
+        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
+        if (x > b.min[0] - 0.3 && x < b.max[0] + 0.3 && z > b.min[2] - 0.3 && z < b.max[2] + 0.3) { open = false; break; }   // (a body's width clear of it, or the route cuts its corner)
       }
       dg.walk[c] = open ? 1 : 0;
     }
@@ -1659,6 +1666,7 @@ export class Zombies {
     const dist = this.flow && this.flow.length === N ? this.flow : new Int16Array(N);
     dist.fill(-1);
     const q = this.queue && this.queue.length === N ? this.queue : (this.queue = new Int32Array(N));
+    const hh = nav.h;
     let h = 0, t = 0;
     dist[key] = 0; q[t++] = key;
     while (h < t) {
@@ -1670,6 +1678,7 @@ export class Zombies {
         if (ni < 0 || nk < 0 || ni >= nav.nx || nk >= nav.nz) continue;
         const n = nk * nav.nx + ni;
         if (dist[n] >= 0 || !walk[n]) continue;
+        if (hh && Math.abs(hh[n] - hh[c]) > 0.6) continue;    // (not up or down a drop: a ledge, a stair's open side, a tier)
         dist[n] = d + 1; q[t++] = n;
       }
     }
@@ -1696,6 +1705,8 @@ export class Zombies {
       if (!di && !dk) continue;
       if (di && dk && here >= 0 && (at(i + di, k) < 0 || at(i, k + dk) < 0)) continue;   // no cutting corners
       const d = at(i + di, k + dk);
+      // (only to a cell it can step to from where it stands: not up the side of a stair or a plinth)
+      if (nav.h && Math.abs(nav.h[(k + dk) * nav.nx + i + di] - p.y) > 0.65) continue;
       if (d >= 0 && d < best) { best = d; bi = i + di; bk = k + dk; }
     }
     if (bi === i && bk === k) return false;

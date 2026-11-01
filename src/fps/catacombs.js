@@ -754,11 +754,12 @@ export function buildCatacombs(ctx) {
    * y1: carved panels round its sides, a cap, a moulded lip. */
   function octPrism(cx, cz, a, y0, y1, side, cap, lip) {
     const R = a / Math.cos(Math.PI / 8), pts = Array.from({ length: 8 }, (_, i) => { const t = Math.PI / 8 + i * Math.PI / 4; return [cx + Math.cos(t) * R, cz + Math.sin(t) * R]; });
-    let per = 0;
+    // (each face its own whole panels, across and up: the carved crosses are never cut at a corner
+    // or under a tier's lip)
+    const tv = side?.userData?.tileV || 1, H = y1 - y0, v1 = Math.max(1, Math.round(H / tv)) * tv;
     for (let i = 0; i < 8; i++) {
-      const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % 8], L = Math.hypot(bx - ax, bz - az);
-      mason.sheet(side, [[[ax, y0, az], [bx, y0, bz]], [[ax, y1, az], [bx, y1, bz]]], [[[per, 0], [per + L, 0]], [[per, y1 - y0], [per + L, y1 - y0]]], [(ax + bx) / 2 * 2 - cx, (y0 + y1) / 2, (az + bz) / 2 * 2 - cz], 0.85);
-      per += L;
+      const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % 8], L = Math.hypot(bx - ax, bz - az), u1 = L * mason.fit(side, L);
+      mason.sheet(side, [[[ax, y0, az], [bx, y0, bz]], [[ax, y1, az], [bx, y1, bz]]], [[[0, 0], [u1, 0]], [[0, v1], [u1, v1]]], [(ax + bx) / 2 * 2 - cx, (y0 + y1) / 2, (az + bz) / 2 * 2 - cz], 0.85);
     }
     mason.flat(cap, pts, y1, true, 0.95);
     if (lip) for (let i = 0; i < 8; i++) { const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % 8]; mason.band(lip, [[ax, y1 - 0.12, az], [bx, y1 - 0.12, bz]], 0.26, 0.14, [(ax + bx) - cx, y1 - 0.12, (az + bz) - cz]); }
@@ -1052,7 +1053,7 @@ function makeBell(ctx, BELL, meshes, onRing = null, later = (t, fn) => fn()) {
       const d = z.pos.distanceTo(state.at);
       // (all of them up within a second: a horde, not a trickle; rushing long enough to hurry all
       // the way up the spiral)
-      later(Math.min(0.8, d * 0.03), () => { if (z.state === 'playdead' || z.state === 'buried') z.wake(state.at); else z.hunt(state.at, true); z.rush = 25; });
+      later(Math.min(0.8, d * 0.03), () => { if (z.state === 'playdead' || z.state === 'buried') z.wake(state.at); else z.hunt(state.at, true); z.rush = 40; });
     }
     const opened = onRing?.();
     hud?.toast(opened ? "The First Bell tolls. Somewhere east a grille grinds up, and the dead are coming" : 'The First Bell tolls through the Deep Undercroft, and the dead come');
