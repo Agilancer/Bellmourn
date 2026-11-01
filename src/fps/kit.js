@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { crisp, WEBGPU } from './engine.js';
-import { drawNormalMap } from './nodes.js';
+import { drawNormalMap, T, sharpGrad, shared, keyed, ref, sourceOf } from './nodes.js';
 
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
@@ -71,7 +71,12 @@ export class Kit {
     this.flames = [];         // [x, y, z, size]
     this.loader = new THREE.TextureLoader();
     // shared by every kit material: the weathering textures, the palette table, the biome map
-    this.U = {
+    // (WebGPU: TSL nodes, whose .value is set as the GLSL uniforms' was)
+    this.U = WEBGPU ? {
+      kGrime: T.texture(new THREE.Texture()), kLut: T.texture(new THREE.Texture()), kBiome: T.texture(new THREE.Texture()),
+      kBiomeRect: T.uniform(new THREE.Vector4(-1, -1, 2, 2)).setGroup(T.renderGroup), kSnow: T.uniform(new THREE.Color(0xd8dee3)).setGroup(T.renderGroup),
+      kMoss: T.uniform(new THREE.Color(0x2b4b19)).setGroup(T.renderGroup),
+    } : {
       kGrime: { value: null }, kLut: { value: null }, kBiome: { value: null },
       kBiomeRect: { value: new THREE.Vector4(-1, -1, 2, 2) }, kSnow: { value: new THREE.Color(0xd8dee3) },
       kMoss: { value: new THREE.Color(0x2b4b19) },
@@ -221,6 +226,13 @@ export class Kit {
   /** Weathering, in the material's shader (no palette snap: the colour is the weathering's own). */
   weather(m, w, built) {
     const U = this.U;
+    if (WEBGPU) {   // (one graph for every kit material: its weathering and its map are its own)
+      m.userData.kW = [w.grime, w.damp, w.moss, w.snow];
+      m.userData.kBuilt = built ? 1 : 0;
+      m.colorNode = this.weatherNode(m.map);
+      keyed(m, 'kit');
+      return;
+    }
     m.customProgramCacheKey = () => 'kit' + JSON.stringify(w) + (built ? 'b' : '');
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);
@@ -266,6 +278,42 @@ export class Kit {
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.18) * 0.9; // Bellmourn's drab light
           }`);
     };
+  }
+
+  /** weather() in TSL (WebGPU): the material's map crisp (as crisp() would draw it) times its colour,
+   * then weathered where it stands, one graph for every kit material (per kind of map texture). */
+  weatherNode(like) {
+    const key = `${like?.colorSpace}|${like?.type}|${like?.minFilter}|${like?.magFilter}`;
+    this.weatherNodes ??= new Map();
+    if (this.weatherNodes.has(key)) return this.weatherNodes.get(key);
+    const { Fn, uv, dFdx, dFdy, positionWorld, positionGeometry, normalWorldGeometry, vec3, vec4, pow, abs, normalize, mix, smoothstep, dot } = T;
+    const U = this.U, G = U.kGrime;
+    const base = shared((mat) => mat.map, like);
+    const u = uv();
+    const map = sharpGrad(base, u, dFdx(u), dFdy(u));
+    map.onObjectUpdate((f) => sourceOf(f).map || undefined);   // (as nodes.js crispColor)
+    const color = ref('color', 'color'), kW = [0, 1, 2, 3].map((i) => ref(`userData.kW.${i}`, 'float')), built = ref('userData.kBuilt', 'float');
+    const g = Fn(() => {
+      const dc = vec4(map.rgb.mul(color), map.a).toVar();   // (map_fragment: the diffuse colour)
+      const kP = positionWorld.toVar(), n = normalize(normalWorldGeometry).toVar();
+      const kY = mix(positionGeometry.y, 9.0, built);   // (geo.js's world-UV pieces: never damp)
+      const tw0 = pow(abs(n), vec3(4.0)), tw = tw0.div(tw0.x.add(tw0.y).add(tw0.z)).toVar();
+      const g = G.sample(kP.zy.mul(0.31)).mul(tw.x).add(G.sample(kP.xz.mul(0.31)).mul(tw.y)).add(G.sample(kP.xy.mul(0.31)).mul(tw.z)).toVar();
+      const c = dc.rgb.mul(mix(1.0, g.r.mul(0.5).add(0.6), kW[0])).toVar();
+      const damp = smoothstep(0.0, g.g.mul(0.9).add(0.7), kY).oneMinus().mul(kW[1]);
+      c.mulAssign(damp.mul(0.45).oneMinus());
+      const up = smoothstep(0.5, 0.85, n.y);
+      const mo = up.mul(smoothstep(0.52, 0.7, G.sample(kP.xz.mul(0.09)).b.add(g.g.mul(0.25)))).mul(kW[2]);
+      c.assign(mix(c, U.kMoss.mul(g.r.mul(0.7).add(0.55)), mo.mul(0.85)));
+      const bu = kP.xz.sub(U.kBiomeRect.xy).div(U.kBiomeRect.zw);
+      const snow = U.kBiome.sample(bu).a.mul(kW[3]).toVar();
+      const sn = smoothstep(0.35, 0.7, n.y.add(snow.mul(0.25)).sub(snow.oneMinus().mul(0.6)).add(g.b.sub(0.5).mul(0.3))).mul(snow);
+      c.assign(mix(c, U.kSnow.mul(g.r.mul(0.25).add(0.82)), sn));
+      c.assign(mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.18).mul(0.9));   // Bellmourn's drab light
+      return vec4(c, dc.a);
+    })();
+    this.weatherNodes.set(key, g);
+    return g;
   }
 
   /** A geo.js material: the atlas tiling every `tile` metres in world-UV geometry. */

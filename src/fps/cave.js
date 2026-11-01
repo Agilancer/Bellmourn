@@ -12,6 +12,7 @@
 // also drops the outdoor ground there so the boxes are what you walk on. Foes find their way
 // to you along the passages by a flow field over the open cells.
 import * as THREE from 'three';
+import { WEBGPU, T, shared, keyed, ref } from './nodes.js';
 
 const G = 0.5;                                    // grid step (metres)
 const DEEP = -9;                                  // the cavern floor (well under the 'under' line)
@@ -151,6 +152,14 @@ export function rockTexture() {
 export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   // two-sided: the roof's top shows as a ledge over the mouth from outside
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x181a1c, shininess: 14, side: THREE.DoubleSide });
+  if (WEBGPU) {   // (one graph per kind of rock texture; its picture, brightness and repeat are the material's)
+    ROCK_TEX.set(m, tex);
+    m.userData.rockK = k; m.userData.rockTile = tile;
+    const g = rockNode(tex);
+    m.colorNode = g.node;
+    keyed(m, 'cave-rock-' + g.key);
+    return m;
+  }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tRock = { value: tex };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 cP; varying vec3 cN;')
@@ -166,6 +175,35 @@ export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   };
   m.customProgramCacheKey = () => `cave-rock-${k}-${tile}`;
   return m;
+}
+
+// ------------------------------------------------------------------ the rock in TSL (WebGPU)
+const ROCK_TEX = new WeakMap();   // material -> its rock texture (a sampler of the GLSL's, not a map)
+const _rock = new Map();
+function rockNode(like) {
+  const key = `${like.colorSpace}-${like.type}-${like.minFilter}-${like.magFilter}`;
+  if (!_rock.has(key)) {
+    const { Fn, positionWorld, normalWorldGeometry, vec3, vec4, float, pow, abs, normalize, smoothstep, mix, select, textureSize } = T;
+    const tRock = shared((mat) => ROCK_TEX.get(mat), like);
+    const k = ref('userData.rockK', 'float', 2.2), tile = ref('userData.rockTile', 'float', 2.6);
+    const t1 = tile, ty = tile.mul(1.9), tz = tile.mul(0.85);
+    const node = Fn(() => {
+      const cP = positionWorld.toVar(), n = normalize(normalWorldGeometry).toVar();
+      const tw0 = pow(abs(n), vec3(4.0)), tw = tw0.div(tw0.x.add(tw0.y).add(tw0.z)).toVar();
+      // (both read before the choice: a select() becomes a branch, and these sample with the
+      // pixel's own gradients)
+      const under = tRock.sample(cP.zx.div(ty)).rgb.toVar(), over = tRock.sample(cP.xz.div(tz)).rgb.toVar();
+      const top = select(n.y.lessThan(0.0), under, over);
+      const rk = tRock.sample(cP.zy.div(t1)).rgb.mul(tw.x).add(tRock.sample(cP.xy.div(t1)).rgb.mul(tw.z)).add(top.mul(tw.y)).toVar();
+      const wet = smoothstep(0.6, 0.95, n.y);
+      rk.assign(mix(rk, rk.mul(vec3(0.78, 0.92, 0.86)), wet.mul(0.6)));
+      // (a zero that keeps the texture's own node in the graph, so its picture follows the material)
+      const held = float(textureSize(tRock, 0).x).mul(0.0);
+      return vec4(rk.mul(k).mul(ref('color', 'color')).add(held), 1.0);
+    })();
+    _rock.set(key, { node, key });
+  }
+  return _rock.get(key);
 }
 
 /** A small glowing mushroom (stem and cap), for instancing. */
