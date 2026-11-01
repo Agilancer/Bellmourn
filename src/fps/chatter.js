@@ -44,7 +44,10 @@ export class Chatter {
       return { key: z.variant + ':' + z.id, sex: z.def?.body?.sex || 'm', kind: z.kindName === 'sorcerer' ? 'sorcerer' : lord ? 'lord' : 'knight' };
     }
     if (z.kindName === 'ghast' || z.kindName === 'grubber') return { key: z.variant + ':' + z.id, kind: 'beast' };
-    return { key: (z.variant || 'dead') + ':' + z.id, sex: z.id % 3 ? 'm' : 'f', kind: 'undead' };
+    // (the drowned gurgle; the dry, ancient dead whisper on breath, as wraiths; the rest of the dead
+    // rattle and boom: voice.js MONSTER_VOICE)
+    const v = String(z.variant || '');
+    return { key: (z.variant || 'dead') + ':' + z.id, sex: z.id % 3 ? 'm' : 'f', kind: 'undead', style: /drown|maw/.test(v) ? 'drowned' : /mumm|ghoul/.test(v) ? 'wraith' : null };
   }
 
   isKnight(z) { return z.kindName === 'knight' || z.kindName === 'sorcerer'; }

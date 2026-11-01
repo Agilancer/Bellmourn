@@ -520,6 +520,18 @@ export class Quests {
     this.tip.style.left = x + 'px'; this.tip.style.top = Math.max(4, y) + 'px';
   }
 
+  /** What a giver would say if you spoke with them now (read aloud as their work comes up), or null
+   * if they've none for you: main makes it ahead, while you're looking at them. */
+  words(name) {
+    const mine = QUESTS.filter((q) => q.giver === name && (this.available(q.id) || ['active', 'ready'].includes(this.state[q.id]?.s)));
+    if (!mine.length) return null;
+    const ready = mine.find((q) => this.state[q.id]?.s === 'ready');
+    if (!(mine.length === 1 || ready)) return 'There is more than one thing to be done.';
+    const q = ready || mine[0], st = this.state[q.id];
+    const n = st ? st.n : q.objectives.map((ob) => this.needed(ob));
+    return st?.s === 'ready' ? q.done : st?.s === 'active' ? q.wait : typeof q.text === 'function' ? q.text(n) : q.text;
+  }
+
   /** Speak with a giver: their work (one quest at once, or a list to choose from). True if they
    * had any. */
   talk(name, v = null) {

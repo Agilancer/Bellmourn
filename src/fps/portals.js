@@ -1,6 +1,6 @@
-// The portals: the old star-seals. One lies at the heart of every village and before the door of
-// every keep, barrow and cave worth the name; step onto one you have woken and it takes you to any
-// other you have woken.
+// The portals: the old star-seals. One lies at the heart of every village, by each of the land's
+// landmarks, and before the door of every keep, barrow and cave worth the name; step onto one you
+// have woken and it takes you to any other you have woken.
 //
 // Intent (docs/DUNGEON_BUILDING.md):
 //  - Who made them: the first priests of the Canticle, who wrote that the Sacred Flame would fall
@@ -21,7 +21,7 @@
 // stand there is drawn for and not planted, so the rest of the world comes out as it always has;
 // trees keep further back than grass); on the downs the ground is levelled for each first
 // (region.js adds the pads). One instanced mesh each for the seals' tops, lips, sides, footings,
-// shadows and columns, and one set of points for their motes: seven draw calls for all nine.
+// shadows and columns, and one set of points for their motes: seven draw calls for them all.
 import * as THREE from 'three';
 import { crisp } from './engine.js';
 import { WEBGPU, T, sharp, snoise } from './nodes.js';
@@ -48,6 +48,9 @@ const EDGE_ASPECT = 1082 / 724;         // the repeat's width over the strip's h
 export const PORTALS = [
   // the village: on the square, north of the well, between the well and the cathedral's forecourt
   { id: 'bellmourn', name: 'Bellmourn', where: 'The village square', land: 'Bellmourn and the Darkwood', x: 0, z: -9, look: [0, 4] },
+  // thirty metres south of where the green star came down: clear of the crater's slope, of the
+  // knight's run out of the west wood and of the village's gathering toward the town (east)
+  { id: 'crater', name: 'Where the Green Star Fell', where: 'South of the crater', land: 'Bellmourn and the Darkwood', x: -74, z: -28, look: [-74, -58] },
   // east of the lane, before the graveyard's gate
   { id: 'graveyard', name: 'The Bellmourn Graveyard', where: 'Before the graveyard gate', land: 'Bellmourn and the Darkwood', x: 30.5, z: -113, look: [17, -122] },
   // in the keep's clearing, north of the Vigil Road, a stone's throw from the gatehouse
@@ -55,8 +58,16 @@ export const PORTALS = [
   // in the delves' clearings, off to one side of the stair-house doors (they face south)
   { id: 'barrow', name: 'The Barrow of Saint Ivo', where: "By the barrow's door", land: 'Bellmourn and the Darkwood', x: -198, z: 105, look: [-205, 99] },
   { id: 'cellars', name: 'The Old Watch Cellars', where: "By the cellars' door", land: 'Bellmourn and the Darkwood', x: 157, z: 196, look: [150, 190] },
+  // where the path from the Bellwood Trail comes to the farm, off to its side
+  { id: 'farm', name: 'Millhaven Farm', where: 'Where the path comes to the farm', land: 'The Green Downs', x: 419.5, z: 53.5, look: [430, 85] },
+  // below the windmill's door on its south side, far enough off that the mill's own levelled ground is
+  // left as it was (a worn way up to the door)
+  { id: 'mill', name: 'The Millhaven Windmill', where: 'Below the mill door', land: 'The Green Downs', x: 520, z: 182, look: [520, 165], spur: [520, 166] },
   // the hamlet's green, in the fork of its two paths below the miller's (well back from the stream)
   { id: 'millhaven', name: 'Millhaven', where: 'The green at the fork', land: 'The Green Downs', x: 585, z: 8, look: [560, 18], spur: [596, 8] },
+  // on the pool's west bank, well back from the water and the stream (its levelled ground stays off
+  // both), looking across at the falls; a worn way to the falls path
+  { id: 'falls', name: 'Brightwater Falls', where: "On the pool's west bank", land: 'The Green Downs', x: 660, z: -48, look: [736, -42], spur: [672, -34] },
   // on the flats below the cliff, twenty-odd metres out from each cave's mouth
   { id: 'gloam', name: 'The Gloamhollow', where: 'Below the cave mouth', land: 'The Green Downs', x: 706, z: 14, look: 'The Gloamhollow' },
   { id: 'grotto', name: 'The Drowned Grotto', where: 'Below the cave mouth', land: 'The Green Downs', x: 700, z: -86, look: 'The Drowned Grotto' },

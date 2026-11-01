@@ -333,8 +333,11 @@ export class Villagers {
    * a scene of two or more is a conversation (its lines keep the floor between them). */
   say(a, text, toYou = false, o = {}) {
     const group = o.group ?? this.scenes.find((s) => !s.dead && s.people.length > 1 && s.people.includes(a)) ?? null;
-    return speak(a, text, toYou, { voice: { ...this.voiceOf(a), pri: toYou ? 2 : 0 }, group, must: o.must, wait: o.wait });
+    return speak(a, text, toYou, { voice: { ...this.voiceOf(a), pri: toYou ? 2 : 0 }, group, must: o.must, wait: o.wait, now: o.now });
   }
+
+  /** Walk straight to (x, z), off the streets (the meadow by the crater). */
+  walkTo(a, x, z) { a.path = []; a.goal = [x, z]; a.faceTo = null; a.stuck = 0; return () => !a.goal; }
 
   /** How a villager sounds (voice.js): Velscour's garrison in the town as the knights they are. */
   voiceOf(a) {
@@ -651,98 +654,203 @@ export class Villagers {
   /** Whether a villager's gift (a unique's id) has been given already (this game). */
   gave(id) { try { return !!localStorage.getItem('bm.taken.gift.' + id); } catch { return false; } }
 
+  /** What `a` will say when you next speak to them (picked ahead, so it can be made ahead): Garrow's
+   * gift the first time, else a line of theirs about who you are. */
+  replyFor(a) {
+    if (a.name === 'Garrow' && this.onGift && !this.gave('garrowsoath')) return GARROW_GIFT;
+    if (!a.reply) {
+      const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
+      a.reply = [pick(lines)];
+    }
+    return a.reply;
+  }
+
+  /** You're about to speak to `a` (coming up to them, or looking at them in reach: pri higher): their
+   * answer, and their good day, made now, so either is heard the moment it's due. */
+  expect(a, pri = 2) {
+    if (!a || a.gathered || !voice.natural || (a.expected >= pri && this.time - a.expectT < 20)) return;
+    a.expected = pri; a.expectT = this.time;
+    const v = this.voiceOf(a), list = this.replyFor(a).map((t) => [a, t, v]);
+    if (pri < 8 && this.time - a.greeted > 50) list.push([a, this.greetingFor(a), v]);
+    voice.prefetch(list, pri);
+  }
+
+  /** You speak to someone: they answer at once (whoever else was talking stops for them), turning
+   * to you as they do, the line they'd ready for you (expect). */
   talkTo(a, player) {
-    if (a.gathered) return;   // (at the edge of town after the green star: they're already talking to you)
+    if (a.gathered) { this.gatherPoke = a; return; }   // (at the crater after the green star: it hurries them on)
+    if (a.answering && talking(a)) return;              // (still answering you)
     this.stopScenes(a);
     a.busy = true; a.greeted = this.time;
-    const self = this;
+    const lines = this.replyFor(a), gift = lines === GARROW_GIFT;
+    a.reply = null; a.expected = 0;
+    this.face(a, player); a.quick = 0.8;
+    if (chance(gift ? 0.2 : 0.35)) this.gesture(a, 'wave'); else if (chance(0.3)) this.gesture(a, 'nod_yes');
+    const self = this, turn = { answer: a };
+    a.answering = true;
+    this.say(a, lines[0], true, { now: true, must: true, group: turn });
     this.run((function* () {
-      self.face(a, player);
-      yield 0.2;
-      if (chance(0.4)) self.gesture(a, 'wave');
-      // Garrow the smith, the first time: he gives you his son's great sword
-      if (a.name === 'Garrow' && self.onGift && !self.gave('garrowsoath')) {
-        for (const ln of GARROW_GIFT) { self.say(a, ln, true, { must: true }); yield 0.3; }
-        if (chance(0.6)) self.gesture(a, 'wave');
-        self.onGift('garrowsoath', a);
-        return;
-      }
-      const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
-      self.say(a, pick(lines), true);
-      yield 0.4;
+      try {
+        // Garrow the smith, the first time: he gives you his son's great sword
+        for (const ln of lines.slice(1)) { yield 0.3; self.face(a, player); self.say(a, ln, true, { must: true, group: turn }); }
+        yield 0.4;
+        if (gift) { if (chance(0.6)) self.gesture(a, 'wave'); self.onGift('garrowsoath', a); }
+      } finally { a.answering = false; }
     })(), [a]);
   }
 
-  /** After the green star: the village gathered on the meadow at the edge of town, well back from the
-   * crater (nobody goes near the hole). `cast` [{name, at: [x, z]}] are put where they stand (main
-   * does it in the black, so they've been there a while), facing `look` [x, z], the crater. Till you
-   * come to them they talk among themselves about the man who fell out of the sky (`chatter`
-   * [{name, text}], in turn and round again), and call out when you climb out of it (`sight`, once
-   * out(player)); once you're within `near` m of them they turn to you, and `script` [{name, text,
-   * gift, wave}] is said in turn, each to you (they wait whenever you walk off), onGift(gift, who)
-   * as each gives theirs; onDone() after the last line. False if none of them is here. */
-  gather(player, cast, { look, chatter, sight, script, out, near = 9, onGift, onDone }) {
-    const people = cast.map((c) => ({ ...c, a: this.list.find((v) => v.name === c.name) })).filter((c) => c.a);
+  /** After the green star: the village has come out to the crater. One of them (`caller` {name, at:
+   * [x, z]}) stands up on its edge where you'll see her as you come round, looking down at you; the
+   * rest (`group` [{name, at}]) keep back from the hole, in a loose knot on the meadow, spread out,
+   * hidden from you by the rim till you climb up to it. main puts them there in the black, so they've
+   * been there a while; `look` [x, z] is the crater's middle.
+   *  - The caller calls down to you (`calls` [{name, text, toYou, wave}]: the first exchange, the
+   *    group calling to her and her answering over her shoulder; then `again`, her calls now and then,
+   *    and between them the group's own talk, `chatter`), till you come up near her (or out of the
+   *    hole anywhere: `out(player)`).
+   *  - Then she says `lead` to you, turns, and walks back to the others (stopping for you if you
+   *    lag: `lag`), and they call out at the sight of you climbing out (`sight`).
+   *  - Once you're come to them, they turn to you, step in round you a little, and `script` [{name,
+   *    text, ifArms (said instead while the knight's things still lie in the crater: arms()), gift,
+   *    wave}] is said in turn, each to you: who they are, who you are, what they give you
+   *    (onGift(gift, who) as each gives theirs). They wait whenever you walk off (`away`, once).
+   *    onDone() after the last line.
+   * E on one of them hurries it on (talkTo). False if none of them is here. */
+  gather(player, { caller, group, look, calls = [], again = [], chatter = [], lead = [], lag = [], sight = [], script = [], away = [], out, arms, onGift, onDone }) {
+    const find = (c) => ({ ...c, a: this.list.find((v) => v.name === c.name) });
+    const crowd = group.filter((g) => g.name !== caller?.name).map(find).filter((c) => c.a), C = caller ? find(caller) : null;
+    const people = [...crowd, ...(C?.a ? [C] : [])];
     if (!people.length) return false;
     const self = this, id = (this.gatherId = (this.gatherId || 0) + 1);   // (a new game's gathering ends the last one: it gives nothing then)
-    const mid = [people.reduce((s, c) => s + c.at[0], 0) / people.length, people.reduce((s, c) => s + c.at[1], 0) / people.length];
-    const far = () => Math.hypot(player.pos.x - mid[0], player.pos.z - mid[1]);
+    const flat = (p, q) => Math.hypot(p.x - q[0], p.z - q[1]);
+    const mid = [crowd.reduce((s, c) => s + c.at[0], 0) / Math.max(1, crowd.length), crowd.reduce((s, c) => s + c.at[1], 0) / Math.max(1, crowd.length)];
+    const home = C?.a ? (group.find((g) => g.name === C.name)?.at || mid) : mid;   // (where the caller goes back to)
+    const toGroup = () => Math.min(...people.filter((c) => c !== C || C.back).map((c) => flat(player.pos, [c.a.pos.x, c.a.pos.z])));
     for (const c of people) {
       this.stopScenes(c.a);
       hush(c.a);
-      Object.assign(c.a, { inside: false, flee: 0, headingHome: false, hurry: false, path: [], goal: null, gesture: 0 });
+      Object.assign(c.a, { inside: false, flee: 0, headingHome: false, hurry: false, path: [], goal: null, gesture: 0, reply: null, greeting: null });
       c.a.root.visible = true;
       c.a.pos.set(c.at[0], 0, c.at[1]);
       c.a.pos.y = this.physics.floorAt(c.at[0], c.at[1], 5, 0.25, 9);
-      this.face(c.a, look[0] + rand(-4, 4), look[1] + rand(-4, 4));
+      // (the caller looks down into it; the rest at her, or at the hole, or at each other, as people stand)
+      if (c === C) this.face(c.a, look[0], look[1]);
+      else if (C?.a && chance(0.6)) this.face(c.a, C.at[0] + rand(-1.5, 1.5), C.at[1] + rand(-1.5, 1.5));
+      else this.face(c.a, look[0] + rand(-5, 5), look[1] + rand(-5, 5));
       c.a.yaw = c.a.faceTo;
     }
-    // a line: the speaker turns to `to` (you, or the crater), the rest to the speaker (or, once
-    // they've seen you, to you)
-    let seen = false;
+    if (C) C.back = !C.a;
+    const gathering = { gather: id };    // (their lines keep the floor between them)
+    let seen = false, given = 0, finished = false;
+    // a line: the speaker turns to you and keeps to you while they say it (or, said among
+    // themselves, to whoever it's said to), the rest to the speaker (some of them to you, once you're
+    // among them); the caller, up on the edge, keeps her eyes on you, unless it's her they're calling to
     const speak = (ln, toYou) => {
       const c = people.find((q) => q.name === ln.name);
       if (!c) return 0;
+      const toHer = !toYou && c !== C && ln.to === 'caller', crowdTalk = !toYou && c === C && !C.back;
       for (const q of people) {
-        if (q === c) { if (toYou || seen) self.face(q.a, player); else self.face(q.a, look[0], look[1]); } else self.face(q.a, seen ? player : c.a);
+        q.a.track = null;
+        if (q === C && !C.back) {
+          if (q === c && crowdTalk) self.face(q.a, mid[0], mid[1]);     // (answering the others, over her shoulder)
+          else if (toHer) self.face(q.a, c.a);
+          else q.a.track = player;
+        } else if (q === c) {
+          if (toYou || seen) q.a.track = player;
+          else self.face(q.a, toHer || (C?.a && !C.back) ? C.a : { pos: { x: look[0], z: look[1] } });
+        } else if (seen && chance(0.3)) self.face(q.a, player);
+        else self.face(q.a, c.a);
       }
       if (ln.wave) self.gesture(c.a, 'wave');
-      return self.say(c.a, ln.text, toYou, { group: gathering, must: toYou });
+      else if (seen && chance(0.2)) { const n = pick(people.filter((q) => q !== c && q.a.gesture <= 0 && !q.a.goal)); if (n) self.gesture(n.a, 'nod_yes'); }   // (someone nods along)
+      const text = ln.ifArms && arms?.() ? ln.ifArms : ln.text;
+      return self.say(c.a, text, toYou, { group: gathering, must: toYou, wait: 20 });
     };
+    const after = (s) => { const t0 = self.time; return () => self.time - t0 >= s; };
+    // wait `s` once everyone's quiet, or till `brk()` (checked every frame)
+    const wait = (s, brk = null) => {
+      let quiet = null;
+      return () => {
+        if (brk?.()) return true;
+        if (people.some((q) => talking(q.a))) { quiet = null; return false; }
+        quiet ??= self.time;
+        return self.time - quiet >= s;
+      };
+    };
+    const poked = () => { const p = self.gatherPoke; self.gatherPoke = null; return !!p; };
+    const nearCaller = () => !C?.a || flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6.5 || out(player);
     for (const c of people) c.a.gathered = true;   // (E on one of them doesn't break it up: talkTo)
-    let given = 0, finished = false;
-    const gathering = { gather: id };    // (their lines keep the floor between them)
     this.run((function* () {
       try {
-        // among themselves, watching the hole, till you come
-        let i = 0;
-        yield 1.5;
-        while (far() > near) {
-          if (!seen && out(player)) {
-            seen = true;
-            for (const ln of sight) { speak(ln, false); yield 0.15; if (far() <= near) break; }
-            continue;
-          }
-          speak(chatter[i++ % chatter.length], false);
-          yield rand(0.3, 0.9);
+        // ------------------------------------------------ the caller, down into the crater
+        yield 1.2;
+        if (C?.a) C.a.track = player;
+        // (the first exchange; then two of her calls to one of the others' remarks, round again)
+        let n = 0, ai = 0, ci = 0;
+        const first = calls.slice();
+        while (C?.a && !nearCaller() && !poked()) {
+          let ln;
+          if (first.length) ln = first.shift();
+          else if (again.length && (n++ % 3 !== 2 || !chatter.length)) ln = { ...again[ai++ % again.length], name: C.name, toYou: true };
+          else ln = { ...chatter[ci++ % chatter.length], toYou: false };
+          speak(ln, !!ln.toYou);
+          yield wait(first.length ? rand(0.3, 0.7) : ln.toYou ? rand(3.5, 6) : rand(1.2, 2.5), nearCaller);
         }
-        // you've come: they turn to you, and say it all in turn (waiting if you walk off)
+        // ------------------------------------------------ she takes you to the others
+        if (C?.a && !C.back) {
+          if (lead.length) speak({ ...lead[0], name: C.name }, true);
+          yield wait(0, () => talking(C.a) && C.a.talk?.state === 'up');   // (she's begun)
+          yield after(0.9);                                                  // (and turns, still talking)
+          C.a.track = null;
+          let lagged = 0;
+          self.walkTo(C.a, home[0], home[1]);
+          while (C.a.goal) {
+            if (!seen && out(player)) { seen = true; for (const ln of sight) speak(ln, false); }
+            // (you've fallen behind: she stops and turns, and waits for you)
+            if (flat(player.pos, [C.a.pos.x, C.a.pos.z]) > 9 && flat(C.a.pos, C.at) > 3 && lag.length) {
+              const goal = C.a.goal;
+              C.a.goal = null; self.face(C.a, player);
+              if (lagged++ < 3) speak({ ...lag[(lagged - 1) % lag.length], name: C.name, toYou: true }, true);
+              yield wait(0.2, () => flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6);
+              yield () => flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6;
+              self.walkTo(C.a, goal[0], goal[1]);
+            }
+            yield () => !C.a.goal || (!seen && out(player)) || flat(player.pos, [C.a.pos.x, C.a.pos.z]) > 9;
+          }
+          C.back = true;
+          self.face(C.a, player);
+        }
+        // ------------------------------------------------ till you come to them
+        while (toGroup() > 7.5 && !poked()) {
+          if (!seen && out(player)) { seen = true; for (const ln of sight) speak(ln, false); }
+          yield wait(0.3, () => toGroup() <= 7.5 || (!seen && out(player)));
+        }
         seen = true;
-        for (const c of people) self.face(c.a, player);
-        yield 0.5;
+        // ------------------------------------------------ you've come: they turn to you and close in a little
+        for (const c of people) { self.face(c.a, player); c.a.quick = 0; }
+        self.closeIn(people.map((c) => c.a), player.pos);
+        yield 0.6;
+        let left = false;
         for (const ln of script) {
-          while (far() > near + 7) yield 0.25;
+          // (you walk off: they wait, one of them calls after you once)
+          if (toGroup() > 13) {
+            if (!left && away.length) { left = true; speak(away[0], true); }
+            yield () => toGroup() < 9;
+            for (const c of people) self.face(c.a, player);
+            yield 0.4;
+          }
           const c = people.find((q) => q.name === ln.name);
           if (ln.gift) { given++; if (c) self.gesture(c.a, 'interact'); }
           if (!c) { if (ln.gift) onGift?.(ln.gift, null); continue; }
           speak(ln, true);
           if (ln.gift) onGift?.(ln.gift, c.a);
-          yield 0.35;
+          yield wait(rand(0.22, 0.5));
         }
         finished = true;
         onDone?.();
         yield 1;
       } finally {
+        for (const c of people) c.a.track = null;
         if (id === self.gatherId) for (const c of people) c.a.gathered = false;
         // broken up before the end (something dead came at them): you still get what they'd have given
         if (!finished && id === self.gatherId) {
@@ -754,6 +862,25 @@ export class Villagers {
     return true;
   }
 
+  /** A few people turning to meet someone at `at`: each takes a step or two in, to between 3.2 and 5
+   * m off, kept a little apart from the next, so they stand round them in a loose half-ring. */
+  closeIn(list, at) {
+    const spots = list.map((a) => {
+      const dx = a.pos.x - at.x, dz = a.pos.z - at.z, d = Math.hypot(dx, dz) || 1;
+      const r = Math.min(d, Math.max(3.2, Math.min(5, d * 0.55)) + rand(-0.3, 0.3));
+      return { a, x: at.x + (dx / d) * r, z: at.z + (dz / d) * r };
+    });
+    for (let it = 0; it < 24; it++) {
+      for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) {
+        const p = spots[i], q = spots[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+        if (d >= 1.6 || d < 1e-4) continue;
+        const push = (1.6 - d) / 2;
+        p.x -= (dx / d) * push; p.z -= (dz / d) * push; q.x += (dx / d) * push; q.z += (dz / d) * push;
+      }
+    }
+    for (const s of spots) if (Math.hypot(s.x - s.a.pos.x, s.z - s.a.pos.z) > 0.6) this.walkTo(s.a, s.x, s.z);
+  }
+
   /** Call off the gathering after the green star (a new game, or a save loaded): they go about their
    * day, and give nothing more. */
   endGather() {
@@ -761,18 +888,23 @@ export class Villagers {
     for (const a of this.list) if (a.gathered) { a.gathered = false; this.stopScenes(a); }
   }
 
+  /** The good day `a` will give you next (picked ahead, as their answer is). */
+  greetingFor(a) {
+    return (a.greeting ||= pick(a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
+      : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])]));
+  }
+
   /** Someone you come up to: they stop, turn to you, wave and say good day. */
   greet(a, player) {
     this.stopScenes(a);
     a.busy = true;
-    const self = this;
+    const self = this, line = this.greetingFor(a);
+    a.greeting = null;
     this.run((function* () {
-      self.face(a, player);
+      self.face(a, player); a.quick = 0.6;
       yield 0.25;
       self.gesture(a, 'wave');
-      const lines = a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
-        : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])];
-      if (self.time >= QUIET) { self.say(a, pick(lines), true, { wait: 3 }); yield 0.3; }   // (a passing good day: let go if others are talking)
+      if (self.time >= QUIET) { self.say(a, line, true, { wait: 3 }); yield 0.3; }   // (a passing good day: let go if others are talking)
       yield 0.8;
     })(), [a]);
   }
@@ -782,6 +914,21 @@ export class Villagers {
     this.time += dt; this.player = player;
     const night = this.night = hour < 6.2 || hour > 20.5;
     this.stepScenes(dt);
+    // whoever you're walking up to: what they'll say to you made now (expect), so it's heard at once
+    if ((this.expectIn = (this.expectIn || 0) - dt) <= 0 && this.camera && voice.natural) {
+      this.expectIn = 0.3;
+      this.camera.getWorldDirection(_d);
+      const fl = Math.max(Math.hypot(_d.x, _d.z), 1e-3);
+      let best = null, bs = -1;
+      for (const a of this.list) {
+        if (a.inside || !a.root.visible || a.gathered) continue;
+        const dx = a.pos.x - player.pos.x, dz = a.pos.z - player.pos.z, d = Math.hypot(dx, dz);
+        if (d > 10 || d < 1e-3) continue;
+        const dot = (dx * _d.x + dz * _d.z) / d / fl;
+        if (dot > 0.5 && dot - d * 0.06 > bs) { bs = dot - d * 0.06; best = a; }
+      }
+      if (best) this.expect(best, 2);
+    }
     for (const a of this.list) {
       const dx = player.pos.x - a.pos.x, dz = player.pos.z - a.pos.z, dist = Math.hypot(dx, dz);
       const far = dist > 95 || player.pos.y < -4;
@@ -814,7 +961,7 @@ export class Villagers {
       // a free villager picks something to do
       if (!a.busy && !goHome && (a.nextT -= dt) <= 0) { this.pickRoutine(a); a.nextT = rand(0.5, 2.5); }
       // you come up to them, and they greet you
-      if (!goHome && !this.hush && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !talking(a) && !(a.busy && this.scenes.some((sc) => sc.people.includes(a) && sc.people.length > 2))) {
+      if (!goHome && !this.hush && !a.gathered && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !talking(a) && !(a.busy && this.scenes.some((sc) => sc.people.includes(a) && sc.people.length > 2))) {
         // only if you're looking their way
         let looking = true;
         if (this.camera) { this.camera.getWorldDirection(_d); looking = -(dx * _d.x + dz * _d.z) / Math.max(dist, 1e-3) / Math.max(Math.hypot(_d.x, _d.z), 1e-3) > 0.6; }
@@ -841,10 +988,16 @@ export class Villagers {
             a.last.copy(a.pos); a.stuck = 0;
           }
         }
-      } else if (a.faceTo != null) {
-        let e = a.faceTo - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
-        a.yaw += Math.max(-dt * 3, Math.min(dt * 3, e));
+      } else {
+        if (a.track) this.face(a, a.track);         // (whoever they're talking to, wherever they go)
+        if (a.faceTo != null) {
+          // (turned to quickly when you speak to them: a.quick)
+          let e = a.faceTo - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
+          const turn = (a.quick > 0 ? 8 : 3) * dt;
+          a.yaw += Math.max(-turn, Math.min(turn, e));
+        }
       }
+      if (a.quick > 0) a.quick -= dt;
       a.pos.y = this.physics.floorAt(a.pos.x, a.pos.z, a.pos.y + 0.5, 0.25, 0.6);
       if (!Number.isFinite(a.pos.y)) a.pos.y = 0;
       if (a.gesture > 0 && !moving) a.gesture -= dt;
@@ -1206,12 +1359,19 @@ class Bubbles {
       let dist = _v.distanceTo(_w);
       if (cine) dist = Math.min(dist, 8);   // (a scene's speaker: always shown, never behind a wall)
       else if (dist > SHOW) continue;
-      // behind a wall? (checked a few times a second)
+      // behind a wall, or the lie of the ground (a crater's rim, a hill)? (checked a few times a second)
       if (!cine && !((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
         a.occT = 0.25;
         _d.copy(_v).sub(_w).normalize();
         const hit = vill.physics.ray ? vill.physics.ray(_w, _d, dist) : null;
-        a.occluded = !!(hit && hit.t < dist - 0.6);
+        let hid = !!(hit && hit.t < dist - 0.6);
+        // (the ground's only in the way out of doors: both of you above it, not down in the undercroft)
+        const G = vill.physics.groundAt?.bind(vill.physics), outside = G && _w.y > G(_w.x, _w.z) - 0.3 && _v.y > G(_v.x, _v.z) - 0.3;
+        for (let s = 0.12; s < 0.94 && !hid && outside; s += 0.08) {
+          const k = dist * s;
+          if (G(_w.x + _d.x * k, _w.z + _d.z * k) > _w.y + _d.y * k + 0.05) hid = true;
+        }
+        a.occluded = hid;
       }
       if (!cine && a.occluded) continue;
       const p = _v.clone().project(camera);
