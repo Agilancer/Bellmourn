@@ -40,6 +40,7 @@ import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
 import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
 import { cullable, shareSkeletons } from './engine.js';
+import { WEBGPU, T, keyed, ref, shared, sharpGrad, sourceOf } from './nodes.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
 // image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
@@ -1022,6 +1023,14 @@ function fingerJoints(mesh) {
 function skinTone(m) {
   if (!m || Array.isArray(m) || !/^V_Skin/.test(m.name || '') || m.userData.toned) return;
   m.userData.toned = true;
+  if (WEBGPU) {
+    // TSL: the colour (its map crisp, as crisp() would make it, greyed and toned) and the light it
+    // ends with (greyed where faint, before the fog), on the material three keeps for them
+    m.colorNode = skinColor(m.map);
+    m.setupLighting = skinLighting;   // (copied onto the node material three draws it with)
+    keyed(m, 'bm-skin');
+    return;
+  }
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     prev?.call(m, sh, r);
@@ -1035,6 +1044,41 @@ function skinTone(m) {
   const key = m.customProgramCacheKey?.bind(m);
   m.customProgramCacheKey = () => (key ? key() : '') + '|bm-skin';
   m.needsUpdate = true;
+}
+
+// (WebGPU) the skin's colour, one graph for every skin material (per kind of map): its map sampled
+// crisp, times its colour, a quarter greyed, times the hands' tone (bmTone; 0 where a body has none)
+const _skin = new Map();
+function skinColor(map) {
+  const k = map ? 'map|' + map.colorSpace + '|' + map.type : 'none';
+  if (_skin.has(k)) return _skin.get(k);
+  const { Fn, uv, dFdx, dFdy, attribute, float, vec3, vec4, dot, mix, step } = T;
+  let tex = null;
+  if (map) {
+    const u = uv();
+    tex = sharpGrad(shared((mat) => mat.map, map), u, dFdx(u), dFdy(u));
+    tex.onObjectUpdate((f) => sourceOf(f).map || undefined);   // (the sample follows the material too)
+  }
+  const tone = Fn((builder) => (builder.geometry?.hasAttribute('bmTone') ? attribute('bmTone', 'float') : float(0)))();
+  const g = Fn(() => {
+    const b = (tex || vec4(1)).toVar();
+    const c = b.rgb.mul(ref('color', 'color')).toVar();
+    c.assign(mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.27));
+    const t = tone.toVar();
+    c.mulAssign(t.mul(mix(vec3(1.0), vec3(0.8, 1.0, 1.1), step(0.0, t))).add(1.0));
+    return vec4(c, b.a);
+  })();
+  _skin.set(k, g);
+  return g;
+}
+
+/** (WebGPU) The skin's light as it leaves (setupLighting, on the node material three makes of the
+ * skin's): in shadow, grey, not orange-brown — what's lit faintly greyed by up to a third. */
+function skinLighting(builder) {
+  const { vec3, dot, mix, smoothstep } = THREE.TSL;
+  const out = Object.getPrototypeOf(this).setupLighting.call(this, builder);
+  const l = dot(out, vec3(0.299, 0.587, 0.114));
+  return mix(out, vec3(l), smoothstep(0.06, 0.3, l).oneMinus().mul(0.32));
 }
 
 /** A villager's own hands, once each (their bones and binds are their own; the meshes are shared, and
