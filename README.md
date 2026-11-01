@@ -108,8 +108,11 @@ stripped at load, his clothes turned to skin and the briefs drawn on in the bind
 turning each bone so its child lies along the curl). It streaks across the sunset over the
 Darkwood; one of Velscour's Sworn walks out of the wood behind the town on his round (on the
 animation library's clips, `ual.js`), stops as the green light grows behind him, turns, looks up,
-flinches with a yell and cowers under his shield; the camera dives behind the star as he turns and
-runs for the town, falls back behind him, and the star goes past it into him; white. Out of the
+cries out in terror "LORD VELSCOUR, WHAT HAVE I DONE TO ANGER YOU?!", flinches and cowers under his
+shield; the camera dives behind the star as he turns and runs for the town screaming "AHHHHHHHHHH!",
+falls back behind him, and the star goes past it into him; white. (His words are said aloud in a
+Sworn's Kokoro voice made terrified, `voice.js` `fear`: pitched up, rushed, shaking, behind his helm;
+and in a bubble over his head. `tools/audio/knight_cry_preview.html` plays them.) Out of the
 white: a smoking crater with nothing left
 of him but his armour, scorched and thrown about (the Fiend's Panoply cut into its pieces by the
 bones that carry each triangle, baked as worn; it can't be taken up), and his sword, shield and
