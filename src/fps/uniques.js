@@ -47,9 +47,9 @@ export const UNIQUES = {
   // the knight's things, thrown about the crater
   vigilsword: { name: 'Vigil Arming Sword', kind: 'onehand', model: 'arming_sword', finish: 'ancient', rarity: 1, ilvl: 2, affixes: { dmgPct: 6 },
     lore: 'A Sworn’s sword, scorched black. Still sharp.' },
-  vigilshield: { name: 'Vigil Kite Shield', kind: 'shield_kite', model: 'thorned_kite', rarity: 1, ilvl: 2, affixes: { guard: 10 },
+  vigilshield: { name: 'Vigil Knight’s Kite', kind: 'shield_kite', model: 'knights_kite', rarity: 1, ilvl: 2, affixes: { guard: 10 },
     lore: 'Velscour’s V, half melted off its face.' },
-  vigilstaff: { name: 'Vigil Adept’s Staff', kind: 'staff', model: 'skull_staff', rarity: 1, ilvl: 2, affixes: { spellPct: 6 },
+  vigilstaff: { name: 'Vigil Crescent Staff', kind: 'staff', model: 'crescent_staff', rarity: 1, ilvl: 2, affixes: { spellPct: 6 },
     lore: 'The knight carried it for an adept who never came back from the wood.' },
 };
 

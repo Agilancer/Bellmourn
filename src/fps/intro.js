@@ -259,7 +259,7 @@ export class Intro {
   spawnKnight() {
     if (this.knight) return this.knight;
     const f = this.o.foes, v = this.knightVariant;
-    const k = f.spawn(v, OUT.x, OUT.z, { y: 0, zone: 'keep', fitting: 0, weapon: 'arming_sword', shield: 'thorned_kite' });
+    const k = f.spawn(v, OUT.x, OUT.z, { y: 0, zone: 'keep', fitting: 0, weapon: 'arming_sword', shield: 'knights_kite' });   // (the shield you'll find in the crater)
     const list = f.zombies.list, i = list.indexOf(k);
     if (i >= 0) list.splice(i, 1);     // no mind of its own: the intro walks it
     k.state = 'intro';                 // (and plays what it's told: no at-ease swaps)

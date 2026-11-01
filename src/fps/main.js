@@ -50,7 +50,7 @@ import { Villagers } from './villagers.js';
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
-import { Crater, CRATER, CRATER_ARMS, formCrater } from './crater.js';
+import { Crater, CRATER, craterHeight, formCrater } from './crater.js';
 import { Intro } from './intro.js';
 import { Ambience } from './ambience.js';
 import { Quests, GIVERS } from './quests.js';
@@ -451,7 +451,7 @@ async function build() {
       const v = villagers.list.find((a) => a.name === name);
       if (questVoice && questVoice !== v) hush(questVoice);
       questVoice = v || { name, pos: player.pos };
-      speak(questVoice, text, true, { noBubble: true, must: true, voice: { ...(v ? villagers.voiceOf(v) : { key: name, kind: 'villager' }), pri: 3, pos: v?.pos || player.pos } });
+      speak(questVoice, text, true, { noBubble: true, must: true, now: true, voice: { ...(v ? villagers.voiceOf(v) : { key: name, kind: 'villager' }), pri: 3, pos: v?.pos || player.pos } });
     },
     hush: () => { if (questVoice) hush(questVoice); questVoice = null; },
     onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
@@ -1393,10 +1393,10 @@ function layArms(ids = ['vigilsword', 'vigilshield', 'vigilstaff']) {
   const L = ctx.loot;
   for (const it of [...L.list]) if (/^vigil/.test(it.item.unique || '')) { L.group.remove(it.holder); L.list.splice(L.list.indexOf(it), 1); }
   const of = { onehand: 'vigilsword', shield: 'vigilshield', staff: 'vigilstaff' };
-  for (const [dx, dz, k] of CRATER_ARMS) {
+  for (const [k, [u, v]] of Object.entries(ARMS_PATH)) {
     const id = of[k];
     if (!ids.includes(id)) continue;
-    const x = CRATER.x + dx, z = CRATER.z + dz;
+    const [x, z] = along(u, v);
     L.spawn(makeUnique(id), x, physics.groundAt(x, z) + 0.9, z, { pop: true });
   }
 }
@@ -1502,18 +1502,19 @@ async function startOver() {
       // back as it was (off); the views of it: from where you wake, and from the crater's rim
       stage: (on) => {
         if (!on) { for (const [a, p, y, v] of staged) { a.root.position.copy(p); a.root.rotation.y = y; a.root.visible = v; } staged = []; return []; }
-        const { cast } = gatherSpots();
+        const { caller, group } = gatherSpots();
         staged = [];
-        for (const c of cast) {
+        for (const c of [caller, ...group.filter((g) => g.name !== caller.name)]) {
           const a = villagers.list.find((q) => q.name === c.name);
           if (!a) continue;
           staged.push([a, a.root.position.clone(), a.root.rotation.y, a.root.visible]);
           a.root.position.set(c.at[0], physics.groundAt(c.at[0], c.at[1]), c.at[1]); a.root.rotation.y = Math.atan2(CRATER.x - c.at[0], CRATER.z - c.at[1]); a.root.visible = true;
         }
-        const d = new THREE.Vector3(GATHER.x - CRATER.x, 0, GATHER.z - CRATER.z).normalize(), at = new THREE.Vector3(GATHER.x, 1.2, GATHER.z);
-        const rim = new THREE.Vector3(CRATER.x, 0, CRATER.z).addScaledVector(d, CRATER.R + 1);
-        return [{ pos: new THREE.Vector3(CRATER.x + 0.6, -CRATER.depth + 1.6, CRATER.z), look: at }, { pos: rim.setY(physics.groundAt(rim.x, rim.z) + 1.6), look: at },
-          { pos: new THREE.Vector3(GATHER.x, 1.6, GATHER.z).addScaledVector(d, -7), look: at }];
+        // (the views of them: from where you wake, up at her; from her place on the edge, out at the
+        // rest; and from among them, back at the crater)
+        const her = new THREE.Vector3(caller.at[0], 1.4, caller.at[1]), [gx, gz] = along(23), [bx, bz] = along(28), knot = new THREE.Vector3(gx, 1.2, gz);
+        return [{ pos: new THREE.Vector3(CRATER.x + 0.6, -CRATER.depth + 1.6, CRATER.z), look: her }, { pos: her.clone().setY(2.6), look: knot },
+          { pos: new THREE.Vector3(bx, 1.6, bz), look: her }];
       },
       // the Sworn (built on the animation library's clips) whole before it starts: nothing of them is
       // retargeted while it plays (knight_a stands in if they never come)
@@ -1534,8 +1535,8 @@ async function startOver() {
           const each = setInterval(tell, 300);
           await Promise.race([voice.ready, new Promise((r) => setTimeout(r, 240000))]).finally(() => clearInterval(each));
         }
-        // what they'll say to you from the rim, made now, so each line is in the air the moment it's due
-        voice.prefetch(GATHER_TALK.map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; }));
+        // what they'll say to you at the crater, made now, so each line is in the air the moment it's due
+        voice.prefetch(gatherLines().map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; }));
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
@@ -1572,77 +1573,115 @@ function setCinema(on) {
   if (!on) hud.refresh(vm.equip, book);
 }
 
-// After the green star the village comes out to the crater and stands round its rim, looking down at
-// you as you wake, and talks to you from there. GATHER is the rim toward the town (where you face as
-// you wake, and where Sister Odile stands); each of the rest stands [name, degrees round the rim from
-// her], RING metres from the crater's middle.
-const RING = CRATER.R + 2.5;
+// After the green star the village comes out to the crater. Wren the hunter, the one of them bold
+// enough, goes up to its edge on the town's side and calls down to you as you wake (you come round
+// facing her); the rest keep back from the hole, a loose knot of them out on the meadow beyond the
+// rim, spread out, where the rim hides them from you till you climb up to it. Each stands [name,
+// metres out from the crater's middle toward the town, metres to its left]. When you come up near
+// Wren she walks you back to them, and there they tell you who they are, and who you are. The
+// knight's sword, shield and staff lie on the way up to her (ARMS_PATH), so you take them as you go.
 const GATHER_DIR = (() => { const l = Math.hypot(30, 12); return [30 / l, 12 / l]; })();   // (toward the town)
-const GATHER = { x: CRATER.x + GATHER_DIR[0] * RING, z: CRATER.z + GATHER_DIR[1] * RING };
-const GATHER_CAST = [['Odile', 0], ['Osric', -38], ['Hesk', 38], ['Garrow', -78], ['Tobias', 80], ['Wren', -122], ['Elsie', 125]];
-// what they say among themselves while you're still down in it (round again, till you come)
+const GATHER_SIDE = [-GATHER_DIR[1], GATHER_DIR[0]];
+const along = (u, v = 0) => [CRATER.x + GATHER_DIR[0] * u + GATHER_SIDE[0] * v, CRATER.z + GATHER_DIR[1] * u + GATHER_SIDE[1] * v];
+const CALLER = 'Wren';
+const GATHER_GROUP = [['Odile', 22.5, 0.4], ['Elsie', 21.6, 2.2], ['Osric', 24.2, -2.2], ['Hesk', 23.6, 2.6], ['Tobias', 25.0, 0.8], ['Garrow', 22.8, -3.6], ['Wren', 21.8, -1.6]];
+const ARMS_PATH = { onehand: [3.2, 0.3], shield: [6.2, -0.3], staff: [8.9, 0.25] };   // (metres up the way to her, and to the side)
+// Wren calls down to you as you come round, the others calling to her, and she to them over her shoulder
+const GATHER_CALLS = [
+  { name: 'Wren', text: 'Hoy! You, down there! Can you hear me?', toYou: true, wave: true },
+  { name: 'Elsie', text: 'Is he alive, Wren?', to: 'caller' },
+  { name: 'Wren', text: "He's moving! Saints, he's moving!" },
+  { name: 'Wren', text: 'Easy, now. Can you stand? Are you hurt?', toYou: true },
+  { name: 'Tobias', text: "Don't go any nearer the edge, girl. It's still smoking.", to: 'caller' },
+  { name: 'Wren', text: "Come on up to me. Slowly, now. Mind the glass, it's still hot.", toYou: true },
+  { name: 'Wren', text: "And bring the knight's things with you. He won't be needing them now.", toYou: true },
+];
+// and now and then after, while you're still down in it
+const GATHER_AGAIN = [
+  { text: "This way. Up here, where it's not so steep." },
+  { text: 'That\'s it. Take your time.' },
+  { text: 'Up here! Follow my voice.' },
+  { text: 'Nobody here will hurt you. Come on up.' },
+  { text: 'Can you hear me? Up here, friend.', wave: true },
+  { text: "Don't be afraid. You're safe now." },
+];
+// what the others say among themselves, back from the edge (between her calls)
 const GATHER_CHATTER = [
   { name: 'Elsie', text: 'Did you see it? He fell right out of the sky!' },
-  { name: 'Tobias', text: 'Out of the sky, in a ball of green fire.' },
-  { name: 'Wren', text: 'Spinning like a top, all the way down.' },
-  { name: 'Osric', text: 'And square on top of one of the Sworn.' },
-  { name: 'Garrow', text: "Nothing left of that knight but his armour." },
+  { name: 'Osric', text: 'In a ball of green fire. Square on top of one of the Sworn.' },
+  { name: 'Garrow', text: 'Nothing left of that knight but his armour.' },
   { name: 'Hesk', text: 'Nobody lives through a fall like that.' },
-  { name: 'Elsie', text: 'Is he dead, down there?' },
   { name: 'Odile', text: 'Green fire out of the vault of heaven… It cannot be. It cannot.' },
-  { name: 'Tobias', text: "Stay back from the edge, all of you. The ground's still smoking." },
-  { name: 'Wren', text: 'Somebody ought to go and look.' },
-  { name: 'Osric', text: 'After you, then.' },
+  { name: 'Garrow', text: "That girl's mad, going right up to the edge." },
+  { name: 'Osric', text: 'Somebody had to. Better her than me.' },
   { name: 'Elsie', text: 'Do you think he is an angel?' },
+  { name: 'Tobias', text: 'Spinning like a top, he was, all the way down.' },
   { name: 'Hesk', text: "If he lives, he'll come to us. Wait." },
 ];
-// and when he climbs up out of it
+// when you've come up near her: she turns, and takes you to them (and if you fall behind)
+const GATHER_LEAD = [{ text: 'There you are. Gently, now. Come and meet the others.', wave: true }];
+const GATHER_LAG = [{ text: 'This way. Over here.', wave: true }, { text: "Come on. They don't bite." }, { text: 'Over here, friend.' }];
+// and the rest, seeing you climb out
 const GATHER_SIGHT = [
   { name: 'Elsie', text: "There! He's climbing out!" },
   { name: 'Tobias', text: "Saints preserve us. He's alive." },
-  { name: 'Wren', text: "He's in his smallclothes!" },
+  { name: 'Garrow', text: 'And in his smallclothes, too.' },
   { name: 'Odile', text: 'Nobody run. Let him come to us.', wave: true },
 ];
-// what they tell you when you come to them, in turn (and give you)
+// what they tell you when you come to them, in turn: who they are, who you are (and what they give you)
 const GATHER_TALK = [
-  { name: 'Odile', text: "Gently, now. You're among friends. This is Bellmourn.", wave: true },
-  { name: 'Elsie', text: 'You fell out of the sky! In a ball of green fire! We all saw!' },
-  { name: 'Osric', text: "And came down on one of Lord Velscour's Sworn. There's nothing left of him but his armour." },
+  { name: 'Odile', text: "Welcome, child. You're among friends. This is Bellmourn, and I am Sister Odile.", wave: true },
+  { name: 'Elsie', text: "I'm Elsie! You fell out of the sky! In a ball of green fire! We all saw!" },
+  { name: 'Osric', text: "Osric. I'm reeve here. You came down square on one of Lord Velscour's Sworn. There's nothing left of him but his armour." },
   { name: 'Odile', text: 'A green star out of heaven, a man curled as a child, girded in black. It is written, child.' },
   { name: 'Odile', text: 'You are Tessariel. The Sacred Flame, sent down to kill the Demon Lord Velscour.' },
-  { name: 'Hesk', text: "Hush! Say that name where the garrison can hear and they'll hang the lot of us." },
-  { name: 'Tobias', text: 'Velscour rules us from his far throne. The Book says you will end him. It is your destiny.' },
-  { name: 'Garrow', text: "Not in your smallclothes, though. Here: you'll want more than that.", gift: 'armor' },
-  { name: 'Wren', text: "Wraps for your hands. The knight's sword and shield are in the crater: take them.", gift: 'gloves' },
+  { name: 'Hesk', text: "Hush! Say that name where the garrison can hear, and they'll hang the lot of us." },
+  { name: 'Tobias', text: "I'm Tobias. I keep the inn, the Tolling Bell. Velscour rules us from his far throne, and the Book says you will end him." },
+  { name: 'Garrow', text: "Garrow. I'm the smith. You can't go about in your smallclothes, though. Here. You'll want more than that.", gift: 'armor' },
+  { name: 'Wren', text: "I'm Wren. I hunt these woods. Wraps for your hands. And keep that sword close.",
+    ifArms: "I'm Wren. I hunt these woods. Wraps for your hands. And the knight's sword and shield are still down there: take them.", gift: 'gloves' },
   { name: 'Tobias', text: "Forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
-  { name: 'Hesk', text: 'Draughts, dear. Red for the blood, blue for the mind.', gift: 'potions' },
+  { name: 'Hesk', text: "And I'm Mother Hesk. I mend what gets broken. Draughts, dear: red for the blood, blue for the mind.", gift: 'potions' },
   { name: 'Odile', text: 'But before the Fiend, Flame, we have a task for you.' },
   { name: 'Odile', text: 'The dead are walking beneath our cathedral. Speak with me, and I will tell you all of it.' },
 ];
+// if you walk off while they're talking to you
+const GATHER_AWAY = [{ name: 'Elsie', text: 'Wait! Where are you going?' }];
+/** Every line of the gathering, in the order they'll be wanted (made ahead, while the game loads). */
+const gatherLines = () => [...GATHER_CALLS, ...GATHER_AGAIN.slice(0, 3).map((l) => ({ ...l, name: CALLER })), ...GATHER_LEAD.map((l) => ({ ...l, name: CALLER })), ...GATHER_SIGHT,
+  ...GATHER_TALK.flatMap((l) => (l.ifArms ? [l, { ...l, text: l.ifArms }] : [l])), ...GATHER_AGAIN.slice(3).map((l) => ({ ...l, name: CALLER })),
+  ...GATHER_LAG.map((l) => ({ ...l, name: CALLER })), ...GATHER_AWAY, ...GATHER_CHATTER];
 
-/** Where each of the village stands round the crater's rim (all facing its middle, Odile toward the
- * town), and f: the way from her into the crater. */
+/** Where they stand: Wren up on the crater's edge toward the town (just inside its crest, where you
+ * see her from the bottom), the rest out on the meadow beyond; and f, the way from the town into the crater. */
 function gatherSpots() {
-  const f = [-GATHER_DIR[0], -GATHER_DIR[1]], a0 = Math.atan2(GATHER_DIR[1], GATHER_DIR[0]);
-  return { f, cast: GATHER_CAST.map(([name, deg]) => { const a = a0 + deg * Math.PI / 180; return { name, at: [CRATER.x + Math.cos(a) * RING, CRATER.z + Math.sin(a) * RING] }; }) };
+  // (the crest on her line, with the crater as it will be, formed or not yet)
+  const k = CRATER.k; CRATER.k = 1;
+  let crest = CRATER.R, top = -1e9;
+  for (let u = CRATER.R - 3; u <= CRATER.R + 3; u += 0.1) { const [x, z] = along(u, -0.4), h = craterHeight(x, z); if (h > top) { top = h; crest = u; } }
+  CRATER.k = k;
+  const f = [-GATHER_DIR[0], -GATHER_DIR[1]];
+  return { f, caller: { name: CALLER, at: along(crest - 0.45, -0.4) }, group: GATHER_GROUP.map(([name, u, v]) => ({ name, at: along(u, v) })) };
 }
 let staged = [];   // (the village as it was, while warm draws it gathered)
 
-/** In the black after the white: you stand in the crater's middle, facing the town, and the village
- * stands round the rim above you, looking down; they speak to you from there as you wake. */
+/** In the black after the white: you lie in the crater's middle, and come round facing Wren up on its
+ * edge, calling down to you; the rest of the village waits back from the hole. */
 function placeInCrater() {
   const x = CRATER.x + 0.6, z = CRATER.z;
+  const { f, caller, group } = gatherSpots();
   player.pos.set(x, physics.groundAt(x, z), z); player.vel.set(0, 0, 0);
-  player.yaw = Math.atan2(-(GATHER.x - x), -(GATHER.z - z)); player.pitch = 0.06;   // (toward them)
+  player.yaw = Math.atan2(-(caller.at[0] - x), -(caller.at[1] - z)); player.pitch = 0.12;   // (up at her)
   player.health = player.maxHealth; player.mana = player.maxMana;
   camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
-  const { f, cast } = gatherSpots();
-  villagers.postAt = { Odile: [GATHER.x, GATHER.z, Math.atan2(f[0], f[1])] };   // she waits there till you take her work
+  const odile = group.find((g) => g.name === 'Odile').at;
+  villagers.postAt = { Odile: [odile[0], odile[1], Math.atan2(f[0], f[1])] };   // she waits there till you take her work
   progress = { ...(progress || {}), arrived: true, welcomed: false, gifts: [] };
   const done = () => { holdHour = false; progress.welcomed = true; hud.toast('Sister Odile has a task for you: walk up to her and press E'); saveProgress(); };
   const out = (p) => Math.hypot(p.pos.x - CRATER.x, p.pos.z - CRATER.z) > CRATER.R - 2 && p.pos.y > -0.8;   // up at the rim, or over it
-  if (!villagers.gather(player, cast, { look: [CRATER.x, CRATER.z], chatter: GATHER_CHATTER, sight: GATHER_SIGHT, script: GATHER_TALK, out, near: RING + 8, onGift: gift, onDone: done })) {
+  if (!villagers.gather(player, { caller, group, look: [CRATER.x, CRATER.z], calls: GATHER_CALLS, again: GATHER_AGAIN, chatter: GATHER_CHATTER, lead: GATHER_LEAD,
+    lag: GATHER_LAG, sight: GATHER_SIGHT, script: GATHER_TALK, away: GATHER_AWAY, out, arms: () => armsLying().length > 0, onGift: gift, onDone: done })) {
     for (const w of GATHER_TALK) if (w.gift) gift(w.gift, null);
     done();
   }
@@ -1855,7 +1894,11 @@ function tick(dt) {
   if (who) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
-    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); } }
+    // (what they'd say if you spoke to them now, made while you look at them: heard the moment you do)
+    villagers.expect(who, 8);
+    const words = !who.gathered && quests.words(who.name);
+    if (words && who.wordsMade !== words) { who.wordsMade = words; voice.prefetch([[who, words, villagers.voiceOf(who)]], 8); }
+    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; } }
   } else if (active && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);

@@ -15,8 +15,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const CRATER = { x: -74, z: -58, R: 13, depth: 3.4, rim: 1.15, reach: 25, k: 1 };   // k: how far it's formed (0 before he lands)
-// where things lie in the crater (its floor is the middle; the knight stood a little to its west)
-export const CRATER_ARMS = [[-4.2, 2.6, 'onehand'], [3.4, -4.8, 'shield'], [5.6, 4.1, 'staff']];
 
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
 function vnoise(x, z) {
