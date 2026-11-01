@@ -123,6 +123,27 @@ const GHOST_VERT = `varying vec3 vN; varying vec3 vV;
 void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
 const GHOST_FRAG = `uniform vec3 color; uniform float alpha; varying vec3 vN; varying vec3 vV;
 void main() { float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); gl_FragColor = vec4(color * (0.10 + 1.3 * f), alpha); }`;
+
+/** The ghost's see-through, rim-lit material ({m, alpha(a)}): a node material under WebGPU, the
+ * same thing in GLSL under WebGL. */
+function ghostMaterial() {
+  const color = new THREE.Color(0xb8dcff);
+  if (WEBGPU) {
+    const { Fn, uniform, normalView, positionView, normalize, abs, dot, pow, vec4 } = T;
+    const uA = uniform(GHOST_ALPHA), uC = uniform(color);
+    const m = new THREE.NodeMaterial();
+    m.fragmentNode = Fn(() => {
+      const f = pow(abs(dot(normalize(normalView), normalize(positionView.negate()))).oneMinus(), 2.0);
+      return vec4(uC.mul(f.mul(1.3).add(0.10)), uA);
+    })();
+    Object.assign(m, { transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+    return { m, alpha: (a) => { uA.value = a; } };
+  }
+  const m = new THREE.ShaderMaterial({ uniforms: { color: { value: color }, alpha: { value: GHOST_ALPHA } },
+    vertexShader: GHOST_VERT, fragmentShader: GHOST_FRAG, transparent: true, depthWrite: false, depthTest: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  return { m, alpha: (a) => { m.uniforms.alpha.value = a; } };
+}
 const EVENTS = new Set(['hit', 'fire', 'whoosh']);   // the catalog's times that are told to the game
 
 /** (WebGPU) The bare arms' skin as a node material of its own kind: Phong, but the sun's (and the
@@ -607,9 +628,7 @@ export class ViewModel {
     if (!it || !SHIELD[this.equip.L]) return;
     it.updateMatrixWorld(true);
     const g = it.clone(true);   // (sharing the shield's geometry)
-    const mat = new THREE.ShaderMaterial({ uniforms: { color: { value: new THREE.Color(0xb8dcff) }, alpha: { value: GHOST_ALPHA } },
-      vertexShader: GHOST_VERT, fragmentShader: GHOST_FRAG, transparent: true, depthWrite: false, depthTest: false,
-      blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const { m: mat, alpha } = ghostMaterial();
     g.traverse((o) => { if (o.isMesh) { o.material = mat; o.renderOrder = 10; } });
     it.matrixWorld.decompose(g.position, g.quaternion, g.scale);
     g.matrixAutoUpdate = true;
@@ -617,7 +636,7 @@ export class ViewModel {
     const from = g.position.clone();
     const dir = new THREE.Vector3(0, -0.04, -1.3).sub(from).normalize();   // (on toward the crosshair)
     const grow = Math.min(GHOST_GROW, GHOST_MAX / Math.max(0.2, this.shieldSize()?.h || 0.5)) - 1;
-    this.ghosts.push({ g, mat, t: 0, from, dir, grow, s0: g.scale.clone() });
+    this.ghosts.push({ g, mat, alpha, t: 0, from, dir, grow, s0: g.scale.clone() });
   }
 
   /** The held shield's size in metres ({w, h}: across its face and along its grip), from its
@@ -792,7 +811,7 @@ export class ViewModel {
       const k = Math.min(1, gh.t / GHOST_TIME), e = 1 - (1 - k) ** 3;
       gh.g.position.copy(gh.from).addScaledVector(gh.dir, GHOST_FLY * e);
       gh.g.scale.copy(gh.s0).multiplyScalar(1 + gh.grow * e);
-      gh.mat.uniforms.alpha.value = GHOST_ALPHA * (k < 0.1 ? 1 : ((1 - k) / 0.9) ** 2.2);   // (full a tic, then gone quickly: the staggered foe shows through)
+      gh.alpha(GHOST_ALPHA * (k < 0.1 ? 1 : ((1 - k) / 0.9) ** 2.2));   // (full a tic, then gone quickly: the staggered foe shows through)
       if (k >= 1) { this.scene.remove(gh.g); gh.mat.dispose(); this.ghosts.splice(i, 1); }
     }
     this.slide(dt);
