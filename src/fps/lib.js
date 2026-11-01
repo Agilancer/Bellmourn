@@ -4,7 +4,8 @@
 // It also keeps track of which surfaces the world has used, so builders can ask for ones
 // that haven't been used yet (every Velscour texture ends up somewhere).
 import * as THREE from 'three';
-import { SHARP_GLSL, crisp } from './engine.js';
+import { SHARP_GLSL, crisp, WEBGPU } from './engine.js';
+import { drawNormalMap } from './nodes.js';
 
 const ROOT = 'assets/textures/';
 const SHINY = /iron|met_|gold|marble|slate|wet|sewer|ice|glass|polish|lacquer|obsidian|basalt|tile|inlay|salt/;
@@ -237,6 +238,8 @@ export class Library {
     src.magFilter = src.minFilter = THREE.LinearFilter;
     src.generateMipmaps = false;
     src.needsUpdate = true;
+    // (WebGPU: the same pass as a node material, nodes.js)
+    if (WEBGPU) { drawNormalMap(this.renderer, rt, src, 1 / img.width, 1 / img.height, strength); src.dispose(); return; }
     if (!this.nmPass) {
       this.nmPass = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
         vertexShader: NM_VERT, fragmentShader: NM_FRAG, depthTest: false, depthWrite: false,

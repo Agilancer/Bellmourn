@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
 import { POOL, STREAM, FALLS, RIVER, terrainHeight, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
+import { fogUniforms } from './nodes.js';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 function rng(seed) {
@@ -254,7 +255,7 @@ function fallsMesh(L) {
   g.computeBoundingSphere();
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 } }]),
+    uniforms: { ...fogUniforms(), time: { value: 0 } },
     vertexShader: /* glsl */`
       uniform float time; attribute vec4 fall; varying vec4 vF; varying vec3 vN, vW;
       #include <fog_pars_vertex>
@@ -326,7 +327,7 @@ class Points {
     this.geo = g;
     this.mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, fog: true,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { scale: { value: 300 }, time: { value: 0 } }]),
+      uniforms: { ...fogUniforms(), scale: { value: 300 }, time: { value: 0 } },
       vertexShader: /* glsl */`
         uniform float scale; attribute vec3 pdata; varying float vA, vSeed;
         #include <fog_pars_vertex>
@@ -403,7 +404,7 @@ class Billows {
     this.geo = g;
     this.mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, fog: true,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 }, bow: { value: 0 } }]),
+      uniforms: { ...fogUniforms(), time: { value: 0 }, bow: { value: 0 } },
       vertexShader: /* glsl */`
         attribute vec3 ipos; attribute vec4 idat; varying vec2 vQ; varying float vA, vSeed; varying vec3 vW;
         #include <fog_pars_vertex>

@@ -13,7 +13,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { crisp } from './engine.js';
+import { crisp, WEBGPU } from './engine.js';
+import { drawNormalMap } from './nodes.js';
 
 const ROOT = 'templates/models/kit/';
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
@@ -157,6 +158,8 @@ export class Kit {
       src.magFilter = src.minFilter = THREE.LinearFilter;
       src.generateMipmaps = false;
       src.needsUpdate = true;
+      // (WebGPU: the same pass as a node material, nodes.js)
+      if (WEBGPU) { drawNormalMap(this.renderer, rt, src, 1 / img.width, 1 / img.height, strength); src.dispose(); return; }
       if (!this.nmPass) {
         this.nmPass = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ vertexShader: NM_VERT, fragmentShader: NM_FRAG,
           depthTest: false, depthWrite: false, uniforms: { src: { value: null }, texel: { value: new THREE.Vector2() }, strength: { value: 1 } } }));

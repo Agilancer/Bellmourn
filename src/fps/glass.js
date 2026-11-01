@@ -7,6 +7,7 @@
 // decides what is lit, so pillars and pews throw their shadows through the picture.
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
+import { fogUniforms } from './nodes.js';
 
 const MAX = 40, ROOMS = 4;
 
@@ -101,7 +102,7 @@ export class StainedGlass {
     g.setIndex([0, 1, 2, 0, 2, 3]);
     const mat = new THREE.ShaderMaterial({
       side: THREE.DoubleSide, fog: true,
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), atlas: { value: this.atlas }, rect: { value: new THREE.Vector4(...meta.rect) }, glow: this.glow, stone: this.stone },
+      uniforms: { ...fogUniforms(), atlas: { value: this.atlas }, rect: { value: new THREE.Vector4(...meta.rect) }, glow: this.glow, stone: this.stone },
       vertexShader: /* glsl */`
         #include <fog_pars_vertex>
         varying vec2 vUv;

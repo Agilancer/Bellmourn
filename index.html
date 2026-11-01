@@ -26,11 +26,30 @@
 <link rel="preload" as="image" href="assets/title/blastorama.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/herrington.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/bellmourn.webp" fetchpriority="high">
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-} }
+<script>
+  // The renderer (engine.js), chosen before any module loads, since each runs on its own three.js:
+  // WebGPU (three r187's WebGPURenderer, the custom shaders in TSL) where the browser has it, else
+  // WebGL (three r170, the shaders in GLSL). ?renderer=webgl|webgpu, else Settings (bm.renderer:
+  // auto, webgpu, webgl). 'auto' takes WebGPU on a computer; a phone keeps WebGL unless asked. A
+  // WebGPU start that fails sets bm.nogpu and comes back here as WebGL for the rest of the session.
+  (() => {
+    let want = new URLSearchParams(location.search).get('renderer'), failed = false;
+    try { want ||= localStorage.getItem('bm.renderer'); failed = sessionStorage.getItem('bm.nogpu') === '1'; } catch (e) { /* no storage */ }
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const R = navigator.gpu && !failed && (want === 'webgpu' || ((!want || want === 'auto') && !touch)) ? 'webgpu' : 'webgl';
+    window.BM_RENDERER = R;
+    const cdn = 'https://cdn.jsdelivr.net/npm/three@', b = cdn + '0.187.0/build/';
+    // (r187's builds import one another by relative path: those are sent to the minified copies)
+    const imports = R === 'webgpu'
+      ? { three: b + 'three.webgpu.min.js', 'three/webgpu': b + 'three.webgpu.min.js', 'three/tsl': b + 'three.tsl.min.js',
+          'three/addons/': cdn + '0.187.0/examples/jsm/', [b + 'three.core.js']: b + 'three.core.min.js',
+          [b + 'three.webgpu.js']: b + 'three.webgpu.min.js', [b + 'three.tsl.js']: b + 'three.tsl.min.js' }
+      : { three: cdn + '0.170.0/build/three.module.min.js', 'three/addons/': cdn + '0.170.0/examples/jsm/' };
+    const map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({ imports });
+    document.currentScript.after(map);
+  })();
 </script>
 <style>
   :root { --gold: #d8b870; --gold-dim: #8a7448; --ink: #07060a; --panel: rgba(16, 12, 18, .92); --edge: #5a4a3a; }

@@ -118,6 +118,9 @@ export class ViewModel {
     this.lib = lib; // for normal maps made from each model's skin
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
+    // (WebGPU's depth runs 0..1, not WebGL's -1..1: three sets the camera's coordinate system and asks
+    // for its projection again, which is the rigs' own: resize)
+    this.camera.updateProjectionMatrix = () => this.resize(this.aspect ?? 1.6);
     this.hemi = new THREE.HemisphereLight(0xfff0dd, 0x302838, 1.2);
     this.sun = new THREE.DirectionalLight(0xffe0b0, 1.4);
     this.sun.position.set(-0.5, 0.8, 0.4);
@@ -166,7 +169,9 @@ export class ViewModel {
     this.camera.projectionMatrix.set(
       fx, 0, 0, 0,
       0, fy, 2 * CY / H - 1, 0,
-      0, 0, -(far + near) / (far - near), -2 * far * near / (far - near),
+      ...(this.camera.coordinateSystem === THREE.WebGPUCoordinateSystem
+        ? [0, 0, -far / (far - near), -far * near / (far - near)]
+        : [0, 0, -(far + near) / (far - near), -2 * far * near / (far - near)]),
       0, 0, -1, 0);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
   }

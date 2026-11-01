@@ -4,6 +4,7 @@
 // by the sky and by the nearby torches and spells (the same lights the world uses).
 import * as THREE from 'three';
 import { SHARP_GLSL, refineTexture } from './engine.js';
+import { fogUniforms } from './nodes.js';
 
 export const MAX_LIGHTS = 24;
 
@@ -144,7 +145,7 @@ export class Billboards {
       const wind = { value: tree ? 1 : PLANT.test(id) ? 2.2 : 0 };
       const shared = { map: { value: tex }, time: this.time, wind };
       const m = new THREE.ShaderMaterial({
-        uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), ...shared, light: this.light, lp: this.lp, lc: this.lc },
+        uniforms: { ...fogUniforms(), ...shared, light: this.light, lp: this.lp, lc: this.lc },
         vertexShader: vert, fragmentShader: frag, fog: true, side: THREE.DoubleSide, alphaToCoverage: true,
       });
       const mesh = new THREE.Mesh(g, m);
