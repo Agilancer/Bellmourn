@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Builder } from './geo.js';
+import { WEBGPU, T } from './nodes.js';
 
 const BROAD = { // trunk height, trunk radius, branches, branch length, branch lift (0 flat .. 1 up), cluster size, crown height
   oak: { h: [3.2, 4.2], r: [0.42, 0.55], n: [6, 8], len: [3.2, 4.4], lift: 0.35, leaf: [2.2, 2.9], crown: 1.2 },
@@ -28,12 +29,29 @@ function rng(seed) {
   return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 }
 
+let _sway = null;
+/** (WebGPU) The leaves' sway (the GLSL patch below), more toward the outside of the crown: worked
+ * in the tree's own space as the GLSL's `transformed` is, so turned and scaled by each instance's
+ * matrix (TSL's positionLocal has the instance matrix in it already). */
+function leafSway(time) {
+  if (!_sway) {
+    const { referenceAttribute, positionGeometry: p, positionLocal, vec4, sin, max, length } = T;
+    const M = referenceAttribute('instanceMatrix', 'mat4'), at = M.element(3);
+    const ph = at.x.mul(0.31).add(at.z.mul(0.17));
+    const sway = max(0.0, p.y.sub(1.5)).mul(0.012).add(length(p.xz).mul(0.01));
+    const dx = sin(time.mul(1.6).add(ph).add(p.y.mul(0.6))).mul(sway);
+    const dz = sin(time.mul(1.2).add(ph.mul(1.3)).add(p.x.mul(0.5))).mul(sway).mul(0.7);
+    _sway = positionLocal.add(M.mul(vec4(dx, 0.0, dz, 0.0)).xyz);
+  }
+  return _sway;
+}
+
 export class Trees3D {
   constructor(ctx) {
     this.ctx = ctx;
     this.lib = ctx.lib;
     this.place = new Map(); // variant key -> [{x, y, z, s, rot}]
-    this.time = { value: 0 };
+    this.time = WEBGPU ? T.uniform(0).setGroup(T.renderGroup) : { value: 0 };
     this.meshes = [];
   }
 
@@ -53,6 +71,13 @@ export class Trees3D {
     const card = leafs[(v * 3) % Math.max(1, leafs.length)];
     const map = card ? lib.texture(card.file, false) : null;
     if (map) { map.magFilter = THREE.NearestFilter; map.minFilter = THREE.LinearMipmapLinearFilter; }
+    if (WEBGPU) {   // (the sway below as one graph for every species' leaves; their shadows stand still, as WebGL's do)
+      const leaves = new THREE.MeshPhongNodeMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, shininess: 6, specular: 0x0a0a0a });
+      leaves.userData = { tileU: 1, tileV: 1 };
+      leaves.positionNode = leafSway(this.time);
+      leaves.castShadowPositionNode = T.positionLocal;
+      return { bark, leaves };
+    }
     const leaves = new THREE.MeshPhongMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, shininess: 6, specular: 0x0a0a0a });
     leaves.userData = { tileU: 1, tileV: 1 };
     const time = this.time;

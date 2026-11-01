@@ -4,7 +4,7 @@
 // by the sky and by the nearby torches and spells (the same lights the world uses).
 import * as THREE from 'three';
 import { SHARP_GLSL, refineTexture } from './engine.js';
-import { fogUniforms } from './nodes.js';
+import { fogUniforms, WEBGPU, T, ref, shared, sharpGrad, sourceOf } from './nodes.js';
 
 export const MAX_LIGHTS = 24;
 
@@ -83,15 +83,70 @@ const depthFrag = /* glsl */`
   }`;
 const PLANT = /grass|fern|bush|flower|reed|weed|shrub|brush|thistle|bramble|nettle|heather|briar|sapling|ivy|vine|cattail|bracken|hedge|tuft|clover/;
 
+/** The billboards under WebGPU (vert / frag, and depthVert / depthFrag for the sun's shadow), as
+ * one graph every billboard material shares: what differs, its picture (material.uniforms.map) and
+ * its wind (uniforms.wind), comes from the material drawn. `B` the Billboards (its light, time, sun
+ * and lights: shared, once a render); `like` a picture of the kind they all are. */
+function billboardGraph(B, like) {
+  const { Fn, Loop, If, attribute, positionGeometry, cameraPosition, cameraProjectionMatrix, uniformArray, renderGroup, varying, uv,
+    vec2, vec3, vec4, sin, max, min, normalize, distance, dFdx, dFdy, fwidth, textureSize, log2, clamp, select } = T;
+  const offset = attribute('offset', 'vec3'), size = attribute('size', 'vec2'), shade = attribute('shade', 'float');
+  const wind = ref('uniforms.wind.value', 'float');
+  // the quad turned about its upright to `face`, swaying with the wind
+  const billboard = (face) => {
+    const right = normalize(vec3(face.z, 0.0, face.x.negate()).add(1e-5));
+    const p = positionGeometry, up = max(p.y, 0.0).mul(size.y);
+    const gust = sin(B.time.mul(1.3).add(offset.x.mul(0.21)).add(offset.z.mul(0.17))).mul(0.6).add(sin(B.time.mul(2.9).add(offset.x.mul(0.53))).mul(0.25));
+    const sway = vec3(1.0, 0.0, 0.55).mul(gust.mul(wind).mul(0.035).mul(up).mul(min(1.0, up.div(4.0))));
+    return offset.add(right.mul(p.x.mul(size.x))).add(vec3(0.0, p.y.mul(size.y), 0.0)).add(sway);
+  };
+  const world = billboard(cameraPosition.sub(offset));
+  // lit by the sky and the nearby torches and spells, per vertex
+  const lp = uniformArray(B.lp.value, 'vec4').setGroup(renderGroup), lc = uniformArray(B.lc.value, 'vec4').setGroup(renderGroup);
+  const vLight = varying(Fn(() => {
+    const l = vec3(B.light).toVar();
+    Loop(MAX_LIGHTS, ({ i }) => {
+      const p = lp.element(i), c = lc.element(i);
+      If(p.w.greaterThan(0.0), () => {
+        const f = max(0.0, distance(world, p.xyz).div(c.w).oneMinus());
+        l.addAssign(c.rgb.mul(p.w).mul(f).mul(f).mul(0.12));
+      });
+    });
+    return l.mul(shade);
+  })());
+  const pick = (m) => m.uniforms?.map?.value;
+  const follow = (s) => { s.onObjectUpdate((f) => pick(sourceOf(f)) || undefined); return s; };
+  const map = shared(pick, like);
+  const t = uv(), dx = dFdx(t), dy = dFdy(t);
+  // crisp texels, and an edge cut at half alpha but anti-aliased by alpha to coverage; far off, where
+  // the mipmaps soften the edge, the alpha is lifted so the sprite doesn't thin away
+  const frag = Fn(() => {
+    const c = follow(sharpGrad(map, t, dx, dy)).toVar();
+    const tw = fwidth(t.mul(vec2(textureSize(map, 0))));
+    const a0 = c.a.mul(max(0.0, log2(max(tw.x, tw.y))).mul(0.25).add(1.0));
+    const a = clamp(a0.sub(0.5).div(max(fwidth(a0), 1e-4)).add(0.5), 0.0, 1.0);
+    a.lessThanEqual(0.0).discard();
+    return vec4(c.rgb.mul(vLight), a);
+  })();
+  // the sun's shadow: the quad turned to face the sun, cut at half alpha; in a perspective shadow (a
+  // point light's) none at all (WebGL: its customDistanceMaterial draws nothing): all four corners
+  // at one point (projection [2][3] is -1 for perspective, 0 for the sun's orthographic camera)
+  const persp = cameraProjectionMatrix.element(2).w.lessThan(-0.5);
+  const castAt = select(persp, vec3(0.0, -1e5, 0.0), billboard(vec3(B.sunDir)));
+  const mask = follow(map.sample(t)).a.greaterThanEqual(0.5);
+  return { world, frag, castAt, mask };
+}
+
 export class Billboards {
   constructor(lib, scene) {
     this.lib = lib;
     this.scene = scene;
     this.groups = new Map(); // sprite id -> [{x, y, z, scale, shade}]
-    // shared by every billboard material
-    this.light = { value: new THREE.Color(1, 1, 1) };
-    this.time = { value: 0 };
-    this.sunDir = { value: new THREE.Vector3(0, 1, 0) };
+    // shared by every billboard material (WebGPU: uniforms shared by them all, set once a render)
+    const U = WEBGPU ? (v) => T.uniform(v).setGroup(T.renderGroup) : (v) => ({ value: v });
+    this.light = U(new THREE.Color(1, 1, 1));
+    this.time = U(0);
+    this.sunDir = U(new THREE.Vector3(0, 1, 0));
     this.lp = { value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4()) };
     this.lc = { value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4(1, 1, 1, 10)) };
     this.shadows = true;
@@ -143,6 +198,20 @@ export class Billboards {
       g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
       const tree = s.category === 'tree';
       const wind = { value: tree ? 1 : PLANT.test(id) ? 2.2 : 0 };
+      const casts = this.shadows && s.height_m > 1.2 && s.category !== 'window' && s.category !== 'hanging';
+      if (WEBGPU) {
+        const G = this.graph ||= billboardGraph(this, tex);
+        const m = new THREE.NodeMaterial();
+        m.positionNode = G.world; m.fragmentNode = G.frag;
+        m.castShadowPositionNode = G.castAt; m.maskShadowNode = G.mask;   // (the sun's shadow: three draws its depth with these)
+        m.side = THREE.DoubleSide; m.alphaToCoverage = true; m.fog = true;
+        m.uniforms = { map: { value: tex }, wind };
+        const mesh = new THREE.Mesh(g, m);
+        mesh.frustumCulled = false;
+        mesh.castShadow = casts;
+        this.scene.add(mesh);
+        continue;
+      }
       const shared = { map: { value: tex }, time: this.time, wind };
       const m = new THREE.ShaderMaterial({
         uniforms: { ...fogUniforms(), ...shared, light: this.light, lp: this.lp, lc: this.lc },
@@ -152,7 +221,7 @@ export class Billboards {
       mesh.frustumCulled = false;
       // tall things cast sun shadows; nothing casts torch shadows (those would need a turn
       // toward each light)
-      if (this.shadows && s.height_m > 1.2 && s.category !== 'window' && s.category !== 'hanging') {
+      if (casts) {
         mesh.castShadow = true;
         mesh.customDepthMaterial = new THREE.ShaderMaterial({ uniforms: { ...shared, sunDir: this.sunDir },
           vertexShader: depthVert, fragmentShader: depthFrag, side: THREE.DoubleSide });
