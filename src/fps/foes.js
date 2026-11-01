@@ -98,11 +98,11 @@ export const FITTINGS = [
 ];
 export const STATS = {
   sworn: { hp: 240, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
-    dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
+    dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, leap: 20, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
   adept: { hp: 165, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
-    dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
+    dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, leap: 16, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
   lord: { hp: 1150, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
-    dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
+    dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, leap: 32, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
 // (as the zombies': the legs take far more than the arms, and zombies.js makes them harder still on
 // anything heavy, so a knight or the lord is seldom brought down to crawl)
@@ -113,10 +113,10 @@ const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 
   'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
   'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup',
   'sword_combo', 'shield_hit', 'punch3', 'punch3_rec', 'throw', 'climb', 'slide_start', 'slide_exit', 'nod_yes', 'rail_call', 'open_chest',
-  'consume', 'harvest', 'plant', 'water', 'zombie_scratch']);
+  'consume', 'harvest', 'plant', 'water', 'zombie_scratch', 'leap', 'nod_no', 'cast_ready']);
 // the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
 // [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
-export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3] };
+export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3], leap: [0.05, 0.62, 7.2] };
 const SPELL = { // bolt colour, its glow, damage
   arcane: { core: 0xe6b8ff, glow: 0x9a4cff, dmg: 10, speed: 14 },
   blood: { core: 0xffb0a0, glow: 0xff2a1a, dmg: 12, speed: 13 },
@@ -296,11 +296,15 @@ class Foe extends Zombie {
     if (this.ual) {
       if (this.holdT > 0 && (name === 'walk' || name === 'run' || name === 'idle')) return;   // (let a flinch finish)
       const A = this.actions, calm = !this.aggro && this.goal === 'wander' && this.state === 'move';
-      if (name === 'idle' && calm) name = this.chat && A.idle_talk ? 'idle_talk' : 'idle_calm';
+      if (name === 'idle' && calm) {
+        // (each at ease in its own way: talking, arms folded, a lantern held up after dark)
+        this.ease ||= this.chat && A.idle_talk ? 'idle_talk' : A.idle_arms && Math.random() < 0.35 ? 'idle_arms' : 'idle_calm';
+        name = this.foes.night && A.lantern && this.id % 3 === 0 ? 'lantern' : this.ease;
+      }
       else if (name === 'idle' && !this.shield && this.kindName === 'knight' && A.idle_sword) name = 'idle_sword';
       else if (name === 'walk' && calm && A.patrol) { speed *= (this.kind.gait.walk || 1) / (this.kind.gait.patrol || 1); name = 'patrol'; }
       else if (name === 'hit' && this.cur !== 'hit' && this.cur !== 'hit_head' && this.cur !== 'hit_chest') name = ['hit', 'hit_head', 'hit_chest'][Math.floor(Math.random() * 3)];
-      if (!A[name]) name = { idle_calm: 'idle', idle_talk: 'idle', patrol: 'walk', hit_head: 'hit', hit_chest: 'hit' }[name] || name;
+      if (!A[name]) name = { idle_calm: 'idle', idle_talk: 'idle', idle_arms: 'idle', lantern: 'idle', patrol: 'walk', hit_head: 'hit', hit_chest: 'hit', crouch_walk: 'walk' }[name] || name;
     }
     return super.play(name, fade, speed);
   }
@@ -494,6 +498,11 @@ class Foe extends Zombie {
     else if (st === 'cast') this.casting(dt, player, active, dist);
     else if (st === 'block') this.blocking(dt, player, active, dist);
     else if (st === 'hit' || st === 'shriek') { if (this.done()) this.state = 'move'; }
+    else if (st === 'gesture') {
+      const turn = this.kind.turn * 0.6 * dt, want = Math.atan2(dx, dz);
+      this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
+      if ((this.gestureT -= dt) <= 0 || (active && dist < this.kind.reach + 0.4)) this.state = 'move';   // (you closing in ends it)
+    }
     else if (st === 'blink') this.blinking(dt, player);
     else if (st === 'charge') this.charging(dt, player, dist, facingErr);
     else if (st === 'down') { if (this.done()) { this.state = 'getup'; this.play('getup', 0.12); } }
@@ -621,6 +630,15 @@ class Foe extends Zombie {
   }
 
   /** Start a melee move (it lands at the clip's hit frame). */
+  /** A gesture (nod_no, nod_yes, idle_talk, cast_ready): where it stands, facing you. */
+  gesture(name) {
+    if (!this.ual || !this.actions[name] || this.state !== 'move' || this.dead || !this.feet) return false;
+    this.state = 'gesture';
+    this.play(name, 0.18);
+    this.gestureT = Math.min(1.8, this.actions[name].getClip().duration);
+    return true;
+  }
+
   strike(name, lunge = 0) {
     this.state = 'attack';
     this.lungeT = this.ual ? 0 : lunge;
@@ -779,6 +797,14 @@ class Foe extends Zombie {
     if (turn && this.feet && armed && fe < 0.35 && dist > 2.6 && dist < 5.2 && this.lungeCool < 0) {   // a lunging cut
       this.lungeCool = 3.5 + Math.random() * 3;
       this.strike(this.ual ? 'lunge' : 'attack3', 0.42);
+      return;
+    }
+    // a leaping strike: up and on you from five to eight strides off, the blow landing as it comes down
+    this.leapCool = (this.leapCool ?? Math.random() * 2.5) - dt;
+    if (this.ual && this.actions.leap && turn && this.feet && armed && fe < 0.3 && dist > 5.2 && dist < 8 && this.leapCool < 0 && this.canSee) {
+      this.leapCool = 9 + Math.random() * 7;
+      this.hits.leap ??= Math.round(this.actions.leap.getClip().duration * FPS * 0.74);
+      this.strike('leap');
       return;
     }
     if (turn && this.feet && shield && this.canSee && !this.rushCool && dist > 5.5 && dist < 11 && fe < 0.4) {   // the shield charge

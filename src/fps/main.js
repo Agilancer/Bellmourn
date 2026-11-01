@@ -1594,6 +1594,7 @@ function tick(dt) {
   for (const f of ctx.animated) f(dt, t);
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
+  foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
   chatter.update(dt, player, active);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
@@ -1659,7 +1660,8 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice };
+  setTimeout(() => voice.warm(), 4000);   // (the neural voices: a big download, so after the game is up)
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

@@ -45,6 +45,7 @@ const SETTINGS = `
     <label><span>Resolution</span><select id="optRes"><option value="1" selected>Full</option><option value="0.75">75%</option><option value="0.5">Half</option></select></label>
     <label><span>Graphics</span><select id="optGfx"><option value="high">High (shadows)</option><option value="low">Low</option></select></label>
     <label><span>Texels</span><select id="optTex"><option value="crisp" selected>Crisp</option><option value="smooth">Smooth</option></select></label>
+    <label><span>Voices</span><select id="optVoice"><option value="neural">Natural (Kokoro, a 90 MB download)</option><option value="basic">Basic (the browser's own)</option><option value="off">Off</option></select></label>
     <label><span>Time of day</span><select id="optTime"><option value="cycle">Day &amp; night</option><option value="golden">Golden hour</option><option value="noon">Noon</option><option value="night">Night</option></select></label>
   </div>
   <p class="t-note">Graphics and texels restart the game to take hold.</p>
@@ -197,6 +198,18 @@ export class Title {
       try { localStorage.setItem('bm.volume', vol.value); } catch { /* no storage */ }
     };
     vol.onchange = () => this.tick(1.6);
+    // the voices: natural (neural, a computer's default), the browser's own (a phone's), or none
+    const vo = this.settings.querySelector('#optVoice'), get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const touch = matchMedia('(pointer: coarse)').matches;
+    vo.value = get('bm.voices') === '0' ? 'off' : get('bm.neural') === '1' || (get('bm.neural') !== '0' && !touch) ? 'neural' : 'basic';
+    vo.onchange = () => {
+      try {
+        localStorage.setItem('bm.voices', vo.value === 'off' ? '0' : '1');
+        localStorage.setItem('bm.neural', vo.value === 'neural' ? '1' : '0');
+      } catch { /* no storage */ }
+      const v = window.bellmourn?.voice;
+      if (v) { v.set(vo.value !== 'off'); if (vo.value === 'neural') v.warm(); }
+    };
   }
 
   /** One mote of gold dust at (x, y) of a logo, `delay` seconds on (loop: forever). */

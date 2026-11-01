@@ -10,6 +10,7 @@
 // and then, one of the dead's mutterings at a time, and a speaker never talks over themselves.
 import * as THREE from 'three';
 import { speak, tickTalk } from './speech.js';
+import { voice } from './voice.js';
 // (the lines: a big file, loaded after the game is up; till then the enemy keep quiet)
 let KNIGHT = null, KNIGHT_BANTER = [], UNDEAD = null, BEAST = null, gibberish = () => '';
 import('./lines/foes.js').then((m) => { ({ KNIGHT, KNIGHT_BANTER, UNDEAD, BEAST, gibberish } = m); }).catch((e) => console.warn('enemy lines', e));
@@ -51,6 +52,8 @@ export class Chatter {
     if (!text || (z.dead && !o.last) || (z.talk && !o.cut)) return 0;
     z.speaker = this.isKnight(z) ? (z.def?.title || '') : '';
     if (!z.speechAt) z.speechAt = (out) => this.headOf(z, out);
+    // (a knight talking it over, off out of reach: a shake of the head, a nod, a hand as it speaks)
+    if (this.isKnight(z) && z.gesture && !o.last && (z.dist ?? 9) > 3.5 && Math.random() < (o.gest ?? 0.45)) z.gesture(o.g || pick(['nod_no', 'nod_yes', 'idle_talk', 'idle_talk']));
     return speak(z, text, false, { voice: { ...this.voiceOf(z), pos: z.pos } });
   }
 
@@ -87,7 +90,7 @@ export class Chatter {
       } else if (!z.dead) {
         // seeing you
         if (z.aggro && !z._aggroWas) {
-          if (knight) this.say(z, z.def?.stats === 'lord' ? pick(L.lordTaunt) : z.kindName === 'sorcerer' ? pick(L.sorcerer) : pick(L.spot));
+          if (knight) this.say(z, z.def?.stats === 'lord' ? pick(L.lordTaunt) : z.kindName === 'sorcerer' || z.def?.caster ? pick(L.sorcerer) : pick(L.spot), { gest: z.def?.caster ? 1 : 0.3, g: z.def?.caster ? 'cast_ready' : null });
           else if (beast) { if (chance(0.5)) this.say(z, pick(BEAST[z.kindName])); }
           else if (chance(0.45)) this.say(z, chance(0.5) ? pick(UNDEAD.spot) : gibberish());
         }
@@ -148,6 +151,8 @@ export class Chatter {
     // (the speakers: the nearest knights, in a shuffled order)
     const who = free.slice().sort((p, q) => p.d - q.d).slice(0, b.n).map((k) => k.z).sort(() => Math.random() - 0.5);
     this.seq = { lines: b.lines, who, i: 0, wait: 0 };
+    // (the whole exchange voiced ahead, so each knight's line is ready as he says it)
+    voice.prefetch(b.lines.map(([k, text]) => { const z = who[k % who.length]; return [z, text, { ...this.voiceOf(z), pos: z.pos }]; }));
   }
 
   runSeq(dt) {
@@ -158,6 +163,6 @@ export class Chatter {
     const z = s.who[k % s.who.length];
     if (!z || z.dead) { s.wait = 0.2; return; }
     if (z.talk) z.talk = null;
-    s.wait = this.say(z, text, { cut: true }) + 0.25;
+    s.wait = this.say(z, text, { cut: true, gest: 0.7 }) + 0.25;
   }
 }

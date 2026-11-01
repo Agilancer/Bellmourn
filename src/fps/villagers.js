@@ -24,10 +24,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
 import { speak, tickTalk } from './speech.js';
+import { voice } from './voice.js';
 import { MORE_BARKS, MORE_GREETS, MORE_SITUATIONAL as MS } from './lines/barks.js';
+import { MORE_CHATS } from './lines/chats.js';
 
 // (the town's words, and the many more in lines/: what they mutter, greet you with, and say at dusk,
 // in flight, at prayer, at the well and the stalls)
+CHATS.push(...MORE_CHATS.filter((c) => !c.tags.includes('trio')));   // (the scenes seat two: the trios wait for a third)
 for (const [k, v] of Object.entries(MORE_BARKS)) BARKS[k] = [...(BARKS[k] || []), ...v];
 for (const [k, v] of Object.entries(MORE_GREETS)) GREETS[k] = [...(GREETS[k] || []), ...v];
 DUSK.push(...MS.dusk, ...MS.night); FLEE.push(...MS.flee); PRAY.push(...MS.pray); WELL.push(...MS.well); SHOPPING.push(...MS.shopping.map((s) => [[s]]));   // (a stall's exchanges are lists of lines)
@@ -322,8 +325,12 @@ export class Villagers {
 
   /** a says text (paged into more bubbles if it's long, and aloud in their own voice). */
   say(a, text, toYou = false) {
-    return speak(a, text, toYou, { voice: { key: a.name, sex: /_f\d/.test(a.m) ? 'f' : 'm', kind: 'villager',
-      age: a.tags?.includes('old') ? 'old' : a.tags?.includes('young') ? 'young' : null } });
+    return speak(a, text, toYou, { voice: this.voiceOf(a) });
+  }
+
+  /** How a villager sounds (voice.js). */
+  voiceOf(a) {
+    return { key: a.name, sex: /_f\d/.test(a.m) ? 'f' : 'm', kind: 'villager', age: a.tags?.includes('old') ? 'old' : a.tags?.includes('young') ? 'young' : null, pos: a.pos };
   }
 
   near(a, player) { return player && Math.hypot(player.pos.x - a.pos.x, player.pos.z - a.pos.z) < NEAR; }
@@ -458,6 +465,8 @@ export class Villagers {
     this.face(a, b); this.face(b, a);
     yield 0.4;
     const { c, order } = this.pickChat(a, b);
+    // (the whole exchange voiced ahead, so each line is ready as it's said)
+    voice.prefetch(c.lines.map(([who, text]) => { const sp = order[who] || order[0], other = order[1 - who] || order[1]; return [sp, this.fill(text, sp, other), this.voiceOf(sp)]; }));
     for (const [who, text] of c.lines) {
       const sp = order[who] || order[0], other = order[1 - who] || order[1];
       this.face(other, sp);
