@@ -284,6 +284,43 @@ with a tint to sit with the Velscour floors: the village's meadow and forest flo
 grass, paths, gravel and sand by the water and old snow on the plateau above the falls, the
 Vigil Road, and the keep's courtyard.
 
+The October texture packs (castle stone, castle-sheet previews, interior walls and floors,
+mythic places, natural rock, rock faces matched to the outdoor ground sheets, and the object
+maps for crates, chests and pottery) are cut by
+`python tools/world/import_texpacks.py cut <zips or folders>` into a library of 1,630 seamless
+tiles and 495 object patches in `art/_texlib/` (`texlib.json` lists them with each tile's seam
+score; there's a contact sheet per set). The folder's name starts with an underscore so GitHub
+Pages leaves it out of the published site (which is near Pages' 1 GB limit); the game ships only
+the tiles it uses: list them in `tools/world/texpicks.json` and run
+`python tools/world/import_texpacks.py publish`, which copies them to `assets/textures/packs/`
+and writes `assets/textures/packs.json` (merged into the library by `lib.js`, used by name only).
+The tiles were painted seamless: each is cut on its own repeat (from the middle of one magenta
+grid line to the middle of the next) and only the few pixels the line covered are painted back
+from the texture either side; the painting itself is left as it was. In the world they're the
+downs' cliff face and every boulder fallen from it (one rock, wrapped by world position: the
+library's `tri` option), each cave's own rock, the cathedral's ashlar and bell tower, every
+house's own walls and floor inside (with a dark oak wainscot in the plastered rooms), the delves'
+stair-houses, and in the catacombs the Bell Shrine's carved floor and Cindermaw's volcanic one,
+its lava cracks glowing (`cracks`).
+
+The object maps became 31 props modelled in Blender to fit them (`tools/models/texprops.py`:
+`atlas`, then `blender -b --factory-startup --python tools/models/texprops.py -- build`, then
+`manifest`): six crates (the painted frames standing proud as battens), two barrels, four
+rustic, four gilded and six domed chests, and pottery (storage and glazed jars, a lidded crock,
+both also blackened by crypt smoke, an amphora, two painted vases, a worn urn), each with one
+512 texture, in `templates/models/props/<id>/`. A chest's lid is its own mesh hinged at the back
+and swings open when it's searched (`props.js`). The old single `crate`, `barrel` and
+`treasure_chest` are families now: each placement takes one of the new models by where it
+stands (domed and gilded chests below ground, rustic ones above).
+
+Crates, barrels and pottery break; chests don't. A blow or a spell's blast wears down their hits
+(a pot breaks at a touch, a crate in a few blows, an iron-bound one in more), and a blow that
+doesn't break one jolts it. Broken, it's gone from its collider and about a dozen pieces of it
+(cut with thickness in Blender, shipped in its model) tumble out, glance off walls, settle flat,
+and sink away after a while; whatever it held lies on the ground where it stood. A crate on a
+stack comes down with the one under it. Anything still whole can be searched with E. Pots hold
+little: mostly nothing, now and then a draught, a few coins or one thing worth having.
+
 ---
 
 ## Castle Velscour (the earlier 2D test)

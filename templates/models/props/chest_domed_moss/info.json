@@ -1,0 +1,35 @@
+{
+ "id": "chest_domed_moss",
+ "model": "chest_domed",
+ "shape": "domed",
+ "triangles": 846,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.028,
+  0.6,
+  0.588
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.4,
+   -0.28
+  ]
+ },
+ "fills": {
+  "front": "obj_06_chest_ancient_18",
+  "back": "obj_06_chest_ancient_19",
+  "end": "obj_06_chest_ancient_21",
+  "lid": "obj_06_chest_ancient_20",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ]
+ }
+}

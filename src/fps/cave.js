@@ -145,8 +145,10 @@ export function rockTexture() {
   return t;
 }
 
-/** Rock wrapped round any surface without stretching (triplanar), darkened in its folds. */
-export function rockMaterial(tex) {
+/** Rock wrapped round any surface without stretching (triplanar), darkened in its folds. `k`
+ * brightens the texture (the generated rock is drawn dark; a painted one is about right), `tile`
+ * metres per repeat. */
+export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   // two-sided: the roof's top shows as a ledge over the mouth from outside
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x181a1c, shininess: 14, side: THREE.DoubleSide });
   m.onBeforeCompile = (sh) => {
@@ -156,12 +158,13 @@ export function rockMaterial(tex) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 cP; varying vec3 cN; uniform sampler2D tRock;')
       .replace('#include <map_fragment>', `
         vec3 tw = pow(abs(normalize(cN)), vec3(4.0)); tw /= (tw.x + tw.y + tw.z);
-        vec3 rk = texture2D(tRock, cP.zy / 2.6).rgb * tw.x + texture2D(tRock, cP.xz / 2.2).rgb * tw.y + texture2D(tRock, cP.xy / 2.6).rgb * tw.z;
+        vec3 rk = texture2D(tRock, cP.zy / ${tile.toFixed(2)}).rgb * tw.x + texture2D(tRock, cP.xy / ${tile.toFixed(2)}).rgb * tw.z
+          + (normalize(cN).y < 0.0 ? texture2D(tRock, cP.zx / ${(tile * 1.9).toFixed(2)}).rgb : texture2D(tRock, cP.xz / ${(tile * 0.85).toFixed(2)}).rgb) * tw.y;
         float wet = smoothstep(0.6, 0.95, normalize(cN).y);
         rk = mix(rk, rk * vec3(0.78, 0.92, 0.86), wet * 0.6);
-        diffuseColor.rgb *= rk * 2.2;`);
+        diffuseColor.rgb *= rk * ${k.toFixed(2)};`);
   };
-  m.customProgramCacheKey = () => 'cave-rock';
+  m.customProgramCacheKey = () => `cave-rock-${k}-${tile}`;
   return m;
 }
 
@@ -195,7 +198,9 @@ const DECOR = {
 export class Cave {
   /** z: where along the cliff its mouth opens; layout: its passages and chambers (see layout());
    * water: {a, b, r} a pool in its own frame, or null; decor: as DECOR. */
-  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001 } = {}) {
+  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001, rock = null, rockK = 1 } = {}) {
+    this.rock = rock;   // a library surface for its rock (else a generated one), rockK as bright
+    this.rockK = rockK;
     this.ctx = ctx;
     this.name = name;
     this.decor = decor;
@@ -379,8 +384,10 @@ export class Cave {
     geo.setIndex([...idxF, ...idxC]);
     geo.computeVertexNormals();
     geo.computeBoundingSphere();
-    this.rockTex = rockTexture();
-    const mesh = this.mesh = new THREE.Mesh(geo, rockMaterial(this.rockTex));
+    const lib = this.ctx.lib, own = this.rock && lib?.surf.get(this.rock);
+    this.rockTex = own ? lib.texture(own.file) : rockTexture();
+    if (own) lib.used.add(this.rock);
+    const mesh = this.mesh = new THREE.Mesh(geo, own ? rockMaterial(this.rockTex, this.rockK, 3.2) : rockMaterial(this.rockTex));
     mesh.receiveShadow = true; mesh.castShadow = true;
     ctx.scene.add(mesh);
 

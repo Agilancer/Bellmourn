@@ -1,0 +1,33 @@
+{
+ "id": "crate_ironbound",
+ "model": "crate_ironbound",
+ "shape": "crate",
+ "triangles": 1100,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 12,
+ "size": [
+  0.832,
+  0.8,
+  0.832
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_02_crate_reinforcements_03",
+  "end": "obj_02_crate_reinforcements_12",
+  "top": [
+   "obj_02_crate_reinforcements_01",
+   {
+    "desat": 0.6
+   }
+  ],
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

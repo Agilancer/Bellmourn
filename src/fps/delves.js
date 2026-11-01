@@ -18,9 +18,9 @@ import { holeTerrain, CAVE_MOUTHS } from './terrain.js';
 const FLIGHT = { depth: 14, step: 0.25, run: 0.34, width: 2.4 };
 export const DELVES = [
   { key: 'barrow', name: 'The Barrow of Saint Ivo', x: -205, z: 95, seed: 7331, rooms: 13, loops: 2, haunt: 'barrow', n: 16,
-    wall: 'castle_mossy', kinds: ['crypt', 'ossuary', 'shrine', 'collapsed hall', 'bone throne', 'vault', 'flooded crypt', 'great hall'] },
+    wall: 'stone_06_mossy_fieldstone_1_03', kinds: ['crypt', 'ossuary', 'shrine', 'collapsed hall', 'bone throne', 'vault', 'flooded crypt', 'great hall'] },
   { key: 'cellars', name: 'The Old Watch Cellars', x: 150, z: 186, seed: 5150, rooms: 12, loops: 2, haunt: 'cellars', n: 14,
-    wall: 'castle_soot', kinds: ['storeroom', 'barracks', 'well chamber', 'forge', 'library', 'flooded crypt', 'pillared hall'] },
+    wall: 'keep_16_castle_stone_02', kinds: ['storeroom', 'barracks', 'well chamber', 'forge', 'library', 'flooded crypt', 'pillared hall'] },
 ];
 
 /** The ground a stair-house stands on (its walls included): the world leaves it bare. */
@@ -85,7 +85,11 @@ function stairHouse(ctx, d) {
 function frameMouth(ctx, c) {
   const { b, lib, bill } = ctx;
   const M = (id, t) => lib.material(lib.surf.has(id) ? id : 'castle_basalt', { tile: t });
-  const rock = [M('castle_basalt', 2.6), M('castle_rubble', 2.4), M('castle_slate', 2.4)], moss = M('castle_mossy', 2);
+  // (framed in the cliff's own rock, wrapped by world position like the downs' boulders)
+  const Mt = (id, t, tint) => lib.material(id, { tile: t, tint, tri: true });
+  // (a shade lighter than the face round them, and mossy on the outer stones: a cave's mouth is a
+  // landmark, to be found from across the downs)
+  const rock = [Mt('rock_06_overworld_mossy_rock_1_03', 3, 0xd0c8bc), Mt('cliff_07_coarse_gravel_11_01', 6.5, 0xd0c8bc), Mt('rock_06_overworld_mossy_rock_1_03', 3, 0xd0c8bc)], moss = Mt('rock_06_overworld_mossy_rock_1_03', 2, 0xffffff);
   const x = c.px, z = c.pz, fl = c.floorAt(x + 0.5, z) ?? c.mouth.y, ground = (xx, zz) => ctx.physics.groundAt(xx, zz);
   const H = c.name === 'The Trollhole' ? 1.25 : 1;                 // the Trollhole's mouth is the bigger
   let seed = Math.round(Math.abs(z) * 7) + 31;
@@ -94,15 +98,15 @@ function frameMouth(ctx, c) {
     for (let k = 0; k < 2; k++) {
       const rz = 1.1 + R() * 0.4, cz = z + side * (2.35 + rz + k * 1.4), cx = x - 0.6 + k * 0.9, ry = (2.0 + k * 0.9 + R() * 0.6) * H;
       b.place(cx, ground(cx, cz) - 0.4, cz, 0, 1, (B) => {
-        B.blob([0, ry * 0.5, 0], [1.2 + R() * 0.5, ry, rz], rock[(k + (side > 0 ? 1 : 0)) % 3], { detail: 1, jitter: 0.18, seed: seed + k });
-        if (R() < 0.7) B.blob([0, ry * 1.05, 0], [1.0, ry * 0.18, rz * 0.8], moss, { detail: 1, jitter: 0.3, seed: seed + 7 });
+        B.blob([0, ry * 0.5, 0], [1.2 + R() * 0.5, ry, rz], rock[(k + (side > 0 ? 1 : 0)) % 3], { detail: 2, jitter: 0.18, seed: seed + k });
+        if (R() < 0.7) B.blob([0, ry * 1.05, 0], [1.0, ry * 0.18, rz * 0.8], moss, { detail: 2, jitter: 0.3, seed: seed + 7 });
       }, { tag: 'rock' });
     }
   }
   // the capstone across the top, its underside 3.4 m over the floor (the Trollhole's higher)
   b.place(x - 0.3, fl + 3.4 * H + 0.75, z, 0, 1, (B) => {
-    B.blob([0, 0, 0], [1.5, 0.75, 3.6 * H], rock[0], { detail: 1, jitter: 0.15, seed: seed + 3, floor: -0.7 });
-    B.blob([0.2, 0.6, 0], [1.2, 0.3, 3.0 * H], moss, { detail: 1, jitter: 0.3, seed: seed + 4 });
+    B.blob([0, 0, 0], [1.5, 0.75, 3.6 * H], rock[0], { detail: 2, jitter: 0.15, seed: seed + 3, floor: -0.7 });
+    B.blob([0.2, 0.6, 0], [1.2, 0.3, 3.0 * H], moss, { detail: 2, jitter: 0.3, seed: seed + 4 });
   }, { tag: 'rock' });
   // rubble fallen before it (out of the way in)
   for (let k = 0; k < 7; k++) {
@@ -126,9 +130,11 @@ export function buildDelves(ctx) {
   }
   // the caves in the cliff: their mouths are cut in the downs' ground
   ctx.land = { hole: (x0, z0, x1, z1, yTop, physics) => holeTerrain(x0, z0, x1, z1, yTop, physics, ctx.scene) };
-  const gloam = new Cave(ctx, { z: CAVE_MOUTHS.gloam });
-  const grotto = new Cave(ctx, { z: CAVE_MOUTHS.grotto, name: 'The Drowned Grotto', layout: grottoLayout, water: { a: 22, b: -30, r: 7 }, decor: GROTTO_DECOR, seed: 1337 });
-  const troll = new Cave(ctx, { z: CAVE_MOUTHS.troll, name: 'The Trollhole', layout: trollLayout, water: null, decor: TROLL_DECOR, seed: 2718 });
+  // (each in its own rock: grey limestone, wet shale where the water gets in, the Trollhole black
+  // basalt; the dark ones brightened a little, as the generated rock was, so torchlight still finds them)
+  const gloam = new Cave(ctx, { z: CAVE_MOUTHS.gloam, rock: 'rock_01_cave_gray_limestone_1_02' });
+  const grotto = new Cave(ctx, { z: CAVE_MOUTHS.grotto, name: 'The Drowned Grotto', layout: grottoLayout, water: { a: 22, b: -30, r: 7 }, decor: GROTTO_DECOR, seed: 1337, rock: 'rock_03_cave_wet_shale_2_01', rockK: 2.4 });
+  const troll = new Cave(ctx, { z: CAVE_MOUTHS.troll, name: 'The Trollhole', layout: trollLayout, water: null, decor: TROLL_DECOR, seed: 2718, rock: 'rock_02_cave_dark_basalt_1_05', rockK: 2.6 });
   for (const c of [gloam, grotto, troll]) frameMouth(ctx, c);
   ctx.cave = gloam;                  // (the ghasts' and grubbers' own: foes.js fills it)
   ctx.caves = [gloam, grotto, troll];

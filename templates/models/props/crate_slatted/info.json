@@ -1,0 +1,28 @@
+{
+ "id": "crate_slatted",
+ "model": "crate_slatted",
+ "shape": "crate",
+ "triangles": 1100,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 10,
+ "size": [
+  0.832,
+  0.7,
+  0.732
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_03_crate_variants_02",
+  "end": "obj_03_crate_variants_04",
+  "top": "obj_03_crate_variants_01",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

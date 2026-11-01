@@ -85,6 +85,51 @@ function feathered(m, f) {
   };
 }
 
+/** The map sampled by world position along whichever axis the surface faces most (blended at the
+ * turns), so rock wraps a boulder without stretching or a seam at every facet. */
+function triplanar(m, tile) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev?.call(m, sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTriP; varying vec3 vTriN;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvTriP = (modelMatrix * vec4(transformed, 1.0)).xyz; vTriN = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTriP; varying vec3 vTriN;')
+      .replace('#include <map_fragment>', `
+      #ifdef USE_MAP
+        vec3 tw = pow(abs(normalize(vTriN)), vec3(4.0)); tw /= (tw.x + tw.y + tw.z);
+        vec3 tp = vTriP / ${tile.toFixed(2)}, tdx = dFdx(tp), tdy = dFdy(tp);   // (gradients outside the branches)
+        vec4 triC = vec4(0.0);
+        if (tw.x > 0.01) triC += sharpTexelGrad(map, tp.zy, tdx.zy, tdy.zy) * tw.x;
+        if (tw.y > 0.01) triC += sharpTexelGrad(map, tp.xz + 0.37, tdx.xz, tdy.xz) * tw.y;
+        if (tw.z > 0.01) triC += sharpTexelGrad(map, tp.xy + 0.71, tdx.xy, tdy.xy) * tw.z;
+        diffuseColor *= triC;
+      #endif`);
+  };
+  const key = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => (key ? key() : '') + `|tri${tile}`;
+}
+
+/** Where the picture is red (lava in the cracks of volcanic rock), it gives off light of its own,
+ * `k` strong, a little uneven as embers are. */
+function glowCracks(m, k) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev?.call(m, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      #ifdef USE_MAP
+      {
+        vec3 cc = sampledDiffuseColor.rgb;
+        // (only the cracks: red well above both green and blue, and bright; the rock round them
+        // stays rock even in orange torchlight)
+        float lava = smoothstep(0.12, 0.3, cc.r - max(cc.g, cc.b)) * smoothstep(0.2, 0.45, cc.r);
+        totalEmissiveRadiance += vec3(1.0, 0.25, 0.06) * lava * ${k.toFixed(2)};
+      }
+      #endif`);
+  };
+  const key = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => (key ? key() : '') + `|cracks${k}`;
+}
+
 export class Library {
   constructor(renderer, { normals = true } = {}) {
     this.renderer = renderer;
@@ -129,6 +174,13 @@ export class Library {
       const gr = await (await fetch(ROOT + 'ground.json')).json();
       for (const s of gr.surfaces) this.surf.set(s.id, s);
     } catch (e) { console.warn('no ground textures', e); }
+    // the October texture packs (tools/world/import_texpacks.py, from the whole cut library in
+    // art/_texlib): castle stone, interior walls and floors, natural rock, cliff faces matched to
+    // the ground sheets, mythic stone, as surfaces of kind pack_<kind> (asked for by name only)
+    try {
+      const pk = await (await fetch(ROOT + 'packs.json')).json();
+      for (const s of pk.surfaces) this.surf.set(s.id, s);
+    } catch (e) { console.warn('no pack textures', e); }
     return this;
   }
 
@@ -214,18 +266,20 @@ export class Library {
   }
 
   /** A lit material for a library surface. `tile` = metres per repeat (the builders put world
-   * metres in the UVs and divide by this). */
-  material(id, { tile = 2, tint = 0xffffff, emissive = 0x000000, side = THREE.FrontSide, overlay = false, bump = 1, feather = 0, tracks = 0 } = {}) {
-    const k = `${id}|${tile}|${tint}|${emissive}|${side}|${overlay}|${bump}|${feather}|${tracks}`;
+   * metres in the UVs and divide by this). `tri`: wrapped round the shape by world position
+   * (triplanar: rock on a lumpy boulder, no seam at every facet); `matte`: no sheen even where
+   * the name says slate or tile; `cracks`: the red in the picture glows (lava in cracked rock). */
+  material(id, { tile = 2, tint = 0xffffff, emissive = 0x000000, side = THREE.FrontSide, overlay = false, bump = 1, feather = 0, tracks = 0, tri = false, matte = false, cracks = 0 } = {}) {
+    const k = `${id}|${tile}|${tint}|${emissive}|${side}|${overlay}|${bump}|${feather}|${tracks}|${tri}|${matte}|${cracks}`;
     if (this.mats.has(k)) return this.mats.get(k);
     const s = this.surf.get(id);
     if (!s) throw new Error('no such surface: ' + id);
     this.used.add(id);
     const map = this.texture(s.file);
-    const shiny = SHINY.test(id);
+    const shiny = !matte && SHINY.test(id);
     const m = new THREE.MeshPhongMaterial({ map, color: tint, emissive, side,
       specular: shiny ? 0x383430 : 0x121110, shininess: shiny ? 42 : 12 });
-    if (this.normals && bump > 0) {
+    if (this.normals && bump > 0 && !tri) {   // (a derived normal map follows the UVs: not a triplanar's)
       // (gentler than before: at full resolution a strong derived relief read as an emboss filter)
       m.normalMap = this.normalMap(s.file, /cloth|sail/.test(id) ? 0.6 : 1.15);
       const k = feather ? 0.5 : bump;   // (ground overlays: low relief, or the gravel sparkles like static)
@@ -244,6 +298,8 @@ export class Library {
     m.userData.tileV = tile;
     m.userData.tileU = tile * (s.size[0] / s.size[1]);
     m.userData.id = id;
+    if (tri) triplanar(m, tile);
+    if (cracks) glowCracks(m, cracks);
     crisp(m);
     this.mats.set(k, m);
     return m;
@@ -252,9 +308,9 @@ export class Library {
   /** The next surface not used yet that passes `pred` (or, once they're all used, any that
    * does): how the dungeon and the houses get through the whole library. */
   take(pred, salt = 0) {
-    // one-off floor decals, full-height wall panels and the ground sheets' tiles are only ever
-    // asked for by name
-    const all = [...this.surf.values()].filter((s) => s.kind !== 'decal' && s.kind !== 'ground' && !s.wall_set && pred(s));
+    // one-off floor decals, full-height wall panels, the ground sheets' and the packs' tiles are
+    // only ever asked for by name
+    const all = [...this.surf.values()].filter((s) => s.kind !== 'decal' && s.kind !== 'ground' && !String(s.kind).startsWith('pack_') && !s.wall_set && pred(s));
     const fresh = all.find((s) => !this.used.has(s.id) && !this.reserved?.has(s.id));
     if (fresh) { (this.reserved ??= new Set()).add(fresh.id); return fresh.id; }
     return all.length ? all[Math.abs(salt) % all.length].id : 'castle_slatestone';

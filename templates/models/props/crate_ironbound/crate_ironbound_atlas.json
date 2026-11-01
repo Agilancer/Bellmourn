@@ -1,0 +1,57 @@
+{
+ "model": "crate_ironbound",
+ "shape": "crate",
+ "form": null,
+ "frame": 0.1,
+ "dims": [
+  0.8,
+  0.8,
+  0.8
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "end": [
+   4,
+   4,
+   192,
+   192
+  ],
+  "side": [
+   204,
+   4,
+   192,
+   192
+  ],
+  "top": [
+   4,
+   204,
+   192,
+   192
+  ],
+  "inner": [
+   404,
+   4,
+   64,
+   64
+  ]
+ },
+ "fills": {
+  "side": "obj_02_crate_reinforcements_03",
+  "end": "obj_02_crate_reinforcements_12",
+  "top": [
+   "obj_02_crate_reinforcements_01",
+   {
+    "desat": 0.6
+   }
+  ],
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

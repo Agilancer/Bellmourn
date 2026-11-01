@@ -1,0 +1,78 @@
+{
+ "model": "vase_painted",
+ "shape": "pot",
+ "form": "vase",
+ "frame": 0,
+ "dims": [
+  0.2,
+  0.6
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "belly": [
+   4,
+   4,
+   384,
+   144
+  ],
+  "neck": [
+   4,
+   156,
+   256,
+   80
+  ],
+  "shoulder": [
+   4,
+   244,
+   256,
+   80
+  ],
+  "foot": [
+   4,
+   332,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "belly": [
+   "obj_08_pottery_decorative_08",
+   {
+    "wrap": 2
+   }
+  ],
+  "shoulder": [
+   "obj_08_pottery_decorative_04",
+   {
+    "wrap": 2
+   }
+  ],
+  "neck": [
+   "obj_08_pottery_decorative_21",
+   {
+    "wrap": 2
+   }
+  ],
+  "foot": [
+   "obj_10_mixed_details_39",
+   {
+    "wrap": 1
+   }
+  ],
+  "inner": [
+   "obj_09_pottery_weathered_03",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

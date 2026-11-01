@@ -35,6 +35,14 @@ const KIND_OF = (id) => HOLDS.find(([re]) => re.test(id))?.[1] || null;
 // the Velscour world's props (props.js) that hold something
 const PROP_HOLDS = { treasure_chest: KIND_OF('Chest'), crate: KIND_OF('Crate'), barrel: KIND_OF('Barrel'),
   sarcophagus: { ...KIND_OF('ossuary_chest'), name: 'sarcophagus' } };
+// the pottery (there's a lot of it, and a spell breaks a whole huddle): mostly empty, now and
+// then a draught, a few coins or one thing worth having (itemP: the chance of one item)
+const POTTERY = { items: [0, 0], itemP: 0.1, gold: 0.35, goldK: 0.3, potion: 0.1, bonus: 0, name: 'pot' };
+// the crates, barrels, chests and pottery modelled for the object texture sheets (props.js)
+const propHolds = (id) => PROP_HOLDS[id] || (/^chest_gilded/.test(id) ? KIND_OF('Chest_Gold')
+  : /^chest_domed_stone/.test(id) ? { ...KIND_OF('ossuary_chest'), name: 'reliquary' }
+    : /^chest_/.test(id) ? KIND_OF('Chest') : /^crate_/.test(id) ? KIND_OF('Crate') : /^barrel_/.test(id) ? KIND_OF('Barrel')
+      : /^(jar_|amphora|vase_|urn_|crock_)/.test(id) ? { ...POTTERY, name: /^jar|^crock/.test(id) ? 'jar' : /^urn/.test(id) ? 'urn' : /^amphora/.test(id) ? 'amphora' : 'vase' } : null);
 
 const glowTex = (() => {
   let t = null;
@@ -85,10 +93,10 @@ export class Loot {
   /** Every chest, crate, barrel and sarcophagus among the world's props (once they've loaded). */
   findProps(props) {
     for (const [id, list] of props.place) {
-      const holds = PROP_HOLDS[id], bb = props.boxes.get(id);
+      const holds = propHolds(id), bb = props.boxes.get(id);
       if (!holds || !bb) continue;
       const r = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
-      for (const p of list) this.addContainer({ id, holds, x: p.x, y: p.y + bb.max.y * p.scale * 0.55, z: p.z, top: p.y + bb.max.y * p.scale, r: r * p.scale, searched: false, rot: p.rot });
+      list.forEach((p, i) => this.addContainer({ id, holds, x: p.x, y: p.y + bb.max.y * p.scale * 0.55, z: p.z, top: p.y + bb.max.y * p.scale, r: r * p.scale, searched: false, rot: p.rot, index: i }));
     }
     return this.containers.length;
   }
@@ -106,6 +114,7 @@ export class Loot {
     let best = null, bestS = 0;
     const gx = Math.floor(o.x / 8), gz = Math.floor(o.z / 8);
     for (let i = -1; i <= 1; i++) for (let k = -1; k <= 1; k++) for (const c of this.grid.get(`${gx + i},${gz + k}`) || []) {
+      if (c.broken) continue;
       const tx = c.x - o.x, ty = c.y - o.y, tz = c.z - o.z, dist = Math.hypot(tx, ty, tz);
       if (dist > 2.6 + c.r) continue;
       const dot = (tx * d.x + ty * d.y + tz * d.z) / dist;
@@ -120,21 +129,37 @@ export class Loot {
   /** Search it: what it holds spills out at your feet (a container with `contents` of its own,
    * like the Red Throne's hoard, gives those instead of a roll for the place). */
   search(c, player) {
+    if (c.index !== undefined) this.ctx.props?.open(c.id, c.index);   // (a chest's lid swings back)
+    // toward you, out of the front of it
+    return this.spill(c, Math.atan2(player.pos.z - c.z, player.pos.x - c.x));
+  }
+
+  /** A crate, barrel or pot broken (props.js): whatever it still held lies on the ground where
+   * it stood, thrown the way the blow went. */
+  broke(id, index, dir) {
+    const c = this.containers.find((q) => q.id === id && q.index === index);
+    if (!c || c.broken) return 0;
+    c.broken = true;
+    if (c.searched) return 0;
+    return this.spill(c, dir ? Math.atan2(dir.z, dir.x) : Math.random() * 6.28, true);
+  }
+
+  /** What a container holds (rolled now, for where it is), out onto the ground in a fan about
+   * `toward` (radians in the xz plane); `wide`: all round, as from something smashed. */
+  spill(c, toward, wide = false) {
     c.searched = true;
     const H = c.holds, under = this.hooks.zone?.(c)?.under;
     const lv = placeLevel(c, under);
     const out = c.contents ? c.contents(lv) : [];
-    const n = c.contents ? 0 : H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
+    const n = c.contents ? 0 : H.itemP !== undefined ? (Math.random() < H.itemP ? 1 : 0) : H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
     for (let i = 0; i < n; i++) out.push(makeGear({ ilvl: lv, bonus: H.bonus }));
     if (!c.contents && Math.random() < H.gold) out.push({ type: 'gold', amount: Math.max(1, Math.round((3 + lv * 2.5) * H.goldK * (0.5 + Math.random()))) });
     if (!c.contents && Math.random() < H.potion) out.push(makePotion(Math.random() < 0.6 ? 'life' : 'mana', 1));
-    // toward you, out of the front of it
-    const dx = player.pos.x - c.x, dz = player.pos.z - c.z, l = Math.hypot(dx, dz) || 1;
-    const step = Math.min(0.5, 2.4 / out.length), far = out.length > 4 ? 0.5 : 0;   // (a big haul fans out wider, still in front)
+    const step = wide ? Math.min(1.2, 6.28 / Math.max(1, out.length)) : Math.min(0.5, 2.4 / out.length), far = out.length > 4 ? 0.5 : 0;   // (a big haul fans out wider, still in front)
     out.forEach((it, i) => {
-      const a = Math.atan2(dz / l, dx / l) + (i - (out.length - 1) / 2) * step;
-      const r = c.r + 0.55 + far * (i % 2);
-      this.spawn(it, c.x + Math.cos(a) * r, c.top, c.z + Math.sin(a) * r, { pop: true });
+      const a = toward + (i - (out.length - 1) / 2) * step;
+      const r = (wide ? c.r * 0.6 + 0.35 : c.r + 0.55) + far * (i % 2);
+      this.spawn(it, c.x + Math.cos(a) * r, wide ? c.y + 0.2 : c.top, c.z + Math.sin(a) * r, { pop: true });
     });
     return out.length;
   }

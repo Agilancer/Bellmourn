@@ -219,7 +219,7 @@ export function buildKeep(ctx) {
   b.box([DAIS.x0, 0, DAIS.z0], [DAIS.x1, DAIS.h, DAIS.z1], { top: M('castle_keep_ivory_chapel_marble', 2), bottom: slate, side: slate });
   b.box([DAIS.x1, 0, DAIS.z0 + 1], [DAIS.x1 + 0.5, DAIS.h / 2, DAIS.z1 - 1], { top: slate, bottom: slate, side: slate });   // a step up
   S('castle_keep_broken_throne', th.ix0 + 1.6, 0, 1.4, Math.PI / 2, DAIS.h);
-  props.add('treasure_chest', CHEST.x, DAIS.h, CHEST.z, Math.PI / 2, 1.15);
+  props.add('chest_gilded_red', CHEST.x, DAIS.h, CHEST.z, Math.PI / 2, 1.15);   // (the hoard: red and gold, his colours)
   sigil(ctx, th.ix0 + 0.06, 4.6, 0, [1, 0, 0], 4.6, 1.8);
   for (const s of [-1, 1]) {
     S('sand_scatter_25_bronze_brazier', DAIS.x1 + 0.2, s * 7.4, 1.3, 0);
@@ -379,7 +379,7 @@ class Keep {
   // -------------------------------------------------------------- the sealed chest
   /** Take the throne room's chest from the loot's containers: sealed, and holding the Vigil's best. */
   claimChest(loot) {
-    const c = loot.containers.find((q) => q.id === 'treasure_chest' && Math.abs(q.x - CHEST.x) < 0.2 && Math.abs(q.z - CHEST.z) < 0.2);
+    const c = loot.containers.find((q) => q.id === 'chest_gilded_red' && Math.abs(q.x - CHEST.x) < 0.2 && Math.abs(q.z - CHEST.z) < 0.2);
     if (!c) return;
     this.chest = c;
     c.holds = { ...c.holds, name: 'Vigil Hoard' };

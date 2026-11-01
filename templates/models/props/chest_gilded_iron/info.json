@@ -1,0 +1,36 @@
+{
+ "id": "chest_gilded_iron",
+ "model": "chest_gilded",
+ "shape": "chest",
+ "triangles": 1120,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 0,
+ "size": [
+  1.026,
+  0.592,
+  0.604
+ ],
+ "lid": {
+  "hinge": [
+   0,
+   0.42,
+   -0.29
+  ]
+ },
+ "fills": {
+  "front": "obj_05_chest_ornate_03",
+  "back": "obj_05_chest_ornate_26",
+  "end": "obj_05_chest_ornate_18",
+  "top": "obj_05_chest_ornate_13",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.7
+   }
+  ],
+  "trim": "obj_05_chest_ornate_45"
+ }
+}

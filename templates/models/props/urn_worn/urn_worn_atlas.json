@@ -1,0 +1,73 @@
+{
+ "model": "urn_worn",
+ "shape": "pot",
+ "form": "urn",
+ "frame": 0,
+ "dims": [
+  0.26,
+  0.55
+ ],
+ "size": [
+  512,
+  512
+ ],
+ "slots": {
+  "body": [
+   4,
+   4,
+   384,
+   160
+  ],
+  "lid": [
+   4,
+   172,
+   128,
+   128
+  ],
+  "band": [
+   4,
+   308,
+   384,
+   80
+  ],
+  "rim": [
+   140,
+   172,
+   256,
+   48
+  ],
+  "inner": [
+   396,
+   4,
+   32,
+   32
+  ]
+ },
+ "fills": {
+  "body": [
+   "obj_09_pottery_weathered_13",
+   {
+    "wrap": 2
+   }
+  ],
+  "band": [
+   "obj_09_pottery_weathered_02",
+   {
+    "wrap": 2
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_36",
+   {
+    "wrap": 1
+   }
+  ],
+  "lid": "obj_10_mixed_details_31",
+  "inner": [
+   "obj_09_pottery_weathered_13",
+   {
+    "dark": 0.3
+   }
+  ]
+ }
+}

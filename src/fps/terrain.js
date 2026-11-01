@@ -222,7 +222,9 @@ function downsMaterial(lib) {
   // [id, tint]: the ground sheets' tiles (tools/world/import_ground.py) are brighter than the
   // Velscour floors, so they're toned down to sit with them. The grass is laid twice, turned and
   // tinted apart, for lush and dry patches (the dry tint is below)
-  const layers = [['ground_grass_05', 0xe8bff5], ['town_wildflower_grass'], ['ground_sand_04', 0xa9aaa2], ['castle_rubble'],
+  // (the cliff and every steep slope: a rock face painted to match the gravel on the banks,
+  // tools/world/import_texpacks.py's matched rock faces)
+  const layers = [['ground_grass_05', 0xe8bff5], ['town_wildflower_grass'], ['ground_sand_04', 0xa9aaa2], ['cliff_07_coarse_gravel_11_01', 0xb4b0aa],
     ['town_damp_mud'], ['ground_gravel_03', 0xb8b4b1], ['ground_dirt_02', 0xb2aab4], ['ground_snow_06', 0xd2d4da]];
   const tex = layers.map(([id]) => { lib.used.add(id); return lib.texture(lib.surf.get(id).file); });
   const T = (c) => { const k = new THREE.Color(c ?? 0xffffff); return `vec3(${[k.r, k.g, k.b].map((v) => v.toFixed(3)).join(', ')})`; };
@@ -276,7 +278,15 @@ function downsMaterial(lib) {
         if (b > 0.001) grass = mix(grass, dTex(dT1, gp, 2.6) * ${tint[1]}, b);
         c = grass * (1.0 - wr);
       }
-      if (wr > 0.001) c += dTri(dT3, vDP, normalize(vDN), 3.5) * ${tint[3]} * wr;
+      if (wr > 0.001) {
+        // the rock face at its own scale (a 10 m repeat: plates a metre or two across, as a cliff's
+        // are), its light and dark varied by the same rock sampled again far larger and shifted,
+        // so the repeat never lines up into rows down a long face
+        vec3 nn = normalize(vDN);
+        vec3 rk = dTri(dT3, vDP, nn, 10.0);
+        float big = dot(dTri(dT3, vDP + vec3(13.7, 5.1, 7.3), nn, 23.0), vec3(0.333));
+        c += rk * (0.62 + 0.75 * big) * ${tint[3]} * wr;
+      }
       // the banks: mud and gravel, a ragged beach of sand round the pool (on the low, level
       // ground, not up the cliff) and bars of it along the stream
       float shore = smoothstep(0.42, 0.58, vDA.z + (n2 - 0.5) * 0.3) * (1.0 - smoothstep(0.25, 0.45, slope))

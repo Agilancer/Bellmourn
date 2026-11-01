@@ -285,6 +285,19 @@ async function build() {
   await props.finish();
   ctx.loot = new Loot(ctx, { char: () => char });      // (its hooks are filled in once the hands are made)
   ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
+  // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
+  props.onChange = (at) => {
+    for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+  };
+  // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
+  props.onBreak = (p, at, dir) => {
+    ctx.loot.broke(p.id, p.i, dir);
+    const clay = /^(jar_|amphora|vase_|urn_|crock_)/.test(p.id);
+    // (dust, soft, low and spreading: the pieces themselves are the debris)
+    for (let i = 0; i < 6; i++) smoke.emit(at.clone().setY(p.y + 0.15 + Math.random() * 0.3), new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.25, (Math.random() - 0.5) * 1.2), { life: 1.6, size: 0.5, grow: 0.9, alpha: 0.2, shade: clay ? 0.8 : 0.7 });
+    sfx.smash?.(clay, at);
+    zombies.noise(at, 14);
+  };
   ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
@@ -402,6 +415,7 @@ async function build() {
     const b = SPELL_BLAST[def.kind];
     if (b) zombies.blast(at, b[0], b[1], def.kind);
     if (b) ctx.catacombs.bridge.blast(at, b[0] * 2.2, b[1] * 0.12);   // (the bridge is thrown about)
+    if (b) ctx.props.blast(at, b[0], b[1]);                           // (crates, barrels and pots near it break)
     zombies.noise(at, def.size > 0.4 ? 26 : 16);   // the dead hear it go off
   };
 
@@ -432,6 +446,7 @@ async function build() {
   await prepare(mark);
   ready = true; run.step = 'loaded';
   await rehearse();
+  ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
 }
 
 /** Every spell cast once and one of the dead cut to pieces, out past the edge of the world where
@@ -981,6 +996,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
   const p = o.clone().addScaledVector(best.d, best.t);
   const n = new THREE.Vector3(...best.normal);
   const tag = best.box ? best.box.tag : 'ground';
+  if (tag === 'prop') ctx.props.hit(best.box, stats.meleeDamage(heavy, side) * power, best.d);   // (a crate, a barrel or a pot may break)
   const wood = tag === 'tree' || tag === 'prop';
   const cols = tag === 'ground' ? ['#6a5a40', '#8a7858', '#4a3c2a'] : wood ? ['#8a6a40', '#5a4028', '#b08850'] : ['#fff0b0', '#ffb040', '#d0d0d0'];
   magic.particles.burst(p.addScaledVector(n, 0.04), cols.map((c) => new THREE.Color(c)), heavy ? 30 : 18,
@@ -1761,6 +1777,7 @@ function tick(dt) {
   hud.guard(guard, vm.blocking);
   player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
+  ctx.props.update(dt);   // (searched chests' lids swinging open, broken things' pieces flying)
   if (active) ctx.loot.update(dt, player);
   ctx.trees3d.update(t);
   ctx.tufts.update(t);

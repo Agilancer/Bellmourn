@@ -1,0 +1,28 @@
+{
+ "id": "crate_broken",
+ "model": "crate_broken",
+ "shape": "crate",
+ "triangles": 108,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 12,
+ "size": [
+  0.8,
+  0.76,
+  0.8
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_02_crate_reinforcements_11",
+  "end": "obj_02_crate_reinforcements_04",
+  "top": "obj_02_crate_reinforcements_29",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

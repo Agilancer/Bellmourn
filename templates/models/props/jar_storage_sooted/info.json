@@ -1,0 +1,60 @@
+{
+ "id": "jar_storage_sooted",
+ "model": "jar_storage",
+ "shape": "pot",
+ "triangles": 1176,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 14,
+ "size": [
+  0.54,
+  0.763,
+  0.54
+ ],
+ "lid": null,
+ "fills": {
+  "body": [
+   "obj_07_pottery_storage_33",
+   {
+    "wrap": 2,
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "rim": [
+   "obj_10_mixed_details_33",
+   {
+    "wrap": 1,
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "lid": [
+   "obj_10_mixed_details_30",
+   {
+    "dark": 0.62,
+    "tint": [
+     0.95,
+     0.92,
+     0.88
+    ]
+   }
+  ],
+  "inner": [
+   "obj_07_pottery_storage_01",
+   {
+    "dark": 0.25
+   }
+  ]
+ }
+}

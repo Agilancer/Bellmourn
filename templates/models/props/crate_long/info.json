@@ -1,0 +1,28 @@
+{
+ "id": "crate_long",
+ "model": "crate_long",
+ "shape": "crate",
+ "triangles": 108,
+ "texture": [
+  512,
+  512
+ ],
+ "pieces": 12,
+ "size": [
+  1.5,
+  0.6,
+  0.62
+ ],
+ "lid": null,
+ "fills": {
+  "side": "obj_03_crate_variants_21",
+  "end": "obj_03_crate_variants_14",
+  "top": "obj_03_crate_variants_24",
+  "inner": [
+   "obj_01_crate_wood_30",
+   {
+    "dark": 0.42
+   }
+  ]
+ }
+}

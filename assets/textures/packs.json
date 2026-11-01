@@ -1,0 +1,396 @@
+{
+ "surfaces": [
+  {
+   "id": "cliff_07_coarse_gravel_11_01",
+   "file": "packs/cliff_07_coarse_gravel_11_01.jpg",
+   "kind": "pack_cliff",
+   "pack": "matched-rock-faces-40-sheets",
+   "set": "07_coarse_gravel",
+   "size": [
+    884,
+    882
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#736455"
+  },
+  {
+   "id": "rock_05_overworld_granite_1_02",
+   "file": "packs/rock_05_overworld_granite_1_02.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "05_overworld_granite",
+   "size": [
+    397,
+    393
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#76736f"
+  },
+  {
+   "id": "rock_06_overworld_mossy_rock_1_03",
+   "file": "packs/rock_06_overworld_mossy_rock_1_03.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "06_overworld_mossy_rock",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5a574d"
+  },
+  {
+   "id": "rock_01_cave_gray_limestone_1_02",
+   "file": "packs/rock_01_cave_gray_limestone_1_02.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "01_cave_gray_limestone",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#787874"
+  },
+  {
+   "id": "rock_03_cave_wet_shale_2_01",
+   "file": "packs/rock_03_cave_wet_shale_2_01.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "03_cave_wet_shale",
+   "size": [
+    395,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3c3d3d"
+  },
+  {
+   "id": "rock_02_cave_dark_basalt_1_05",
+   "file": "packs/rock_02_cave_dark_basalt_1_05.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "02_cave_dark_basalt",
+   "size": [
+    394,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2e2e2d"
+  },
+  {
+   "id": "stone_03_charcoal_basalt_1_03",
+   "file": "packs/stone_03_charcoal_basalt_1_03.jpg",
+   "kind": "pack_masonry",
+   "pack": "castle-stone-30-sheets",
+   "set": "03_charcoal_basalt",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#353434"
+  },
+  {
+   "id": "stone_01_gray_limestone_1_01",
+   "file": "packs/stone_01_gray_limestone_1_01.jpg",
+   "kind": "pack_masonry",
+   "pack": "castle-stone-30-sheets",
+   "set": "01_gray_limestone",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#817f78"
+  },
+  {
+   "id": "stone_06_mossy_fieldstone_1_03",
+   "file": "packs/stone_06_mossy_fieldstone_1_03.jpg",
+   "kind": "pack_masonry",
+   "pack": "castle-stone-30-sheets",
+   "set": "06_mossy_fieldstone",
+   "size": [
+    395,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5e5b4c"
+  },
+  {
+   "id": "keep_16_castle_stone_02",
+   "file": "packs/keep_16_castle_stone_02.jpg",
+   "kind": "pack_masonry",
+   "pack": "castle-texture-sheet-previews",
+   "set": "16_castle_stone",
+   "size": [
+    398,
+    395
+   ],
+   "tile_x": false,
+   "tile_y": false,
+   "color": "#3c3d38"
+  },
+  {
+   "id": "int_03_wall_oak_panelling_1_02",
+   "file": "packs/int_03_wall_oak_panelling_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "03_wall_oak_panelling",
+   "size": [
+    396,
+    395
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#553319"
+  },
+  {
+   "id": "int_03_wall_oak_panelling_2_02",
+   "file": "packs/int_03_wall_oak_panelling_2_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "03_wall_oak_panelling",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#503015"
+  },
+  {
+   "id": "int_06_wall_rubble_stone_1_03",
+   "file": "packs/int_06_wall_rubble_stone_1_03.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "06_wall_rubble_stone",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#5d5346"
+  },
+  {
+   "id": "int_01_wall_white_plaster_1_01",
+   "file": "packs/int_01_wall_white_plaster_1_01.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "01_wall_white_plaster",
+   "size": [
+    394,
+    395
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d6cbbc"
+  },
+  {
+   "id": "int_01_wall_white_plaster_1_07",
+   "file": "packs/int_01_wall_white_plaster_1_07.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "01_wall_white_plaster",
+   "size": [
+    398,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#d4c8b8"
+  },
+  {
+   "id": "int_08_wall_painted_plaster_1_02",
+   "file": "packs/int_08_wall_painted_plaster_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "08_wall_painted_plaster",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bd8d41"
+  },
+  {
+   "id": "int_07_wall_red_brick_1_01",
+   "file": "packs/int_07_wall_red_brick_1_01.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "07_wall_red_brick",
+   "size": [
+    394,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8f614a"
+  },
+  {
+   "id": "int_09_floor_oak_planks_1_02",
+   "file": "packs/int_09_floor_oak_planks_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "09_floor_oak_planks",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#865c32"
+  },
+  {
+   "id": "int_09_floor_oak_planks_2_01",
+   "file": "packs/int_09_floor_oak_planks_2_01.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "09_floor_oak_planks",
+   "size": [
+    394,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#84592e"
+  },
+  {
+   "id": "int_11_floor_stone_flagstone_1_02",
+   "file": "packs/int_11_floor_stone_flagstone_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "11_floor_stone_flagstone",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#88837b"
+  },
+  {
+   "id": "int_12_floor_slate_tile_1_03",
+   "file": "packs/int_12_floor_slate_tile_1_03.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "12_floor_slate_tile",
+   "size": [
+    398,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#4c5760"
+  },
+  {
+   "id": "int_15_floor_parquet_1_04",
+   "file": "packs/int_15_floor_parquet_1_04.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "15_floor_parquet",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#48301c"
+  },
+  {
+   "id": "int_10_floor_dark_wood_1_02",
+   "file": "packs/int_10_floor_dark_wood_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "10_floor_dark_wood",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#45372b"
+  },
+  {
+   "id": "int_13_floor_terracotta_1_02",
+   "file": "packs/int_13_floor_terracotta_1_02.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "13_floor_terracotta",
+   "size": [
+    397,
+    393
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#a9623b"
+  },
+  {
+   "id": "myth_10_shadow_crypt_1_02",
+   "file": "packs/myth_10_shadow_crypt_1_02.jpg",
+   "kind": "pack_mythic",
+   "pack": "mythical-textures-30-sheets",
+   "set": "10_shadow_crypt",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#3e3d38"
+  },
+  {
+   "id": "myth_06_volcanic_shrine_1_01",
+   "file": "packs/myth_06_volcanic_shrine_1_01.jpg",
+   "kind": "pack_mythic",
+   "pack": "mythical-textures-30-sheets",
+   "set": "06_volcanic_shrine",
+   "size": [
+    394,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#2e231e"
+  },
+  {
+   "id": "int_09_floor_oak_planks_3_06",
+   "file": "packs/int_09_floor_oak_planks_3_06.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "09_floor_oak_planks",
+   "size": [
+    397,
+    393
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#896337"
+  },
+  {
+   "id": "int_04_wall_limestone_block_3_06",
+   "file": "packs/int_04_wall_limestone_block_3_06.jpg",
+   "kind": "pack_interior",
+   "pack": "interior-textures-45-sheets",
+   "set": "04_wall_limestone_block",
+   "size": [
+    394,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#bfb29d"
+  }
+ ]
+}
