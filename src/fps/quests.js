@@ -469,7 +469,7 @@ export class Quests {
   }
 
   get open() { return !this.logEl.classList.contains('hidden') || !this.dlg.classList.contains('hidden'); }
-  close() { this.logEl.classList.add('hidden'); this.dlg.classList.add('hidden'); this.tip.classList.add('hidden'); this.o.onOpen?.(false); }
+  close() { this.logEl.classList.add('hidden'); this.dlg.classList.add('hidden'); this.tip.classList.add('hidden'); this.o.hush?.(); this.o.onOpen?.(false); }
 
   /** The tracker on the screen: what's under way and being followed. */
   refresh() {
@@ -555,6 +555,7 @@ export class Quests {
     D.append(this.closeBtn(), el('h2', null, esc(q.title)), el('div', 'q-giver', esc(GIVERS[name].call)));
     const body = st?.s === 'ready' ? q.done : st?.s === 'active' ? q.wait : typeof q.text === 'function' ? q.text(n) : q.text;
     D.append(el('div', 'q-text', esc(body)));
+    this.o.speak?.(name, body);      // (and the giver says it aloud)
     if (!st || st.s === 'active') {
       const ob = el('div', 'q-obj');
       ob.innerHTML = `<h3>What is to be done</h3><div>${esc(typeof q.brief === 'function' ? q.brief(n) : q.brief)}</div>` +

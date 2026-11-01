@@ -30,6 +30,8 @@ import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud, SPELL_KEYS } from './hud.js';
+import { voice } from './voice.js';
+import { Chatter } from './chatter.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
@@ -135,7 +137,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers;
-let quests = null, saves = null, intro = null, introBusy = false, holdHour = false;
+let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -143,7 +145,7 @@ let progress = (() => { try { return JSON.parse(localStorage.getItem(PROGRESS) |
 // the dead: a horde about the graves (kept up by more clawing out of the ground, with a few
 // lying buried); the catacombs place their own, each where it would be (catacombs.js), and the
 // delves and caves fill theirs (delves.js)
-const YARD_DEAD = 28, YARD_BURIED = 6;
+const YARD_DEAD = 40, YARD_BURIED = 10;   // (more of them, and each easier to kill)
 // what each kind of spell does to flesh: a direct hit, its blast (radius, damage), and how
 // likely a direct hit is to blow off the head or limb it lands on (zombies.js BLOW: by where)
 const SPELL_DMG = { fire: 45, frost: 22, lightning: 60, staff: 30, wisp: 25 };
@@ -152,7 +154,7 @@ const SPELL_BLOW = { fire: 1, lightning: 1.25, staff: 0.85, frost: 0.5 };
 const book = { F: 'firebolt', R: 'mend' };
 const pending = { R: null, L: null };
 let timeMode = localStorage.getItem('bm.time') || 'cycle';
-let hour = { golden: 17.6, noon: 12, night: 23, cycle: 16.8 }[timeMode] ?? 16.8;
+let hour = { golden: 17.6, noon: 12, night: 23, cycle: 6 }[timeMode] ?? 6;   // (a new day begins at 06:00)
 let started = false, paused = false, lost = false;
 let W = 2, H = 2;
 let shake = 0, flameList = [], lightTimer = 0;
@@ -313,6 +315,7 @@ async function build() {
   await mark('arms');
   await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
+  voice.listener = player;            // (how loud each voice is: by how far from you it is)
   player.onFall = (d) => hurtPlayer(d, null, 'fall');      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
@@ -322,7 +325,8 @@ async function build() {
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
   // every place below ground, and out in the world the dead about the water, the bridge, the
   // cliff and the deep of the wood (a phone gets half)
-  const few = (n) => (touch && !HI ? Math.ceil(n / 2) : n);
+  // (more of the dead everywhere than there were, half again on a computer; a phone, fewer)
+  const few = (n) => (touch && !HI ? Math.ceil(n * 0.6) : Math.round(n * 1.5));
   for (const u of ctx.unders) {
     if (u.cat) continue;
     if (u.plan) zombies.populateCave(u.dg, u.plan.map(([tag, n, haunt]) => [tag, few(n), haunt]));
@@ -352,6 +356,20 @@ async function build() {
   // them in before play (prepare waits; a phone brings the Sworn once the village is in, and the
   // clips once the Sworn are, so it never holds two loads at once)
   villagers = new Villagers(scene, ctx);
+  chatter = new Chatter(zombies);                       // (what the Sworn and the dead say)
+  villagers.extraSpeakers = () => chatter.talking();     // (their bubbles drawn with the villagers')
+  // a villager's gift: into your bag (or at your feet if it's full), remembered for this game
+  villagers.onGift = (id) => {
+    const it = makeUnique(id);
+    if (!it) return;
+    try { localStorage.setItem('bm.taken.gift.' + id, '1'); } catch { /* no storage */ }
+    // (into your hands at once; your old weapon goes back in the bag)
+    if (addToBag(char, it)) { const i = char.bag.indexOf(it); if (i >= 0) bag.equipFromBag(i, 'weapon'); }
+    else { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
+    hud.announce('A gift from Garrow', it.name);
+    hud.toast(`${it.name}: a great sword, swung with both hands`);
+    saveCharacter(char); bag.render();
+  };
   villagers.camera = camera;
   villagers.onLoading = (p) => { run.bringing = p?.name || ''; trace(); };   // who is coming in (null: they're in)
   villagers.populate(touch && !HI ? 10 : 22);
@@ -384,6 +402,9 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   // the quests (quests.js): who gives them, what's done, the tracker, the log
   quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
+    // (a quest giver reads you the quest aloud, in their own voice; closing the window hushes them)
+    speak: (name, text) => { const v = villagers.list.find((a) => a.name === name); voice.say(v || { name }, text, { toYou: true, pri: 3, key: name, sex: v && /_f\d/.test(v.m) ? 'f' : 'm', kind: 'villager', pos: v?.pos || player.pos }); },
+    hush: () => voice.stop(),
     onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
     onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
   villagers.quests = quests;
@@ -1242,7 +1263,7 @@ async function startOver() {
   quests.load({});
   progress = { arrived: false };
   try { localStorage.removeItem(PROGRESS); } catch { /* no storage */ }
-  if (timeMode === 'cycle') hour = 18.3;      // sundown (held there till the village has met you)
+  if (timeMode === 'cycle') hour = 6;         // 06:00: the game begins at dawn (held there till the village has met you)
   holdHour = true;
   await applyGear(true);
   zombies.forget();
@@ -1574,6 +1595,7 @@ function tick(dt) {
   zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
   ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
   foes.update(dt, player);
+  chatter.update(dt, player, active);
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
@@ -1587,6 +1609,7 @@ function tick(dt) {
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
   light(dt, t);
   hud.update(player, book);
+  hud.clockTime(hour);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening

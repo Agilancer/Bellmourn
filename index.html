@@ -300,6 +300,7 @@
 
   /* ---------------- the map */
   .minimap { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 14px; width: 132px; height: 132px; image-rendering: pixelated; opacity: .92; }
+  .clock { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 152px; width: 132px; text-align: center; font: 700 17px 'Cinzel', Georgia, serif; letter-spacing: .12em; color: var(--gold); text-shadow: 0 1px 3px #000, 0 0 8px rgba(0,0,0,.8); pointer-events: none; font-variant-numeric: tabular-nums; }
   .map-full { position: absolute; inset: 3vh 3vw; background: #1a140c; border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000;
               display: grid; justify-items: center; align-content: center; gap: 6px; touch-action: none; }
   .map-full .close { position: absolute; right: 8px; top: 6px; width: 40px; height: 40px; font-size: 22px; }
@@ -421,6 +422,7 @@
   @media (pointer: coarse) {
     .bars { bottom: auto; top: 14px; width: 30vw; }
     .minimap { top: 70px; width: 104px; height: 104px; }
+    .clock { top: 178px; width: 104px; font-size: 14px; }
     .slots { display: none; }
     .hands { bottom: auto; top: 54px; left: max(18px, env(safe-area-inset-left)); transform: none; }
     .zone { font-size: 22px; top: 22%; }

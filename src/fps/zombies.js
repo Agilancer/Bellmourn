@@ -86,9 +86,9 @@ const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 150
 const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, shoulder: 0.07, upper_arm: 0.06,
   forearm: 0.052, hand: 0.05, thigh: 0.085, shin: 0.065, foot: 0.06 };
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
-const HP = 170;
+const HP = 120;   // (easier to kill than they were, but there are more of them)
 const WOUNDS = 16;
-const STAINS = 14;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
+const STAINS = 24;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
 // a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
 const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3, arcane: 2, missile: 2, void: 2 };
 // the mark a blow of each kind leaves on the skin about where it landed (STAINS: 0 blood, 1 char,
@@ -138,14 +138,14 @@ float stains(inout vec3 c) {
     vec4 s = uStain[i];
     vec3 q = vBind - s.xyz;
     float d = length(q) / s.w;
-    if (d > 3.2) continue;
+    if (d > 2.6) continue;
     float t = uStainT[i], seed = float(i) * 13.7;
     float edge = d + (gNoise(vBind * 38.0 + seed) - 0.5) * 0.9 + (gNoise(vBind * 110.0 + seed) - 0.5) * 0.35;
-    float drop = step(0.83, gNoise(vBind * 260.0 + seed)) * step(d, 2.6) * step(0.9, edge);   // the spatter round it
+    float drop = step(0.86, gNoise(vBind * 260.0 + seed)) * step(d, 2.1) * step(0.9, edge);   // the spatter round it
     if (t < 0.5) {
       // and the runs: down from the splash (bind space is the body standing), thinning as they go
       float below = -q.y / s.w, across = length(q.xz) / s.w;
-      float run = step(0.0, below) * step(below, 3.0) * step(0.62, gNoise(vec3(vBind.x * 90.0, 0.0, vBind.z * 90.0) + seed)) * step(across, 0.95 - below * 0.22);
+      float run = step(0.0, below) * step(below, 2.2) * step(0.66, gNoise(vec3(vBind.x * 90.0, 0.0, vBind.z * 90.0) + seed)) * step(across, 0.8 - below * 0.25);
       float k = max(max(step(edge, 1.0), drop), run * 0.85);
       if (k > 0.0) {
         vec3 blood = mix(vec3(0.26, 0.012, 0.016), vec3(0.45, 0.03, 0.03), gNoise(vBind * 70.0 + seed));
@@ -187,7 +187,7 @@ float gore(inout vec4 col) {
       gash = min(gash, length(e) / w.w);
       // the blood that ran down from it: under the gash, narrowing as it goes
       float below = -e.y, side = length(e.xz) / w.w;
-      if (below > 0.0 && below < w.w * 9.0) run = max(run, (1.0 - below / (w.w * 9.0)) * step(side, 1.1 - below / (w.w * 10.0)));
+      if (below > 0.0 && below < w.w * 5.0) run = max(run, (1.0 - below / (w.w * 5.0)) * step(side, 0.9 - below / (w.w * 7.0)));
       continue;
     }
     float d = length(vBind - w.xyz) / abs(w.w);
@@ -202,14 +202,14 @@ float gore(inout vec4 col) {
   if (gl_FrontFacing) {
     if (h < 0.6 || sp < 0.62) discard;                  // torn (or blown) open
     if (s < 0.45) { col.rgb = mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s)); return 1.0; }   // the gash
-    if (s < 2.4 || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.75) {
-      float k = s < 2.4 ? smoothstep(0.45, 2.4, s) : 0.3;
-      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it
-      if (s < 2.4) return (1.0 - k) * 0.9;
+    if ((s < 1.5 && gNoise(vBind * 90.0) > 0.25) || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.8) {
+      float k = s < 1.5 ? smoothstep(0.45, 1.5, s) : 0.3;
+      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it (in spots)
+      if (s < 1.5) return (1.0 - k) * 0.9;
     }
     if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
     if (sp < 0.7) { col.rgb = raw * 0.5; return 1.0; }  // a thin lip of seared meat
-    float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
+    float soak = min(smoothstep(0.86, 1.3, h), smoothstep(0.55, 1.15, c));
     col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
     float wet = (1.0 - soak) * 0.7;
     wet = max(wet, stains(col.rgb));
@@ -487,6 +487,73 @@ function adaptMonster(gltf) {
   return gltf;
 }
 
+// The undead on the animation library's skeleton (templates/models/creatures/zombie_ual, game
+// copies in game/ and game/phone/ from tools/creatures/zombie_ual/game_copies.py): ten bodies, one
+// set of clips (ual2_clips.glb) every one of them is bound to. They are the game's dead now, each
+// standing in for one of the grotesques (whose names the haunts, the quests and the catacombs ask
+// for), so everything that asks for a rotting zombie gets the shambler, and so on.
+const UAL_ROOT = 'templates/models/creatures/zombie_ual/';
+export const UAL_DEAD = { rotting_zombie: 'shambler', bloated_drowner: 'drowned', plague_bearer: 'plague', tomb_mummy: 'mummy', ember_husk: 'cinder',
+  pale_ghoul: 'ghoul', chitin_fiend: 'veinwretch', deep_maw: 'maw', fungal_husk: 'ropebound', bog_troll: 'ancient' };
+const TAKES = ['', '_B', '_C', '_D', '_E'];
+
+/** The library's clips in the zombie body's terms (its bones' names), by name. */
+function ualClips(gltf) {
+  const C = {};
+  for (const c of gltf.animations) {
+    for (const t of c.tracks) {
+      const i = t.name.lastIndexOf('.'), n = t.name.slice(0, i);
+      if (MONSTER_BONES[n]) t.name = MONSTER_BONES[n] + t.name.slice(i);
+    }
+    C[c.name] = c;
+  }
+  return C;
+}
+
+/** A UAL body ready for the brain: bones renamed, and the clips it asks for made from the library's.
+ * Every body keeps the takes (userData.takes): each of the dead draws its own walk, idle and blows
+ * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. */
+function adaptUAL(gltf, C) {
+  shareTextures(gltf.scene);
+  gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
+  gltf.scene.updateMatrixWorld(true);
+  let rootB = null, hipsB = null;
+  gltf.scene.traverse((o) => { if (o.isBone && o.name === 'hips') { hipsB = o; rootB = o.parent; } });
+  const takes = (base) => TAKES.map((s) => C[base + s]).filter(Boolean);
+  const named = (c, n) => { if (!c) return null; const k = c.clone(); k.name = n; return k; };
+  const sub = (c, n, a, b) => (c ? THREE.AnimationUtils.subclip(c, n, a, Math.min(b, Math.round(c.duration * FPS)), FPS) : null);
+  // laid face down on the floor, the pelvis a hand's breadth up: a clip made to crawl
+  const prone = (c, n) => {
+    if (!c || !hipsB || !rootB) return named(c, n);
+    const k = c.clone(); k.name = n;
+    const WR = rootB.getWorldQuaternion(new THREE.Quaternion()), M = WR.clone().invert().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)).multiply(WR);
+    const restY = hipsB.getWorldPosition(new THREE.Vector3()).y, inv = new THREE.Matrix4().copy(rootB.matrixWorld).invert();
+    const d = new THREE.Vector3(0, 0.2 - restY, 0.35).transformDirection(inv).multiplyScalar(new THREE.Vector3(0, 0.2 - restY, 0.35).length() / rootB.getWorldScale(new THREE.Vector3()).y);
+    const q = new THREE.Quaternion();
+    for (const t of k.tracks) {
+      const v = t.values;
+      if (t.name === 'hips.quaternion') for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).premultiply(M); q.toArray(v, i); }
+      if (t.name === 'hips.position') for (let i = 0; i < v.length; i += 3) { v[i] += d.x; v[i + 1] += d.y; v[i + 2] += d.z; }
+    }
+    return k;
+  };
+  const idle = takes('Zombie_Idle_Loop'), walk = takes('Zombie_Walk_Fwd_Loop'), scratch = takes('Zombie_Scratch');
+  const blows = [...scratch, C.Melee_Hook, C.OverhandThrow].filter(Boolean);
+  const knock = C.Hit_Knockback, last = knock ? Math.round(knock.duration * FPS) : 0;
+  gltf.animations = [
+    named(idle[0], 'idle'), named(walk[0], 'walk'), named(walk[1] || walk[0], 'run'),
+    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(C.Melee_Hook || blows[2], 'attack3'),
+    sub(knock, 'hit', 0, 9), named(knock, 'death'), knock && THREE.AnimationUtils.subclip(knock, 'dead', last - 1, last, FPS),
+    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop, 'fall'),
+    prone(walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
+    sub(prone(idle[0], 'crawl_death'), 'crawl_death', 0, 2),
+  ].filter(Boolean);
+  // (the takes each body draws its own from; and where in each blow it lands)
+  gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
+  gltf.userData.ual = true;
+  return gltf;
+}
+
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
 
@@ -540,6 +607,25 @@ export class Zombie {
       const a = this.mixer.clipAction(clip);
       if (this.constructor.ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
       this.actions[clip.name] = a;
+    }
+    // a UAL body: its own walk, idle and blows from the takes, kept for as long as it walks (no two
+    // side by side shamble the same), and where in each blow its hand lands
+    const T = gltf.userData.takes;
+    if (T) {
+      const n = this.owner.nextTake = (this.owner.nextTake || 0) + 1, own = (list, salt) => list[(n * 3 + salt + Math.floor(Math.random() * 7)) % list.length];
+      const set = (name, clip, once = false) => {
+        if (!clip) return;
+        const a = this.mixer.clipAction(clip);
+        if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+        this.actions[name] = a;
+      };
+      set('idle', own(T.idle, 0)); const w = Math.floor(Math.random() * T.walk.length);
+      set('walk', T.walk[w]); set('run', T.walk[(w + 1) % T.walk.length]); set('crawl', T.prone[w]);
+      // three blows of its own from the scratches, the hook and the overhand throw, swapped round as it fights
+      const blows = T.blows.slice().sort(() => Math.random() - 0.5);
+      ['attack1', 'attack2', 'attack3'].forEach((k, i) => set(k, blows[i % blows.length], true));
+      this.blowPool = blows;
+      this.hitAt = Object.fromEntries(['attack1', 'attack2', 'attack3', 'crawl_attack'].map((k) => [k, Math.round((this.actions[k]?.getClip().duration || 1) * FPS * 0.5)]));
     }
     this.cur = null;
 
@@ -648,6 +734,17 @@ export class Zombie {
   }
 
   done() { const a = this.actions[this.cur]; return !a || !a.isRunning() || a.time >= a.getClip().duration - 1e-3; }
+
+  /** It changes up its blows now and then: blow k (not the one playing) swapped for another it
+   * knows (a UAL body: the scratches, the hook, the overhand throw). */
+  swapBlow(k) {
+    if (!this.blowPool || this.cur === k || Math.random() > 0.35) return;
+    const c = this.blowPool[Math.floor(Math.random() * this.blowPool.length)];
+    if (c === this.actions[k]?.getClip()) return;
+    const a = this.actions[k] = this.mixer.clipAction(c);
+    a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
+    this.hitAt[k] = Math.round(c.duration * FPS * 0.5);
+  }
 
   sync() {
     this.root.position.copy(this.pos);
@@ -805,6 +902,7 @@ export class Zombie {
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
+    const max = this.champ?.max || (this.kindName && this.kind?.hp) || HP;
     // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
     // the rim, anything else a ragged hole
     const rim = SPELL_RIM[kind] || 0;
@@ -834,10 +932,28 @@ export class Zombie {
       this.limbHp[limb] -= dmg * (leg ? (kind === 'blade' ? 0.85 : 0.5) / legToughness(this.heft) : kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
       const big = (this.heft || 1) >= 1.6 || this.champ || this.def?.boss;
-      if (this.limbHp[limb] <= 0) this.sever(limb, dir);
-      else if (blow && !(leg && big) && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')] / (leg ? this.heft || 1 : 1)) this.blowOff(limb, dir, rim);
+      // (a head comes off only once it's under 30% of its life, a leg or the waist under half: till
+      // then the limb holds at the brink, and goes with the blow that takes it under)
+      const ok = this.hp / max < (limb === 'head' ? 0.3 : leg ? 0.5 : 2);
+      if (this.limbHp[limb] <= 0) { if (ok) this.sever(limb, dir); else this.limbHp[limb] = 1; }
+      else if (ok && blow && !(leg && big) && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')] / (leg ? this.heft || 1 : 1)) this.blowOff(limb, dir, rim);
     } else {
       this.hp -= dmg;
+    }
+    // the weaker it is, the more it bleeds: splatters thrown wider over it with every blow, and the
+    // blood squirting from the wound and the ones it already has
+    const worn = 1 - Math.max(0, Math.min(1, this.hp / max));
+    if (worn > 0.2) {
+      for (let i = 0, n = Math.round(worn * 5); i < n; i++) {
+        _t.copy(p).add(_u.set((Math.random() - 0.5) * 0.6, (Math.random() - 0.35) * 0.7, (Math.random() - 0.5) * 0.6));
+        this.mark(_t, b, 0.035 + Math.random() * 0.045 * worn, 0);
+      }
+      g.spray(p, _w.copy(dir).add(_u.set((Math.random() - 0.5) * 1.4, 0.9, (Math.random() - 0.5) * 1.4)), Math.round(60 + 140 * worn), { speed: 3.5 + 3 * worn, spread: 1.4, size: 0.014 });
+      for (let i = 0; i < Math.round(worn * 3); i++) {
+        const w = this.stumps?.length && Math.random() < 0.5 ? this.stumps[Math.floor(Math.random() * this.stumps.length)] : null;
+        const at = w ? w.bone.getWorldPosition(_f) : this.bones.chest?.getWorldPosition(_f) || p;
+        g.spray(at, _w.set((Math.random() - 0.5) * 2, 1.2 + Math.random(), (Math.random() - 0.5) * 2), Math.round(30 + 60 * worn), { speed: 4 + 2 * worn, spread: 0.6, size: 0.012 });
+      }
     }
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
@@ -1148,7 +1264,7 @@ export class Zombie {
         const f = this.forward();
         phys.slide(this.pos, f.x * 4.2 * dt, f.z * 4.2 * dt, 0.3, 1.6, 0.45);
       }
-      if (!this.fired && a.time * FPS >= HIT_AT[this.cur]) {
+      if (!this.fired && a.time * FPS >= (this.hitAt?.[this.cur] ?? HIT_AT[this.cur])) {
         this.fired = true;
         const reach = crawl ? 2.0 : 1.9;
         if (active && dist < reach && facingErr < 1.2 && Math.abs(player.pos.y - this.pos.y) < 1.2) owner.onPlayerHit?.(ATTACK_DMG[this.cur], this);
@@ -1251,7 +1367,9 @@ export class Zombie {
       : [this.arm('R') && 'attack1', this.arm('L') && 'attack2', (this.arm('L') || this.arm('R') || this.has('head')) && 'attack3'].filter(Boolean);
     if (chasing && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
       this.state = 'attack';
-      this.play(moves[Math.floor(Math.random() * moves.length)], 0.12);
+      const mv = moves[Math.floor(Math.random() * moves.length)];
+      this.swapBlow(mv);
+      this.play(mv, 0.12);
       return;
     }
     if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < 3.4 && facingErr < 0.3 && moves.includes('attack3')) {
@@ -1438,8 +1556,14 @@ export class Zombies {
   async load(variants = [], monsters = [], grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
     const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
+    // the dead are the UAL bodies now, under the grotesques' names; the clips they share come first
+    let clips = null;
+    try { clips = ualClips(await loader.loadAsync(UAL_ROOT + 'ual2_clips.glb')); } catch (e) { console.warn('undead clips', e); }
     const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
-      try { this.gltf[g] = await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`); } catch (e) { console.warn('grotesque', g, e); }
+      try {
+        this.gltf[g] = clips && UAL_DEAD[g] ? adaptUAL(await loader.loadAsync(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${UAL_DEAD[g]}.glb`), clips)
+          : await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`);
+      } catch (e) { console.warn('undead', g, e); }
     };
     const one = async () => {   // a phone: one decoding at a time
       for (const m of monsters) await monster(m);

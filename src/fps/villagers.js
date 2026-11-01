@@ -23,6 +23,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
+import { speak, tickTalk } from './speech.js';
+import { MORE_BARKS, MORE_GREETS, MORE_SITUATIONAL as MS } from './lines/barks.js';
+
+// (the town's words, and the many more in lines/: what they mutter, greet you with, and say at dusk,
+// in flight, at prayer, at the well and the stalls)
+for (const [k, v] of Object.entries(MORE_BARKS)) BARKS[k] = [...(BARKS[k] || []), ...v];
+for (const [k, v] of Object.entries(MORE_GREETS)) GREETS[k] = [...(GREETS[k] || []), ...v];
+DUSK.push(...MS.dusk, ...MS.night); FLEE.push(...MS.flee); PRAY.push(...MS.pray); WELL.push(...MS.well); SHOPPING.push(...MS.shopping.map((s) => [[s]]));   // (a stall's exchanges are lists of lines)
 import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS, HUSH } from './tessariel.js';
 import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
@@ -75,6 +83,14 @@ const PHONE_WAIT = 4;          // seconds after the village is built before a ph
 const QUIET = 5;          // seconds of silence when the game starts
 const NEAR = 22;          // metres: speech this close to you counts against the bubble budget
 const SHOW = 26;          // metres: bubbles further than this aren't drawn
+// what Garrow says as he gives you his son's sword (the first time you speak to him)
+const GARROW_GIFT = [
+  "You. You're the one who went down the stair and came back up. Wait there.",
+  "I made this for my boy, Aldo. A great sword, two hands, proper steel, the best thing I ever forged. He took it down that same stair the winter the bell first rang wrong, and he never came back up.",
+  "They found it at the foot of the stair the next spring. No sign of him. I've had it on my wall since, and I can't look at it any more.",
+  "Take it. Swing it with both hands, put your back into it, and it'll split a dead man to the belt. Bring it back up every time. That's all I ask.",
+];
+
 const lineTime = (text) => Math.min(5.5, Math.max(2.4, 1.6 + text.length * 0.06));
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -304,10 +320,10 @@ export class Villagers {
 
   face(a, x, z) { if (x && x.pos) { z = x.pos.z; x = x.pos.x; } a.faceTo = Math.atan2(x - a.pos.x, z - a.pos.z); }
 
+  /** a says text (paged into more bubbles if it's long, and aloud in their own voice). */
   say(a, text, toYou = false) {
-    const dur = lineTime(text);
-    a.talk = { text, t: dur, age: 0, dur, toYou };
-    return dur;
+    return speak(a, text, toYou, { voice: { key: a.name, sex: /_f\d/.test(a.m) ? 'f' : 'm', kind: 'villager',
+      age: a.tags?.includes('old') ? 'old' : a.tags?.includes('young') ? 'young' : null } });
   }
 
   near(a, player) { return player && Math.hypot(player.pos.x - a.pos.x, player.pos.z - a.pos.z) < NEAR; }
@@ -511,7 +527,7 @@ export class Villagers {
     const [l1, l2, l3] = pick(SHOPPING);
     yield* this.line(a, l1[0]);
     if (v.tending == null) return;
-    yield* this.line(v, l2[0]);
+    if (l2) yield* this.line(v, l2[0]);
     if (l3) yield* this.line(a, l3[0]);
     this.gesture(v, 'interact');
     yield rand(1, 2.5);
@@ -571,6 +587,9 @@ export class Villagers {
   }
 
   /** You speak to someone with nothing to give you: they turn, and say something about who you are. */
+  /** Whether a villager's gift (a unique's id) has been given already (this game). */
+  gave(id) { try { return !!localStorage.getItem('bm.taken.gift.' + id); } catch { return false; } }
+
   talkTo(a, player) {
     if (a.gathered) return;   // (at the edge of town after the green star: they're already talking to you)
     this.stopScenes(a);
@@ -580,6 +599,14 @@ export class Villagers {
       self.face(a, player);
       yield 0.2;
       if (chance(0.4)) self.gesture(a, 'wave');
+      // Garrow the smith, the first time: he gives you his son's great sword
+      if (a.name === 'Garrow' && self.onGift && !self.gave('garrowsoath')) {
+        a.talk = null;
+        for (const ln of GARROW_GIFT) { const d = self.say(a, ln, true); yield d + 0.3; }
+        if (chance(0.6)) self.gesture(a, 'wave');
+        self.onGift('garrowsoath', a);
+        return;
+      }
       const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
       a.talk = null;
       const d = self.say(a, pick(lines), true);
@@ -770,7 +797,7 @@ export class Villagers {
         else this.play(a, a.ual && a.talk && a.talk.t > 0 ? 'idle_talk' : a.rest);   // (talking with their hands while their words are up; some stand arms folded)
       }
       // speech ages
-      if (a.talk) { a.talk.t -= dt; a.talk.age += dt; if (a.talk.t <= 0) a.talk = null; }
+      if (a.talk) tickTalk(a, dt);
       // you can't walk through them
       if (dist < 0.55 && dist > 1e-4 && Math.abs(player.pos.y - a.pos.y) < 1.5) { player.pos.x = a.pos.x + dx / dist * 0.55; player.pos.z = a.pos.z + dz / dist * 0.55; }
       a.root.visible = !far;
@@ -781,7 +808,7 @@ export class Villagers {
       a.root.position.copy(a.pos);
       a.root.rotation.y = a.yaw;
     }
-    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) : null);
+    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) : null, this.extraSpeakers);
   }
 }
 
@@ -800,11 +827,12 @@ class Bubbles {
     this.shown = false;
   }
 
-  draw(vill, camera, markOf = null) {
+  draw(vill, camera, markOf = null, extra = null) {
     const c = this.canvas, g = this.g, dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
     const talking = this.hidden ? [] : vill.list.filter((a) => a.talk && !a.inside && a.root.visible && a.head);
+    if (!this.hidden && extra) for (const a of extra()) if (a.talk && a.root?.visible !== false) talking.push(a);
     const marked = markOf && !this.hidden ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
     if (!talking.length && !marked.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
     g.clearRect(0, 0, W, H); this.shown = true;
@@ -812,11 +840,11 @@ class Bubbles {
     for (const a of marked) this.mark(g, a, camera, vill, dpr, W, H);
     const items = [];
     for (const a of talking) {
-      a.head.getWorldPosition(_v); _v.y += 0.36;
+      if (a.speechAt) a.speechAt(_v); else { a.head.getWorldPosition(_v); _v.y += 0.36; }
       const dist = _v.distanceTo(_w);
       if (dist > SHOW) continue;
       // behind a wall? (checked a few times a second)
-      if ((a.occT -= 1 / 60) <= 0) {
+      if (!((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
         a.occT = 0.25;
         _d.copy(_v).sub(_w).normalize();
         const hit = vill.physics.ray ? vill.physics.ray(_w, _d, dist) : null;
@@ -865,21 +893,22 @@ class Bubbles {
 
   bubble(g, { a, x, y, dist }, dpr, placed) {
     const t = a.talk, k = Math.min(1, t.age / 0.18), fade = Math.min(1, t.t / 0.35);
-    const s = dpr * Math.max(0.62, Math.min(1.15, Math.pow(7 / Math.max(dist, 1), 0.45)));
+    // (big enough to read at a distance: a larger hand, a wider sheet, five lines a page)
+    const s = dpr * Math.max(0.82, Math.min(1.25, Math.pow(7 / Math.max(dist, 1), 0.45)));
     g.save();
     g.globalAlpha = Math.min(k, fade) * Math.max(0.5, Math.min(1, (SHOW - dist) / 5));
-    const fs = 14 * s;
+    const fs = 19 * s;
     g.font = `600 ${fs}px "Alegreya Sans", "Segoe UI", sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    const maxW = 210 * s, lines = [];
+    const maxW = 340 * s, lines = [];
     let line = '';
     for (const word of String(t.text).split(/\s+/)) {
       const next = line ? line + ' ' + word : word;
       if (line && g.measureText(next).width > maxW - 28 * s) { lines.push(line); line = word; } else line = next;
     }
     if (line) lines.push(line);
-    if (lines.length > 3) { lines.length = 3; lines[2] += '…'; }
-    const lh = fs * 1.22, w = Math.min(maxW, Math.max(64 * s, ...lines.map((l) => g.measureText(l).width + 26 * s)));
+    if (lines.length > 5) { lines.length = 5; lines[4] += '…'; }
+    const lh = fs * 1.2, w = Math.min(maxW, Math.max(70 * s, ...lines.map((l) => g.measureText(l).width + 30 * s)));
     const h = lines.length * lh + 14 * s;
     let bx = x - w / 2, by = y - h - 12 * s + (1 - k) * 8 * s;
     // step aside for bubbles already placed (Velscour's offsets)
@@ -910,7 +939,7 @@ class Bubbles {
     // their name, small, on the rim
     g.font = `italic 600 ${fs * 0.72}px "Alegreya Sans", "Segoe UI", sans-serif`;
     g.fillStyle = '#8a6a3a'; g.textAlign = 'left';
-    g.fillText(a.name, bx + 9 * s, by - 7 * s);
+    g.fillText((a.speaker || a.name) + (t.pages && t.pages.length > 1 ? `  ${t.pi + 1}/${t.pages.length}` : ''), bx + 9 * s, by - 7 * s);
     g.restore();
   }
 }

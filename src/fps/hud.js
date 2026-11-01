@@ -123,7 +123,10 @@ export class Hud {
     // experience: a thin bar along the bottom, and the banner when a level comes
     this.xpEl = el('div', 'xpbar', '<i></i><span></span>');
     this.banner = el('div', 'banner');
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner);
+    // the hour of the day, 24-hour, under the corner map
+    this.clock = el('div', 'clock', '06:00');
+    this.lastClock = '';
+    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner, this.clock);
     r.append(this.hud);
 
     // ---- pause (the title screen, its settings and how to play are title.js's)
@@ -202,6 +205,12 @@ export class Hud {
       const s = this.o.spells[book[k]];
       this.slotEl[k].classList.toggle('low', !!s && player.mana < s.mana);
     }
+  }
+
+  /** The clock under the map: the game's hour (0-24, fractional) as HH:MM, military time. */
+  clockTime(hour) {
+    const m = Math.floor((((hour % 24) + 24) % 24) * 60), t = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    if (t !== this.lastClock) { this.lastClock = t; this.clock.textContent = t; }
   }
 
   zone(name) {

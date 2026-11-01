@@ -69,13 +69,13 @@ export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body);
 
 // how each kind stands up to you: hp, damage taken (armour), limb toughness, speeds, senses
 const KIND = {
-  knight: { hp: 260, armor: 0.72, limb: 1.45, walk: 1.3, run: 3.5, sight: 28, hear: 1.0, turn: 3.6, reach: 2.05, flinch: 0.25, tier: 3, heft: 1.6,
+  knight: { hp: 195, armor: 0.72, limb: 1.45, walk: 1.3, run: 3.5, sight: 28, hear: 1.0, turn: 3.6, reach: 2.05, flinch: 0.25, tier: 3, heft: 1.6,
     dmg: { attack1: 12, attack2: 16, attack3: 11, bash: 6 }, cool: [0.6, 1.4] },
-  sorcerer: { hp: 140, armor: 1, limb: 0.9, walk: 1.15, run: 2.8, sight: 32, hear: 1.1, turn: 3.2, reach: 1.8, flinch: 0.6, tier: 2,
+  sorcerer: { hp: 105, armor: 1, limb: 0.9, walk: 1.15, run: 2.8, sight: 32, hear: 1.1, turn: 3.2, reach: 1.8, flinch: 0.6, tier: 2,
     dmg: { attack1: 10 }, cool: [0.8, 1.4] },
-  ghast: { hp: 130, armor: 1, limb: 0.8, walk: 1.5, run: 5.2, sight: 20, hear: 1.6, turn: 5.5, reach: 1.9, flinch: 0.45, tier: 1,
+  ghast: { hp: 100, armor: 1, limb: 0.8, walk: 1.5, run: 5.2, sight: 20, hear: 1.6, turn: 5.5, reach: 1.9, flinch: 0.45, tier: 1,
     dmg: { attack1: 7, attack2: 7, attack3: 12 }, cool: [0.5, 1.2] },
-  grubber: { hp: 170, armor: 0.9, limb: 1.1, walk: 0.95, run: 2.6, sight: 13, hear: 1.5, turn: 2.8, reach: 1.65, flinch: 0.3, tier: 1, heft: 1.4,
+  grubber: { hp: 130, armor: 0.9, limb: 1.1, walk: 0.95, run: 2.6, sight: 13, hear: 1.5, turn: 2.8, reach: 1.65, flinch: 0.3, tier: 1, heft: 1.4,
     dmg: { attack1: 14, attack2: 9, attack3: 11 }, cool: [0.8, 1.5] },
 };
 // a variant's own `stats` over its kind's: the Sworn in heavier plate than the dark knights of the
@@ -97,11 +97,11 @@ export const FITTINGS = [
   { tarnished_gold_dark: null, cloth_01: [0.77, 3.2, 2.7] },                              // no horns, ash-grey cloth
 ];
 export const STATS = {
-  sworn: { hp: 320, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
+  sworn: { hp: 240, armor: 0.62, limb: 1.7, walk: 1.7, run: 4.4, turn: 4.8, sight: 26, tier: 4, heft: 1.8, swing: 1.18, gait: GAIT,
     dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
-  adept: { hp: 220, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
+  adept: { hp: 165, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
     dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
-  lord: { hp: 1500, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
+  lord: { hp: 1150, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
     dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
 // (as the zombies': the legs take far more than the arms, and zombies.js makes them harder still on
@@ -1528,7 +1528,8 @@ export class Foes {
     let n = 0;
     // the downs: bands on the march between its places
     const downs = ctx.biomes?.downs?.lairs || [];
-    const bands = [['knight_a', 'knight_a'], ['knight_b', 'sorcerer_a'], ['knight_c', 'knight_c', 'sorcerer_c'], ['knight_a', 'sorcerer_b'], ['knight_b', 'knight_b']];
+    // (bands of three and four: more of them, and they talk it over among themselves as they come)
+    const bands = [['knight_a', 'knight_a', 'knight_b'], ['knight_b', 'sorcerer_a', 'knight_c'], ['knight_c', 'knight_c', 'sorcerer_c', 'knight_a'], ['knight_a', 'sorcerer_b', 'knight_b'], ['knight_b', 'knight_b', 'knight_a', 'sorcerer_a']];
     downs.forEach((l, i) => {
       const next = downs[(i + 1) % downs.length];
       const route = [...round(l.x, l.z, l.r, 3), [(l.x + next.x) / 2, (l.z + next.z) / 2], ...round(next.x, next.z, next.r, 2)];
