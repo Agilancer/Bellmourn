@@ -9,14 +9,21 @@
 // speaker stands: quieter further off, to the left or the right. A long line is said a sentence
 // at a time, so it starts at once.
 //
-// On a phone (the model is about 90 MB, and a phone's memory is short), while the neural voices are
-// still loading, or if they can't, the browser's own speech synthesis speaks instead.
+// The model and every voice it speaks in are fetched while the game loads (warm(), from main.js at
+// once; a new game waits for them: ready), on a phone too. While they're still coming, or if they
+// can't, the browser's own speech synthesis speaks instead.
+//
+// Every voice is heard at one level: each sentence is brought to the same loudness as it's made, it
+// plays through the game's own sound (the master volume, the limiter), and distance only softens a
+// voice a little (all of a crowd round you is heard).
 //
 // Settings: localStorage bm.voices = '0' turns all voices off; bm.neural = '0' keeps to the
-// browser's voices, '1' asks for the neural ones on a phone too.
-import { TOUCH } from './input.js';
+// browser's voices.
 
 const EARSHOT = 28;          // metres
+const LOUD = 0.12;           // every sentence's loudness (RMS) before its speaker's volume
+/** How loud a speaker d metres off is heard: all of it near, never less than a little over half. */
+const near = (d, pri) => (pri >= 2 ? 1 : Math.max(0.6, Math.min(1, 1.15 - (0.55 * d) / EARSHOT)));
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
 
@@ -80,28 +87,38 @@ const neural = {
   playing: [],               // { src, pri, end, who }
   ms: [],                    // how long the lines took to make (for the log)
 
-  wanted() { const s = store('bm.neural'); return s === '1' || (s !== '0' && !TOUCH); },
+  wanted() { return store('bm.neural') !== '0'; },
+  got: 0, of: 0,             // how many of the voices are in (every one is fetched before it's ready)
 
   start() {
-    if (this.state !== 'off' || !this.wanted() || typeof Worker === 'undefined') return;
+    if (this.state !== 'off' || !this.wanted() || typeof Worker === 'undefined') { if (this.state === 'off') this.settle(false); return; }
     this.state = 'loading';
     try {
       this.worker = new Worker(new URL('./tts_worker.js', import.meta.url), { type: 'module' });
     } catch (e) { this.state = 'failed'; console.warn('voices: no worker', e); return; }
     this.worker.onmessage = (e) => this.onMessage(e.data);
-    this.worker.onerror = (e) => { this.state = 'failed'; console.warn('voices: the neural voices failed', e.message); };
-    this.worker.postMessage({ type: 'load' });
+    this.worker.onerror = (e) => { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices failed', e.message); };
+    const all = [...new Set(Object.values(KOKORO).flat())];
+    this.of = all.length;
+    this.worker.postMessage({ type: 'load', voices: all });
   },
 
+  settle(ok) { this.done?.(ok); this.done = null; },
+
   onMessage(m) {
-    if (m.type === 'ready') { this.state = 'ready'; console.info('voices: the neural voices are ready (Kokoro-82M)'); return; }
-    if (m.type === 'error') { this.state = 'failed'; console.warn('voices: the neural voices could not load', m.error); return; }
+    if (m.type === 'progress') { this.got = m.got; this.of = m.of; return; }
+    if (m.type === 'ready') { this.state = 'ready'; this.got = this.of; this.settle(true); console.info(`voices: the neural voices are ready (Kokoro-82M, ${this.of} voices)`); return; }
+    if (m.type === 'error') { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices could not load', m.error); return; }
     const w = this.wait.get(m.id);
     this.wait.delete(m.id);
     if (!w) return;
     if (m.type === 'fail') { this.cache.delete(w.key); for (const { line } of w.lines) line.dead = true; return; }
     if (m.ms) { this.ms.push(m.ms); if (this.ms.length > 40) this.ms.shift(); }
-    const part = { audio: m.audio, rate: m.rate };
+    // (brought to one loudness, whoever speaks: Kokoro's voices come out louder and softer)
+    let sq = 0, pk = 0;
+    for (let i = 0; i < m.audio.length; i++) { const x = m.audio[i]; sq += x * x; if (x > pk) pk = x; else if (-x > pk) pk = -x; }
+    const rms = Math.sqrt(sq / Math.max(1, m.audio.length));
+    const part = { audio: m.audio, rate: m.rate, gain: rms > 1e-5 ? Math.max(0.25, Math.min(8, LOUD / rms, 0.95 / Math.max(pk, 1e-5))) : 1 };
     this.cache.set(w.key, part);
     while (this.cache.size > 160) this.cache.delete(this.cache.keys().next().value);   // (the oldest go)
     for (const { line, i } of w.lines) { line.parts[i] = part; this.pump(line); }
@@ -124,11 +141,24 @@ const neural = {
   /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time. */
   prefetch(text, cast) { if (this.state === 'ready') for (const s of this.sentences(text)) this.want(cast, s); },
 
+  /** The game's own sound (voice.useSound): its context, and a line for the voices under its master
+   * volume, evened by a compressor. */
   audio() {
+    const S = voice.sound;
+    if (S && !S.ctx) S.start();
+    if (S?.ctx && this.ctx !== S.ctx) {
+      this.ctx = S.ctx;
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -20; comp.knee.value = 10; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.2;
+      const out = this.ctx.createGain(); out.gain.value = 1.6;
+      comp.connect(out); out.connect(S.out);
+      this.bus = comp;
+    }
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       this.ctx = new AC();
+      this.bus = this.ctx.destination;
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     return this.ctx;
@@ -161,7 +191,7 @@ const neural = {
       buf.copyToChannel(p.audio, 0);
       const src = ctx.createBufferSource();
       src.buffer = buf; src.playbackRate.value = line.cast.rate;
-      const out = this.chain(ctx, line);
+      const out = this.chain(ctx, line, p.gain || 1);
       src.connect(out.input);
       const start = Math.max(ctx.currentTime + 0.02, line.when);
       src.start(start);
@@ -173,19 +203,23 @@ const neural = {
   },
 
   /** Where it's heard: the speaker's effect, then how loud and which side, by where they stand. */
-  chain(ctx, line) {
+  chain(ctx, line, level = 1) {
     const o = line.o, gain = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
     const pos = o.pos || line.who?.pos, l = voice.listener;
     let vol = 1, side = 0;
     if (pos && l?.pos) {
       const dx = pos.x - l.pos.x, dz = pos.z - l.pos.z, d = Math.hypot(dx, dz, (pos.y ?? 0) - (l.pos.y ?? 0));
-      vol = o.pri >= 3 ? 1 : Math.max(0.15, Math.min(1, 1 - d / EARSHOT));
+      vol = near(d, o.pri);
       const yaw = l.yaw || 0, rx = Math.cos(yaw), rz = -Math.sin(yaw);   // (the listener's right)
       side = d > 0.5 ? Math.max(-0.85, Math.min(0.85, (dx * rx + dz * rz) / d)) : 0;
     }
-    gain.gain.value = vol * (line.cast.fx === 'undead' ? 0.85 : 1);
-    if (pan) { pan.pan.value = side; gain.connect(pan); pan.connect(ctx.destination); } else gain.connect(ctx.destination);
-    return { input: fxInput(ctx, line.cast.fx, gain) };
+    // (the dead's rasp drives the voice hard: brought back down after it)
+    gain.gain.value = vol * (line.cast.fx === 'undead' ? 0.4 : 1);
+    if (pan) { pan.pan.value = side; gain.connect(pan); pan.connect(this.bus); } else gain.connect(this.bus);
+    const lv = ctx.createGain();
+    lv.gain.value = level;
+    lv.connect(fxInput(ctx, line.cast.fx, gain));
+    return { input: lv };
   },
 
   /** Make room for a more pressing line: stop the least pressing one playing. */
@@ -255,7 +289,7 @@ function browserSay(who, text, o, d) {
   const u = new SpeechSynthesisUtterance(String(text).replace(/[{}]/g, ''));
   if (v) u.voice = v;
   u.pitch = pitch; u.rate = rate;
-  u.volume = o.pri >= 3 ? 1 : Math.max(0.12, Math.min(1, 1 - d / EARSHOT)) * (o.kind === 'undead' ? 0.8 : 1);
+  u.volume = near(d, o.pri) * (voice.sound ? Math.min(1, voice.sound.volume * 2) : 1);
   browserEnd = now + 1000 * (0.6 + text.length * 0.075 / rate); browserPri = o.pri;
   try { synth.speak(u); } catch { /* no voice today */ }
 }
@@ -263,10 +297,16 @@ function browserSay(who, text, o, d) {
 // ------------------------------------------------------------------ the voice
 export const voice = {
   listener: null,              // (the player: who is listening, for how loud and which side)
+  sound: null,                 // (the game's Sfx: the voices play through it)
+  useSound(sfx) { this.sound = sfx; },
+  /** Resolves (true) once the neural voices and every voice of theirs are in; false if they won't come. */
+  ready: null,
   enabled: store('bm.voices') !== '0',
   set(on) { this.enabled = on; try { localStorage.setItem('bm.voices', on ? '1' : '0'); } catch { /* no storage */ } if (!on) this.stop(); },
   /** Start fetching the neural voices (after the game is up: they're big). */
-  warm() { if (this.enabled) neural.start(); },
+  warm() { if (this.enabled) neural.start(); else neural.settle(false); return this.ready; },
+  /** How far the voices' download has got: [in, of]. */
+  get progress() { return [neural.got, neural.of]; },
   /** Whether the neural voices are wanted and loaded (else the browser's speak). */
   get natural() { return neural.state === 'ready' && neural.wanted(); },
   get neural() { return neural.state; },
@@ -294,3 +334,5 @@ export const voice = {
 
   stop() { neural.stop(); synth?.cancel(); browserEnd = 0; },
 };
+
+voice.ready = new Promise((r) => { neural.done = r; });

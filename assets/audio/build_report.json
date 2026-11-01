@@ -1,0 +1,910 @@
+{
+ "amb/birds.mp3": {
+  "from": "Ambiance_Forest_Birds_Loop_Stereo.wav",
+  "gain": 3.0,
+  "kb": 398
+ },
+ "amb/cave_dark.mp3": {
+  "from": "Ambiance_Cave_Dark_Loop_Stereo.wav",
+  "gain": 1.3,
+  "kb": 411
+ },
+ "amb/cave_deep.mp3": {
+  "from": "Ambiance_Cave_Deep_Loop_Stereo.wav",
+  "gain": 0.91,
+  "kb": 411
+ },
+ "amb/cave_drips.mp3": {
+  "from": "Ambiance_Cave_Drips_Loop_Stereo.wav",
+  "gain": 1.84,
+  "kb": 411
+ },
+ "amb/cicadas.mp3": {
+  "from": "Ambiance_Cicadas_Loop_Stereo.wav",
+  "gain": 0.88,
+  "kb": 410
+ },
+ "amb/fire_big.mp3": {
+  "from": "Ambiance_Fire_Big_Loop_Mono.wav",
+  "gain": 0.54,
+  "kb": 77
+ },
+ "amb/fire_medium.mp3": {
+  "from": "Ambiance_Firecamp_Medium_Loop_Mono.wav",
+  "gain": 1.17,
+  "kb": 79
+ },
+ "amb/fire_small.mp3": {
+  "from": "Ambiance_Firecamp_Small_Loop_Mono.wav",
+  "gain": 2.7,
+  "kb": 77
+ },
+ "amb/grotto_stream.mp3": {
+  "from": "River Stream Loop.ogg",
+  "gain": 1.28,
+  "kb": 235
+ },
+ "amb/night.mp3": {
+  "from": "Ambiance_Night_Loop_Stereo.wav",
+  "gain": 8.8,
+  "kb": 409
+ },
+ "amb/rain_calm.mp3": {
+  "from": "Ambiance_Rain_Calm_Loop_Stereo.wav",
+  "gain": 4.14,
+  "kb": 411
+ },
+ "amb/rain_strong.mp3": {
+  "from": "Ambiance_Rain_Strong_Loop_Stereo.wav",
+  "gain": 1.5,
+  "kb": 410
+ },
+ "amb/river.mp3": {
+  "from": "Ambiance_River_Moderate_Loop_Stereo.wav",
+  "gain": 1.53,
+  "kb": 282
+ },
+ "amb/sea.mp3": {
+  "from": "Ambiance_Sea_Loop_Stereo.wav",
+  "gain": 2.9,
+  "kb": 411
+ },
+ "amb/stream.mp3": {
+  "from": "Ambiance_Stream_Calm_Loop_Stereo.wav",
+  "gain": 3.1,
+  "kb": 233
+ },
+ "amb/torch.mp3": {
+  "from": "Torch Loop.ogg",
+  "gain": 1.72,
+  "kb": 79
+ },
+ "amb/waterfall_calm.mp3": {
+  "from": "Ambiance_Waterfall_Calm_Loop_Stereo.wav",
+  "gain": 1.0,
+  "kb": 411
+ },
+ "amb/waterfall_strong.mp3": {
+  "from": "Ambiance_Waterfall_Strong_Loop_Stereo.wav",
+  "gain": 0.64,
+  "kb": 410
+ },
+ "amb/wind_calm.mp3": {
+  "from": "Ambiance_Wind_Calm_Loop_Stereo.wav",
+  "gain": 4.44,
+  "kb": 409
+ },
+ "amb/wind_forest.mp3": {
+  "from": "Ambiance_Wind_Forest_Loop_Stereo.wav",
+  "gain": 6.23,
+  "kb": 410
+ },
+ "music/action_1.mp3": {
+  "from": "Action 1.mp3",
+  "gain": 1.18,
+  "kb": 2026
+ },
+ "music/action_2.mp3": {
+  "from": "Action 2.mp3",
+  "gain": 0.58,
+  "kb": 2064
+ },
+ "music/action_3.mp3": {
+  "from": "Action 3.mp3",
+  "gain": 0.86,
+  "kb": 2101
+ },
+ "music/action_4.mp3": {
+  "from": "Action 4.mp3",
+  "gain": 0.78,
+  "kb": 1826
+ },
+ "music/action_5.mp3": {
+  "from": "Action 5.mp3",
+  "gain": 0.77,
+  "kb": 2007
+ },
+ "music/ambient_1.mp3": {
+  "from": "Ambient 1.mp3",
+  "gain": 2.0,
+  "kb": 2596
+ },
+ "music/ambient_10.mp3": {
+  "from": "Ambient 10.mp3",
+  "gain": 1.15,
+  "kb": 2480
+ },
+ "music/ambient_2.mp3": {
+  "from": "Ambient 2.mp3",
+  "gain": 1.21,
+  "kb": 2596
+ },
+ "music/ambient_3.mp3": {
+  "from": "Ambient 3.mp3",
+  "gain": 2.03,
+  "kb": 2766
+ },
+ "music/ambient_4.mp3": {
+  "from": "Ambient 4.mp3",
+  "gain": 1.57,
+  "kb": 2626
+ },
+ "music/ambient_5.mp3": {
+  "from": "Ambient 5.mp3",
+  "gain": 0.66,
+  "kb": 2134
+ },
+ "music/ambient_6.mp3": {
+  "from": "Ambient 6.mp3",
+  "gain": 1.31,
+  "kb": 2757
+ },
+ "music/ambient_7.mp3": {
+  "from": "Ambient 7.mp3",
+  "gain": 1.32,
+  "kb": 2560
+ },
+ "music/ambient_8.mp3": {
+  "from": "Ambient 8.mp3",
+  "gain": 1.12,
+  "kb": 2757
+ },
+ "music/ambient_9.mp3": {
+  "from": "Ambient 9.mp3",
+  "gain": 2.48,
+  "kb": 2579
+ },
+ "music/dark_1.mp3": {
+  "from": "Dark Ambient 1.mp3",
+  "gain": 1.9,
+  "kb": 1888
+ },
+ "music/dark_2.mp3": {
+  "from": "Dark Ambient 2.mp3",
+  "gain": 3.94,
+  "kb": 2011
+ },
+ "music/dark_3.mp3": {
+  "from": "Dark Ambient 3.mp3",
+  "gain": 4.58,
+  "kb": 1806
+ },
+ "music/dark_4.mp3": {
+  "from": "Dark Ambient 4.mp3",
+  "gain": 4.39,
+  "kb": 2462
+ },
+ "music/dark_5.mp3": {
+  "from": "Dark Ambient 5.mp3",
+  "gain": 2.71,
+  "kb": 1587
+ },
+ "music/fx_1.mp3": {
+  "from": "Fx 1.mp3",
+  "gain": 3.11,
+  "kb": 204
+ },
+ "music/fx_2.mp3": {
+  "from": "Fx 2.mp3",
+  "gain": 2.48,
+  "kb": 64
+ },
+ "music/fx_3.mp3": {
+  "from": "Fx 3.mp3",
+  "gain": 2.08,
+  "kb": 157
+ },
+ "music/intro_cursed_citadel.mp3": {
+  "from": "SONG FOR GAME INTRO - 4. Cursed Citadel (After Intro & Loop).mp3",
+  "kb": 1996
+ },
+ "music/light_1.mp3": {
+  "from": "Light Ambience 1.mp3",
+  "gain": 1.92,
+  "kb": 1829
+ },
+ "music/light_2.mp3": {
+  "from": "Light Ambience 2.mp3",
+  "gain": 1.32,
+  "kb": 2298
+ },
+ "music/light_3.mp3": {
+  "from": "Light Ambience 3.mp3",
+  "gain": 2.5,
+  "kb": 1860
+ },
+ "music/light_4.mp3": {
+  "from": "Light Ambience 4.mp3",
+  "gain": 2.13,
+  "kb": 1970
+ },
+ "music/light_5.mp3": {
+  "from": "Light Ambience 5.mp3",
+  "gain": 3.69,
+  "kb": 1915
+ },
+ "music/title_frozen_hearts.mp3": {
+  "from": "Belmourne Title Screen Maybe - 04.Frozen_Hearts.ogg",
+  "kb": 2703
+ },
+ "sfx/bow_impact_hit_1.mp3": {
+  "from": "Bow Impact Hit 1.ogg",
+  "kb": 13
+ },
+ "sfx/bow_impact_hit_2.mp3": {
+  "from": "Bow Impact Hit 2.ogg",
+  "kb": 11
+ },
+ "sfx/bow_impact_hit_3.mp3": {
+  "from": "Bow Impact Hit 3.ogg",
+  "kb": 12
+ },
+ "sfx/chest_close_1.mp3": {
+  "from": "Chest Close 1.ogg",
+  "kb": 13
+ },
+ "sfx/chest_close_2.mp3": {
+  "from": "Chest Close 2.ogg",
+  "kb": 13
+ },
+ "sfx/chest_open_1.mp3": {
+  "from": "Chest Open 1.ogg",
+  "kb": 18
+ },
+ "sfx/chest_open_2.mp3": {
+  "from": "Chest Open 2.ogg",
+  "kb": 18
+ },
+ "sfx/chop_1.mp3": {
+  "from": "chop 1.ogg",
+  "kb": 8
+ },
+ "sfx/chop_2.mp3": {
+  "from": "chop 2.ogg",
+  "kb": 6
+ },
+ "sfx/chop_3.mp3": {
+  "from": "chop 3.ogg",
+  "kb": 8
+ },
+ "sfx/chop_4.mp3": {
+  "from": "chop 4.ogg",
+  "kb": 6
+ },
+ "sfx/dirt_chain_jump.mp3": {
+  "from": "Dirt Chain Jump.ogg",
+  "kb": 5
+ },
+ "sfx/dirt_chain_land.mp3": {
+  "from": "Dirt Chain Land.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_run_1.mp3": {
+  "from": "Dirt Chain Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_run_2.mp3": {
+  "from": "Dirt Chain Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_run_3.mp3": {
+  "from": "Dirt Chain Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_run_4.mp3": {
+  "from": "Dirt Chain Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_run_5.mp3": {
+  "from": "Dirt Chain Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_walk_1.mp3": {
+  "from": "Dirt Chain Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_walk_2.mp3": {
+  "from": "Dirt Chain Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_walk_3.mp3": {
+  "from": "Dirt Chain Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_walk_4.mp3": {
+  "from": "Dirt Chain Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_chain_walk_5.mp3": {
+  "from": "Dirt Chain Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_jump.mp3": {
+  "from": "Dirt Jump.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_land.mp3": {
+  "from": "Dirt Land.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_run_1.mp3": {
+  "from": "Dirt Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_run_2.mp3": {
+  "from": "Dirt Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_run_3.mp3": {
+  "from": "Dirt Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_run_4.mp3": {
+  "from": "Dirt Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_run_5.mp3": {
+  "from": "Dirt Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_walk_1.mp3": {
+  "from": "Dirt Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_walk_2.mp3": {
+  "from": "Dirt Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_walk_3.mp3": {
+  "from": "Dirt Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_walk_4.mp3": {
+  "from": "Dirt Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/dirt_walk_5.mp3": {
+  "from": "Dirt Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/door_close_1.mp3": {
+  "from": "Door Close 1.ogg",
+  "kb": 13
+ },
+ "sfx/door_close_2.mp3": {
+  "from": "Door Close 2.ogg",
+  "kb": 13
+ },
+ "sfx/door_open_1.mp3": {
+  "from": "Door Open 1.ogg",
+  "kb": 18
+ },
+ "sfx/door_open_2.mp3": {
+  "from": "Door Open 2.ogg",
+  "kb": 18
+ },
+ "sfx/fireball_1.mp3": {
+  "from": "Fireball 1.ogg",
+  "kb": 15
+ },
+ "sfx/fireball_2.mp3": {
+  "from": "Fireball 2.ogg",
+  "kb": 14
+ },
+ "sfx/fireball_3.mp3": {
+  "from": "Fireball 3.ogg",
+  "kb": 15
+ },
+ "sfx/firebuff_1.mp3": {
+  "from": "Firebuff 1.ogg",
+  "kb": 18
+ },
+ "sfx/firebuff_2.mp3": {
+  "from": "Firebuff 2.ogg",
+  "kb": 14
+ },
+ "sfx/firespray_1.mp3": {
+  "from": "Firespray 1.ogg",
+  "kb": 25
+ },
+ "sfx/firespray_2.mp3": {
+  "from": "Firespray 2.ogg",
+  "kb": 25
+ },
+ "sfx/ice_barrage_1.mp3": {
+  "from": "Ice Barrage 1.ogg",
+  "kb": 25
+ },
+ "sfx/ice_barrage_2.mp3": {
+  "from": "Ice Barrage 2.ogg",
+  "kb": 21
+ },
+ "sfx/ice_freeze_1.mp3": {
+  "from": "Ice Freeze 1.ogg",
+  "kb": 10
+ },
+ "sfx/ice_freeze_2.mp3": {
+  "from": "Ice Freeze 2.ogg",
+  "kb": 10
+ },
+ "sfx/ice_throw_1.mp3": {
+  "from": "Ice Throw 1.ogg",
+  "kb": 13
+ },
+ "sfx/ice_throw_2.mp3": {
+  "from": "Ice Throw 2.ogg",
+  "kb": 12
+ },
+ "sfx/ice_wall_1.mp3": {
+  "from": "Ice Wall 1.ogg",
+  "kb": 30
+ },
+ "sfx/ice_wall_2.mp3": {
+  "from": "Ice Wall 2.ogg",
+  "kb": 30
+ },
+ "sfx/light_torch_1.mp3": {
+  "from": "Light Torch 1.ogg",
+  "kb": 17
+ },
+ "sfx/light_torch_2.mp3": {
+  "from": "Light Torch 2.ogg",
+  "kb": 17
+ },
+ "sfx/lock_unlock.mp3": {
+  "from": "Lock Unlock.ogg",
+  "kb": 13
+ },
+ "sfx/mine_1.mp3": {
+  "from": "mine 1.ogg",
+  "kb": 6
+ },
+ "sfx/mine_2.mp3": {
+  "from": "mine 2.ogg",
+  "kb": 6
+ },
+ "sfx/mine_3.mp3": {
+  "from": "mine 3.ogg",
+  "kb": 5
+ },
+ "sfx/mine_4.mp3": {
+  "from": "mine 4.ogg",
+  "kb": 6
+ },
+ "sfx/mine_5.mp3": {
+  "from": "mine 5.ogg",
+  "kb": 6
+ },
+ "sfx/rock_meteor_swarm_1.mp3": {
+  "from": "Rock Meteor Swarm 1.ogg",
+  "kb": 24
+ },
+ "sfx/rock_meteor_swarm_2.mp3": {
+  "from": "Rock Meteor Swarm 2.ogg",
+  "kb": 23
+ },
+ "sfx/rock_meteor_throw_1.mp3": {
+  "from": "Rock Meteor Throw 1.ogg",
+  "kb": 7
+ },
+ "sfx/rock_meteor_throw_2.mp3": {
+  "from": "Rock Meteor Throw 2.ogg",
+  "kb": 7
+ },
+ "sfx/rock_wall_1.mp3": {
+  "from": "Rock Wall 1.ogg",
+  "kb": 24
+ },
+ "sfx/rock_wall_2.mp3": {
+  "from": "Rock Wall 2.ogg",
+  "kb": 24
+ },
+ "sfx/spell_impact_1.mp3": {
+  "from": "Spell Impact 1.ogg",
+  "kb": 5
+ },
+ "sfx/spell_impact_2.mp3": {
+  "from": "Spell Impact 2.ogg",
+  "kb": 4
+ },
+ "sfx/spell_impact_3.mp3": {
+  "from": "Spell Impact 3.ogg",
+  "kb": 5
+ },
+ "sfx/stone_chain_jump.mp3": {
+  "from": "Stone Chain Jump.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_land.mp3": {
+  "from": "Stone Chain Land.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_run_1.mp3": {
+  "from": "Stone Chain Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_run_2.mp3": {
+  "from": "Stone Chain Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_run_3.mp3": {
+  "from": "Stone Chain Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_run_4.mp3": {
+  "from": "Stone Chain Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_run_5.mp3": {
+  "from": "Stone Chain Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_walk_1.mp3": {
+  "from": "Stone Chain Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_walk_2.mp3": {
+  "from": "Stone Chain Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_walk_3.mp3": {
+  "from": "Stone Chain Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_walk_4.mp3": {
+  "from": "Stone Chain Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/stone_chain_walk_5.mp3": {
+  "from": "Stone Chain Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/stone_jump.mp3": {
+  "from": "Stone Jump.ogg",
+  "kb": 7
+ },
+ "sfx/stone_land.mp3": {
+  "from": "Stone Land.ogg",
+  "kb": 7
+ },
+ "sfx/stone_run_1.mp3": {
+  "from": "Stone Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/stone_run_2.mp3": {
+  "from": "Stone Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/stone_run_3.mp3": {
+  "from": "Stone Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/stone_run_4.mp3": {
+  "from": "Stone Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/stone_run_5.mp3": {
+  "from": "Stone Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/stone_walk_1.mp3": {
+  "from": "Stone Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/stone_walk_2.mp3": {
+  "from": "Stone Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/stone_walk_3.mp3": {
+  "from": "Stone Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/stone_walk_4.mp3": {
+  "from": "Stone Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/stone_walk_5.mp3": {
+  "from": "Stone Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/sword_attack_1.mp3": {
+  "from": "Sword Attack 1.ogg",
+  "kb": 7
+ },
+ "sfx/sword_attack_2.mp3": {
+  "from": "Sword Attack 2.ogg",
+  "kb": 7
+ },
+ "sfx/sword_attack_3.mp3": {
+  "from": "Sword Attack 3.ogg",
+  "kb": 7
+ },
+ "sfx/sword_blocked_1.mp3": {
+  "from": "Sword Blocked 1.ogg",
+  "kb": 7
+ },
+ "sfx/sword_blocked_2.mp3": {
+  "from": "Sword Blocked 2.ogg",
+  "kb": 7
+ },
+ "sfx/sword_blocked_3.mp3": {
+  "from": "Sword Blocked 3.ogg",
+  "kb": 7
+ },
+ "sfx/sword_impact_hit_1.mp3": {
+  "from": "Sword Impact Hit 1.ogg",
+  "kb": 7
+ },
+ "sfx/sword_impact_hit_2.mp3": {
+  "from": "Sword Impact Hit 2.ogg",
+  "kb": 7
+ },
+ "sfx/sword_impact_hit_3.mp3": {
+  "from": "Sword Impact Hit 3.ogg",
+  "kb": 7
+ },
+ "sfx/sword_parry_1.mp3": {
+  "from": "Sword Parry 1.ogg",
+  "kb": 4
+ },
+ "sfx/sword_parry_2.mp3": {
+  "from": "Sword Parry 2.ogg",
+  "kb": 4
+ },
+ "sfx/sword_parry_3.mp3": {
+  "from": "Sword Parry 3.ogg",
+  "kb": 4
+ },
+ "sfx/sword_sheath_1.mp3": {
+  "from": "Sword Sheath 1.ogg",
+  "kb": 13
+ },
+ "sfx/sword_sheath_2.mp3": {
+  "from": "Sword Sheath 2.ogg",
+  "kb": 13
+ },
+ "sfx/sword_unsheath_1.mp3": {
+  "from": "Sword Unsheath 1.ogg",
+  "kb": 10
+ },
+ "sfx/sword_unsheath_2.mp3": {
+  "from": "Sword Unsheath 2.ogg",
+  "kb": 10
+ },
+ "sfx/torch_attack_strike_1.mp3": {
+  "from": "Torch Attack Strike 1.ogg",
+  "kb": 11
+ },
+ "sfx/torch_attack_strike_2.mp3": {
+  "from": "Torch Attack Strike 2.ogg",
+  "kb": 9
+ },
+ "sfx/water_chain_jump.mp3": {
+  "from": "Water Chain Jump.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_land.mp3": {
+  "from": "Water Chain Land.ogg",
+  "kb": 6
+ },
+ "sfx/water_chain_run_1.mp3": {
+  "from": "Water Chain Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_run_2.mp3": {
+  "from": "Water Chain Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_run_3.mp3": {
+  "from": "Water Chain Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_run_4.mp3": {
+  "from": "Water Chain Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_run_5.mp3": {
+  "from": "Water Chain Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_walk_1.mp3": {
+  "from": "Water Chain Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_walk_2.mp3": {
+  "from": "Water Chain Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_walk_3.mp3": {
+  "from": "Water Chain Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_walk_4.mp3": {
+  "from": "Water Chain Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/water_chain_walk_5.mp3": {
+  "from": "Water Chain Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/water_jump.mp3": {
+  "from": "Water Jump.ogg",
+  "kb": 7
+ },
+ "sfx/water_land.mp3": {
+  "from": "Water Land.ogg",
+  "kb": 6
+ },
+ "sfx/water_run_1.mp3": {
+  "from": "Water Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/water_run_2.mp3": {
+  "from": "Water Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/water_run_3.mp3": {
+  "from": "Water Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/water_run_4.mp3": {
+  "from": "Water Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/water_run_5.mp3": {
+  "from": "Water Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/water_walk_1.mp3": {
+  "from": "Water Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/water_walk_2.mp3": {
+  "from": "Water Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/water_walk_3.mp3": {
+  "from": "Water Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/water_walk_4.mp3": {
+  "from": "Water Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/water_walk_5.mp3": {
+  "from": "Water Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/waterspray_1.mp3": {
+  "from": "Waterspray 1.ogg",
+  "kb": 24
+ },
+ "sfx/waterspray_2.mp3": {
+  "from": "Waterspray 2.ogg",
+  "kb": 24
+ },
+ "sfx/wave_attack_1.mp3": {
+  "from": "Wave Attack 1.ogg",
+  "kb": 46
+ },
+ "sfx/wave_attack_2.mp3": {
+  "from": "Wave Attack 2.ogg",
+  "kb": 46
+ },
+ "sfx/wood_chain_jump.mp3": {
+  "from": "Wood Chain Jump.ogg",
+  "kb": 6
+ },
+ "sfx/wood_chain_land.mp3": {
+  "from": "Wood Chain Land.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_run_1.mp3": {
+  "from": "Wood Chain Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_run_2.mp3": {
+  "from": "Wood Chain Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_run_3.mp3": {
+  "from": "Wood Chain Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_run_4.mp3": {
+  "from": "Wood Chain Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_run_5.mp3": {
+  "from": "Wood Chain Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_walk_1.mp3": {
+  "from": "Wood Chain Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_walk_2.mp3": {
+  "from": "Wood Chain Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_walk_3.mp3": {
+  "from": "Wood Chain Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_walk_4.mp3": {
+  "from": "Wood Chain Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/wood_chain_walk_5.mp3": {
+  "from": "Wood Chain Walk 5.ogg",
+  "kb": 7
+ },
+ "sfx/wood_jump.mp3": {
+  "from": "Wood Jump.ogg",
+  "kb": 6
+ },
+ "sfx/wood_land.mp3": {
+  "from": "Wood Land.ogg",
+  "kb": 7
+ },
+ "sfx/wood_run_1.mp3": {
+  "from": "Wood Run 1.ogg",
+  "kb": 7
+ },
+ "sfx/wood_run_2.mp3": {
+  "from": "Wood Run 2.ogg",
+  "kb": 7
+ },
+ "sfx/wood_run_3.mp3": {
+  "from": "Wood Run 3.ogg",
+  "kb": 7
+ },
+ "sfx/wood_run_4.mp3": {
+  "from": "Wood Run 4.ogg",
+  "kb": 7
+ },
+ "sfx/wood_run_5.mp3": {
+  "from": "Wood Run 5.ogg",
+  "kb": 7
+ },
+ "sfx/wood_walk_1.mp3": {
+  "from": "Wood Walk 1.ogg",
+  "kb": 7
+ },
+ "sfx/wood_walk_2.mp3": {
+  "from": "Wood Walk 2.ogg",
+  "kb": 7
+ },
+ "sfx/wood_walk_3.mp3": {
+  "from": "Wood Walk 3.ogg",
+  "kb": 7
+ },
+ "sfx/wood_walk_4.mp3": {
+  "from": "Wood Walk 4.ogg",
+  "kb": 7
+ },
+ "sfx/wood_walk_5.mp3": {
+  "from": "Wood Walk 5.ogg",
+  "kb": 7
+ }
+}

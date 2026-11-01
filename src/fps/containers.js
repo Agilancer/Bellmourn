@@ -191,10 +191,10 @@ export class Containers {
   hit(box, dmg, dir) {
     const c = this.byBox.get(box);
     if (!c || c.broken) return false;
-    if (c.kind === 'chest') { this.ctx.sfx?.clang(true); return true; }   // too stout to smash
+    if (c.kind === 'chest') { this.ctx.sfx?.hit?.('wood'); return true; }   // too stout to smash
     c.hp -= dmg;
     if (c.hp <= 0) this.break(c, dir);
-    else { c.shake = 0.25; this.ctx.sfx?.clang(true); }
+    else { c.shake = 0.25; if (c.kind === 'pot') this.ctx.sfx?.shatter?.('pot'); else this.ctx.sfx?.splinter?.(false); }
     return true;
   }
 
