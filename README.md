@@ -75,14 +75,19 @@ sheets of them headless.
 Gaming's card fades in and out, then Jamie Herrington's, each with four-pointed glints flaring on
 the edges of its letters (found from the logo's own alpha), a sheen of light across them, gold dust
 rising, and a tinkle of little glass bells for every glint (synthesized, E major pentatonic, each
-panned to where its glint is). Then Bellmourn's logo, with a bell far off and a couple of tinkles,
-over a black cover while the whole game loads behind it ("Raising the village…" and a line of
+panned to where its glint is). Then Bellmourn's logo with its church bells ringing out a few
+seconds and trailing slowly away under the title's song, farther off as they go (a recording,
+"Orthodox Church Bells Ringing" from Free Sounds Library, freesoundslibrary.com, CC BY 4.0: its
+first 16 s, cut by `tools/audio/build_audio.py --only bells`), and a couple of tinkles, over a
+black cover while the whole game loads behind it ("Raising the village…" and a line of
 gold); once it's in, the logo rises, the menu comes up under it, and the black lifts to the
 village drifting by through a dark veil. The cards and their glints are CSS animations of opacity
 and transform, all started at one moment, and every bell is booked on the audio clock at that
-moment, so they keep time however hard the loading holds the main thread. A click or a key skips
-the cards. A browser plays no sound until it's been clicked, so where it won't, the title first
-asks you to click (or tap) to begin; a phone goes full screen on that tap.
+moment, so they keep time however hard the loading holds the main thread. A click, a tap or a key
+fades the card up at once and brings on the next (after the last, Bellmourn's logo). A browser
+plays no sound until it's been clicked, so where it won't, the title first asks you to click (or
+tap) to begin; a phone goes full screen on that tap. New Game keeps the title's song under the
+getting-ready; the opening's song starts with its first shot.
 
 **New Game**, **Continue**, **Load**, **Settings**, **How to Play**. Continue picks up the newest
 game there is, the one kept as you played (`bm.char` and `bm.progress`, which now notes when) or a

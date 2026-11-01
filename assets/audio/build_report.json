@@ -699,6 +699,10 @@
   "from": "Sword Unsheath 2.ogg",
   "kb": 10
  },
+ "sfx/title_bells.mp3": {
+  "from": "orthodox-church-bells-ringing-sound.mp3",
+  "kb": 314
+ },
  "sfx/torch_attack_strike_1.mp3": {
   "from": "Torch Attack Strike 1.ogg",
   "kb": 11
