@@ -1293,15 +1293,18 @@ class Bubbles {
     if (game && game.parentNode) game.parentNode.insertBefore(c, game.nextSibling); else document.body.appendChild(c);
     this.g = c.getContext('2d');
     this.shown = false;
+    this.cinema = null;   // { who, camera }: a scene's one speaker (the opening's knight), shown alone, from its camera, even while hidden
   }
 
   draw(vill, camera, markOf = null, extra = null) {
     const c = this.canvas, g = this.g, dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
-    const talking = this.hidden ? [] : vill.list.filter((a) => a.talk && !a.talk.hidden && !a.inside && a.root.visible && a.head);
-    if (!this.hidden && extra) for (const a of extra()) if (a.talk && !a.talk.hidden && a.root?.visible !== false) talking.push(a);
-    const marked = markOf && !this.hidden ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
+    const cine = this.cinema;
+    if (cine?.camera) camera = cine.camera;
+    const talking = cine ? (cine.who?.talk && cine.who.root?.visible !== false ? [cine.who] : []) : this.hidden ? [] : vill.list.filter((a) => a.talk && !a.talk.hidden && !a.inside && a.root.visible && a.head);
+    if (!cine && !this.hidden && extra) for (const a of extra()) if (a.talk && !a.talk.hidden && a.root?.visible !== false) talking.push(a);
+    const marked = markOf && !this.hidden && !cine ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
     if (!talking.length && !marked.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
     g.clearRect(0, 0, W, H); this.shown = true;
     camera.getWorldPosition(_w);
@@ -1309,10 +1312,11 @@ class Bubbles {
     const items = [];
     for (const a of talking) {
       if (a.speechAt) a.speechAt(_v); else { a.head.getWorldPosition(_v); _v.y += 0.36; }
-      const dist = _v.distanceTo(_w);
-      if (dist > SHOW) continue;
+      let dist = _v.distanceTo(_w);
+      if (cine) dist = Math.min(dist, 8);   // (a scene's speaker: always shown, never behind a wall)
+      else if (dist > SHOW) continue;
       // behind a wall, or the lie of the ground (a crater's rim, a hill)? (checked a few times a second)
-      if (!((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
+      if (!cine && !((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
         a.occT = 0.25;
         _d.copy(_v).sub(_w).normalize();
         const hit = vill.physics.ray ? vill.physics.ray(_w, _d, dist) : null;
@@ -1325,7 +1329,7 @@ class Bubbles {
         }
         a.occluded = hid;
       }
-      if (a.occluded) continue;
+      if (!cine && a.occluded) continue;
       const p = _v.clone().project(camera);
       if (p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.3) continue;
       items.push({ a, x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, dist });

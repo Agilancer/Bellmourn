@@ -291,6 +291,14 @@
   "from": "chop 4.ogg",
   "kb": 6
  },
+ "sfx/crowd_gasp.mp3": {
+  "from": "crowd-gasp-sound-effect.mp3",
+  "kb": 37
+ },
+ "sfx/crowd_panic.mp3": {
+  "from": "time-traveling-city-crowd-panic-scream-1-390796.mp3",
+  "kb": 25
+ },
  "sfx/dirt_chain_jump.mp3": {
   "from": "Dirt Chain Jump.ogg",
   "kb": 5
@@ -690,6 +698,10 @@
  "sfx/sword_unsheath_2.mp3": {
   "from": "Sword Unsheath 2.ogg",
   "kb": 10
+ },
+ "sfx/title_bells.mp3": {
+  "from": "orthodox-church-bells-ringing-sound.mp3",
+  "kb": 314
  },
  "sfx/torch_attack_strike_1.mp3": {
   "from": "Torch Attack Strike 1.ogg",

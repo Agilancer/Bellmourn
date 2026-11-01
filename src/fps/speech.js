@@ -9,6 +9,7 @@
 // between one speaker and the next; a conversation keeps the floor between its own lines, so nobody
 // cuts in. A line kept waiting too long is let go (a passing remark), or said without its voice
 // (a conversation's, a line to you). Speakers too far off to be heard talk among themselves freely.
+// Someone you speak to answers at once (`now`): whoever has the floor falls quiet for them.
 //
 // Every speaker keeps `talk` = { text (the page shown), pages, pi, t (above 0 while they're
 // talking), age, toYou, state, hidden (out of earshot: no bubble) } while their bubble is up (state 'linger' a moment after the last

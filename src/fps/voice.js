@@ -7,7 +7,9 @@
 // behind a helm, their lord deeper still; the sorcerers with a ring to them; the dead dragged low,
 // slowed and roughened into a moan over the gibberish they mutter. Each line is played where its
 // speaker stands: quieter further off, to the left or the right. A long line is said a sentence
-// at a time, so it starts at once.
+// at a time, so it starts at once; the model's own quiet is cut from each sentence and the pauses
+// between them come from the punctuation, so a line runs as it's spoken (pauseAfter, paceOf), and
+// what it's given to say is a copy it can't spell out letter by letter (sayable).
 //
 // The model and every voice it speaks in are fetched while the game loads (warm(), from main.js at
 // once; a new game waits for them: ready), on a phone too. While they're still coming, or if they
@@ -61,7 +63,8 @@ const medial = (m) => { for (let k = 0; k <= m.length; k++) if (CODA.has(m.slice
  * clusters a syllable can start and end with (doubled letters are fine but at the start). */
 export function speakable(w) {
   if (KNOWN.has(w)) return true;
-  if (/^[^aeiouy]*([^aeiouy])\1/.test(w) || /(.)\1\1/.test(w) || /hh/.test(w)) return false;
+  // (a vowel drawn out, "Aaaaaah!", is said drawn out: only consonants piled up are spelled)
+  if (/^[^aeiouy]*([^aeiouy])\1/.test(w) || /([^aeiouy])\1\1/.test(w) || /hh/.test(w)) return false;
   const c = w.replace(/([^aeiouy])\1/g, '$1').split(/[aeiouy]+/);
   if (c.length < 2 || !ONSET.has(c[0])) return false;
   const end = c[c.length - 1];
@@ -73,7 +76,7 @@ const odd = (w) => !speakable(w);
  * consonant let go, and a vowel put in wherever its consonants pile up past saying. */
 function mouthed(w) {
   if (/^[hsz]*s[hsz]*$/.test(w)) return 'hiss';     // (a hiss is said as one)
-  let s = w.replace(/([^aeiouy])\1+/g, '$1').replace(/([aeiouy])\1\1+/g, '$1$1').replace(/([bdfgjkmnlprvz])h/g, '$1').replace(/^h(?=[^aeiouy])/, '');
+  let s = w.replace(/([^aeiouy])\1+/g, '$1').replace(/([bdfgjkmnlprvz])h/g, '$1').replace(/^h(?=[^aeiouy])/, '');
   if (!s) return 'haah';
   if (/^[mn]$/.test(s)) return 'hmm';
   // syllables: the consonants before each vowel run, the vowels, and whatever's left at the end
@@ -173,7 +176,7 @@ const KOKORO = {
 
 /** How a speaker sounds through the neural voices: { voice, rate (pitch: the playback rate), speed
  * (the model's pace, set so pitch and pace come out right together), fx }. */
-export function neuralCast(key, { sex = 'm', kind = 'villager', age = null } = {}) {
+export function neuralCast(key, { sex = 'm', kind = 'villager', age = null, fear = false } = {}) {
   const h = hash(kind + '|' + key), r = (n) => ((h >>> n) & 1023) / 1023;
   const list = kind === 'knight' ? (sex === 'f' ? KOKORO.knightF : KOKORO.knight) : kind === 'villager' ? KOKORO[sex === 'f' ? 'f' : 'm'] : KOKORO[kind] || KOKORO.m;
   let rate = 0.97 + r(5) * 0.06, fx = null;
@@ -183,11 +186,33 @@ export function neuralCast(key, { sex = 'm', kind = 'villager', age = null } = {
   if (kind === 'sorcerer') { rate = 0.98 + r(5) * 0.06; fx = 'echo'; }
   if (kind === 'undead') { rate = 0.6 + r(5) * 0.12; fx = 'undead'; }
   if (kind === 'beast') { rate = 1.45 + r(5) * 0.2; fx = 'undead'; }
+  // terrified (the opening's knight as the star comes for him): his voice up and strained, rushed,
+  // shaking, still behind his helm
+  if (fear) return { voice: list[h % list.length], rate: 1.04, speed: 1.3, fx: kind === 'knight' || kind === 'lord' ? 'fear-helm' : 'fear' };
   return { voice: list[h % list.length], rate, speed: Math.max(0.6, Math.min(1.6, (0.96 + r(13) * 0.08) / rate)), fx };
 }
 
 /** A speaker's effect, feeding `out`: what to connect their voice to. */
 export function fxInput(ctx, fx, out) {
+  if (fx === 'fear' || fx === 'fear-helm') {   // terror: the voice wavers in pitch and quavers in breath, a little hoarse
+    const t = ctx.currentTime, end = t + 12;   // (its wobblers run a while, then stop: a line is said by then)
+    const into = fx === 'fear-helm' ? fxInput(ctx, 'helm', out) : out;
+    const ws = ctx.createWaveShaper(), n = 1024, curve = new Float32Array(n), k = 2.2;
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x)) * 0.8; }
+    ws.curve = curve;
+    // pitch: a delay swept by a fast, uneven wobble
+    const dl = ctx.createDelay(0.05); dl.delayTime.value = 0.006;
+    const w1 = ctx.createOscillator(), g1 = ctx.createGain(); w1.frequency.value = 6.8; g1.gain.value = 0.0014;
+    const w2 = ctx.createOscillator(), g2 = ctx.createGain(); w2.frequency.value = 2.3; g2.gain.value = 0.0009;
+    w1.connect(g1); g1.connect(dl.delayTime); w2.connect(g2); g2.connect(dl.delayTime);
+    // breath: the level quavering
+    const trem = ctx.createGain(); trem.gain.value = 0.78;
+    const w3 = ctx.createOscillator(), g3 = ctx.createGain(); w3.frequency.value = 9.5; g3.gain.value = 0.22;
+    w3.connect(g3); g3.connect(trem.gain);
+    for (const o of [w1, w2, w3]) { o.start(t); o.stop(end); }
+    ws.connect(dl); dl.connect(trem); trem.connect(into);
+    return ws;
+  }
   if (fx === 'helm') {             // muffled behind steel, a little ring of it
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3100; lp.Q.value = 0.9;
     const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 900; pk.gain.value = 4; pk.Q.value = 1.4;
@@ -294,7 +319,12 @@ const neural = {
 
   /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time
    * (pri: how soon it'll be wanted, -1 to 8). */
-  prefetch(text, cast, pri = -1) { if (this.state === 'ready') for (const s of this.sentences(text)) this.want(cast, s, null, 0, pri); },
+  prefetch(text, cast, pri = -1) {
+    if (this.state !== 'ready') return;
+    // (the one you're looking at, about to speak to: their first words made before anything, even
+    // what's being said now, which is already playing; the rest of it is made while those are heard)
+    this.sentences(text).forEach((s, i) => this.want(cast, s, null, 0, i === 0 && pri >= 8 ? 9.5 : pri));
+  },
   /** Whether every piece of a line is made already (so it would be heard the moment it's said). */
   made(text, cast) {
     return this.sentences(text).every((s) => {
