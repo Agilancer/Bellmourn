@@ -7,9 +7,11 @@
 // what they were, and noises that are not words at all; the cave's things hiss and click.
 //
 // Paced so it never swamps the fight: one knight's taunt every few seconds, a group exchange now
-// and then, one of the dead's mutterings at a time, and a speaker never talks over themselves.
+// and then, one of the dead's mutterings at a time; and they take their turns with everyone else
+// (speech.js): nobody talks over anybody, a knight's exchange keeps the floor between its lines, and
+// the dead's muttering gives way to anything said with words.
 import * as THREE from 'three';
-import { speak, tickTalk } from './speech.js';
+import { speak, talking } from './speech.js';
 import { voice } from './voice.js';
 // (the lines: a big file, loaded after the game is up; till then the enemy keep quiet)
 let KNIGHT = null, KNIGHT_BANTER = [], UNDEAD = null, BEAST = null, gibberish = () => '';
@@ -47,14 +49,15 @@ export class Chatter {
 
   isKnight(z) { return z.kindName === 'knight' || z.kindName === 'sorcerer'; }
 
-  /** z says text (if it's not already talking and isn't dead, unless it's its last words). */
+  /** z says text, on its turn (if it's not already talking and isn't dead, unless it's its last
+   * words). o: { last, cut, gest, g, group, pri, wait } */
   say(z, text, o = {}) {
-    if (!text || (z.dead && !o.last) || (z.talk && !o.cut)) return 0;
+    if (!text || (z.dead && !o.last) || (talking(z) && !o.cut)) return 0;
     z.speaker = this.isKnight(z) ? (z.def?.title || '') : '';
     if (!z.speechAt) z.speechAt = (out) => this.headOf(z, out);
     // (a knight talking it over, off out of reach: a shake of the head, a nod, a hand as it speaks)
     if (this.isKnight(z) && z.gesture && !o.last && (z.dist ?? 9) > 3.5 && Math.random() < (o.gest ?? 0.45)) z.gesture(o.g || pick(['nod_no', 'nod_yes', 'idle_talk', 'idle_talk']));
-    return speak(z, text, false, { voice: { ...this.voiceOf(z), pos: z.pos } });
+    return speak(z, text, false, { voice: { ...this.voiceOf(z), pos: z.pos, pri: o.pri }, group: o.group, cut: o.cut, wait: o.wait });
   }
 
   headOf(z, out) {
@@ -67,10 +70,10 @@ export class Chatter {
   /** Each frame. */
   update(dt, player, active) {
     this.t += dt;
-    const list = this.zombies.list, talking = this._talking;
-    talking.length = 0;
+    const list = this.zombies.list, up = this._talking;
+    up.length = 0;
     for (const z of list) {
-      if (z.talk) { tickTalk(z, dt); if (z.talk) talking.push(z); }
+      if (z.talk) up.push(z);
     }
     if (!active || !player || !KNIGHT) return;
     const P = player.pos;
@@ -85,22 +88,22 @@ export class Chatter {
       const L = knight ? KNIGHT : null;
       // dying: their last words
       if (z.dead && !z._deadWas) {
-        if (knight) { this.fellT = this.t; if (chance(0.7)) this.say(z, pick(L.die), { last: true, cut: true }); }
-        else if (!beast && chance(0.35)) this.say(z, chance(0.5) ? pick(UNDEAD.die) : gibberish(), { last: true, cut: true });
+        if (knight) { this.fellT = this.t; if (chance(0.7)) this.say(z, pick(L.die), { last: true, cut: true, wait: 2 }); }
+        else if (!beast && chance(0.35)) this.say(z, chance(0.5) ? pick(UNDEAD.die) : gibberish(), { last: true, cut: true, pri: 0, wait: 1.2 });
       } else if (!z.dead) {
         // seeing you
         if (z.aggro && !z._aggroWas) {
           if (knight) this.say(z, z.def?.stats === 'lord' ? pick(L.lordTaunt) : z.kindName === 'sorcerer' || z.def?.caster ? pick(L.sorcerer) : pick(L.spot), { gest: z.def?.caster ? 1 : 0.3, g: z.def?.caster ? 'cast_ready' : null });
-          else if (beast) { if (chance(0.5)) this.say(z, pick(BEAST[z.kindName])); }
-          else if (chance(0.45)) this.say(z, chance(0.5) ? pick(UNDEAD.spot) : gibberish());
+          else if (beast) { if (chance(0.5)) this.say(z, pick(BEAST[z.kindName]), { pri: 0, wait: 1.5 }); }
+          else if (chance(0.45)) this.say(z, chance(0.5) ? pick(UNDEAD.spot) : gibberish(), { pri: 0, wait: 1.5 });
         }
         // hurt
         if (z._hpWas != null && z.hp < z._hpWas - 1) {
           const max = z.kind?.hp || z._hpMax || z.hp;
           if (knight) {
-            if (!z._wounded && z.hp < max * 0.5) { z._wounded = true; this.say(z, pick(L.wounded), { cut: true }); }
-            else if (chance(0.3)) this.say(z, pick(L.hurt));
-          } else if (!beast && chance(0.18)) this.say(z, chance(0.4) ? pick(UNDEAD.hurt) : gibberish());
+            if (!z._wounded && z.hp < max * 0.5) { z._wounded = true; this.say(z, pick(L.wounded), { cut: true, wait: 2 }); }
+            else if (chance(0.3)) this.say(z, pick(L.hurt), { wait: 1.2 });
+          } else if (!beast && chance(0.18)) this.say(z, chance(0.4) ? pick(UNDEAD.hurt) : gibberish(), { pri: 0, wait: 1 });
         }
         if (knight && z.aggro && z.goal === 'chase') knights.push({ z, d });
         if (z.aggro) near++;
@@ -110,18 +113,18 @@ export class Chatter {
     // a blow of theirs landing on you: the nearest knight crows about it
     if (this.lastHealth != null && player.health < this.lastHealth - 2 && knights.length && chance(0.4)) {
       const k = knights.reduce((a, b) => (b.d < a.d ? b : a));
-      if (k.d < 3.5) this.say(k.z, pick(KNIGHT.hit));
+      if (k.d < 3.5) this.say(k.z, pick(KNIGHT.hit), { wait: 1.5 });
     }
     this.lastHealth = player.health;
     // the fight with the Sworn: lone taunts, and now and then a group exchange
     this.fightT = knights.length ? this.fightT + dt : 0;
     if (this.seq) this.runSeq(dt);
     else if (knights.length) {
-      const free = knights.filter((k) => !k.z.talk);
+      const free = knights.filter((k) => !talking(k.z));
       if (free.length >= 2 && this.t > this.nextBanter) this.startBanter(free, player);
       else if (free.length && this.t > this.nextTaunt) {
         const k = pick(free);
-        this.say(k.z, k.z.def?.stats === 'lord' ? pick(KNIGHT.lordTaunt) : k.z.kindName === 'sorcerer' ? pick(KNIGHT.sorcerer) : pick(KNIGHT.taunt));
+        this.say(k.z, k.z.def?.stats === 'lord' ? pick(KNIGHT.lordTaunt) : k.z.kindName === 'sorcerer' ? pick(KNIGHT.sorcerer) : pick(KNIGHT.taunt), { wait: 2.5 });
         this.nextTaunt = this.t + 4 + Math.random() * 4 + (knights.length > 2 ? 0 : 2);
       }
     }
@@ -129,11 +132,11 @@ export class Chatter {
     if (this.t > this.nextMutter) {
       this.nextMutter = this.t + 2.5 + Math.random() * 4 / Math.max(1, Math.sqrt(near));
       const dead = [];
-      for (const z of list) if (!z.dead && !z.gone && !z.talk && !this.isKnight(z) && z.state !== 'buried' && z.root?.visible && Math.hypot(z.pos.x - P.x, z.pos.z - P.z) < 16) dead.push(z);
+      for (const z of list) if (!z.dead && !z.gone && !talking(z) && !this.isKnight(z) && z.state !== 'buried' && z.root?.visible && Math.hypot(z.pos.x - P.x, z.pos.z - P.z) < 16) dead.push(z);
       const z = pick(dead);
       if (z) {
-        if (z.kindName === 'ghast' || z.kindName === 'grubber') { if (chance(0.5)) this.say(z, pick(BEAST[z.kindName])); }
-        else this.say(z, chance(0.55) ? gibberish() : pick(UNDEAD.moan));
+        if (z.kindName === 'ghast' || z.kindName === 'grubber') { if (chance(0.5)) this.say(z, pick(BEAST[z.kindName]), { pri: 0, wait: 1.5 }); }
+        else this.say(z, chance(0.55) ? gibberish() : pick(UNDEAD.moan), { pri: 0, wait: 1.5 });
       }
     }
   }
@@ -155,14 +158,17 @@ export class Chatter {
     voice.prefetch(b.lines.map(([k, text]) => { const z = who[k % who.length]; return [z, text, { ...this.voiceOf(z), pos: z.pos }]; }));
   }
 
+  /** The exchange, a line at a time: each said on its turn, the next once it's done. */
   runSeq(dt) {
     const s = this.seq;
+    if (s.cur && talking(s.cur) && (s.curT += dt) < 25) return;
     if ((s.wait -= dt) > 0) return;
     if (s.i >= s.lines.length) { this.seq = null; return; }
     const [k, text] = s.lines[s.i++];
     const z = s.who[k % s.who.length];
     if (!z || z.dead) { s.wait = 0.2; return; }
-    if (z.talk) z.talk = null;
-    s.wait = this.say(z, text, { cut: true, gest: 0.7 }) + 0.25;
+    s.cur = z; s.curT = 0;
+    this.say(z, text, { cut: true, gest: 0.7, group: s, wait: 6 });
+    s.wait = 0.2;
   }
 }

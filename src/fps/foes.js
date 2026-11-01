@@ -12,8 +12,13 @@
 //   sorcerers keep their distance, cast bolts, raise the dead around you or hex the ground under
 //             you, and blink away when you get close
 //   ghasts    lie in wait in the dark, shriek when they find you, come at you in a zigzag lope,
-//             pounce from a few strides off, rake and fall back
-//   grubbers  waddle, charge, smash with their nail-studded clubs and bite
+//             pounce from a few strides off, rake and fall back. Each has its own way for good: a
+//             raker (both hands, again and again), a pouncer (from further off, raking as it lands)
+//             or a circler (wheeling round you till your back is to it, then in and away); badly
+//             hurt, one shrieks again for the others
+//   grubbers  waddle, charge, smash with their nail-studded clubs and bite: a brawler (club blows
+//             one after another), a biter (the jaws first) or a charger (from further off, a ram that
+//             throws you back); badly hurt, frenzied: quicker, and hardly a pause between blows
 // Weapons and shields are the player's own models (the viewmodel's), held in sockets the build
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
@@ -978,22 +983,56 @@ class Foe extends Zombie {
   // ---- ghasts
   ghast(dt, player, dist, fe) {
     const K = this.kind;
+    this.routine ??= ['raker', 'pouncer', 'circler'][Math.floor(Math.random() * 3)];
     if (!this.shrieked && this.has('head')) {
       this.shrieked = true; this.state = 'shriek'; this.play('shriek', 0.1);
       this.foes.voice(this, 'shriek');
       this.owner.alert(this, player.pos, 26);
       return;
     }
+    // badly hurt: it falls back and shrieks again, and whatever's near comes
+    if (!this.shrieked2 && this.hp < K.hp * 0.45 && this.has('head') && dist > 1.8) {
+      this.shrieked2 = true; this.state = 'shriek'; this.play('shriek', 0.1);
+      this.foes.voice(this, 'shriek');
+      this.owner.alert(this, player.pos, 32);
+      this.retreatT = 0.7;
+      return;
+    }
     if (dist < 1.7 && fe < 0.6 && !this.cool) {
       const moves = [this.arm('R') && 'attack1', this.arm('L') && 'attack2'].filter(Boolean);
-      if (moves.length) { this.strike(moves[Math.floor(Math.random() * moves.length)]); this.retreatT = Math.random() < 0.4 ? 0.9 : 0; return; }
+      if (moves.length) {
+        const first = moves[Math.floor(Math.random() * moves.length)];
+        this.strike(first);
+        this.diving = false; this.circleT = 0;
+        if (this.routine === 'raker' && moves.length > 1) {          // one hand, the other, and again
+          this.comboQ = Math.random() < 0.5 ? [first === 'attack1' ? 'attack2' : 'attack1'] : [first === 'attack1' ? 'attack2' : 'attack1', first];
+          this.retreatT = Math.random() < 0.5 ? 2.4 : 0;
+        } else this.retreatT = this.routine === 'circler' ? 1.3 : Math.random() < 0.4 ? 0.9 : 0;   // (the circler: in, and away)
+        return;
+      }
     }
-    if (dist > 2.6 && dist < 5 && fe < 0.3 && this.lungeCool < 0 && this.feet && (this.arm('L') || this.arm('R'))) {
-      this.lungeCool = 3 + Math.random() * 3;
+    const far = this.routine === 'pouncer' ? 6.8 : 5;
+    if (dist > 2.6 && dist < far && fe < 0.3 && this.lungeCool < 0 && this.feet && (this.arm('L') || this.arm('R'))) {
+      this.lungeCool = (this.routine === 'pouncer' ? 1.6 : 3) + Math.random() * 3;
       this.strike('attack3', 0.45);
+      if (this.routine === 'pouncer') this.comboQ = [this.arm('R') ? 'attack1' : 'attack2'];   // (raking as it lands)
       return;
     }
     if (this.retreatT > 0) { this.go(dt, player.pos, K.run * 0.6, { face: player.pos, back: true }); return; }
+    // the circler wheels round you a few strides off till your back is to it (or it tires of it), then darts in
+    if (this.routine === 'circler' && !this.diving && dist > 2.4 && dist < 8 && this.feet) {
+      const fx = -Math.sin(player.yaw || 0), fz = -Math.cos(player.yaw || 0), tx = this.pos.x - player.pos.x, tz = this.pos.z - player.pos.z, tl = Math.hypot(tx, tz) || 1;
+      const looking = (fx * tx + fz * tz) / tl;
+      this.circleT = (this.circleT || 0) + dt;
+      if (looking < 0.2 || this.circleT > 7) this.diving = true;
+      else {
+        this.wheel ??= Math.random() < 0.5 ? 1 : -1;
+        const a = Math.atan2(tx, tz) + this.wheel * 0.9, r = 4.2;
+        _v.set(player.pos.x + Math.sin(a) * r, this.pos.y, player.pos.z + Math.cos(a) * r);
+        this.go(dt, this.route(_v), K.run * 0.75, { face: player.pos });
+        return;
+      }
+    }
     const t = this.route(_v.copy(player.pos));
     if (t === _v && dist > 3) {                    // a zigzag lope
       this.zig += dt * 3;
@@ -1006,13 +1045,30 @@ class Foe extends Zombie {
   // ---- grubbers
   grubber(dt, player, dist, fe) {
     const K = this.kind;
-    if (dist < K.reach && fe < 0.6 && !this.cool) {
-      const moves = [this.arm('R') && 'attack1', this.has('head') && 'attack2', this.arm('R') && 'attack3'].filter(Boolean);
-      if (moves.length) { this.chargeT = 0; this.strike(moves[Math.floor(Math.random() * moves.length)]); return; }
+    this.routine ??= ['brawler', 'biter', 'charger'][Math.floor(Math.random() * 3)];
+    const mad = this.hp < K.hp * 0.35;                 // (badly hurt: frenzied)
+    if (mad && this.cool > 0.35) this.cool = 0.35;
+    // charging into you: a ram, and you're thrown back (its club blow knocks you back)
+    if (this.chargeT > 0 && dist < K.reach + 0.7 && fe < 0.5 && this.arm('R') && !this.cool) {
+      this.chargeT = 0; this.chargeCool = 2.5 + Math.random() * 2; this.strike('attack1'); return;
     }
-    if (!this.chargeT && !this.chargeCool && dist > 3 && dist < 9 && this.feet) { this.chargeT = 2.5; this.foes.voice(this, 'alert'); }
-    if (this.chargeT > 0) { this.chargeT = Math.max(0, this.chargeT - dt); if (!this.chargeT) this.chargeCool = 4 + Math.random() * 3; }
-    this.go(dt, this.route(player.pos), dist < K.reach * 0.9 ? 0 : this.chargeT > 0 ? K.run : K.walk, dist < K.reach * 0.9 ? { face: player.pos } : {});
+    if (dist < K.reach && fe < 0.6 && !this.cool) {
+      const club = this.arm('R') && 'attack1', over = this.arm('R') && 'attack3', jaw = this.has('head') && 'attack2';
+      const runs = this.routine === 'brawler' ? [[club, over], [over, club], [club, jaw], [club]]
+        : this.routine === 'biter' ? [[jaw, club], [jaw], [jaw, over]]
+        : [[club], [over], [jaw]];
+      const ok = runs.map((r) => r.filter(Boolean)).filter((r) => r.length);
+      if (ok.length) {
+        const r = ok[Math.floor(Math.random() * ok.length)];
+        this.chargeT = 0; this.strike(r[0]); this.comboQ = r.length > 1 ? r.slice(1) : null;
+        return;
+      }
+    }
+    const reach = this.routine === 'charger' ? 12 : 9;
+    if (!this.chargeT && !this.chargeCool && dist > 3 && dist < reach && this.feet) { this.chargeT = this.routine === 'charger' ? 3.2 : 2.5; this.foes.voice(this, 'alert'); }
+    if (this.chargeT > 0) { this.chargeT = Math.max(0, this.chargeT - dt); if (!this.chargeT) this.chargeCool = (this.routine === 'charger' ? 2.5 : 4) + Math.random() * 3; }
+    const speed = (this.chargeT > 0 ? K.run * (this.routine === 'charger' ? 1.15 : 1) : K.walk) * (mad ? 1.3 : 1);
+    this.go(dt, this.route(player.pos), dist < K.reach * 0.9 ? 0 : speed, dist < K.reach * 0.9 ? { face: player.pos } : {});
   }
 }
 const _f = new THREE.Vector3();

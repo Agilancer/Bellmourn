@@ -31,6 +31,7 @@ import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud, SPELL_KEYS } from './hud.js';
 import { voice } from './voice.js';
+import { speak, hush, hushAll, tickSpeech, speaking } from './speech.js';
 import { Chatter } from './chatter.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
@@ -146,7 +147,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
-let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null;
+let quests = null, saves = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -439,9 +440,15 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   // the quests (quests.js): who gives them, what's done, the tracker, the log
   quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
-    // (a quest giver reads you the quest aloud, in their own voice; closing the window hushes them)
-    speak: (name, text) => { const v = villagers.list.find((a) => a.name === name); voice.say(v || { name }, text, { toYou: true, pri: 3, key: name, sex: v && /_f\d/.test(v.m) ? 'f' : 'm', kind: 'villager', pos: v?.pos || player.pos }); },
-    hush: () => voice.stop(),
+    // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
+    // stops for them; closing the window hushes them)
+    speak: (name, text) => {
+      const v = villagers.list.find((a) => a.name === name);
+      if (questVoice && questVoice !== v) hush(questVoice);
+      questVoice = v || { name, pos: player.pos };
+      speak(questVoice, text, true, { noBubble: true, must: true, voice: { ...(v ? villagers.voiceOf(v) : { key: name, kind: 'villager' }), pri: 3, pos: v?.pos || player.pos } });
+    },
+    hush: () => { if (questVoice) hush(questVoice); questVoice = null; },
     onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
     onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
   villagers.quests = quests;
@@ -1277,6 +1284,7 @@ function applyProgress(pr) {
 
 /** Load a save (from a slot). */
 async function restore(d) {
+  hushAll();
   if (intro?.running) intro.skip();
   char = fitLevel(fitCharacter(JSON.parse(JSON.stringify(d.char))));
   saveCharacter(char);
@@ -1372,6 +1380,7 @@ async function newGame() {
     yes: 'Begin', no: 'Go Back' }))) return;
   if (introBusy || starting) return;
   starting = true;
+  hushAll();
   try { await startOver(); } finally { starting = false; }
 }
 
@@ -1439,7 +1448,7 @@ async function startOver() {
         line('The knights of the open country…');
         await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
         if (voice.enabled && voice.neural !== 'failed' && voice.neural !== 'off') {
-          const tell = () => { const [g, o] = voice.progress; line(o ? `The voices of the village… ${g} of ${o}` : 'The voices of the village…'); };
+          const tell = () => { const [g, o] = voice.progress, dl = voice.download; line(dl ? `The voices of the village… ${dl[0]} of ${dl[1]} MB` : o ? `The voices of the village… ${g} of ${o}` : 'The voices of the village…'); };
           tell();
           const each = setInterval(tell, 300);
           await Promise.race([voice.ready, new Promise((r) => setTimeout(r, 240000))]).finally(() => clearInterval(each));
@@ -1820,6 +1829,7 @@ function tick(dt) {
   foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
   chatter.update(dt, player, active);
+  tickSpeech(dt);                       // (everyone's words, in turn: speech.js)
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
@@ -1884,7 +1894,7 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

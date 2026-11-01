@@ -280,9 +280,33 @@ export class ViewModel {
     o.frustumCulled = false;
     const m = o.material;
     refineTexture(m.map);
+    if (!item && m.userData?.height) return this.flesh(m);
     const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide,
       specular: item ? 0x6a625a : 0x1c1a18, shininess: item ? 48 : 16 });
     if (m.map && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.map, item ? 1.0 : 1.3);
+    return crisp(out);
+  }
+
+  /** Bare skin (the bare arms, tools/models/hands/build_hands.py): its bumps from its own height map
+   * (carried in the occlusion slot), never from its colour; a soft sheen that its shine map (in the
+   * metal/rough slot) raises on the knuckles, fingertips and nails and lowers on the palm; and light
+   * that wraps a little past the shadow's edge, warmer just there, as it does through skin. */
+  flesh(m) {
+    const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide, specular: 0x2a231e, shininess: 24 });
+    if (m.aoMap && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.aoMap, 0.9);
+    const shine = m.metalnessMap || m.roughnessMap;
+    if (shine) out.specularMap = shine;
+    out.onBeforeCompile = (sh) => {
+      // (and the sky's and the ground's light on it mostly greyed: the world's warm fill made skin clay)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_phong_pars_fragment>', THREE.ShaderChunk.lights_phong_pars_fragment.replace(
+        'vec3 irradiance = dotNL * directLight.color;\n\treflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
+        'vec3 irradiance = dotNL * directLight.color;\n\tfloat nlw = dot( geometryNormal, directLight.direction );\n\tvec3 tint = mix( vec3( 1.0, 0.88, 0.82 ), vec3( 1.0 ), smoothstep( -0.05, 0.2, nlw ) );\n\treflectedLight.directDiffuse += saturate( ( nlw + 0.25 ) / 1.25 ) * tint * directLight.color * BRDF_Lambert( material.diffuseColor );').replace(
+        'reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
+        'reflectedLight.indirectDiffuse += mix( irradiance, vec3( dot( irradiance, vec3( 0.299, 0.587, 0.114 ) ) ), 0.65 ) * BRDF_Lambert( material.diffuseColor );'))
+        // (in dim light skin goes grey, not chocolate: what's lit faintly is a quarter greyed)
+        .replace('#include <opaque_fragment>', 'outgoingLight = mix( outgoingLight, vec3( dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ), 0.25 * ( 1.0 - smoothstep( 0.08, 0.3, dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ) ) );\n#include <opaque_fragment>');
+    };
+    out.customProgramCacheKey = () => 'bm-flesh';
     return crisp(out);
   }
 
