@@ -1,17 +1,34 @@
 // The neural voice: Kokoro-82M (hexgrad, Apache-2.0; onnx-community/Kokoro-82M-v1.0-ONNX) through
-// kokoro-js (Apache-2.0), run here, off the game's thread, so nothing waits on it. The model (the
-// 8-bit build, about 90 MB) is fetched the first time and kept in the browser's cache after.
-//   in:  { type: 'load' }  { type: 'say', id, text, voice, speed }
-//   in: { type: 'load', voices: [every voice the game uses: each is fetched before 'ready'] }
-//   out: { type: 'progress', got, of } { type: 'ready' } { type: 'audio', id, audio (Float32Array), rate } { type: 'fail', id }
+// kokoro-js (Apache-2.0), run here, off the game's thread, so nothing waits on it. The model is
+// fetched the first time and kept in the browser's cache after. On a computer it's the full build
+// (fp32, 326 MB) on several threads (the page is cross-origin isolated: coi.js), which speaks about
+// twice as fast as it talks; the 8-bit build (92 MB) can't use the threads and is slower than speech,
+// so it's only for a phone (the memory) or where the threads can't be had. If the full build won't
+// load, the 8-bit one does instead.
+//   in: { type: 'load', voices: [every voice the game uses: each is fetched before 'ready'], dtype, threads }
+//       { type: 'say', id, text, voice, speed, pri }  { type: 'bump', ids, pri }  { type: 'drop', ids }
+//   out: { type: 'download', loaded, total } (the model coming, bytes) { type: 'model', dtype, threads }
+//        { type: 'progress', got, of } { type: 'ready' } { type: 'audio', id, audio (Float32Array), rate } { type: 'fail', id }
 //        { type: 'error', error }
 const LIB = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
+const ORT = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/+esm';   // (the very module kokoro-js runs on)
 const MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 let tts = null, loading = null;
 
-async function load(voices = []) {
+async function load(voices = [], { dtype = 'q8', threads = 1 } = {}) {
+  const T = await import(ORT);
+  if (threads > 1 && self.crossOriginIsolated) T.env.backends.onnx.wasm.numThreads = threads;
   const { KokoroTTS } = await import(LIB);
-  tts = await KokoroTTS.from_pretrained(MODEL, { dtype: 'q8', device: 'wasm' });
+  const progress_callback = (p) => { if (p.status === 'progress' && p.total > 4e6) postMessage({ type: 'download', loaded: p.loaded, total: p.total }); };
+  try {
+    tts = await KokoroTTS.from_pretrained(MODEL, { dtype, device: 'wasm', progress_callback });
+  } catch (err) {
+    if (dtype === 'q8') throw err;
+    console.warn('voices: the full model would not load; the 8-bit one instead', String(err));
+    dtype = 'q8';
+    tts = await KokoroTTS.from_pretrained(MODEL, { dtype, device: 'wasm', progress_callback });
+  }
+  postMessage({ type: 'model', dtype, threads: T.env.backends.onnx.wasm.numThreads || 1 });
   // every voice fetched now (each one's style file comes the first time it speaks): a word in each
   let got = 0;
   for (const voice of voices) {
@@ -20,14 +37,20 @@ async function load(voices = []) {
   }
 }
 
-// one line at a time, in the order asked (the game drops what it no longer wants)
+// one line at a time: the most pressing first (what's being said now, then what's waiting its turn,
+// then what's made ahead), in the order asked among equals; the game drops what it no longer wants
 const queue = [];
-let busy = false;
+let busy = false, seq = 0;
+function next() {
+  let b = 0;
+  for (let i = 1; i < queue.length; i++) if (queue[i].pri > queue[b].pri || (queue[i].pri === queue[b].pri && queue[i].seq < queue[b].seq)) b = i;
+  return queue.splice(b, 1)[0];
+}
 async function pump() {
   if (busy) return;
   busy = true;
   while (queue.length) {
-    const m = queue.shift();
+    const m = next();
     try {
       await loading;
       const t0 = performance.now();
@@ -44,11 +67,14 @@ async function pump() {
 onmessage = (e) => {
   const m = e.data;
   if (m.type === 'load') {
-    loading ||= load(m.voices || []);
+    loading ||= load(m.voices || [], m);
     loading.then(() => postMessage({ type: 'ready' }), (err) => postMessage({ type: 'error', error: String(err && err.stack || err) }));
   } else if (m.type === 'say') {
+    m.pri ??= 0; m.seq = seq++;
     queue.push(m);
     pump();
+  } else if (m.type === 'bump') {                // (lines whose turn has come: made first)
+    for (const q of queue) if (m.ids.includes(q.id) && q.pri < m.pri) q.pri = m.pri;
   } else if (m.type === 'drop') {                // (lines the game has given up on, still waiting)
     for (let i = queue.length - 1; i >= 0; i--) if (m.ids.includes(queue[i].id)) queue.splice(i, 1);
   }

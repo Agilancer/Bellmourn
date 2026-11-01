@@ -21,7 +21,16 @@
 // browser's voices.
 
 const EARSHOT = 28;          // metres
+const PHONE = typeof navigator !== 'undefined' && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
+/** Which build of the model, on how many threads: the full one on a computer whose page is isolated
+ * (coi.js), on all but a few of its cores; else the 8-bit one (tts_worker.js says why). */
+function build() {
+  const cores = navigator.hardwareConcurrency || 4, iso = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
+  const threads = iso ? Math.max(1, Math.min(10, cores - 4)) : 1;
+  return { dtype: !PHONE && iso && threads >= 4 ? 'fp32' : 'q8', threads };
+}
 const LOUD = 0.12;           // every sentence's loudness (RMS) before its speaker's volume
+const CHUNK = 80;            // characters: a longer sentence is made in pieces
 /** How loud a speaker d metres off is heard: all of it near, never less than a little over half. */
 const near = (d, pri) => (pri >= 2 ? 1 : Math.max(0.6, Math.min(1, 1.15 - (0.55 * d) / EARSHOT)));
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -89,6 +98,8 @@ const neural = {
 
   wanted() { return store('bm.neural') !== '0'; },
   got: 0, of: 0,             // how many of the voices are in (every one is fetched before it's ready)
+  dl: null,                  // [loaded, total] bytes of the model, while it's coming
+  model: null,               // { dtype, threads }: what it runs
 
   start() {
     if (this.state !== 'off' || !this.wanted() || typeof Worker === 'undefined') { if (this.state === 'off') this.settle(false); return; }
@@ -100,14 +111,16 @@ const neural = {
     this.worker.onerror = (e) => { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices failed', e.message); };
     const all = [...new Set(Object.values(KOKORO).flat())];
     this.of = all.length;
-    this.worker.postMessage({ type: 'load', voices: all });
+    this.worker.postMessage({ type: 'load', voices: all, ...build() });
   },
 
   settle(ok) { this.done?.(ok); this.done = null; },
 
   onMessage(m) {
-    if (m.type === 'progress') { this.got = m.got; this.of = m.of; return; }
-    if (m.type === 'ready') { this.state = 'ready'; this.got = this.of; this.settle(true); console.info(`voices: the neural voices are ready (Kokoro-82M, ${this.of} voices)`); return; }
+    if (m.type === 'progress') { this.got = m.got; this.of = m.of; this.dl = null; return; }
+    if (m.type === 'download') { this.dl = [m.loaded, m.total]; return; }
+    if (m.type === 'model') { this.model = { dtype: m.dtype, threads: m.threads }; this.dl = null; return; }
+    if (m.type === 'ready') { this.state = 'ready'; this.got = this.of; this.settle(true); console.info(`voices: the neural voices are ready (Kokoro-82M ${this.model?.dtype || ''}, ${this.model?.threads || 1} threads, ${this.of} voices)`); return; }
     if (m.type === 'error') { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices could not load', m.error); return; }
     const w = this.wait.get(m.id);
     this.wait.delete(m.id);
@@ -124,18 +137,40 @@ const neural = {
     for (const { line, i } of w.lines) { line.parts[i] = part; this.pump(line); }
   },
 
-  sentences(text) { return String(text).replace(/[{}]/g, '').match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g)?.map((s) => s.trim()).filter(Boolean) || []; },
+  /** A line in the pieces it's made in: its sentences, a long one broken at a comma (or a dash, a
+   * colon) so the first words are ready the sooner. */
+  sentences(text) {
+    const out = [];
+    for (let s of String(text).replace(/[{}]/g, '').match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g)?.map((x) => x.trim()).filter(Boolean) || []) {
+      while (s.length > CHUNK) {
+        let cut = -1;
+        const re = /[,;:—–]\s/g;
+        let m;
+        while ((m = re.exec(s)) && m.index < CHUNK) if (m.index > 18) cut = m.index + 1;
+        if (cut < 0) break;
+        out.push(s.slice(0, cut).trim()); s = s.slice(cut).trim();
+      }
+      if (s) out.push(s);
+    }
+    return out;
+  },
 
-  /** A sentence in a voice: from the cache, or asked for (line i of `line` gets it when it comes). */
+  /** A sentence in a voice: from the cache, or asked for (line i of `line` gets it when it comes).
+   * Made in order of how pressing: a line being said now (9), one waiting its turn (its priority, 0
+   * to 3), one made ahead (-1). */
   want(cast, s, line = null, i = 0) {
     const key = cast.voice + '|' + cast.speed.toFixed(2) + '|' + s, hit = this.cache.get(key);
+    const pri = line ? (line.hold ? line.pri ?? 0 : 9) : -1;
     if (hit?.audio) { if (line) line.parts[i] = hit; return; }
-    if (hit?.id && this.wait.has(hit.id)) { if (line) this.wait.get(hit.id).lines.push({ line, i }); return; }
+    if (hit?.id && this.wait.has(hit.id)) {
+      if (line) { this.wait.get(hit.id).lines.push({ line, i }); line.need.push(hit.id); this.worker.postMessage({ type: 'bump', ids: [hit.id], pri }); }
+      return;
+    }
     const id = this.next++;
     this.cache.set(key, { id });
     this.wait.set(id, { key, lines: line ? [{ line, i }] : [] });
-    if (line) line.ids.push(id);
-    this.worker.postMessage({ type: 'say', id, text: s, voice: cast.voice, speed: cast.speed });
+    if (line) { line.ids.push(id); line.need.push(id); }
+    this.worker.postMessage({ type: 'say', id, text: s, voice: cast.voice, speed: cast.speed, pri });
   },
 
   /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time. */
@@ -164,27 +199,47 @@ const neural = {
     return this.ctx;
   },
 
-  /** Say a line: its sentences sent off to be made, each played as it comes, in order. */
+  /** Say a line: its sentences sent off to be made, each played as it comes, in order. o.hold: made
+   * now, but not played till its handle's go() (speech.js: on the speaker's turn). Returns its handle. */
   say(who, text, cast, o) {
-    const sentences = this.sentences(text);
-    if (!sentences.length) return;
-    // too much already said and waiting? an ambient line is let go
-    const queued = this.wait.size;
-    if (o.pri === 0 && (queued > 2 || this.playing.length >= 2)) return;
-    if (o.pri > 0 && this.playing.length >= 2) this.cut(o.pri);
-    const line = { who, cast, o, parts: new Array(sentences.length).fill(null), at: 0, when: 0, ids: [], t0: performance.now(), pri: o.pri };
-    if (who) who.voiceLine = line;
-    sentences.forEach((s, i) => this.want(cast, s, line, i));
-    this.pump(line);
+    const sents = this.sentences(text);
+    if (!sents.length) return null;
+    const line = { who, cast, o, sents, parts: new Array(sents.length).fill(null), at: 0, when: 0, ids: [], need: [], t0: performance.now(), pri: o.pri, hold: !!o.hold, starts: [], durs: [], recs: [] };
+    sents.forEach((s, i) => this.want(cast, s, line, i));
+    if (!line.hold) this.pump(line);
+    return this.handle(line);
+  },
+
+  /** A line's handle: started (its first word is heard), done (its last is over, or it failed),
+   * failed (gone before a word), progress() (how much of it is said, 0 to 1), go(), cancel(). */
+  handle(line) {
+    const self = this, chars = line.sents.map((s) => s.length + 1), C = chars.reduce((a, b) => a + b, 0);
+    return {
+      get started() { return line.starts.length > 0 && !!self.ctx && self.ctx.currentTime >= line.starts[0]; },
+      get failed() { return !!line.dead && !line.starts.length; },
+      get done() { return !!line.dead || (line.at >= line.parts.length && !!self.ctx && self.ctx.currentTime >= line.when - 0.06); },
+      progress() {
+        const now = self.ctx?.currentTime ?? 0;
+        let said = 0;
+        for (let i = 0; i < line.starts.length; i++) said += chars[i] * Math.max(0, Math.min(1, (now - line.starts[i]) / line.durs[i]));
+        return said / C;
+      },
+      go() {
+        if (!line.hold) return;
+        line.hold = false; line.t0 = performance.now();
+        const ids = line.need.filter((id) => self.wait.has(id));     // (its turn: what's still to be made, first)
+        if (ids.length) self.worker.postMessage({ type: 'bump', ids, pri: 9 });
+        self.pump(line);
+      },
+      cancel() { for (const r of line.recs) { try { r.src.stop(); } catch { /* done */ } } self.drop(line); },
+    };
   },
 
   /** Play what's ready of a line, in order (a sentence starts as the one before it ends). */
   pump(line) {
-    if (line.dead) return;
+    if (line.dead || line.hold) return;
     const ctx = this.audio();
     if (!ctx) return;
-    // (stale: the speaker has moved on to another line, or it's been too long coming)
-    if ((line.who && line.who.voiceLine !== line) || performance.now() - line.t0 > 20000) { this.drop(line); return; }
     while (line.at < line.parts.length && line.parts[line.at]) {
       const p = line.parts[line.at++];
       const buf = ctx.createBuffer(1, p.audio.length, p.rate);
@@ -195,8 +250,10 @@ const neural = {
       src.connect(out.input);
       const start = Math.max(ctx.currentTime + 0.02, line.when);
       src.start(start);
+      line.starts.push(start); line.durs.push(buf.duration / line.cast.rate);
       line.when = start + buf.duration / line.cast.rate + 0.08;
       const rec = { src, pri: line.pri, who: line.who, end: line.when };
+      line.recs.push(rec);
       this.playing.push(rec);
       src.onended = () => { const i = this.playing.indexOf(rec); if (i >= 0) this.playing.splice(i, 1); };
     }
@@ -220,12 +277,6 @@ const neural = {
     lv.gain.value = level;
     lv.connect(fxInput(ctx, line.cast.fx, gain));
     return { input: lv };
-  },
-
-  /** Make room for a more pressing line: stop the least pressing one playing. */
-  cut(pri) {
-    const low = this.playing.filter((p) => p.pri < pri).sort((a, b) => a.pri - b.pri)[0];
-    if (low) { try { low.src.stop(); } catch { /* already done */ } }
   },
 
   drop(line) {
@@ -278,20 +329,34 @@ export function voiceOf(key, { sex = 'm', kind = 'villager', age = null } = {}) 
   return v;
 }
 
-let browserEnd = 0, browserPri = 0;
+let browserCur = null;
+/** A line in the browser's own voice (o.hold: not till go()); its handle, as the neural one's. */
 function browserSay(who, text, o, d) {
-  if (!synth) return;
-  const now = performance.now();
-  const busy = synth.speaking && now < browserEnd;
-  if (busy && o.pri <= browserPri) return;          // (an ambient line doesn't queue: it's let go)
-  if (synth.speaking || synth.pending) synth.cancel();
+  if (!synth) return null;
   const { voice: v, pitch, rate } = voiceOf(o.key || who?.name || 'someone', o);
-  const u = new SpeechSynthesisUtterance(String(text).replace(/[{}]/g, ''));
+  const clean = String(text).replace(/[{}]/g, '');
+  const u = new SpeechSynthesisUtterance(clean);
   if (v) u.voice = v;
   u.pitch = pitch; u.rate = rate;
   u.volume = near(d, o.pri) * (voice.sound ? Math.min(1, voice.sound.volume * 2) : 1);
-  browserEnd = now + 1000 * (0.6 + text.length * 0.075 / rate); browserPri = o.pri;
-  try { synth.speak(u); } catch { /* no voice today */ }
+  const h = {
+    started: false, done: false, failed: false, at: 0, t0: 0, est: 0.6 + (clean.length * 0.075) / rate,
+    progress() {
+      if (!this.started) return 0;
+      return Math.max(this.at / clean.length, Math.min(0.97, (performance.now() - this.t0) / 1000 / this.est));
+    },
+    go() {
+      if (synth.speaking || synth.pending) synth.cancel();
+      try { synth.speak(u); } catch { this.failed = this.done = true; return; }
+      setTimeout(() => { if (!this.started && !this.done) { this.failed = this.done = true; if (browserCur === u) synth.cancel(); } }, 1800);
+    },
+    cancel() { if (!this.done && (browserCur === u || synth.pending)) synth.cancel(); this.done = true; },
+  };
+  u.onstart = () => { h.started = true; h.t0 = performance.now(); browserCur = u; };
+  u.onboundary = (e) => { h.at = e.charIndex || h.at; };
+  u.onend = u.onerror = () => { h.done = true; if (!h.started) h.failed = true; if (browserCur === u) browserCur = null; };
+  if (!o.hold) h.go();
+  return h;
 }
 
 // ------------------------------------------------------------------ the voice
@@ -307,23 +372,36 @@ export const voice = {
   warm() { if (this.enabled) neural.start(); else neural.settle(false); return this.ready; },
   /** How far the voices' download has got: [in, of]. */
   get progress() { return [neural.got, neural.of]; },
+  /** The model's download while it's coming: [MB in, MB of], else null. */
+  get download() { return neural.dl ? [Math.round(neural.dl[0] / 1e6), Math.round(neural.dl[1] / 1e6)] : null; },
+  get model() { return neural.model; },
   /** Whether the neural voices are wanted and loaded (else the browser's speak). */
   get natural() { return neural.state === 'ready' && neural.wanted(); },
   get neural() { return neural.state; },
-  get debug() { return { state: neural.state, waiting: neural.wait.size, cached: neural.cache.size, playing: neural.playing.length, audio: neural.ctx?.state || 'none' }; },
+  get debug() { return { state: neural.state, model: neural.model, waiting: neural.wait.size, cached: neural.cache.size, playing: neural.playing.length, audio: neural.ctx?.state || 'none' }; },
   get speed() { const m = neural.ms; return m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length) : null; },
 
-  /** `who` says `text` aloud. o: { key (who they are: their name), sex, kind, age, toYou, pri, pos } */
+  /** Whether something said at `pos` is heard (a quest giver always is). */
+  hears(pos, pri = 0) {
+    const l = this.listener?.pos;
+    if (!pos || !l || pri >= 3) return true;
+    return Math.hypot(pos.x - l.x, pos.z - l.z, (pos.y ?? 0) - (l.y ?? 0)) <= EARSHOT;
+  },
+
+  /** `who` says `text` aloud. o: { key (who they are: their name), sex, kind, age, toYou, pri, pos,
+   * hold (made now, played on the handle's go()), browser (the browser's own voice: a neural line
+   * that didn't come in time) }. Returns the line's handle (speech.js waits on
+   * it: started, done, progress()), or null if it isn't said aloud. */
   say(who, text, o = {}) {
-    if (!this.enabled || !text || (typeof document !== 'undefined' && document.hidden)) return;
+    if (!this.enabled || !text || (typeof document !== 'undefined' && document.hidden)) return null;
     const pos = o.pos || who?.pos || who?.root?.position, l = this.listener?.pos;
     const d = pos && l ? Math.hypot(pos.x - l.x, pos.z - l.z, (pos.y ?? 0) - (l.y ?? 0)) : 0;
-    if (d > EARSHOT && !(o.pri >= 3)) return;
+    if (d > EARSHOT && !(o.pri >= 3)) return null;
     const pri = o.pri ?? (o.toYou ? 2 : o.kind && o.kind !== 'villager' ? 1 : 0);
     const oo = { ...o, pri };
     if (neural.state === 'off') neural.start();
-    if (neural.state === 'ready' && neural.wanted()) neural.say(who, text, neuralCast(o.key || who?.name || 'someone', o), oo);
-    else browserSay(who, text, oo, d);
+    if (!o.browser && neural.state === 'ready' && neural.wanted()) return neural.say(who, text, neuralCast(o.key || who?.name || 'someone', o), oo);
+    return browserSay(who, text, oo, d);
   },
 
   /** Make lines ahead of time: [[who, text, o], ...] (o as for say). */
@@ -332,7 +410,7 @@ export const voice = {
     for (const [who, text, o = {}] of list) neural.prefetch(text, neuralCast(o.key || who?.name || 'someone', o));
   },
 
-  stop() { neural.stop(); synth?.cancel(); browserEnd = 0; },
+  stop() { neural.stop(); synth?.cancel(); browserCur = null; },
 };
 
 voice.ready = new Promise((r) => { neural.done = r; });

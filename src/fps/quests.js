@@ -537,6 +537,7 @@ export class Quests {
     D.innerHTML = '';
     D.append(this.closeBtn(), el('h2', null, esc(GIVERS[name].call)));
     D.append(el('div', 'q-text', 'There is more than one thing to be done.'));
+    this.o.speak?.(name, 'There is more than one thing to be done.');
     for (const q of list) {
       const st = this.state[q.id];
       const b = el('button', 'q-pick', `<span class="qm ${st ? (st.s === 'ready' ? 'q' : 'g') : 'e'}">${st ? '?' : '!'}</span> ${esc(q.title)}`);
