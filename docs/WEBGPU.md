@@ -83,6 +83,10 @@ if (WEBGPU) { /* TSL */ } else { /* the GLSL, untouched */ }
   redrawn an eighth of its casters a frame into a back map when you've walked 14 m or the sun has
   turned, then copied in; the moving things' (2048 over 56 m, about you) every frame; the light takes
   the darker. Both with a 16-tap Vogel-disk PCF on hardware comparisons. `?onemap` turns it off.
+- `src/fps/cells.js` — the builders' static meshes (~4,000) in 40 m cells, each a render bundle the GPU
+  replays: culled per cell against whichever camera draws (world, sun, torches), re-recorded only when a
+  piece in it is shown, hidden or stops casting. This took the CPU from 16.8 to 10.2 ms a frame (mean of
+  the nine bench views at 1080p; WebGL: 16.3). `?nocells` turns it off.
 - `src/fps/engine.js` — `makeRenderer` (WebGPU or WebGL), `hideUnported` (a GLSL ShaderMaterial still
   about under WebGPU is hidden and named in the console, not thrown on), `findBadDraw` / `?debugrender`
   (which object makes a frame throw), `programCount` (pipelines under WebGPU).

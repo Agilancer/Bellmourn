@@ -163,6 +163,7 @@ addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } cat
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
+let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -601,7 +602,13 @@ async function prepare(mark) {
     const { installSunShadows } = await import('./sunshadow.js');
     sunShadows = installSunShadows(sun, { isStatic: (o) => o.static === true, staticSize: touch ? 2048 : 4096, dynSize: touch ? 1024 : 2048 });
   }
-  ctx.detail = new DetailCull(ctx.built, { touch, under: ctx.builtUnder });
+  // (WebGPU: the still world's pieces in render bundles by 40 m cells, which the GPU replays: cells.js;
+  // those are drawn whole, so only what's left is culled piece by piece far off)
+  if (WEBGPU && !/[?&]nocells/.test(location.search)) {
+    const { makeCells } = await import('./cells.js');
+    cells = makeCells(renderer, scene, [...(ctx.built || []), ...(ctx.builtUnder || [])].filter((m) => m.static));
+  }
+  ctx.detail = new DetailCull(cells ? ctx.built.filter((m) => !m.parent?.isCell) : ctx.built, { touch, under: ctx.builtUnder });
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
   // smooth-edged leaves, hair and lashes
   const r1 = refineScene(scene), r2 = refineScene(vm.scene);
@@ -658,6 +665,7 @@ async function warmWorldGPU() {
   scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
   for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
   sunShadows?.invalidate(true);   // (the still world's sun map drawn whole, with everything in it)
+  cells?.all(true);
   const was = renderer.getRenderTarget();
   renderer.setRenderTarget(small);
   try { renderer.render(scene, camera); } catch (e) {
@@ -670,6 +678,7 @@ async function warmWorldGPU() {
   small.dispose();
   for (const [o, v, fc] of saved) { o.visible = v; o.frustumCulled = fc; }
   for (const [l, au] of casters) { l.shadow.autoUpdate = au; l.shadow.needsUpdate = true; }
+  cells?.all(false);
 }
 
 /** A small picture of an arm model for the bag, rendered from the model itself. */
@@ -1764,6 +1773,7 @@ function showUnder() {
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
   for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
   ctx.detail?.update(cp);   // (and the small pieces far off left out: engine.js DetailCull)
+  cells?.update();          // (a cell whose pieces were shown or hidden is recorded again: cells.js)
 }
 
 // ------------------------------------------------------------------ the sounds of the place
@@ -2077,7 +2087,7 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
-  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, cells: () => cells, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
 }).catch((e) => {

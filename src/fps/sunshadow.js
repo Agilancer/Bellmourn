@@ -11,6 +11,7 @@
 // main.js: installSunShadows(sun, renderer, { isStatic }) once the world is built; invalidate() when a
 // static caster changes shape (a crate broken: props.onChange).
 import * as THREE from 'three';
+import { withoutBundles } from './cells.js';
 
 const T = THREE.TSL;
 const CHUNKS = 8;
@@ -88,7 +89,7 @@ class StaticShadow extends THREE.ShadowNode {
     renderer.autoClear = k === null || k === 0;
     const mwa = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
-    renderer.render(scene, this.pending.camera);
+    withoutBundles(() => renderer.render(scene, this.pending.camera));   // (its casters are filtered slice by slice: cells.js)
     scene.matrixWorldAutoUpdate = mwa;
     renderer.setRenderObjectFunction(was);
     THREE.RendererUtils.restoreRendererAndSceneState(renderer, scene, _state);
