@@ -209,8 +209,10 @@
   .slot { position: relative; width: 58px; height: 58px; background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000; display: grid; place-items: center; }
   .slot img { width: 40px; height: 40px; image-rendering: pixelated; }
   .slot b { position: absolute; left: 3px; top: 1px; font-size: 12px; color: var(--gold); text-shadow: 0 1px 2px #000; }
-  .slot small { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; color: #b8a888; margin-top: 3px; text-shadow: 0 1px 2px #000; }
+  .slot small { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; max-width: 64px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: #b8a888; margin-top: 3px; text-shadow: 0 1px 2px #000; }
   .slot.low img { opacity: .35; filter: grayscale(1); }
+  /* five spell slots: smaller on narrower screens, clear of the hands' names in the middle */
+  @media (max-width: 1100px) { .slots { gap: 6px; } .slot { width: 48px; height: 48px; } .slot img { width: 32px; height: 32px; } .slot small { max-width: 52px; } }
   .hands { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 11px; color: #b8a888; text-shadow: 0 1px 2px #000; white-space: nowrap; }
   .hands span { color: var(--gold); }
   .zone { position: absolute; left: 0; right: 0; top: 16%; text-align: center; font: 700 30px 'Cinzel Decorative', Cinzel, serif;
@@ -298,6 +300,7 @@
 
   /* ---------------- the map */
   .minimap { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 14px; width: 132px; height: 132px; image-rendering: pixelated; opacity: .92; }
+  .clock { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 152px; width: 132px; text-align: center; font: 700 17px 'Cinzel', Georgia, serif; letter-spacing: .12em; color: var(--gold); text-shadow: 0 1px 3px #000, 0 0 8px rgba(0,0,0,.8); pointer-events: none; font-variant-numeric: tabular-nums; }
   .map-full { position: absolute; inset: 3vh 3vw; background: #1a140c; border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000;
               display: grid; justify-items: center; align-content: center; gap: 6px; touch-action: none; }
   .map-full .close { position: absolute; right: 8px; top: 6px; width: 40px; height: 40px; font-size: 22px; }
@@ -419,6 +422,7 @@
   @media (pointer: coarse) {
     .bars { bottom: auto; top: 14px; width: 30vw; }
     .minimap { top: 70px; width: 104px; height: 104px; }
+    .clock { top: 178px; width: 104px; font-size: 14px; }
     .slots { display: none; }
     .hands { bottom: auto; top: 54px; left: max(18px, env(safe-area-inset-left)); transform: none; }
     .zone { font-size: 22px; top: 22%; }

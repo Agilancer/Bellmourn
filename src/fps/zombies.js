@@ -86,9 +86,9 @@ const LIMB_HP = { head: 42, upper_armL: 52, forearmL: 36, handL: 22, thighL: 150
 const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, shoulder: 0.07, upper_arm: 0.06,
   forearm: 0.052, hand: 0.05, thigh: 0.085, shin: 0.065, foot: 0.06 };
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
-const HP = 170;
+const HP = 120;   // (easier to kill than they were, but there are more of them)
 const WOUNDS = 16;
-const STAINS = 14;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
+const STAINS = 24;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
 // a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
 const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3, arcane: 2, missile: 2, void: 2 };
 // the mark a blow of each kind leaves on the skin about where it landed (STAINS: 0 blood, 1 char,
@@ -138,14 +138,14 @@ float stains(inout vec3 c) {
     vec4 s = uStain[i];
     vec3 q = vBind - s.xyz;
     float d = length(q) / s.w;
-    if (d > 3.2) continue;
+    if (d > 2.6) continue;
     float t = uStainT[i], seed = float(i) * 13.7;
     float edge = d + (gNoise(vBind * 38.0 + seed) - 0.5) * 0.9 + (gNoise(vBind * 110.0 + seed) - 0.5) * 0.35;
-    float drop = step(0.83, gNoise(vBind * 260.0 + seed)) * step(d, 2.6) * step(0.9, edge);   // the spatter round it
+    float drop = step(0.86, gNoise(vBind * 260.0 + seed)) * step(d, 2.1) * step(0.9, edge);   // the spatter round it
     if (t < 0.5) {
       // and the runs: down from the splash (bind space is the body standing), thinning as they go
       float below = -q.y / s.w, across = length(q.xz) / s.w;
-      float run = step(0.0, below) * step(below, 3.0) * step(0.62, gNoise(vec3(vBind.x * 90.0, 0.0, vBind.z * 90.0) + seed)) * step(across, 0.95 - below * 0.22);
+      float run = step(0.0, below) * step(below, 2.2) * step(0.66, gNoise(vec3(vBind.x * 90.0, 0.0, vBind.z * 90.0) + seed)) * step(across, 0.8 - below * 0.25);
       float k = max(max(step(edge, 1.0), drop), run * 0.85);
       if (k > 0.0) {
         vec3 blood = mix(vec3(0.26, 0.012, 0.016), vec3(0.45, 0.03, 0.03), gNoise(vBind * 70.0 + seed));
@@ -187,7 +187,7 @@ float gore(inout vec4 col) {
       gash = min(gash, length(e) / w.w);
       // the blood that ran down from it: under the gash, narrowing as it goes
       float below = -e.y, side = length(e.xz) / w.w;
-      if (below > 0.0 && below < w.w * 9.0) run = max(run, (1.0 - below / (w.w * 9.0)) * step(side, 1.1 - below / (w.w * 10.0)));
+      if (below > 0.0 && below < w.w * 5.0) run = max(run, (1.0 - below / (w.w * 5.0)) * step(side, 0.9 - below / (w.w * 7.0)));
       continue;
     }
     float d = length(vBind - w.xyz) / abs(w.w);
@@ -202,14 +202,14 @@ float gore(inout vec4 col) {
   if (gl_FrontFacing) {
     if (h < 0.6 || sp < 0.62) discard;                  // torn (or blown) open
     if (s < 0.45) { col.rgb = mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s)); return 1.0; }   // the gash
-    if (s < 2.4 || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.75) {
-      float k = s < 2.4 ? smoothstep(0.45, 2.4, s) : 0.3;
-      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it
-      if (s < 2.4) return (1.0 - k) * 0.9;
+    if ((s < 1.5 && gNoise(vBind * 90.0) > 0.25) || run * (0.6 + 0.8 * gNoise(vBind * vec3(240.0, 30.0, 240.0))) > 0.8) {
+      float k = s < 1.5 ? smoothstep(0.45, 1.5, s) : 0.3;
+      col.rgb = mix(col.rgb * vec3(0.32, 0.03, 0.03), col.rgb, k);   // blood about the lips of it, and down from it (in spots)
+      if (s < 1.5) return (1.0 - k) * 0.9;
     }
     if (h < 0.86 || c < 0.55) { col.rgb = raw; return 1.0; }
     if (sp < 0.7) { col.rgb = raw * 0.5; return 1.0; }  // a thin lip of seared meat
-    float soak = min(smoothstep(0.86, 1.8, h), smoothstep(0.55, 1.5, c));
+    float soak = min(smoothstep(0.86, 1.3, h), smoothstep(0.55, 1.15, c));
     col.rgb = mix(col.rgb * vec3(0.40, 0.05, 0.04), col.rgb, soak);   // blood-soaked around it
     float wet = (1.0 - soak) * 0.7;
     wet = max(wet, stains(col.rgb));
@@ -487,6 +487,73 @@ function adaptMonster(gltf) {
   return gltf;
 }
 
+// The undead on the animation library's skeleton (templates/models/creatures/zombie_ual, game
+// copies in game/ and game/phone/ from tools/creatures/zombie_ual/game_copies.py): ten bodies, one
+// set of clips (ual2_clips.glb) every one of them is bound to. They are the game's dead now, each
+// standing in for one of the grotesques (whose names the haunts, the quests and the catacombs ask
+// for), so everything that asks for a rotting zombie gets the shambler, and so on.
+const UAL_ROOT = 'templates/models/creatures/zombie_ual/';
+export const UAL_DEAD = { rotting_zombie: 'shambler', bloated_drowner: 'drowned', plague_bearer: 'plague', tomb_mummy: 'mummy', ember_husk: 'cinder',
+  pale_ghoul: 'ghoul', chitin_fiend: 'veinwretch', deep_maw: 'maw', fungal_husk: 'ropebound', bog_troll: 'ancient' };
+const TAKES = ['', '_B', '_C', '_D', '_E'];
+
+/** The library's clips in the zombie body's terms (its bones' names), by name. */
+function ualClips(gltf) {
+  const C = {};
+  for (const c of gltf.animations) {
+    for (const t of c.tracks) {
+      const i = t.name.lastIndexOf('.'), n = t.name.slice(0, i);
+      if (MONSTER_BONES[n]) t.name = MONSTER_BONES[n] + t.name.slice(i);
+    }
+    C[c.name] = c;
+  }
+  return C;
+}
+
+/** A UAL body ready for the brain: bones renamed, and the clips it asks for made from the library's.
+ * Every body keeps the takes (userData.takes): each of the dead draws its own walk, idle and blows
+ * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. */
+function adaptUAL(gltf, C) {
+  shareTextures(gltf.scene);
+  gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
+  gltf.scene.updateMatrixWorld(true);
+  let rootB = null, hipsB = null;
+  gltf.scene.traverse((o) => { if (o.isBone && o.name === 'hips') { hipsB = o; rootB = o.parent; } });
+  const takes = (base) => TAKES.map((s) => C[base + s]).filter(Boolean);
+  const named = (c, n) => { if (!c) return null; const k = c.clone(); k.name = n; return k; };
+  const sub = (c, n, a, b) => (c ? THREE.AnimationUtils.subclip(c, n, a, Math.min(b, Math.round(c.duration * FPS)), FPS) : null);
+  // laid face down on the floor, the pelvis a hand's breadth up: a clip made to crawl
+  const prone = (c, n) => {
+    if (!c || !hipsB || !rootB) return named(c, n);
+    const k = c.clone(); k.name = n;
+    const WR = rootB.getWorldQuaternion(new THREE.Quaternion()), M = WR.clone().invert().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)).multiply(WR);
+    const restY = hipsB.getWorldPosition(new THREE.Vector3()).y, inv = new THREE.Matrix4().copy(rootB.matrixWorld).invert();
+    const d = new THREE.Vector3(0, 0.2 - restY, 0.35).transformDirection(inv).multiplyScalar(new THREE.Vector3(0, 0.2 - restY, 0.35).length() / rootB.getWorldScale(new THREE.Vector3()).y);
+    const q = new THREE.Quaternion();
+    for (const t of k.tracks) {
+      const v = t.values;
+      if (t.name === 'hips.quaternion') for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).premultiply(M); q.toArray(v, i); }
+      if (t.name === 'hips.position') for (let i = 0; i < v.length; i += 3) { v[i] += d.x; v[i + 1] += d.y; v[i + 2] += d.z; }
+    }
+    return k;
+  };
+  const idle = takes('Zombie_Idle_Loop'), walk = takes('Zombie_Walk_Fwd_Loop'), scratch = takes('Zombie_Scratch');
+  const blows = [...scratch, C.Melee_Hook, C.OverhandThrow].filter(Boolean);
+  const knock = C.Hit_Knockback, last = knock ? Math.round(knock.duration * FPS) : 0;
+  gltf.animations = [
+    named(idle[0], 'idle'), named(walk[0], 'walk'), named(walk[1] || walk[0], 'run'),
+    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(C.Melee_Hook || blows[2], 'attack3'),
+    sub(knock, 'hit', 0, 9), named(knock, 'death'), knock && THREE.AnimationUtils.subclip(knock, 'dead', last - 1, last, FPS),
+    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop, 'fall'),
+    prone(walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
+    sub(prone(idle[0], 'crawl_death'), 'crawl_death', 0, 2),
+  ].filter(Boolean);
+  // (the takes each body draws its own from; and where in each blow it lands)
+  gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
+  gltf.userData.ual = true;
+  return gltf;
+}
+
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
 
@@ -541,6 +608,25 @@ export class Zombie {
       if (this.constructor.ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
       this.actions[clip.name] = a;
     }
+    // a UAL body: its own walk, idle and blows from the takes, kept for as long as it walks (no two
+    // side by side shamble the same), and where in each blow its hand lands
+    const T = gltf.userData.takes;
+    if (T) {
+      const n = this.owner.nextTake = (this.owner.nextTake || 0) + 1, own = (list, salt) => list[(n * 3 + salt + Math.floor(Math.random() * 7)) % list.length];
+      const set = (name, clip, once = false) => {
+        if (!clip) return;
+        const a = this.mixer.clipAction(clip);
+        if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+        this.actions[name] = a;
+      };
+      set('idle', own(T.idle, 0)); const w = Math.floor(Math.random() * T.walk.length);
+      set('walk', T.walk[w]); set('run', T.walk[(w + 1) % T.walk.length]); set('crawl', T.prone[w]);
+      // three blows of its own from the scratches, the hook and the overhand throw, swapped round as it fights
+      const blows = T.blows.slice().sort(() => Math.random() - 0.5);
+      ['attack1', 'attack2', 'attack3'].forEach((k, i) => set(k, blows[i % blows.length], true));
+      this.blowPool = blows;
+      this.hitAt = Object.fromEntries(['attack1', 'attack2', 'attack3', 'crawl_attack'].map((k) => [k, Math.round((this.actions[k]?.getClip().duration || 1) * FPS * 0.5)]));
+    }
     this.cur = null;
 
     this.pos = new THREE.Vector3(o.x, o.y, o.z);
@@ -553,6 +639,12 @@ export class Zombie {
     this.kind = KINDS[this.kindName];
     this.pace = 0.88 + Math.random() * 0.24;
     this.flank = [-1, 0, 1][this.id % 3];
+    // how it hunts you (each its own): shamble straight in, come round your side, grab hold, stalk
+    // you from out of reach till your back is turned or you're busy, pounce from further off, or
+    // lie down again and wait for you to come close
+    this.style = { shambler: ['shambler', 'shambler', 'flanker', 'grabber'], runner: ['stalker', 'pouncer', 'flanker', 'shambler'],
+      lurker: ['ambusher', 'pouncer', 'grabber', 'stalker'] }[o.kind || 'shambler'][Math.floor(Math.random() * 4)];
+    this.grabCool = 2 + Math.random() * 4;
     this.vy = 0; this.air = 0;
     this.hp = HP;
     this.limbHp = { ...LIMB_HP };
@@ -648,6 +740,17 @@ export class Zombie {
   }
 
   done() { const a = this.actions[this.cur]; return !a || !a.isRunning() || a.time >= a.getClip().duration - 1e-3; }
+
+  /** It changes up its blows now and then: blow k (not the one playing) swapped for another it
+   * knows (a UAL body: the scratches, the hook, the overhand throw). */
+  swapBlow(k) {
+    if (!this.blowPool || this.cur === k || Math.random() > 0.35) return;
+    const c = this.blowPool[Math.floor(Math.random() * this.blowPool.length)];
+    if (c === this.actions[k]?.getClip()) return;
+    const a = this.actions[k] = this.mixer.clipAction(c);
+    a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
+    this.hitAt[k] = Math.round(c.duration * FPS * 0.5);
+  }
 
   sync() {
     this.root.position.copy(this.pos);
@@ -805,6 +908,7 @@ export class Zombie {
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
+    const max = this.champ?.max || (this.kindName && this.kind?.hp) || HP;
     // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
     // the rim, anything else a ragged hole
     const rim = SPELL_RIM[kind] || 0;
@@ -834,11 +938,30 @@ export class Zombie {
       this.limbHp[limb] -= dmg * (leg ? (kind === 'blade' ? 0.85 : 0.5) / legToughness(this.heft) : kind === 'blade' ? (heavy ? 1.4 : 1.15) : 0.7);
       this.hp -= dmg * (limb === 'waist' ? 0.6 : 0.35);
       const big = (this.heft || 1) >= 1.6 || this.champ || this.def?.boss;
-      if (this.limbHp[limb] <= 0) this.sever(limb, dir);
-      else if (blow && !(leg && big) && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')] / (leg ? this.heft || 1 : 1)) this.blowOff(limb, dir, rim);
+      // (a head comes off only once it's under 30% of its life, a leg or the waist under half: till
+      // then the limb holds at the brink, and goes with the blow that takes it under)
+      const ok = this.hp / max < (limb === 'head' ? 0.3 : leg ? 0.5 : 2);
+      if (this.limbHp[limb] <= 0) { if (ok) this.sever(limb, dir); else this.limbHp[limb] = 1; }
+      else if (ok && blow && !(leg && big) && Math.random() < blow * BLOW[limb.replace(/[LR]$/, '')] / (leg ? this.heft || 1 : 1)) this.blowOff(limb, dir, rim);
     } else {
       this.hp -= dmg;
     }
+    // the weaker it is, the more it bleeds: splatters thrown wider over it with every blow, and the
+    // blood squirting from the wound and the ones it already has
+    const worn = 1 - Math.max(0, Math.min(1, this.hp / max));
+    if (worn > 0.2) {
+      for (let i = 0, n = Math.round(worn * 5); i < n; i++) {
+        _t.copy(p).add(_u.set((Math.random() - 0.5) * 0.6, (Math.random() - 0.35) * 0.7, (Math.random() - 0.5) * 0.6));
+        this.mark(_t, b, 0.035 + Math.random() * 0.045 * worn, 0);
+      }
+      g.spray(p, _w.copy(dir).add(_u.set((Math.random() - 0.5) * 1.4, 0.9, (Math.random() - 0.5) * 1.4)), Math.round(60 + 140 * worn), { speed: 3.5 + 3 * worn, spread: 1.4, size: 0.014 });
+      for (let i = 0; i < Math.round(worn * 3); i++) {
+        const w = this.stumps?.length && Math.random() < 0.5 ? this.stumps[Math.floor(Math.random() * this.stumps.length)] : null;
+        const at = w ? w.bone.getWorldPosition(_f) : this.bones.chest?.getWorldPosition(_f) || p;
+        g.spray(at, _w.set((Math.random() - 0.5) * 2, 1.2 + Math.random(), (Math.random() - 0.5) * 2), Math.round(30 + 60 * worn), { speed: 4 + 2 * worn, spread: 0.6, size: 0.012 });
+      }
+    }
+    if (this.state === 'grab') { this.state = 'move'; this.stagger = Math.max(this.stagger, 0.6); }   // (struck, it lets go)
     if (this.state === 'playdead' || this.state === 'buried') this.wake(owner.player?.pos);
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
@@ -1135,6 +1258,16 @@ export class Zombie {
         this.state = 'move';
         if (active && dist < 28) this.hunt(player.pos, true);
       }
+    } else if (this.state === 'grab') {
+      // holding you: you can barely move, and it tears at you, till it's struck off or you pull free
+      this.grabT -= dt; this.grabTick -= dt;
+      const turn = 3 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+      this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
+      if (dist < 1.6 && active) {
+        player.heldT = 0.2;
+        if (this.grabTick <= 0) { this.grabTick = 0.5; owner.onPlayerHit?.(3, this); }
+      }
+      if (this.grabT <= 0 || dist > 1.7 || this.done() && this.grabT < 0.6) { this.state = 'move'; this.cool = 0.8; }
     } else if (this.state === 'getup') {
       if (this.done()) this.state = 'move';
     } else if (this.state === 'playdead') {
@@ -1148,7 +1281,7 @@ export class Zombie {
         const f = this.forward();
         phys.slide(this.pos, f.x * 4.2 * dt, f.z * 4.2 * dt, 0.3, 1.6, 0.45);
       }
-      if (!this.fired && a.time * FPS >= HIT_AT[this.cur]) {
+      if (!this.fired && a.time * FPS >= (this.hitAt?.[this.cur] ?? HIT_AT[this.cur])) {
         this.fired = true;
         const reach = crawl ? 2.0 : 1.9;
         if (active && dist < reach && facingErr < 1.2 && Math.abs(player.pos.y - this.pos.y) < 1.2) owner.onPlayerHit?.(ATTACK_DMG[this.cur], this);
@@ -1190,6 +1323,20 @@ export class Zombie {
         this.jitter += dt;
         target.x += Math.sin(this.jitter * 0.9) * Math.min(3, dist * 0.35);
         target.z += Math.cos(this.jitter * 0.7) * Math.min(3, dist * 0.35);
+      } else if (this.style === 'stalker' && !this.committed && dist > 2.6 && dist < 9.5 && this.canSee && !this.narrow) {
+        // stalking: out of reach, sidling round you, till your back is to it or another has you busy
+        const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), tx = this.pos.x - player.pos.x, tz = this.pos.z - player.pos.z, tl = Math.hypot(tx, tz) || 1;
+        const looking = (fx * tx + fz * tz) / tl, busy = owner.chasers > 1 && owner.engaged > 0;
+        if (looking < 0.15 || busy || this.stalkT > 9) { this.committed = true; this.rush = 3; owner.sound('groan', this.pos, true); }
+        else {
+          this.stalkT = (this.stalkT || 0) + dt;
+          const a = Math.atan2(tx, tz) + (this.flank || 1) * 0.6 * dt * 4;
+          target.set(player.pos.x + Math.sin(a) * 6.5, player.pos.y, player.pos.z + Math.cos(a) * 6.5);
+        }
+      } else if (this.style === 'flanker' && !this.narrow && dist > 2.4 && dist < 12) {
+        // round to your side and behind you, then in
+        const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), s = this.flank || (this.id % 2 ? 1 : -1);
+        target.x += -fz * s * 2.2 - fx * 1.2; target.z += fx * s * 2.2 - fz * 1.2;
       } else if (this.flank && !this.narrow && dist > 2.4 && dist < 10 && owner.chasers > 2) {
         // with company it comes at you from the side, so they close round you (not on a bridge's
         // deck or a ledge, where the side is a drop)
@@ -1199,12 +1346,13 @@ export class Zombie {
       if (this.zone === 'dungeon' && (!this.canSee || Math.abs(player.pos.y - this.pos.y) > 0.8) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
       if (crawl) speed = CRAWL.chase[0] + CRAWL.chase[1] * (this.arm('L') + this.arm('R'));
       else if (!this.feet) speed = 0.65;
-      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.7 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
+      else speed = kind.run && (dist < 13 || this.rush > 0) && dist > 1.7 && this.has('head') ? kind.run : kind.walk * (this.rush > 0 ? 1.9 : 1.05);   // (rush: sent at you from far off, the slow ones hurrying too)
     } else if (this.goal === 'hunt' && this.hasLast) {
       target = _v.copy(this.lastSeen);
       // (the corridors' flow leads to you: not for one going back from an edge it gave up at)
       if (this.zone === 'dungeon' && !(this.balkT > owner.time) && owner.flowDir(this.pos, _w, this.dg)) { target.copy(this.pos).addScaledVector(_w, 2); routed = true; }
-      speed = crawl ? CRAWL.hunt : kind.walk;
+      // (one sent at you, the bell's horde, hurries even when it can't see you: runners run)
+      speed = crawl ? CRAWL.hunt : this.rush > 0 ? (kind.run && this.has('head') ? kind.run : kind.walk * 1.9) : kind.walk;
       if (Math.hypot(this.lastSeen.x - this.pos.x, this.lastSeen.z - this.pos.z) < 1.3) { this.goal = 'search'; this.searchT = 7 + Math.random() * 5; this.wander = null; this.wanderT = 0; }
     } else if (this.goal === 'search') {
       this.searchT -= dt; this.wanderT -= dt;
@@ -1214,6 +1362,7 @@ export class Zombie {
       }
       if (this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? CRAWL.hunt : kind.walk * 0.9; }
       if (this.searchT < 0) { this.aggro = false; this.goal = 'wander'; }
+      else if (this.style === 'ambusher' && this.searchT < 5 && !crawl && Math.random() < dt * 0.4) { this.state = 'playdead'; this.play('dead', 0.4); this.goal = 'wander'; this.aggro = false; return; }   // (lies down again, to wait for you)
     } else {
       this.wanderT -= dt;
       if (this.wanderT < 0) {
@@ -1248,12 +1397,22 @@ export class Zombie {
     const reach = crawl ? 1.55 : 1.35;
     const moves = crawl ? (this.arm('R') || this.has('head') ? ['crawl_attack'] : [])
       : [this.arm('R') && 'attack1', this.arm('L') && 'attack2', (this.arm('L') || this.arm('R') || this.has('head')) && 'attack3'].filter(Boolean);
-    if (chasing && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
-      this.state = 'attack';
-      this.play(moves[Math.floor(Math.random() * moves.length)], 0.12);
+    this.grabCool -= dt;
+    if (chasing && !crawl && this.style === 'grabber' && this.grabCool < 0 && dist < 1.3 && facingErr < 0.5 && this.arm('L') && this.arm('R') && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+      // it takes hold of you: you can barely move, and it tears at you till you strike it off
+      this.state = 'grab'; this.grabT = 1.8; this.grabCool = 7 + Math.random() * 5; this.grabTick = 0;
+      this.play('attack1', 0.1); owner.sound('groan', this.pos, true);
+      owner.onGrab?.(this);
       return;
     }
-    if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < 3.4 && facingErr < 0.3 && moves.includes('attack3')) {
+    if (chasing && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+      this.state = 'attack';
+      const mv = moves[Math.floor(Math.random() * moves.length)];
+      this.swapBlow(mv);
+      this.play(mv, 0.12);
+      return;
+    }
+    if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < (this.style === 'pouncer' ? 4.6 : 3.4) && facingErr < 0.3 && moves.includes('attack3')) {
       this.state = 'attack'; this.lungeT = 0.42; this.lungeCool = 4 + Math.random() * 4;
       this.play('attack3', 0.08);
       owner.sound('groan', this.pos, true);
@@ -1295,9 +1454,12 @@ export class Zombie {
       // (felt for with the rest, five times a second)
       if (this.feelT === 0.2) {
         const y = this.pos.y;
-        this.edgeAhead = phys.floorAt(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75, y + 0.3, 0.2, 0.75) < y - 1.5;
+        // (a drop: a floor found well below. None found at all is a wall or a step too high, the side
+        // of a stair or a plinth, not an edge: it walks round or climbs, it doesn't stop and groan)
+        const drop = (x, z) => { const fa = phys.floorAt(x, z, y + 0.3, 0.2, 0.75); return fa > -1e9 && fa < y - 1.5; };
+        this.edgeAhead = drop(this.pos.x + f.x * 0.75, this.pos.z + f.z * 0.75);
         // (narrow footing: a drop a metre to either side)
-        this.narrow = phys.floorAt(this.pos.x + f.z, this.pos.z - f.x, y + 0.3, 0.2, 0.75) < y - 1.5 || phys.floorAt(this.pos.x - f.z, this.pos.z + f.x, y + 0.3, 0.2, 0.75) < y - 1.5;
+        this.narrow = drop(this.pos.x + f.z, this.pos.z - f.x) || drop(this.pos.x - f.z, this.pos.z + f.x);
       }
       // one sent at you (rush) doesn't stop at an edge with footing beyond it: it leaps for it (and one
       // in three falls short). With nothing to land on, it stops like the rest.
@@ -1317,7 +1479,7 @@ export class Zombie {
         sp = 0;
         if ((this.edgeT = (this.edgeT || 0) - dt) < 0) { this.edgeT = 3 + Math.random() * 3; owner.sound('groan', this.pos, true); }
       }
-      phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, 0.45);
+      phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, crawl ? 0.45 : 0.55);
       if (crawl) this.play('crawl', 0.3, Math.max(0.45, speed / 0.55));
       else if (speed > 2) this.play('run', 0.25, speed / 3.0);
       else this.play('walk', 0.3, Math.max(0.5, speed / 0.85));
@@ -1334,7 +1496,7 @@ export class Zombie {
       phys.slide(this.pos, this.knock.x * dt, this.knock.z * dt, 0.3, 1.6, 0.45);
       this.knock.multiplyScalar(Math.exp(-9 * dt));
     }
-    const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, 0.45);
+    const fl = phys.floorAt(this.pos.x, this.pos.z, this.pos.y, 0.3, this.mode === 'crawl' ? 0.45 : 0.55);
     if (fl === -Infinity) return;
     if (this.pos.y > fl + 0.02) {
       if (!this.air) this.fallFrom = this.pos.y;
@@ -1434,8 +1596,14 @@ export class Zombies {
   async load(variants = [], monsters = [], grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
     const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
+    // the dead are the UAL bodies now, under the grotesques' names; the clips they share come first
+    let clips = null;
+    try { clips = ualClips(await loader.loadAsync(UAL_ROOT + 'ual2_clips.glb')); } catch (e) { console.warn('undead clips', e); }
     const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
-      try { this.gltf[g] = await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`); } catch (e) { console.warn('grotesque', g, e); }
+      try {
+        this.gltf[g] = clips && UAL_DEAD[g] ? adaptUAL(await loader.loadAsync(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${UAL_DEAD[g]}.glb`), clips)
+          : await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`);
+      } catch (e) { console.warn('undead', g, e); }
     };
     const one = async () => {   // a phone: one decoding at a time
       for (const m of monsters) await monster(m);
@@ -1529,13 +1697,16 @@ export class Zombies {
       const x = nav.x0 + i + 0.5, z = nav.z0 + k + 0.5, fy = floorY(x, z);
       let open = true;
       for (const b of this.physics.near(x, z, x, z)) {
-        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
-        if (b.seg) {   // (a prop set at an angle: by its distance from the line, not its bounds)
+        // (a wall segment at any angle, a prop set at an angle: by distance from its line, not its
+        // bounds; a wall standing into a cell's middle (a room's wall across a wide passage's mouth)
+        // closes it, so the dead are routed through the open part)
+        if (b.seg && (b.tag === 'prop' || b.tag === 'wall') && b.max[1] >= fy + 0.45 && b.min[1] <= fy + 1.6) {
           const t = Math.max(0, Math.min(b.len, (x - b.ax) * b.ux + (z - b.az) * b.uz));
-          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half) { open = false; break; }
+          if (Math.hypot(x - b.ax - b.ux * t, z - b.az - b.uz * t) < b.half + (b.tag === 'wall' ? 0.35 : 0)) { open = false; break; }   // (a wall: a body's width clear of it)
           continue;
         }
-        if (x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2]) { open = false; break; }
+        if (b.tag !== 'prop' || b.max[1] < fy + 0.45 || b.min[1] > fy + 1.6) continue;   // (walls are in the grid)
+        if (x > b.min[0] - 0.3 && x < b.max[0] + 0.3 && z > b.min[2] - 0.3 && z < b.max[2] + 0.3) { open = false; break; }   // (a body's width clear of it, or the route cuts its corner)
       }
       dg.walk[c] = open ? 1 : 0;
     }
@@ -1659,6 +1830,7 @@ export class Zombies {
     const dist = this.flow && this.flow.length === N ? this.flow : new Int16Array(N);
     dist.fill(-1);
     const q = this.queue && this.queue.length === N ? this.queue : (this.queue = new Int32Array(N));
+    const hh = nav.h;
     let h = 0, t = 0;
     dist[key] = 0; q[t++] = key;
     while (h < t) {
@@ -1670,6 +1842,7 @@ export class Zombies {
         if (ni < 0 || nk < 0 || ni >= nav.nx || nk >= nav.nz) continue;
         const n = nk * nav.nx + ni;
         if (dist[n] >= 0 || !walk[n]) continue;
+        if (hh && Math.abs(hh[n] - hh[c]) > 0.6) continue;    // (not up or down a drop: a ledge, a stair's open side, a tier)
         dist[n] = d + 1; q[t++] = n;
       }
     }
@@ -1696,6 +1869,8 @@ export class Zombies {
       if (!di && !dk) continue;
       if (di && dk && here >= 0 && (at(i + di, k) < 0 || at(i, k + dk) < 0)) continue;   // no cutting corners
       const d = at(i + di, k + dk);
+      // (only to a cell it can step to from where it stands: not up the side of a stair or a plinth)
+      if (nav.h && Math.abs(nav.h[(k + dk) * nav.nx + i + di] - p.y) > 0.65) continue;
       if (d >= 0 && d < best) { best = d; bi = i + di; bk = k + dk; }
     }
     if (bi === i && bk === k) return false;
@@ -1843,7 +2018,7 @@ export class Zombies {
     this.player = player;
     this.listener = camera.position;
     this.flowUpdate(player, dt);
-    let chasers = 0;
+    let engaged = 0, chasers = 0;
     const list = this.list;
     for (const z of list) {
       if (z.gone) continue;
@@ -1859,8 +2034,9 @@ export class Zombies {
         player.pos.x = z.pos.x + (player.pos.x - z.pos.x) * k; player.pos.z = z.pos.z + (player.pos.z - z.pos.z) * k;
       }
       if (z.goal === 'chase' && !z.dead && d < 12) chasers++;
+      if ((z.state === 'attack' || z.state === 'grab') && !z.dead && d < 2.6) engaged++;
     }
-    this.chasers = chasers;
+    this.chasers = chasers; this.engaged = engaged;   // (the stalkers wait for you to be busy)
     // they keep a little apart (and crawlers take more room)
     for (let i = 0; i < list.length; i++) {
       const a = list[i];

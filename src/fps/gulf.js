@@ -59,6 +59,9 @@ function strataMaterial(lib) {
   return m;
 }
 
+// (a cell at a drop's lip used to come off the dead's map; it stays now, and the flow search
+// (zombies.js) keeps to steps it can climb, so open-sided stairs and pits stay reachable)
+const LIPS = false;
 export const BY = -19;            // the landings and the bridge
 export const GF = -40;            // the gulf's floor under the bridge
 const ROOF = -4.5;
@@ -537,7 +540,7 @@ export class Gulf {
         const a = i + di, b = k + dk;
         if (a < 0 || b < 0 || a >= W || b >= D) continue;
         const o = b * W + a;
-        if (cell[o] >= 0 && h[c] - h[o] > 0.65) { cell[c] = -2; break; }
+        if (cell[o] >= 0 && h[c] - h[o] > 0.65 && LIPS) { cell[c] = -2; break; }
       }
     }
     for (let c = 0; c < cell.length; c++) if (cell[c] === -2) cell[c] = -1;

@@ -25,6 +25,7 @@ export class Player {
     this.health = 100; this.maxHealth = 100;
     this.mana = 100; this.maxMana = 100;
     this.speedMul = 1;          // from what's worn
+    this.heldT = 0;             // held by one of the dead (a grab): barely able to move
     this.lifeRegen = 0.4; this.manaRegen = 6;
     this.healing = 0;           // life still to come from a draught
     this.onFall = null;         // (damage) a long drop hurts when you land
@@ -36,7 +37,8 @@ export class Player {
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
     const [ax, ay] = input.axes();
     const run = input.held('ShiftLeft') || input.held('ShiftRight') || input.stickRun;
-    const top = (run ? RUN : WALK) * this.speedMul;
+    this.heldT = Math.max(0, this.heldT - (input.dt || 1 / 60));
+    const top = (run ? RUN : WALK) * this.speedMul * (this.heldT > 0 ? 0.25 : 1);
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw); // forward
     const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);  // right
     const wx = (fx * ay + rx * ax) * top, wz = (fz * ay + rz * ax) * top;
