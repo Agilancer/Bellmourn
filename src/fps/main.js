@@ -1149,7 +1149,7 @@ function light(dt, t) {
     if (f.portal) {   // an awake portal's own blue light, breathing (no light on the hands: it's no flame)
       const s = f.portal;
       l.color.setHex(f.color);
-      l.intensity = (11 + 6 * s.flash) * (0.85 + 0.15 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake) * Math.min(1.2, L.under + indoor + L.out * (0.25 + 0.75 * night) + 0.1);
+      l.intensity = (11 + 6 * s.flash) * (0.85 + 0.15 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake) * Math.min(1.2, L.under + indoor + L.out * (0.05 + 0.95 * night) + 0.03);   // (by day, a glow; it's the night it lights)
       l.distance = 9;
       return;
     }
@@ -1247,7 +1247,7 @@ function travel(to) {
   player.pos.set(to.x, to.y + SEAL_H, to.z);
   player.vel.set(0, 0, 0);
   player.yaw = to.yaw; player.pitch = 0;
-  ctx.portals.flash(to); sealBurst(to, 96, { speed: 1.2, grav: -2.2, life: 1.5 }, 2.1);
+  ctx.portals.flash(to); sealBurst(to, 64, { speed: 1.6, size: 0.03, grav: 4, life: 0.9 }, 2.3);   // (a splash at the rim, falling)
   hud.banner?.classList.remove('show');   // (no word of an old waking over where you land)
   magic.screen.color.set(0x7aa4ff); magic.screen.amount = 0.9;
   sfx.portalJump?.();

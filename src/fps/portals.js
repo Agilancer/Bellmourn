@@ -152,7 +152,9 @@ function sideMaterial(map, normalMap, time) {
       {
         float t = uTime + vSeal.z * 7.0;
         float tw = 0.6 + 0.4 * sin(t * 0.7 + floor(vMapUv.x * 2.0 + 0.5) * 2.4);
-        totalEmissiveRadiance += sPaint * sBlue * (tw * 0.5 * sAwake + 0.03 * (1.0 - sAwake) + vSeal.y * 1.2) + vec3(0.02, 0.03, 0.08) * sAwake;
+        // (and a faint blue in the frieze's stone, so the band isn't black at night: not on the footing)
+        float frieze = step(${V_FRIEZE[0].toFixed(4)}, vMapUv.y) * step(vMapUv.y, ${V_FRIEZE[1].toFixed(4)});
+        totalEmissiveRadiance += sPaint * sBlue * (tw * 0.5 * sAwake + 0.03 * (1.0 - sAwake) + vSeal.y * 1.2) + vec3(0.01, 0.015, 0.04) * sAwake * frieze;
       }`);
   };
   m.customProgramCacheKey = () => 'portal-side';
