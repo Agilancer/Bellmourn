@@ -245,6 +245,10 @@ export class WorldMap {
           g.font = '700 12px Cinzel, Georgia, serif'; g.textAlign = 'center';
           g.lineWidth = 3; g.strokeStyle = 'rgba(20, 12, 4, 0.9)'; g.strokeText(q.label, x, y - 14); g.fillStyle = '#ffd84a'; g.fillText(q.label, x, y - 14);
         }
+      } else if (q.kind === 'shop') {   // a merchant: a coin with the shop's sign (trade.js)
+        const s = big ? 1 : 0.62;
+        this.shopMark?.(g, q.mark, x, y + 11 * s, s);
+        if (big && k > 1.2) { g.font = '600 10px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(232, 220, 190, 0.85)'; g.strokeText(q.label, x, y + 18); g.fillStyle = INK; g.fillText(q.label, x, y + 18); }
       } else {
         const glyph = q.kind === '!' ? '!' : '?';
         g.font = `900 ${big ? 22 : 15}px "Cinzel Decorative", Cinzel, Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';

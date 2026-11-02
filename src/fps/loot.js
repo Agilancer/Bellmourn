@@ -8,7 +8,9 @@
 // the village, better the further out into the wild countries.
 // foes.js calls ctx.loot.drop([x, y, z], { tier }) when something dies (tier 1-4).
 import * as THREE from 'three';
-import { makeGear, makePotion, RARITY, addToBag } from './gear.js';
+import { makeGear, makePotion, RARITY, addToBag, itemColor } from './gear.js';
+import { GEMS } from './gems.js';
+import { MATS, addMat } from './craft.js';
 
 // how good what a place holds is (an item level), from where it is
 export function placeLevel(p, under = false) {
@@ -59,7 +61,9 @@ const glowTex = (() => {
 })();
 
 export class Loot {
-  /** hooks: { char(), models: async (item) -> Object3D, onTake(item, text), full(), zone(p) -> {under} } */
+  /** hooks: { char(), models: async (item) -> Object3D, onTake(item, text), full(), zone(p) -> {under},
+   * find() -> the rarity bonus for better things found, extra(container's name, item level) -> more
+   * things it holds (materials, gems, plans: craft.js) } */
   constructor(ctx, hooks = {}) {
     this.ctx = ctx;
     this.hooks = hooks;
@@ -152,7 +156,8 @@ export class Loot {
     const lv = placeLevel(c, under);
     const out = c.contents ? c.contents(lv) : [];
     const n = c.contents ? 0 : H.itemP !== undefined ? (Math.random() < H.itemP ? 1 : 0) : H.items[0] + Math.floor(Math.random() * (H.items[1] - H.items[0] + 1));
-    for (let i = 0; i < n; i++) out.push(makeGear({ ilvl: lv, bonus: H.bonus }));
+    for (let i = 0; i < n; i++) out.push(makeGear({ ilvl: lv, bonus: H.bonus + (this.hooks.find?.() || 0) }));
+    if (!c.contents) out.push(...(this.hooks.extra?.(H.name, lv) || []));
     if (!c.contents && Math.random() < H.gold) out.push({ type: 'gold', amount: Math.max(1, Math.round((3 + lv * 2.5) * H.goldK * (0.5 + Math.random()))) });
     if (!c.contents && Math.random() < H.potion) out.push(makePotion(Math.random() < 0.6 ? 'life' : 'mana', 1));
     const step = wide ? Math.min(1.2, 6.28 / Math.max(1, out.length)) : Math.min(0.5, 2.4 / out.length), far = out.length > 4 ? 0.5 : 0;   // (a big haul fans out wider, still in front)
@@ -169,7 +174,7 @@ export class Loot {
   drop(at, { tier = 1, under = false } = {}) {
     const [x, y, z] = Array.isArray(at) ? at : [at.x, at.y, at.z];
     const lv = Math.max(placeLevel({ x, z }, under), tier * 3);
-    this.spawn(makeGear({ ilvl: lv, bonus: tier * 0.4 }), x, y + 0.5, z, { pop: true });
+    this.spawn(makeGear({ ilvl: lv, bonus: tier * 0.4 + (this.hooks.find?.() || 0) }), x, y + 0.5, z, { pop: true });
     if (Math.random() < 0.5) this.spawn({ type: 'gold', amount: Math.round((4 + lv * 3) * (0.5 + Math.random())) }, x + 0.4, y + 0.5, z + 0.3, { pop: true });
     if (Math.random() < 0.25) this.spawn(makePotion('life', 1), x - 0.4, y + 0.5, z - 0.2, { pop: true });
   }
@@ -179,13 +184,16 @@ export class Loot {
     const holder = new THREE.Group();
     holder.position.set(x, y, z);
     this.group.add(holder);
-    const col = new THREE.Color(item.type === 'gear' ? RARITY[item.rarity].color : item.type === 'gold' ? '#ffd34a' : item.kind === 'mana' ? '#6a8aff' : '#ff5a4a');
+    const col = new THREE.Color(item.type === 'gear' || item.type === 'gem' || item.type === 'recipe' ? itemColor(item) : item.type === 'gold' ? '#ffd34a'
+      : item.type === 'mat' ? (MATS[item.mat]?.tier >= 3 ? MATS[item.mat].tint[0] : '#d8c8a0') : item.kind === 'mana' ? '#6a8aff' : '#ff5a4a');
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.65 }));
-    glow.scale.setScalar(item.type === 'gear' ? 0.9 : 0.6);
+    glow.scale.setScalar(item.type === 'gear' ? 0.9 : item.type === 'gem' ? 0.75 : 0.6);
     holder.add(glow);
     let beam = null;
-    if (item.type === 'gear' && item.rarity >= 1) {   // the better things show from afar
-      beam = new THREE.Mesh(this.beamGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22 + item.rarity * 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    // the better things show from afar (a fine gem, a rare plan, a great one's reagent too)
+    const shows = item.type === 'gear' ? item.rarity >= 1 : item.type === 'gem' ? item.grade >= 3 || GEMS[item.gem]?.only : item.type === 'recipe' ? item.tier >= 2 : item.type === 'mat' && MATS[item.mat]?.tier >= 3;
+    if (shows) {
+      beam = new THREE.Mesh(this.beamGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22 + (item.rarity ?? 2) * 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       beam.position.y = -0.45;
       holder.add(beam);
     }
@@ -231,8 +239,10 @@ export class Loot {
   take(item) {
     const c = this.hooks.char();
     if (item.type === 'gold') { c.gold += item.amount; this.hooks.onTake?.(item, `${item.amount} gold`); return true; }
+    // materials go into the crafter's pouch (no room in the bag taken): craft.js
+    if (item.type === 'mat') { addMat(c, item.mat, item.n || 1); this.hooks.onTake?.(item, `${item.n > 1 ? item.n + ' × ' : ''}${MATS[item.mat]?.name || item.mat}`); return true; }
     if (!addToBag(c, item)) return false;
-    this.hooks.onTake?.(item, item.type === 'potion' ? `a ${item.name}` : `the ${item.name}`);
+    this.hooks.onTake?.(item, item.type === 'potion' ? `a ${item.name}` : item.type === 'gem' ? `a ${item.name}` : `the ${item.name}`);
     return true;
   }
 }

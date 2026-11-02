@@ -556,6 +556,7 @@ export class Quests {
       b.onclick = () => this.show(q, name);
       D.append(b);
     }
+    if (this.o.shopOf?.(name)) { const t = el('button', 'q-pick q-trade', '<span class="qm e">&#9673;</span> Trade'); t.onclick = () => this.o.onTrade?.(name); D.append(t); }
     D.classList.remove('hidden');
   }
 
@@ -584,6 +585,7 @@ export class Quests {
     if (!st) { btn('Accept', () => { this.accept(q.id); this.close(); }, 'sel'); btn('Decline', () => this.close()); }
     else if (st.s === 'ready') btn('Complete the quest', () => { this.complete(q.id); this.close(); }, 'sel');
     else btn('Goodbye', () => this.close());
+    if (this.o.shopOf?.(name)) btn('Trade', () => this.o.onTrade?.(name));   // (a merchant: their shop from here too)
     D.append(row);
     D.classList.remove('hidden');
   }

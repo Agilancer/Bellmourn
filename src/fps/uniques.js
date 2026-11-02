@@ -63,5 +63,7 @@ export function makeUnique(id) {
   it.lore = u.lore;
   it.affixes = Object.entries(u.affixes).map(([s, v]) => ({ s, v }));
   if (u.enchants) it.enchants = u.enchants.map(([e, v]) => ({ e, v }));
+  // a treasure's sockets are its own, not rolled: the village's finest have one, Tessariel's Brand two
+  it.sockets = Array(u.sockets ?? (u.rarity >= 5 ? 2 : u.rarity >= 3 ? 1 : 0)).fill(null);
   return it;
 }

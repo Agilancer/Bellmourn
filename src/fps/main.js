@@ -33,7 +33,7 @@ import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
-import { Loot } from './loot.js';
+import { Loot, placeLevel } from './loot.js';
 import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion, RARITY } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
@@ -58,6 +58,11 @@ import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
 import { shoveArea, launchWave, stepWaves } from './shovewave.js';
 import { DebugMenu } from './debug.js';
+import { Trade, SHOPS, MERCHANT_OF, SHOP_POSTS, drawShopMark } from './trade.js';
+import { GemFx } from './gemfx.js';
+import { Respawns } from './respawn.js';
+import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './craft.js';
+import { makeGem, GEMS } from './gems.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -167,6 +172,7 @@ let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, 
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
 let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
+let trade = null, gemFx = null, respawns = null;   // the merchants (trade.js), the gems' looks (gemfx.js), the world filling up again (respawn.js)
 // the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
 // no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
 const cheats = { noDamage: false, fly: false, god: false };
@@ -372,7 +378,11 @@ async function build() {
     zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
     onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); autoEquip(it); saveCharacter(char); bag.render(); if (it?.unique) { try { localStorage.setItem('bm.taken.' + it.unique, '1'); } catch { /* no storage */ } } },
     full: () => hud.toast('Your bag is full'),
+    find: () => (st.magicFind || 0) / 100,                    // (gems: better things found)
+    extra: (name, lv) => containerDrops(name, lv),             // (materials, gems and plans: craft.js)
   });
+  // the gems' looks on what's held (in the hands' scene from the start: its light is in their shaders)
+  gemFx = new GemFx(vm, scene, { touch, hi: HI, renderer });
   await mark('arms');
   await mark('icons');
   player = new Player(physics, camera, { contains: ctx.inBounds });
@@ -384,6 +394,7 @@ async function build() {
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
   zombies = new Zombies(scene, physics, kit, sfx);
+  respawns = new Respawns({ zombies });   // (notes how each is made, so it can be made again: respawn.js)
   await zombies.load(); await mark('zombies');
   const G = GRAVEYARD;
   zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
@@ -413,12 +424,17 @@ async function build() {
   zombies.onPlayerHit = hurtPlayer;
   zombies.onGrab = () => hud.toast('It has hold of you! Strike it to break free');
   foes = new Foes(zombies, manifest, ctx);   // dark knights and sorcerers abroad, ghasts and grubbers in the cave
+  respawns.foes(foes);
   await foes.load(); foes.populate(ctx);
   ctx.foes = foes;
-  foes.onBossDown = (f) => { hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; sfx.lock(true); music.stinger('triumph'); };
+  foes.onBossDown = (f) => {
+    hud.toast(`${f.def.title.split(',')[0]} falls, and the seal on the chest breaks`); shake = 1; sfx.lock(true); music.stinger('triumph');
+    spill(greatDrops('malgrave', 18), f.pos);   // (his signet, his plans, and the rest: craft.js)
+  };
   // the slimes of the caves, the Darkwood's bog, the wet meadow and the falls (slimes.js): they take
   // the dead's blows, blasts and noises through zombies.kin
   slimes = new Slimes(scene, physics, sfx, zombies);
+  respawns.slimes(slimes);
   slimes.populate(ctx, few);
   zombies.kin.push(slimes);
   ctx.slimes = slimes;
@@ -457,8 +473,11 @@ async function build() {
   magic.targets = () => zombies.list.concat(slimes.list);
   magic.nearest = (z, p) => zombies.nearest(z, p);
   // o: what a spell's own blow overrides (dmg, heavy, blow)
-  magic.onHit = (def, at, d, h, o = {}) => h.z.hit(h, { dmg: (o.dmg ?? def.dmg ?? spellDamage(def)) * (def.dmg || o.dmg ? 1 + st.spellPct / 100 : 1), dir: d,
-    heavy: o.heavy ?? def.size > 0.4, kind: def.kind, blow: o.blow ?? def.blow ?? SPELL_BLOW[def.kind] ?? 0 });
+  magic.onHit = (def, at, d, h, o = {}) => {
+    const dmg = (o.dmg ?? def.dmg ?? spellDamage(def)) * (def.dmg || o.dmg ? 1 + st.spellPct / 100 : 1);
+    h.z.hit(h, { dmg, dir: d, heavy: o.heavy ?? def.size > 0.4, kind: def.kind, blow: o.blow ?? def.blow ?? SPELL_BLOW[def.kind] ?? 0 });
+    if (def.kind === 'staff') gemPowers(h.z, h.point || at, h.bone, dmg, false);   // (a staff's gems ride its bolts)
+  };
   magic.area = (at, r, dmg, kind) => { const hit = zombies.blast(at, r, dmg, kind); zombies.noise(at, 22); return hit; };
   magic.noise = (at, r) => zombies.noise(at, r);
   magic.onBlast = (def, at) => {
@@ -474,8 +493,24 @@ async function build() {
     onChange: () => applyGear(), onUse: drinkAt, onDrop: dropFromBag,
     spells: SPELLS, spellIcons: hud.spellIcons, book: () => book, onAssign: assign, onClose: () => setInventory(false),
   });
+  // the merchants (trade.js): they keep their shops (villagers stay at them) and wear a coin over their heads
+  trade = new Trade({ ui, char: () => char, icon: (it, again) => bag.iconOf(it, again), toast: (t) => hud.toast(t), sfx,
+    onChange: () => applyGear(), onTrade: () => { saveCharacter(char); bag.render(); },
+    onMade: (it, how) => {
+      if (how) { hud.announce(how, it.name); magic.particles.burst(player.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), [new THREE.Color('#fff2b0'), new THREE.Color('#ffb040')], 40, { speed: 2, size: 0.04, grav: -1, life: 1.2 }); }
+      if (!addToBag(char, it)) { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
+      saveCharacter(char);
+    },
+    say: (name, text) => { const v = villagers.list.find((a) => a.name === name); if (v && !v.gathered) villagers.say(v, text, true, { now: true, must: true }); },
+    onClose: () => setTrade(false) });
+  villagers.shops = { Garrow: GIVERS.Garrow.post, Idris: GIVERS.Idris.post, ...SHOP_POSTS };
+  villagers.shopMark = (a) => (MERCHANT_OF[a.name] ? '$' + MERCHANT_OF[a.name] : null);
+  villagers.drawShopMark = drawShopMark;
+  bag.o.onSocket = () => { sfx.chime?.(true); applyGear(); };
+  bag.o.onLearn = () => { sfx.quest?.(false); };
   hud.refresh(vm.equip, book);
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
+  map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
   quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
@@ -487,10 +522,12 @@ async function build() {
       speak(questVoice, text, true, { noBubble: true, must: true, now: true, voice: { ...(v ? villagers.voiceOf(v) : { key: name, kind: 'villager' }), pri: 3, pos: v?.pos || player.pos } });
     },
     hush: () => { if (questVoice) hush(questVoice); questVoice = null; },
-    onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer(); },
+    onOpen: (on) => { if (touch) { hud.showTouch(!on); gameInput.release(); } else if (on) document.exitPointerLock?.(); else if (started && !paused && !trade?.open) lockPointer(); },
+    // (a merchant with work for you: a Trade button in their window too)
+    shopOf: (name) => MERCHANT_OF[name], onTrade: (name) => { const v = villagers.list.find((a) => a.name === name); if (v) setTrade(true, v); else quests.close(); },
     onChange: () => { if (quests && villagers) { if (quests.status('undercroft') !== 'available') villagers.postAt = null; } saveProgress(); } });
   villagers.quests = quests;
-  map.pins = () => quests.pins(villagers);
+  map.pins = () => [...quests.pins(villagers), ...shopPins()];
   map.portals = () => ctx.portals.woken();
   portalMenu = new PortalMenu({ ui, onPick: travel, onClose: () => setPortals(false) });
   ctx.portals.onWake = portalWoken;
@@ -531,6 +568,7 @@ async function build() {
   vm.on(onEvent);
   resize();
   await prepare(mark);
+  respawns.adopt();   // (everything in the world now comes back when cut down)
   ready = true; run.step = 'loaded';
   await rehearse();
   ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
@@ -608,6 +646,8 @@ async function prepare(mark) {
   // every body's materials on a plain mesh too, as a cut-off limb is drawn (the shaders differ)
   const lying = new THREE.Group();
   arms.forEach((o, i) => { if (o) { o.position.set(i * 0.6, -50, 0); lying.add(o); } });
+  // (and what else can lie about now: a gem, a plan, a pouch of materials: their shaders made now)
+  (await Promise.all([lootModel(makeGem('ruby', 3)), lootModel(makeRecipe('helm')), lootModel(makeMat('iron'))])).forEach((o, i) => { o.position.set(i * 0.6, -52, 0); lying.add(o); });
   const limbs = new Set();
   scene.traverse((o) => { if (o.isSkinnedMesh) for (const m of [o.material].flat()) if (!limbs.has(m)) { limbs.add(m); const p = new THREE.Mesh(o.geometry, o.material); p.position.set(0, -60, 0); p.castShadow = true; lying.add(p); } });
   scene.add(lying);
@@ -806,11 +846,52 @@ async function lootModel(it) {
     o.position.sub(c);
     return g;
   }
+  if (it.type === 'gem') return gemModel(it);
+  if (it.type === 'recipe') return scrollModel(it);
   const id = it.type === 'gold' ? 'props/Coin_Pile' : it.type === 'potion' ? (it.kind === 'mana' ? 'props/Potion_2' : 'props/Potion_1') : 'props/Pouch_Large';
   const m = kit.mesh(id);
   m.scale.setScalar(it.type === 'potion' ? 2.2 : it.type === 'gear' ? 2.4 : 1.4);
   m.position.y = -0.35;
   return m;
+}
+
+// a gem lying on the ground: a cut stone of its colour (one material for each kind of gem, made once)
+const gemMats = new Map(), gemGeo = (() => { const g = new THREE.OctahedronGeometry(0.11, 0); g.scale(1, 1.25, 1); return g; })();
+function gemModel(it) {
+  const col = GEMS[it.gem]?.color || '#ffffff';
+  if (!gemMats.has(col)) gemMats.set(col, new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, specular: 0xffffff, shininess: 120, flatShading: true }));
+  const m = new THREE.Mesh(gemGeo, gemMats.get(col));
+  m.scale.setScalar(0.6 + (it.grade || 3) * 0.12);
+  return Promise.resolve(m);
+}
+// a plan: a rolled parchment tied with its tier's colour
+const scrollMat = new THREE.MeshPhongMaterial({ color: 0xe8d4a0, shininess: 8 }), scrollGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.34, 10).rotateZ(Math.PI / 2);
+const tieGeo = new THREE.TorusGeometry(0.054, 0.012, 6, 12).rotateY(Math.PI / 2), tieMats = new Map();
+function scrollModel(it) {
+  const g = new THREE.Group(), col = ['#cfc4a8', '#4fd65a', '#4f8dff', '#ff9a2a', '#ff4058'][it.tier ?? 1];
+  if (!tieMats.has(col)) tieMats.set(col, new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.4 }));
+  g.add(new THREE.Mesh(scrollGeo, scrollMat), new THREE.Mesh(tieGeo, tieMats.get(col)));
+  return Promise.resolve(g);
+}
+
+/** Things thrown out about a point (a great one's death, a death's leavings). */
+function spill(items, at) {
+  items.forEach((it, i) => {
+    const a = (i / Math.max(1, items.length)) * Math.PI * 2 + Math.random() * 0.5, r = 0.4 + Math.random() * 0.5;
+    ctx.loot.spawn(it, at.x + Math.cos(a) * r, at.y + 0.7, at.z + Math.sin(a) * r, { pop: true });
+  });
+}
+
+/** The merchants on the map: a coin with the shop's sign, where they stand. */
+function shopPins() {
+  const out = [];
+  for (const [name, shop] of Object.entries(MERCHANT_OF)) {
+    if (name === 'Bertha') continue;   // (one sign for the Grimwalds' stall)
+    const v = villagers.list.find((a) => a.name === name), post = villagers.shops?.[name];
+    if (!v && !post) continue;
+    out.push({ kind: 'shop', mark: '$' + shop, x: v ? v.pos.x : post[0], z: v ? v.pos.z : post[1], label: SHOPS[shop].name });
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ equipment and spells
@@ -845,6 +926,7 @@ function applyGear(first = false) {
       else sfx.equip();
     }
     hud.refresh(vm.equip, book);
+    gemFx?.setGear(char);   // (what the gems in it look like: gemfx.js)
     saveCharacter(char);
   });
   return equipping;
@@ -1052,6 +1134,7 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
     sfx.hurt();
   }
   hurtAt = performance.now();
+  if (kind === 'spell' && st.spellWard) d *= 1 - st.spellWard / 100;   // (voidstones in armour)
   d *= 1 - armorCut(st.armor);
   player.health -= d;
   if (player.health <= 0) {
@@ -1073,6 +1156,13 @@ function answerBlow(by) {
   if (e.fire) { by.burnT = 3; by.burnDps = e.fire; }
   if (e.holy) player.healing += e.holy;
   if (e.repel) { by.knock = away.clone().multiplyScalar(7); by.stagger = 0.6; }
+  if (e.venom) by.poison?.(4, e.venom);
+  if (e.storm && chest) {   // lightning off the shield's face into whatever struck it
+    const from = fromView(vm.castPoint('L'), 0.6), to = chest.getWorldPosition(new THREE.Vector3());
+    magic.arcs.add(from, to, 0.16, 0.3); magic.arcs.add(from, to, 0.12, 0.45);
+    by.hit({ bone: chest, point: to, z: by }, { dmg: e.storm, dir: away, kind: 'lightning', push: 0.1 });
+    sfx.zap?.();
+  }
 }
 
 function noMana() { hud.flashMana(); hud.toast('Not enough mana'); sfx.fizzle(); }
@@ -1164,10 +1254,8 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1, stab = false) 
     const dmg = stats.meleeDamage(heavy, side) * power * (ripo ? 1.8 : 1);
     flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     sfx.hit(blunt ? 'blunt' : 'flesh', heavy);
-    // a treasure's powers: the dead set burning, or chilled to a crawl
-    // (it shows where the blade bit: char, or rime, about the wound, never the whole body)
-    if (st.burnHit && !flesh.z.dead) { flesh.z.burning = Math.max(flesh.z.burning || 0, 3); flesh.z.burnDps = Math.max(flesh.z.burnDps || 0, st.burnHit); flesh.z.mark?.(flesh.point, flesh.bone, 0.07, 1); }
-    if (st.chillHit && !flesh.z.dead) { flesh.z.chilled = Math.max(flesh.z.chilled || 0, st.chillHit); flesh.z.mark?.(flesh.point, flesh.bone, 0.07, 2); }
+    // a treasure's (and the gems') powers: the dead set burning, chilled to a crawl, poisoned, lightning loosed
+    gemPowers(flesh.z, flesh.point, flesh.bone, dmg, true);
     zombies.noise(o, 14);
     shake = heavy ? 1.0 : 0.6;
     return;
@@ -1186,6 +1274,32 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1, stab = false) 
   if (tag === 'ground' || wood) for (let i = 0; i < 4; i++) smoke.emit(p.clone(), new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4, (Math.random() - 0.5) * 0.6), { life: 1.2, size: 0.3, grow: 0.5, alpha: 0.25, shade: 0.7 });
   sfx.hit(wood ? 'wood' : tag === 'ground' ? 'ground' : 'stone', heavy);
   shake = heavy ? 0.9 : 0.55;
+}
+
+/** What a blow (or a staff's bolt) carries beyond its damage, from treasures and gems: burning,
+ * chill, poison, lightning leaping to the nearest others, and mana drunk from it. (It shows where the
+ * blade bit: char, or rime, about the wound, never the whole body.) */
+const ZAP = [new THREE.Color('#ffffff'), new THREE.Color('#bcd8ff'), new THREE.Color('#5a8aff')];
+function gemPowers(z, point, bone, dmg, melee) {
+  if (!z) return;
+  if (st.burnHit && !z.dead) { z.burning = Math.max(z.burning || 0, 3); z.burnDps = Math.max(z.burnDps || 0, st.burnHit); z.mark?.(point, bone, 0.07, 1); }
+  if (st.chillHit && !z.dead) { z.chilled = Math.max(z.chilled || 0, st.chillHit); z.mark?.(point, bone, 0.07, 2); }
+  if (st.poisonHit && !z.dead) z.poison?.(4, st.poisonHit);
+  if (melee && st.manaSteal) player.mana = Math.min(player.maxMana, player.mana + dmg * st.manaSteal / 100);
+  if (st.shockHit && point) {   // lightning leaps from the wound to the nearest two others
+    const from = point.clone ? point.clone() : new THREE.Vector3(...point);
+    const near = zombies.list.concat(slimes.list).filter((q) => q !== z && !q.dead && !q.gone && q.state !== 'buried' && q.pos.distanceTo(from) < 7)
+      .sort((a, b) => a.pos.distanceTo(from) - b.pos.distanceTo(from)).slice(0, 2);
+    for (const q of near) {
+      const b = q.slime ? q.core : q.bones?.chest || q.bones?.spine;
+      const to = q.slime ? q.center(new THREE.Vector3()) : b?.getWorldPosition(new THREE.Vector3());
+      if (!to) continue;
+      magic.arcs.add(from, to, 0.14, 0.3); magic.arcs.add(from, to, 0.1, 0.45);
+      q.hit({ bone: b, point: to, z: q }, { dmg: st.shockHit, dir: to.clone().sub(from).normalize(), kind: 'lightning', heavy: false, blow: 0 });
+      magic.particles.burst(to, ZAP, 10, { speed: 3, size: 0.03, grav: 4, life: 0.3 });
+    }
+    if (near.length) { sfx.zap?.(); magic.flashAt(from, 0x9ab8ff, 0.4); }
+  }
 }
 
 // ------------------------------------------------------------------ zones and light
@@ -1369,15 +1483,45 @@ function begin() {
 
 function setMap(on) {
   if (on && portalMenu?.open) portalMenu.close();
+  if (on && trade?.open) trade.close();
   map.show(on, player);
   if (on && bag.open) bag.show(false);
   if (touch) { gameInput.release(); }
   else if (on) document.exitPointerLock?.(); else lockPointer();
 }
 
+/** Any of the game's windows up (the bag, the map, a giver's words or the log, the save slots, the
+ * portals, a shop)? */
+const windowOpen = () => !!(bag?.open || map?.open || quests?.open || saves?.open || portalMenu?.open || trade?.open || debugMenu?.open);
+/** Every window shut and straight back to the game (never into the pause menu): the mouse taken up
+ * again, or, where the browser wants a click for it first, a word on the screen to click. */
+function backToGame() {
+  bag.show(false); map.show(false); portalMenu.close(); trade.close();
+  if (quests.open) quests.close();
+  if (paused) { paused = false; hud.showOverlay(null); }
+  if (touch) { hud.showTouch(true); gameInput.release(); } else lockPointer();
+}
+
+/** A merchant's shop: opened speaking with them (E); E again, Esc or the cross to leave. */
+function setTrade(on, who = null) {
+  if (on) {
+    const shop = who && MERCHANT_OF[who.name];
+    if (!shop) return;
+    trade.show(shop, who.name);   // (first: the windows shut after it don't take the mouse back)
+    if (bag.open) bag.show(false);
+    if (map.open) map.show(false);
+    if (portalMenu.open) portalMenu.close();
+    if (quests.open) quests.close();
+    villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8;
+  } else trade.close();
+  if (touch) { hud.showTouch(!on); gameInput.release(); }
+  else if (on) document.exitPointerLock?.(); else if (started && !paused) lockPointer();
+}
+
 function setInventory(on) {
   if (on && map.open) map.show(false);
   if (on && portalMenu?.open) portalMenu.close();
+  if (on && trade?.open) trade.close();
   bag.show(on);
   if (touch) { hud.showTouch(!on); gameInput.release(); } // the thumb controls would lie over the bag
   if (on) { document.exitPointerLock?.(); hud.refresh(vm.equip, book); }
@@ -1550,13 +1694,13 @@ function shiftLevel(d) {
 function pause() {
   if (introBusy) return;
   paused = true;
-  bag?.show(false); map?.show(false); quests?.close(); saves?.show(null); portalMenu?.close();
+  bag?.show(false); map?.show(false); quests?.close(); saves?.show(null); portalMenu?.close(); trade?.close();
   hud.showOverlay('pause', touch);
   if (touch) { hud.showTouch(false); gameInput.release(); }
 }
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && started && !bag?.open && !map?.open && !quests?.open && !saves?.open && !portalMenu?.open && !debugMenu?.open && !introBusy) pause();
+  if (!document.pointerLockElement && started && !windowOpen() && !introBusy) pause();
 });
 
 // ------------------------------------------------------------------ a new game, a game picked up, saved and loaded
@@ -1710,6 +1854,11 @@ function onDeath(z) {
   gainXp(xpFor(z));
   quests?.onKill(z);
   if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
+  // materials, now and then a gem or a plan (craft.js); a great one's reagent and its plans
+  const lv = placeLevel(z.pos, z.zone === 'dungeon' || z.zone === 'cave' || !!z.cave);
+  const left = deathDrops(z, lv);
+  if (z.champ) left.push(...greatDrops(z.champ.key, Math.max(lv, 12)));
+  if (left.length) spill(left, z.slime ? z.center(new THREE.Vector3()) : z.pos);
 }
 
 /** A quest handed in: its experience, coin and treasures (into the bag, or at your feet if it's full). */
@@ -1742,7 +1891,7 @@ async function newGame() {
 async function startOver() {
   music.toIntro();   // (a game's music gives way; the title's song plays on under the getting-ready)
   found.clear(); try { localStorage.removeItem('bm.found'); } catch { /* no storage */ }
-  saves.show(null); quests.close(); bag.show(false); map.show(false); portalMenu.close();
+  saves.show(null); quests.close(); bag.show(false); map.show(false); portalMenu.close(); trade.close(); gemFx?.clear();
   ctx.portals.load([]);   // (every seal asleep again)
   hud.showOverlay(null);
   if (touch) hud.showTouch(false);
@@ -2084,22 +2233,27 @@ function tick(dt) {
     intro.update(dt);
     if (inp.was('Escape') || inp.was('Space')) intro.skip();
   }
-  const active = started && !paused && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !debugMenu.open && !introBusy;
+  const active = started && !paused && !windowOpen() && !introBusy;
   const acting = active && !cheats.fly;   // (no-clip: you fly, unseen, and touch nothing)
   // Velscour's Skull by the corner map, over the pause screen too, but not over the other windows
-  debugMenu.showSkull(started && !introBusy && !lost && !bag.open && !map.open && !quests.open && !saves.open && !portalMenu.open && !debugMenu.open);
+  debugMenu.showSkull(started && !introBusy && !lost && !windowOpen());
 
-  if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { quests.close(); setInventory(!bag.open); }
+  // (from the pause menu the bag opens straight over the game, and closing it goes back to play)
+  if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { if (paused && !saves.open) { paused = false; hud.showOverlay(null); } if (!paused) { quests.close(); setInventory(!bag.open); } }
   if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
   if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); if (portalMenu.open) setPortals(false); quests.showLog(!quests.open); }
   if (started && !paused && !introBusy && inp.was('KeyT')) quests.toggleTracker();
   if (started && !introBusy && portalMenu.open && inp.was('KeyE')) setPortals(false);   // (E again: off, and back to it)
+  if (started && !introBusy && trade.open && inp.was('KeyE')) setTrade(false);
+  // Esc shuts whatever window is up and goes straight back to the game (the pause menu is for Esc in
+  // play); the save slots go back to where they were opened from
   if (started && !introBusy && inp.was('Escape')) {
-    if (portalMenu.open) { portalMenu.close(); pause(); }   // (as the map and the bag: Esc can't take the mouse back)
-    else if (quests.open) quests.close();
-    else if (saves.open) { saves.show(null); if (!paused && !touch) lockPointer(); }
-    else if (bag.open || map.open) { bag.show(false); map.show(false); pause(); } else if (touch) pause();
+    if (saves.open) { saves.show(null); if (!paused && !touch) lockPointer(); }
+    else if (windowOpen()) backToGame();
+    else if (touch) pause();
   }
+  // the mouse not taken up again (the browser wanted a click for it): say so, and a click does it
+  relock.classList.toggle('show', !touch && started && !paused && !introBusy && !windowOpen() && !document.pointerLockElement && !intro?.running);
   if (active && cheats.fly) player.fly(dt, inp);
   else if (active) {
     player.update(dt, inp);
@@ -2157,6 +2311,7 @@ function tick(dt) {
 
   vm.update(dt, acting ? player.speed : 0);
   camera.updateMatrixWorld();
+  if (started && !introBusy) gemFx?.update(dt, camera, player);   // (after the hands have moved)
   // spells gathering in the hand before they leave it; a charged one holds there, growing,
   // until it's ready, then the cast plays on and lets it go
   for (const side of ['R', 'L']) {
@@ -2183,7 +2338,14 @@ function tick(dt) {
     villagers.expect(who, 8);
     const words = !who.gathered && quests.words(who.name);
     if (words && who.wordsMade !== words) { who.wordsMade = words; voice.prefetch([[who, words, villagers.voiceOf(who)]], 8); }
-    if (inp.was('KeyE')) { if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; } }
+    // a merchant with nothing pressing to say trades; Garrow gives his gift first
+    const shop = MERCHANT_OF[who.name], gift = who.name === 'Garrow' && villagers.onGift && !villagers.gave('garrowsoath');
+    const trades = shop && mark !== '!' && mark !== '?' && !gift && !who.gathered;
+    if (trades) hud.prompt(`E — trade with ${who.call} · ${SHOPS[shop].name}`);
+    if (inp.was('KeyE')) {
+      if (trades) setTrade(true, who);
+      else if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; }
+    }
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
@@ -2250,6 +2412,7 @@ function tick(dt) {
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
   if (started && !cheats.fly) quests.update(dt, player);   // (a quest's things, taken up as you walk over them)
+  respawns?.update(dt, player, started && !introBusy && !paused, camera);   // (the dead long enough, and out of sight: back)
   hud.xp(char.level, char.xp, char.level >= MAX_LEVEL ? 0 : xpToNext(char.level));
   if ((saveT -= dt) <= 0 && started && !introBusy) { saveT = 10; saveProgress(); }
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
@@ -2281,6 +2444,9 @@ try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); 
 // (the title screen is up already, and shows how the loading goes: title.js)
 if (lastRun) title.lastRun(lastRun);
 gameInput = new Input(canvas, ui);
+const relock = document.createElement('div');
+relock.className = 'relock'; relock.textContent = 'Click to take up the mouse again';
+ui.append(relock);
 // a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
 const onLost = () => {
   lost = true; ready = false;
@@ -2317,6 +2483,7 @@ build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
   window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, cells: () => cells, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
+    trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
     cheats, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {

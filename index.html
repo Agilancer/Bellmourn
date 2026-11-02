@@ -358,6 +358,68 @@
   .ghost { position: fixed; z-index: 40; width: 44px; height: 44px; pointer-events: none; opacity: .85; }
   .ghost img { width: 100%; height: 100%; image-rendering: pixelated; }
 
+  /* ---------------- gems, sockets, plans and materials (gems.js, craft.js, bag.js) */
+  .bag .keys, .trade .keys { position: absolute; right: 54px; top: 16px; font: 11px Cinzel, serif; color: #7a6a50; letter-spacing: .04em; }
+  .icell .sock { position: absolute; left: 1px; bottom: 1px; display: flex; gap: 2px; pointer-events: none; }
+  .icell .sock i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid #000; background: radial-gradient(#050505, #262018); box-shadow: inset 0 0 2px #000; }
+  .icell .sock i.on { border-color: rgba(0, 0, 0, .7); }
+  .gm { border-color: #6a5a7a !important; background: rgba(40, 30, 60, .35) !important; }
+  .p1 { border-color: #2c7a33 !important; } .p2 { border-color: #2d4f99 !important; background: rgba(20, 30, 80, .3) !important; }
+  .p3 { border-color: #b8641a !important; background: rgba(90, 40, 5, .4) !important; } .p4 { border-color: #c0203a !important; background: rgba(90, 5, 20, .45) !important; }
+  .tt-gem { display: flex; gap: 6px; align-items: baseline; margin: 2px 0; font-size: 12px; color: #d8d0c0; }
+  .tt-gem i { flex: none; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #000; transform: translateY(1px); }
+  .tt-gem.empty { color: #7a6c58; } .tt-gem.empty i { background: radial-gradient(#050505, #2a2218); }
+  .tt-gemplace { font-size: 12px; margin: 2px 0; color: #d8d0c0; } .tt-gemplace b { color: #c8b48a; font-weight: 400; }
+  .tt-look { color: #c8b8ff; font-style: italic; font-size: 12px; margin-top: 3px; } .tt-look b { font-style: normal; font-weight: 400; color: #a898d8; }
+  .tt-forged { color: #e0a860; font-size: 11px; margin-top: 4px; } .tt-future { color: #ff7088; font-style: italic; }
+  .needs { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0; font-size: 12px; }
+  .needs span { display: inline-flex; align-items: center; gap: 4px; } .needs img { width: 20px; height: 20px; image-rendering: pixelated; }
+  .needs .gold { color: #ffd34a; }
+  select.gemto { max-width: 190px; font: 11px Georgia, serif; background: #1a1410; color: #e8dcc0; border: 1px solid var(--edge); padding: 4px; }
+  .mats-wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+  .matgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 5px; }
+  .mcell { display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 7px; align-items: center; padding: 4px 6px; border: 1px solid #3a2e22; background: rgba(0, 0, 0, .4); cursor: help; font: 12px Georgia, serif; }
+  .mcell img { grid-row: 1 / span 2; width: 32px; height: 32px; image-rendering: pixelated; } .mcell b { font: 700 12px Cinzel, serif; } .mcell span { color: #ffe2a0; font-size: 12px; }
+  .mcell.none { opacity: .42; filter: grayscale(.6); } .mcell.none span { color: #8a7a60; font-style: italic; }
+  .plan-row, .plan-pick { display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: start; padding: 6px 8px; border: 1px solid #33291f; background: rgba(0, 0, 0, .35); margin-bottom: 5px; font: 12px Georgia, serif; }
+  .plan-row img, .plan-pick img { width: 36px; height: 36px; image-rendering: pixelated; }
+  .plan-row b, .plan-pick b { font: 700 13px Cinzel, serif; } .plan-row em, .plan-pick em { font: italic 11px Georgia, serif; }
+  .plan-pick { cursor: pointer; } .plan-pick:hover { border-color: var(--gold-dim); } .plan-pick.sel { border-color: var(--gold); background: #1c1610; } .plan-pick.ok { box-shadow: inset 3px 0 0 #4fd65a; }
+  .relock { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); padding: 8px 18px; font: 600 15px Cinzel, Georgia, serif; letter-spacing: .06em; color: #f4e4c0;
+            background: rgba(10, 6, 4, .72); border: 1px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 6px 20px rgba(0, 0, 0, .7); pointer-events: none; opacity: 0; transition: opacity .25s; }
+  .relock.show { opacity: 1; }
+
+  /* ---------------- the merchants (trade.js) */
+  .panel.trade { width: min(1080px, 97vw); padding: 14px 18px 12px; background: radial-gradient(ellipse 70% 30% at 50% 0%, rgba(255, 150, 60, .1), transparent 70%), var(--panel); }
+  .panel.trade.shop-smith { border-color: #9a5a2a; background: radial-gradient(ellipse 70% 32% at 50% 0%, rgba(255, 110, 30, .16), transparent 72%), linear-gradient(#1e140e, #120c08); }
+  .panel.trade.shop-gems { border-color: #6a4a9a; background: radial-gradient(ellipse 70% 32% at 50% 0%, rgba(170, 90, 255, .16), transparent 72%), linear-gradient(#17121e, #0d0a12); }
+  .panel.trade.shop-goods { border-color: #7a6a38; background: radial-gradient(ellipse 70% 32% at 50% 0%, rgba(200, 180, 90, .12), transparent 72%), linear-gradient(#1a1610, #0f0c08); }
+  .t-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 0 44px 8px 0; }
+  .t-head h2 { margin: 0; } .t-keeper { font: 600 12px Cinzel, serif; color: #a89070; letter-spacing: .1em; }
+  .t-gold { font: 700 17px Cinzel, serif; color: #ffd34a; text-shadow: 0 0 8px rgba(255, 200, 60, .35); white-space: nowrap; } .t-gold b { font-size: 20px; }
+  .trade .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; } .trade .tabs button { font-size: 13px; padding: 7px 14px; }
+  .t-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; min-height: 300px; }
+  .t-list h3 { margin-top: 2px; }
+  .t-card { position: sticky; top: 0; min-height: 200px; border: 1px solid var(--edge); background: rgba(0, 0, 0, .5); padding: 10px 12px; font: 13px Georgia, serif; color: #e8dcc0; }
+  .t-card .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; } .t-card .row button { font-size: 13px; padding: 8px 14px; }
+  .t-card .preview { border: 1px dashed #4a3a28; padding: 6px 8px; margin-top: 4px; background: rgba(0, 0, 0, .3); }
+  .t-card .warn, .warn { color: #ff9a7a; font-size: 12px; margin-top: 6px; }
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, 54px); gap: 4px 4px; }
+  .tgrid.bagrid-t { grid-template-columns: repeat(10, 46px); }
+  .tslot { position: relative; width: 54px; height: 54px; border: 1px solid #4a3620; background: rgba(0, 0, 0, .55); cursor: pointer; margin-bottom: 12px; }
+  .bagrid-t .tslot { width: 46px; height: 46px; }
+  .tslot.sel { outline: 2px solid #ffe2a0; } .tslot.dim { opacity: .32; cursor: default; } .tslot.empty { cursor: default; border-color: #2a2018; background: rgba(0, 0, 0, .3); }
+  .tslot .price { position: absolute; left: -2px; right: -2px; bottom: -14px; text-align: center; font: 700 10px Georgia, serif; color: #ffd34a; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  .tslot .price::before { content: '\25C9 '; font-size: 8px; } .tslot .price.dear { color: #c86a50; }
+  .t-list .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .t-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 6px; border-top: 1px solid #2e241a; font: 11px Georgia, serif; }
+  .q-trade { margin-top: 10px !important; border-color: #8a6a2a !important; }
+  @media (max-width: 760px) { .t-body { grid-template-columns: 1fr; } .t-card { position: static; } .mats-wrap { grid-template-columns: 1fr; } }
+  @media (pointer: coarse) {
+    .tgrid { grid-template-columns: repeat(auto-fill, 46px); } .tslot { width: 46px; height: 46px; } .tgrid.bagrid-t { grid-template-columns: repeat(10, 36px); } .bagrid-t .tslot { width: 36px; height: 36px; }
+    .t-body { grid-template-columns: minmax(0, 1fr) 250px; } .t-card { font-size: 12px; } .bag .keys, .trade .keys { display: none; }
+  }
+
   /* ---------------- the map */
   .minimap { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 14px; width: 132px; height: 132px; image-rendering: pixelated; opacity: .92; }
   .clock { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 152px; width: 132px; text-align: center; font: 700 17px 'Cinzel', Georgia, serif; letter-spacing: .12em; color: var(--gold); text-shadow: 0 1px 3px #000, 0 0 8px rgba(0,0,0,.8); pointer-events: none; font-variant-numeric: tabular-nums; }
