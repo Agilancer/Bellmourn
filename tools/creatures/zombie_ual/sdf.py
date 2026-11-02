@@ -98,7 +98,7 @@ MOUTH_R = (0.021, 0.042, 0.011)
 # variant switches, set per monster (monsters.py); the defaults are the first zombie
 V = dict(mouth="zombie", lids="heavy", nose="rotted", crown=True, tear=True, bloat=0.0, bulk=0.0, claws=1.0,
          brow=1.0, cheeks=False, holes=[], teeth=1.0, gape=1.0, dome=1.0, shoulder=0.0, ropes=False, bony=0.0, lips=1.0, teeth_fwd=0.0,
-         bumps=[], ridges=[], ears=1.0, canine=1.0, slitw=1.0, hollow=0.0, inner=[], taper=0.0)
+         bumps=[], ridges=[], ears=1.0, canine=1.0, slitw=1.0, hollow=0.0, inner=[], taper=0.0, sunk=0.0)
 SLIT_C = np.array([0.0, -0.068, 1.625])  # the maw: a slit splitting the face from the eyes to the chin
 SLIT_R = np.array([0.0115, 0.042, 0.068])
 
@@ -234,8 +234,9 @@ def head(p):
         bs = V["brow"]                                                               # brows arched over each socket
         d = smin(d, round_cone(m, (a[0], a[1] + (1 - bs) * 0.012, a[2]), (b[0], b[1] + (1 - bs) * 0.012, b[2]), 0.0108 * bs, 0.0108 * bs), 0.01)
     d = smin(d, sphere(m, (0.062, 0.03, 1.628), 0.012), 0.012)                       # mastoids
-    d = smax(d, -ellipsoid(m, (0.074, -0.028, 1.716), (0.011, 0.026, 0.02)), 0.016)  # temples
-    d = smax(d, -ellipsoid(m, (0.047, -0.056, 1.635), (0.016, 0.021, 0.024)), 0.02)  # cheek hollows, right under the sockets
+    sk = 1 + 0.3 * V["sunk"]                                                         # starved: deeper temples and cheeks
+    d = smax(d, -ellipsoid(m, (0.074, -0.028, 1.716), (0.011 * sk, 0.026, 0.02 * sk)), 0.016)  # temples
+    d = smax(d, -ellipsoid(m, (0.047, -0.056, 1.635), (0.016 * sk, 0.021 * sk, 0.024)), 0.02)  # cheek hollows, right under the sockets
     d = smax(d, -ellipsoid(m, (EYE[0], EYE[1] - 0.004, EYE[2]), (0.021, 0.02, 0.016)), 0.008)  # sockets
     d = smin(d, sphere(m, EYE, EYE_R), 0.003)                                        # eyeballs
     heavy = V["lids"] == "heavy"
@@ -346,7 +347,8 @@ def arm(m):
 def hand(m):
     d = ellipsoid(m, (0.802, 0.072, 1.441), (0.058, 0.047, 0.0125))                  # palm
     d = smax(d, -ellipsoid(m, (0.805, 0.075, 1.431), (0.03, 0.026, 0.0055)), 0.006)  # cupped
-    d = smin(d, round_cone(m, (0.70, 0.066, 1.441), (0.772, 0.07, 1.441), 0.02, 0.017), 0.012)  # wrist
+    wk = 1 + 0.12 * min(V["bulk"], 0.0)                                              # (a thinned arm: a thinner wrist, no knob)
+    d = smin(d, round_cone(m, (0.70, 0.066, 1.441), (0.772, 0.07, 1.441), 0.02 * wk, 0.017 * wk), 0.012)  # wrist
     t = finger_pts("thumb")
     d = smin(d, round_cone(m, (0.778, 0.052, 1.436), t[1], 0.018, 0.0128), 0.016)    # thenar web
     for name in ("index", "middle", "ring", "pinky"):
@@ -363,8 +365,8 @@ def hand(m):
             tipr = min(max(0.45, 0.62 - 0.12 * (V["claws"] - 1)), 0.62 - 0.22 * V["taper"])   # claws / taper: the last joint narrows
             seg = round_cone(m, pts[j], pts[j + 1], r * (0.86 - 0.08 * j), r * (tipr if last else 0.78 - 0.08 * j))
             f = seg if f is None else smin(f, seg, 0.003)
-            if 0 < j:
-                f = smin(f, sphere(m, pts[j] + (0, 0, 0.0012), r * (1.12 - 0.07 * j)), 0.003)  # bony knuckles
+            if 0 < j:   # bony knuckles; on a tapered hand the last one stays small, or the tip reads as a ball
+                f = smin(f, sphere(m, pts[j] + (0, 0, 0.0012), r * (1.12 - 0.07 * j) * (1 - 0.28 * V["taper"] * last)), 0.003)
         tip, prev = np.array(pts[-1]), np.array(pts[-2])
         dirv = (tip - prev) / np.linalg.norm(tip - prev)
         f = smin(f, ellipsoid(m, nail_c(name), (0.0098 * V["claws"] * (1 - 0.35 * V["taper"]), r * 0.6 * (1 - 0.15 * V["taper"]),
@@ -403,7 +405,10 @@ def body(p):
     d = smin(d, neck(p, m) - 0.0025 * bu - 0.003 * bl, 0.035 + 0.006 * (bu + bl))   # no ring where neck meets chest
     d = smin(d, head(p), 0.03)
     mt = to_T(m)                       # arms and hands are sculpted straight, then hung in the A-pose
-    d = smin(d, arm(mt) - 0.007 * bu - 0.005 * bl, 0.035)
+    # a thinned arm stays full over its last 10 cm, so the forearm still runs into the palm (else the
+    # wrist pinches to a neck and the hand floats off it)
+    wr = np.clip((0.71 - mt[:, 0]) / 0.14, 0.0, 1.0) if bu < 0 else 1.0
+    d = smin(d, arm(mt) - 0.007 * bu * wr - 0.005 * bl, 0.035)
     d = smin(d, hand(mt) - 0.0006 * bu, 0.015)                     # bloat never balloons the fingers
     d = smin(d, leg(m) - 0.008 * bu - 0.004 * bl, 0.03)
     for pts, r0, r1 in V["ridges"]:              # ribs, sternum, sagging folds, bone spurs (A-space polylines)

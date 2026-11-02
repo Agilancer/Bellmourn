@@ -79,7 +79,16 @@ const MONSTERS = [
   ['zombie_ual', 'Zombie'], ['veinwretch', 'Veinwretch'], ['ropebound', 'Ropebound'], ['ancient', 'Ancient'],
   ['cinder', 'Cinder'], ['maw', 'Maw'], ['mummy', 'Mummy'], ['shambler', 'Shambler'], ['drowned', 'Drowned'],
   ['ghoul', 'Ghoul'], ['plague', 'Plague'],
+  // variants of the main zombie, stitched from other sheets, each with its own walk and attack (game copies)
+  ['game/zombie_stitchback', 'Zombie: Stitchback', 'stitchback'], ['game/zombie_boilface', 'Zombie: Boilface', 'boilface'],
+  ['game/zombie_hangman', 'Zombie: Hangman', 'hangman'], ['game/zombie_rotjaw', 'Zombie: Rotjaw', 'rotjaw'],
+  ['game/zombie_charred', 'Zombie: Charred', 'charred'],
+  // near-twins of the main zombie, for crowds (they share the zombie clips)
+  ['game/zombie_pale', 'Zombie kin: Pale'], ['game/zombie_grim', 'Zombie kin: Grim'], ['game/zombie_rotten', 'Zombie kin: Rotten'],
+  ['game/zombie_bruised', 'Zombie kin: Bruised'], ['game/zombie_gaunt', 'Zombie kin: Gaunt'],
 ];
+const OWN = MONSTERS.filter((m) => m[2]).map((m) => m[2]);
+const TAKE = new RegExp('_([B-E]|' + OWN.join('|') + ')$');
 const CLIPS = 'ual2_clips.glb';
 const $ = (id) => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -132,13 +141,13 @@ function setLight() {
 }
 setLight();
 
-let mixer, root, action, clips = [], current = -1, playing = true, monster = -1, loadId = 0;
+let mixer, root, action, clips = [], current = -1, playing = true, monster = -1, loadId = 0, ownClip = null;
 const clock = new THREE.Clock();
 const loader = new GLTFLoader();
 
 // base clips (zombie ones first), each followed by its takes _B.._E
 function order(list) {
-  const base = (n) => n.replace(/_[B-E]$/, '');
+  const base = (n) => n.replace(TAKE, '');
   return list.slice().sort((a, b) =>
     (base(b.name).startsWith('Zombie') - base(a.name).startsWith('Zombie')) ||
     base(a.name).localeCompare(base(b.name)) || a.name.localeCompare(b.name));
@@ -170,7 +179,9 @@ async function show(i) {
     });
   } catch (err) { $('msg').textContent = `Could not load ${file}.glb — ${err.message}`; return; }
   if (id !== loadId) { dispose(gltf.scene); return; }
-  const keep = current >= 0 ? clips[current].name : 'Zombie_Walk_Fwd_Loop';
+  const own = MONSTERS[i][2];
+  const keep = own ? 'Zombie_Walk_Fwd_Loop_' + own : (current >= 0 ? clips[current].name : 'Zombie_Walk_Fwd_Loop');
+  ownClip = own || null;
   if (root) { mixer.stopAllAction(); scene.remove(root); dispose(root); }
   root = gltf.scene; monster = i;
   let tris = 0, bones = 0;
@@ -188,6 +199,7 @@ async function show(i) {
   $('stats').textContent = `${name} · ${Math.round(tris).toLocaleString()} triangles · ${bones} bones · ${clips.length} clips`;
   $('msg').textContent = '';
   history.replaceState(null, '', '?m=' + file);
+  buildList();
   const k = clips.findIndex((c) => c.name === keep);
   play(k >= 0 ? k : 0);
 }
@@ -198,8 +210,10 @@ function buildList() {
   clips.forEach((c, i) => {
     if (f && !c.name.toLowerCase().includes(f)) return;
     const li = document.createElement('li');
-    const take = /_[B-E]$/.test(c.name);
-    li.innerHTML = `${take ? 'take ' + c.name.slice(-1) : c.name.replace(/_/g, ' ')} <small>${c.duration.toFixed(1)}s</small>`;
+    const tk = c.name.match(TAKE);
+    const take = !!tk;
+    const mine = tk && ownClip && tk[1] === ownClip;
+    li.innerHTML = `${take ? (mine ? '★ ' : '') + 'take ' + tk[1] : c.name.replace(/_/g, ' ')} <small>${c.duration.toFixed(1)}s</small>`;
     li.title = c.name;
     li.dataset.i = i;
     li.className = (take ? 'take ' : '') + (i === current ? 'on' : '');

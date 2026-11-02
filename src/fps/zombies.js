@@ -732,6 +732,41 @@ const UAL_ROOT = 'templates/models/creatures/zombie_ual/';
 export const UAL_DEAD = { rotting_zombie: 'shambler', bloated_drowner: 'drowned', plague_bearer: 'plague', tomb_mummy: 'mummy', ember_husk: 'cinder',
   pale_ghoul: 'ghoul', chitin_fiend: 'veinwretch', deep_maw: 'maw', fungal_husk: 'ropebound', bog_troll: 'ancient' };
 const TAKES = ['', '_B', '_C', '_D', '_E'];
+// The rotting zombie is a family, not one body: the main zombie, five near-twins of it (kin: the same
+// face, nudged in tone, rot, build and wounds) and five stitched from the other sheets (variants, each
+// with a walk and a blow of its own), with the shambler. Every place that asks for a rotting zombie gets
+// a crowd of individuals. [body file, weight, its own takes]
+export const UAL_FAMILY = {
+  rotting_zombie: [['zombie_ual', 3], ['zombie_pale', 2], ['zombie_grim', 2], ['zombie_rotten', 2], ['zombie_bruised', 2],
+    ['zombie_gaunt', 2], ['shambler', 2], ['zombie_stitchback', 1, 'stitchback'], ['zombie_boilface', 1, 'boilface'],
+    ['zombie_hangman', 1, 'hangman'], ['zombie_rotjaw', 1, 'rotjaw'], ['zombie_charred', 1, 'charred']],
+};
+const FAMILY_PHONE = 4;   // a phone carries the first body and three others, picked afresh each run
+
+// The UAL bodies all name their images alike (zombie_atlas_basecolor, ...) though each paints its
+// own: their names take the image's size in bytes too, so only the same image is shared (the rags
+// most of them wear), never one body's skin on another. A texture the file can't tell us about
+// keeps a name of its own.
+let ualTexN = 0;
+function nameByBytes(gltf) {
+  const p = gltf.parser, j = p?.json, gl = ++ualTexN;
+  const bytes = (t) => {
+    const a = p?.associations?.get(t), tx = a?.textures != null ? j?.textures?.[a.textures] : null;
+    const src = tx?.extensions?.EXT_texture_webp?.source ?? tx?.source, im = src != null ? j.images?.[src] : null;
+    return im?.bufferView != null ? j.bufferViews[im.bufferView]?.byteLength : null;
+  };
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const k of Object.keys(m)) {
+        const t = m[k];
+        if (!t?.isTexture || t.userData.ualNamed) continue;
+        t.name = `${t.name || k}:${bytes(t) ?? 'own' + gl}`;
+        t.userData.ualNamed = true;
+      }
+    }
+  });
+}
 
 /** The library's clips in the zombie body's terms (its bones' names), by name. */
 function ualClips(gltf) {
@@ -749,7 +784,8 @@ function ualClips(gltf) {
 /** A UAL body ready for the brain: bones renamed, and the clips it asks for made from the library's.
  * Every body keeps the takes (userData.takes): each of the dead draws its own walk, idle and blows
  * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. */
-function adaptUAL(gltf, C) {
+function adaptUAL(gltf, C, own = null) {
+  nameByBytes(gltf);
   shareTextures(gltf.scene);
   gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
   gltf.scene.updateMatrixWorld(true);
@@ -773,8 +809,11 @@ function adaptUAL(gltf, C) {
     }
     return k;
   };
-  const idle = takes('Zombie_Idle_Loop'), walk = takes('Zombie_Walk_Fwd_Loop'), scratch = takes('Zombie_Scratch');
-  const blows = [...scratch, C.Melee_Hook, C.OverhandThrow].filter(Boolean);
+  const idle = takes('Zombie_Idle_Loop'), scratch = takes('Zombie_Scratch');
+  // a variant walks and strikes its own way; the rest draw from the shared takes
+  const ownWalk = own && C['Zombie_Walk_Fwd_Loop_' + own], ownBlow = own && C['Zombie_Scratch_' + own];
+  const walk = ownWalk ? [ownWalk] : takes('Zombie_Walk_Fwd_Loop');
+  const blows = (ownBlow ? [ownBlow, ownBlow, C.Melee_Hook] : [...scratch, C.Melee_Hook, C.OverhandThrow]).filter(Boolean);
   const knock = C.Hit_Knockback, last = knock ? Math.round(knock.duration * FPS) : 0;
   gltf.animations = [
     named(idle[0], 'idle'), named(walk[0], 'walk'), named(walk[1] || walk[0], 'run'),
@@ -1863,10 +1902,19 @@ export class Zombies {
     // the dead are the UAL bodies now, under the grotesques' names; the clips they share come first
     let clips = null;
     try { clips = ualClips(await loader.loadAsync(UAL_ROOT + 'ual2_clips.glb')); } catch (e) { console.warn('undead clips', e); }
+    const ual = (file, own) => loader.loadAsync(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${file}.glb`).then((gl) => adaptUAL(gl, clips, own));
     const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
+      if (clips && UAL_FAMILY[g]) {    // a family of bodies under one name
+        let fam = UAL_FAMILY[g];
+        if (TOUCH) fam = [fam[0], ...fam.slice(1).sort(() => Math.random() - 0.5).slice(0, FAMILY_PHONE - 1)];
+        const got = [];
+        for (const [file, w, own] of fam) {
+          try { got.push({ gltf: await ual(file, own), w }); } catch (e) { console.warn('undead', g, file, e); }
+        }
+        if (got.length) { (this.bodies ||= {})[g] = got; this.gltf[g] = got[0].gltf; return; }
+      }
       try {
-        this.gltf[g] = clips && UAL_DEAD[g] ? adaptUAL(await loader.loadAsync(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${UAL_DEAD[g]}.glb`), clips)
-          : await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`);
+        this.gltf[g] = clips && UAL_DEAD[g] ? await ual(UAL_DEAD[g]) : await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`);
       } catch (e) { console.warn('undead', g, e); }
     };
     const one = async () => {   // a phone: one decoding at a time
@@ -1889,12 +1937,21 @@ export class Zombies {
   spawn(variant, x, z, opts = {}) {
     const y = opts.y ?? this.physics.groundAt(x, z);
     const v = variant || this.randomVariant();
-    const zb = new Zombie(this.gltf[v], v, this, { ...opts, x, y, z });
+    const zb = new Zombie(this.body(v), v, this, { ...opts, x, y, z });
     this.physics.slide(zb.pos, 0, 0, 0.3, 1.6, 0.45);
     zb.home.copy(zb.pos);
     zb.sync();
     this.list.push(zb);
     return zb;
+  }
+
+  /** The body a new one of kind v wears: for a family, one of its members by weight. */
+  body(v) {
+    const fam = this.bodies?.[v];
+    if (!fam) return this.gltf[v];
+    let r = Math.random() * fam.reduce((s, b) => s + b.w, 0);
+    for (const b of fam) if ((r -= b.w) <= 0) return b.gltf;
+    return fam[0].gltf;
   }
 
   /** One of the dead for a place (a HAUNTS key), from those that loaded; any of them without one. */

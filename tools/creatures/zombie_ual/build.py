@@ -62,7 +62,7 @@ GRADE = dict(trickle=False, glow=0.0, rough=1.0, tint=(1.0, 1.0, 1.0), dark=0.8,
              eyeglow=0.0, eyecol=(1.0, 0.85, 0.4), crotch=0.15, mouthdark=0.95, mouthq=1.3,
              sat=1.0, green=0.0, eyehot=0.0, gullet=0.0, cmatch=0.8, bumpkind=0, ivory=0.0, rmin=0.0, mould=0.0,
              sores=0.0, bed=0.65, meat=0.0, headtint=(1.0, 1.0, 1.0), welts=0.0, nailcol=(0.72, 0.67, 0.52),
-             headtint_zw=(1.56, 0.05, 0.0), flay=(-1, 0.0))
+             headtint_zw=(1.56, 0.05, 0.0), flay=(-1, 0.0), feather=(0.0, 0.13, 1.0), tiplift=0.0)
 GRADE.update(CFG.get("grade", {}))
 TEX = os.path.join(WORK, NAME, "tex")
 OUT = os.path.join(WORK, NAME, "out")
@@ -354,7 +354,9 @@ for s in (1, -1):
             prev = add(A(tuple(q)), sdf.FINGER_R[name] * 1.15, prev)
 
 _bu, _bl = sdf.V["bulk"], sdf.V["bloat"]
-R = [r * (1 + 0.12 * _bu + 0.1 * _bl) for r in R]
+# the hand's nodes (wrist, palm, fingers: out past x 0.55) keep their size: scaled, the skin hull
+# stops joining the palm to the forearm and the hands come off as separate pieces
+R = [r * (1 + 0.12 * _bu + 0.1 * _bl) if abs(V[i][0]) < 0.55 else r for i, r in enumerate(R)]
 for _i in (hips, s1, s2, s3):
     R[_i] *= 1 + 0.25 * _bl
 cm = bpy.data.meshes.new("cage")
@@ -1395,7 +1397,7 @@ _cr = np.clip(1 - np.abs(P[:, 0]) / 0.055, 0, 1) * np.clip((0.93 - P[:, 2]) / 0.
 DARK = np.maximum(DARK, np.where(part != 2, GRADE["crotch"] * _cr, 0.0))   # shadow between the legs, under the flaps
 for (_c, _r), _k in zip(sdf.V["holes"], HOLEKIND):   # carved wounds: dark inside, raw meat round the lip
     _hq = np.linalg.norm(P - _c, axis=1) - _r
-    _dk, _rw = {"cheek": (0.1, 0.014), "ribs": (0.3, 0.012)}.get(_k, (0.45, 0.006))
+    _dk, _rw = {"cheek": (0.1, 0.014), "ribs": (0.3, 0.012), "gash": (0.8, 0.012)}.get(_k, (0.45, 0.006))   # gash: black-red inside, a wide raw lip
     DARK = np.maximum(DARK, np.where((_hq < 0.0015) & (part != 2), _dk, 0.0))
     WOUND = np.maximum(WOUND, np.where(part != 2, np.clip(1 - (_hq - 0.0015) / _rw, 0, 1), 0.0))
 for _s, _t, _r0, _b in SPURS:            # the skin torn and inflamed round each spur
@@ -1435,15 +1437,16 @@ for _where, _r, _k in CFG.get("decals", []):
     DECALS.append([*_c, _r, _KIND[_k]])
 MOUTH = np.where((sdf.cavity_q(P, (1.0, 1.0, 1.0)) < 1.0) & (P[:, 1] > -0.079) & (part != 2), 1.0, 0.0).astype(np.float32)
 mT = sdf.unbend(P); mT[:, 0] = np.abs(mT[:, 0])
-NAIL = np.zeros(nv); BED = np.zeros(nv)
+NAIL = np.zeros(nv); BED = np.zeros(nv); TIP = np.zeros(nv)
 for _nm in uvmap.FNAMES:
     _r = sdf.FINGER_R[_nm]
     _nd = sdf.ellipsoid(mT, sdf.nail_c(_nm), (0.0098 * (1 - 0.35 * sdf.V["taper"]), _r * 0.6 * (1 - 0.15 * sdf.V["taper"]), 0.0016))
     NAIL = np.maximum(NAIL, np.clip(1 - _nd / 0.0022, 0, 1) * (mT[:, 2] > sdf.nail_c(_nm)[2] - 0.0025))
     _fd, _ft, _ = uvmap.finger_param(mT, _nm)
     BED = np.maximum(BED, np.clip((_ft - 0.78) / 0.12, 0, 1) * (_fd < _r * 1.6))
+    TIP = np.maximum(TIP, np.clip((_ft - 0.58) / 0.14, 0, 1) * (_fd < _r * 1.8))   # the last joint, where the sheet's paint goes black
 mesh_hand = np.abs(P[:, 0]) > 0.45
-NAIL *= mesh_hand; BED = BED * mesh_hand * (1 - NAIL)
+NAIL *= mesh_hand; BED = BED * mesh_hand * (1 - NAIL); TIP = TIP * mesh_hand
 log("nail verts", int((NAIL > 0.5).sum()), "nail-bed verts", int((BED > 0.5).sum()))
 _hg = np.zeros(nv, np.float32)
 if "toothh" in me.attributes:
@@ -1468,6 +1471,7 @@ np.savez_compressed(npz, atlas=AUV, sheet=SPX, tri=tl[tm == 0], P=P[lv], N=N[lv]
                     welts=np.array([GRADE["welts"]], float), decals=np.array(DECALS, float).reshape(-1, 5),
                     crown_c=np.array(sdf.CROWN_C, float), nailcol=np.array(GRADE["nailcol"], float),
                     headtint_zw=np.array(GRADE["headtint_zw"], float), flay=np.array(GRADE["flay"], float), clone=np.array(uvmap.S["clone"], float),
+                    feather=np.array(GRADE["feather"], float), TIP=TIP[lv].astype(np.float32), tiplift=np.array([GRADE["tiplift"]], float),
                     feat=np.array([GRADE["trickle"], sdf.V["crown"], GRADE["glow"], GRADE["rough"], *GRADE["tint"]], float),
                     grade=np.array([GRADE["dark"], GRADE["rot"], GRADE["soot"], GRADE["vein"], GRADE["eyeglow"], *GRADE["eyecol"]], float))
 BAKED = os.path.join(OUT, "tex")

@@ -264,6 +264,14 @@ def main(npz, tex, out, size=2048):
     nail = np.array(d["nailcol"] if "nailcol" in d else (0.72, 0.67, 0.52)) * (0.75 + 2.5 * det.mean(1, keepdims=True)) * (0.55 + 0.45 * np.clip(np.abs(np.sin(p[:, 1] * 2200 + 3 * np.sin(p[:, 0] * 1500))) * 3, 0, 1))[:, None]
     col = col * (1 - bedk * min(1.0, rot_k / 0.6) * bd[:, None])
     col = col * (1 - nl[:, None]) + nail * nl[:, None]
+    tl_k = float(d["tiplift"][0]) if "tiplift" in d else 0.0
+    if tl_k > 0 and "TIP" in d:   # the sheet paints the last finger joint near-black: keep it skin, a little grimier than the hand
+        tp = lerp(d["TIP"][:, None])[:, 0] * (1 - nl)
+        hand_ = (np.abs(p[:, 0]) > 0.45) & (tp < 0.02) & (nl < 0.02)
+        if tp.any() and hand_.sum() > 100:
+            l_ = col @ np.array([0.299, 0.587, 0.114])
+            g_ = np.clip(tl_k * float(np.median(l_[hand_])) / np.maximum(l_, 1e-3), 1.0, 3.0)
+            col = col * (1 + (g_ - 1) * tp)[:, None]
 
     mo = lerp(MOUTH[:, None])[:, 0]
     # match the skin's overall colour to the sheet's paint (the grade must not drift it to slate or varnish)
@@ -352,26 +360,70 @@ def main(npz, tex, out, size=2048):
         gash = np.clip((sm - 0.72) * 7, 0, 1)
         col = col * (1 - 0.85 * gash[:, None]) + np.array([0.08, 0.02, 0.02]) * (0.85 * gash)[:, None]
         pat = 0.5 + 0.5 * np.sin((p @ np.array([83.0, 61.0, 97.0])) * 2 * np.pi / 0.9)
-        thread = np.clip((pat - 0.7) * 6, 0, 1) * np.clip((sm - 0.3) * 4, 0, 1)
-        col = col * (1 - 0.9 * thread[:, None]) + np.array([0.16, 0.12, 0.09]) * (0.9 * thread)[:, None]
+        thread = np.clip((pat - 0.55) * 5, 0, 1) * np.clip((sm - 0.2) * 4, 0, 1)   # thick, near-black thread: reads past 3 m
+        col = col * (1 - 0.95 * thread[:, None]) + np.array([0.05, 0.035, 0.03]) * (0.95 * thread)[:, None]
     if "headtint" in d:   # a darker, congested face (strangled) or a jaundice spreading down the chest
-        z0, zw, fo = d["headtint_zw"] if "headtint_zw" in d else (1.56, 0.05, 0.0)
-        hm = np.clip((p[:, 2] - z0) / zw, 0, 1) * (np.clip((0.02 - p[:, 1]) / 0.03, 0, 1) if fo else 1.0)
+        zw_ = d["headtint_zw"] if "headtint_zw" in d else (1.56, 0.05, 0.0)
+        z0, zw, fo = zw_[:3]
+        ztop = float(zw_[3]) if len(zw_) > 3 else 9.0   # (and none above this: the face only, not the cranium)
+        hm = np.clip((p[:, 2] - z0) / zw, 0, 1) * np.clip((ztop - p[:, 2]) / 0.03, 0, 1) * (np.clip((0.02 - p[:, 1]) / 0.03, 0, 1) if fo else 1.0)
         hm = hm[:, None] * skinw[:, None]
         col = col * (1 - hm + hm * np.array(d["headtint"]))
+    if "feather" in d and KB is not None and float(d["feather"][0]) > 0:   # the head's colour bleeds down onto the chest: no collar line
+        fk, fwid, hsat = (float(v) for v in d["feather"][:3])
+        hb = KB == 0; sk_ = skinw > 0.5
+        if hsat != 1.0:
+            l2 = col @ np.array([0.299, 0.587, 0.114]); hw_ = (hb * skinw)[:, None]
+            col = col * (1 - hw_) + (l2[:, None] + (col - l2[:, None]) * hsat) * hw_
+        sel = hb & sk_ & (np.abs(p[:, 0]) < 0.12) & (p[:, 1] < 0.0)
+        if sel.sum() > 50:
+            zb = float(np.percentile(p[sel, 2], 2))
+            near = (~hb) & sk_ & (p[:, 2] > zb - 0.05) & (p[:, 2] < zb + 0.01)
+            if near.sum() > 50:
+                hc = np.median(col[hb & sk_ & (p[:, 2] < zb + 0.08)], 0)
+                gain = np.clip(hc / np.maximum(np.median(col[near], 0), 1e-3), 0.5, 2.5)
+                blot2 = np.clip(0.75 + 0.45 * np.sin(p @ np.array([173.0, 151.0, 89.0])) * np.sin(p @ np.array([-97.0, 211.0, 131.0])), 0, 1)
+                fw = np.clip((p[:, 2] - (zb - fwid)) / fwid, 0, 1) ** 1.2 * (~hb) * skinw * fk * blot2
+                col = col * (1 + (gain - 1)[None] * fw[:, None])
+                print("[bake] feather from z %.3f gain %s" % (zb, np.round(gain, 2).tolist()))
     if "welts" in d and float(d["welts"][0]) > 0 and len(ROPES):
         from scipy.spatial import cKDTree
         dr2, ri2 = cKDTree(ROPES[:, :3]).query(p, k=1)
         wz = np.clip(1 - (dr2 - ROPES[ri2, 3]) / 0.035, 0, 1) * skinw * float(d["welts"][0])
         col = col * (1 - 0.55 * wz[:, None]) + np.array([0.42, 0.08, 0.16]) * (0.55 * wz)[:, None]
-    WET = np.zeros(len(p))
-    if "flay" in d and KB is not None and int(d["flay"][0]) >= 0:
+    WET = np.zeros(len(p)); MATTE = np.zeros(len(p))
+    if "flay" in d and KB is not None and int(d["flay"][0]) >= 0:   # the skin torn off one piece: muscle, fascia and bone
         fb, fs = int(d["flay"][0]), float(d["flay"][1])
-        fib = 0.72 + 0.28 * np.sin(p[:, 2] * 900 + 3 * np.sin(p[:, 0] * 260) + 2 * np.sin(p[:, 1] * 310))
-        raw = np.array([0.48, 0.08, 0.065]) * fib[:, None] * (0.85 + 2 * det.mean(1, keepdims=True))
-        fl = (KB == fb) * fs * skinw
+        x_, y_, z_ = p[:, 0], p[:, 1], p[:, 2]
+        g_ = 0.85 + 2 * det.mean(1, keepdims=True)
+        # fibres: the pectorals fan from the breastbone to the shoulder, the belly runs straight down
+        chest = np.clip((z_ - 1.2) / 0.1, 0, 1)
+        ph = chest * ((z_ - 1.36) * 0.55 - np.abs(x_) * 0.85) + (1 - chest) * x_          # (across the fibres)
+        warp = 0.004 * np.sin(z_ * 70 + x_ * 40) + 0.002 * np.sin(x_ * 180 + z_ * 130)
+        fib = 0.7 + 0.3 * np.sin((ph + warp) * 2 * np.pi / 0.0035)
+        crev = np.clip((0.2 - np.abs(np.sin((ph + 2 * warp) * 2 * np.pi / 0.045))) / 0.2, 0, 1)   # dark seams between the muscle bellies
+        raw = np.array([0.4, 0.075, 0.06]) * fib[:, None] * g_ * (1 - 0.75 * crev[:, None])
+        fz = np.sin(x_ * 37 + 2 * np.sin(z_ * 23)) * np.sin(z_ * 29 + 1.7 * np.sin(x_ * 41)) + 0.25 * np.sin(p @ np.array([151.0, 97.0, 133.0]))
+        fas = np.clip((fz - 0.35) * 2.5, 0, 1) * 0.55                                       # torn sheets of yellow fascia
+        raw = raw * (1 - fas[:, None]) + np.array([0.62, 0.52, 0.3]) * g_ * fas[:, None]
+        stern = np.clip(1 - np.abs(x_) / 0.016, 0, 1) * np.clip((z_ - 1.16) / 0.03, 0, 1) * np.clip((1.44 - z_) / 0.03, 0, 1)
+        zr = z_ + 0.012 * np.sin(x_ * 40) + 0.03 * np.abs(x_)                              # ribs curve down to the sides
+        ribs = np.clip((np.sin(zr * 2 * np.pi / 0.026) - 0.55) * 4, 0, 1) * np.clip((np.abs(x_) - 0.03) / 0.02, 0, 1) * (z_ > 1.12) * (z_ < 1.38)
+        ribs = ribs * (np.sin(x_ * 55 + z_ * 31) > 0.2)                                     # a few bars through the torn meat
+        bon = np.clip(np.maximum(stern * 0.9, ribs * 0.75), 0, 1) * (y_ < 0.0)
+        raw = raw * (1 - bon[:, None]) + np.array([0.66, 0.6, 0.48]) * g_ * bon[:, None]
+        # ragged flaps of skin hang over the meat along every seam, and islands of skin cling on
+        sm_ = lerp(d["SEAM"][:, None])[:, 0] if "SEAM" in d else np.zeros(len(p))
+        rag = 0.5 + 0.5 * np.sin(p @ np.array([233.0, 177.0, 301.0])) * np.sin(p @ np.array([-191.0, 263.0, 149.0]))
+        flap = np.clip((sm_ - 0.03 - 0.45 * rag) * 6, 0, 1)
+        isl = np.clip((np.sin(x_ * 23 + 1.3) * np.sin(z_ * 19 + 0.4) * np.sin(y_ * 17 + 2.1) - 0.45) * 5, 0, 1)
+        keep = np.maximum(flap, isl)
+        inb = (KB == fb) * skinw
+        fl = inb * fs * (1 - keep)
+        lip = np.clip(1 - np.abs(keep - 0.5) / 0.25, 0, 1) * inb                            # the torn skin's raw lip
         col = col * (1 - fl[:, None]) + raw * fl[:, None]
-        WET = np.maximum(WET, 0.5 * fl)
+        col = col * (1 - 0.6 * lip[:, None]) + np.array([0.3, 0.07, 0.06]) * (0.6 * lip)[:, None]
+        MATTE = np.maximum(MATTE, fl)                                                       # tacky, not varnished
     for x_, y_, z_, r_, k_ in (d["decals"] if "decals" in d else []):   # marks of its own
         m_ = np.clip(1 - np.linalg.norm(p - [x_, y_, z_], axis=1) / r_, 0, 1)
         if not m_.any():
@@ -379,11 +431,13 @@ def main(npz, tex, out, size=2048):
         blot = np.clip(0.5 + 0.5 * np.sin(p @ np.array([211.0, 173.0, 97.0])) * np.sin(p @ np.array([-131.0, 251.0, 63.0])) + 0.25, 0, 1)
         w_ = np.clip(m_ * 1.7, 0, 1) ** 0.8 * blot * skinw
         k_ = int(k_)
-        if k_ == 0:      # pooled blood under the skin, healing yellow-green at the edges
-            core = np.clip((m_ - 0.4) * 3, 0, 1) * blot * skinw
-            edge = np.clip(1 - np.abs(m_ - 0.25) / 0.2, 0, 1) * blot * skinw
-            col = col * (1 - 0.4 * edge[:, None]) + np.array([0.45, 0.47, 0.2]) * (0.4 * edge)[:, None]
-            col = col * (1 - 0.75 * core[:, None]) + np.array([0.18, 0.05, 0.15]) * (0.75 * core)[:, None]
+        if k_ == 0:      # pooled blood under the skin: purple-black heart, purple, then yellow-green at the edges
+            core = np.clip((m_ - 0.42) * 3, 0, 1) * (0.55 + 0.45 * blot) * skinw
+            mid = np.clip(1 - np.abs(m_ - 0.33) / 0.16, 0, 1) * blot * skinw
+            edge = np.clip(1 - np.abs(m_ - 0.15) / 0.13, 0, 1) * blot * skinw
+            col = col * (1 - 0.6 * edge[:, None]) + np.array([0.56, 0.6, 0.16]) * (0.6 * edge)[:, None]
+            col = col * (1 - 0.7 * mid[:, None]) + np.array([0.3, 0.09, 0.28]) * (0.7 * mid)[:, None]
+            col = col * (1 - 0.92 * core[:, None]) + np.array([0.09, 0.02, 0.085]) * (0.92 * core)[:, None]
         elif k_ == 1:    # wet, peeling rot
             col = col * (1 - 0.75 * w_[:, None]) + np.array([0.15, 0.14, 0.06]) * (0.8 + 2.5 * det.mean(1, keepdims=True)) * (0.75 * w_)[:, None]
             WET = np.maximum(WET, w_)
@@ -430,9 +484,9 @@ def main(npz, tex, out, size=2048):
                 hot = hot * keep[mask]
         em = np.zeros((size, size, 3), np.float32)
         strength = max(glow, 1.0)
-        emc = np.clip(col * 1.3 + 0.15, 0, 1) * hot[:, None] * np.array([1.6, 0.48, 0.15]) * (1.0 if glow > 0 else 0.0)
+        emc = np.clip(col * 1.3 + 0.15, 0, 1) * hot[:, None] * np.array([1.6, 0.48, 0.15]) * min(1.0, glow)   # (below 1: a faint glow)
         if glow > 0:
-            emc = emc + np.array([1.0, 0.42, 0.1]) * (mo * 0.9)[:, None]          # a furnace behind the teeth
+            emc = emc + np.array([1.0, 0.42, 0.1]) * (mo * 0.9 * min(1.0, glow) ** 2)[:, None]          # a furnace behind the teeth
         eyelit = np.clip(col * 1.6, 0, 1) * np.array(eyecol)[None]          # the painted eye itself, pupils stay dark
         if eyehot > 0 and EYEC is not None:   # or molten: a white-hot core fading to an orange rim
             dxz = np.hypot(np.abs(p[:, 0]) - EYEC[0], p[:, 2] - EYEC[2])
@@ -464,6 +518,9 @@ def main(npz, tex, out, size=2048):
     if WET.any():
         we = np.zeros((size, size), np.float32); we[mask] = WET
         rough = rough * (1 - we) + 0.25 * we
+    if MATTE.any():
+        mt_ = np.zeros((size, size), np.float32); mt_[mask] = MATTE
+        rough = np.maximum(rough, 0.6 * mt_)
     if sores > 0:
         sw_ = np.zeros((size, size), np.float32); sw_[mask] = SORE
         rough = rough * (1 - sw_) + 0.22 * sw_
