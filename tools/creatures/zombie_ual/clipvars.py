@@ -205,6 +205,114 @@ TAKES = {
 }
 
 
+# ---------------------------------------------------------------- the zombie variants' own walk and attack
+# (the right arm hangs on the -x side: +x is in toward the body's middle; mirror_aim gives the left arm)
+HAMMER_U = path([(0.25, (-0.18, 0.15, 1)), (0.33, (0.05, -0.55, 0.8)), (0.4, (0.16, -1, 0.05)), (0.55, (0.16, -1, 0.1)),
+                 (0.66, (0.16, -1, 0.0))], ramp=(0.06, 0.88))   # the fists stay locked through the slam and the follow-through
+HAMMER_F = path([(0.25, (0.7, 0.2, 0.7)), (0.33, (0.5, -0.3, 0.9)), (0.4, (0.5, -0.9, -0.1)), (0.55, (0.5, -0.9, -0.05)),
+                 (0.66, (0.5, -0.9, -0.1))], ramp=(0.06, 0.88))
+GRAB_U = path([(0.25, (-0.45, 0.6, -0.5)), (0.36, (-0.04, -1, 0.08)), (0.5, (-0.03, -1, 0.05)), (0.66, (-0.03, -1, 0.03))],
+              ramp=(0.06, 0.88))   # both arms straight out in parallel at throat height
+GRAB_F = path([(0.25, (-0.2, 0.3, -0.9)), (0.36, (0.06, -1, 0.0)), (0.5, (0.06, -1, -0.02)), (0.66, (0.06, -1, -0.03))], ramp=(0.06, 0.88))
+BACK_U = path([(0.25, (-0.55, -0.55, 0.05)), (0.34, (0.0, -1, 0.35)), (0.45, (0.65, -0.75, 0.3)), (0.58, (0.85, -0.45, 0.15))])
+BACK_F = path([(0.25, (0.35, 0.35, 0.55)), (0.34, (-0.1, -1, 0.3)), (0.45, (0.7, -0.7, 0.2)), (0.58, (0.9, -0.4, 0.0))])
+_UP, _DN = (-0.45, 0.1, 0.9), (0.3, -0.7, -0.65)   # down: the fist ends at the belly, well below the other's arc
+
+
+def lift(pts, dz, u0=0.3):
+    """Raise an aim path's directions by dz (from u0 on): the swipe's first pose drops the left shoulder."""
+    return [(u, (v[0], v[1], v[2] + (dz if u >= u0 and v[3] > 0 else 0.0), v[3])) for u, v in pts]
+
+
+def mill(t0, n=4, per=0.2, slam=0.05, low=0.05):
+    """Overhead blows: up, a fast slam, a beat held low, then the long rise to the next."""
+    return [k for i in range(n) for k in ((t0 + i * per, _UP), (t0 + i * per + slam, _DN), (t0 + i * per + slam + low, _DN))]
+
+
+MILL_U = path(mill(0.08), ramp=(0.02, 0.9))   # the other arm, half a cycle on, slams while this one is low or rising
+MILL_F = [(u, (*v[:3], v[3] * 0.85)) for u, v in MILL_U]
+LIMP = [(0, (0.1, 0.15, -1, 0.85)), (1, (0.1, 0.15, -1, 0.85))]
+# a two-handed blow: hips, spine and shoulders held square (the swipe's lean and twist would pull the hands apart)
+TORSO = ("pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "clavicle_l", "clavicle_r")
+LEGS = tuple("%s_%s" % (b, s) for b in ("thigh", "calf", "foot") for s in "lr")
+CALM = [(0, 0), (0.1, 0), (0.22, 1), (0.72, 1), (0.9, 0), (1, 0)]
+
+
+def calm(bones, w=CALM):
+    return {b: dict(still=w) for b in bones}
+
+TAKES["Zombie_Walk_Fwd_Loop"].update({
+    "stitchback": dict(speed=0.9, bones={   # a marionette: shoulders hitched on strings, wrists dangling, knees yanked high
+        "clavicle_l": dict(env=twitch([(0.1, (0, -16, 0)), (0.6, (0, -16, 0))], hold=0.18)),
+        "clavicle_r": dict(env=twitch([(0.35, (0, 16, 0)), (0.85, (0, 16, 0))], hold=0.18)),
+        "upperarm_l": dict(aim=hang((0.75, -0.35, 0.05), 0.85), env=twitch([(0.1, (0, -20, 0)), (0.6, (0, -15, 0))], hold=0.15)),
+        "upperarm_r": dict(aim=hang((-0.75, -0.35, 0.05), 0.85), env=twitch([(0.35, (0, 20, 0)), (0.85, (0, 15, 0))], hold=0.15)),
+        "lowerarm_l": dict(aim=hang((0.05, -0.15, -1), 0.9)), "lowerarm_r": dict(aim=hang((-0.05, -0.15, -1), 0.9)),
+        "hand_l": dict(rest=True, amp=0.0), "hand_r": dict(rest=True, amp=0.0),
+        "thigh_l": dict(amp=1.9), "thigh_r": dict(amp=1.9), "calf_l": dict(amp=1.7), "calf_r": dict(amp=1.7),
+        "Head": dict(turn=(-6, 0, 0), env=twitch([(0.12, (14, -16, 12)), (0.46, (-10, 18, -14)), (0.78, (16, 10, 8))], hold=0.12)),
+        "spine_02": dict(env=twitch([(0.25, (6, 0, 10)), (0.65, (6, 0, -10))], hold=0.12))}),
+    "boilface": dict(speed=0.6, loc={"pelvis": [(0, (0, 0, -0.02)), (0.25, (0.15, 0, -0.02)), (0.5, (0, 0, -0.02)), (0.75, (-0.15, 0, -0.02)),
+                                                (1, (0, 0, -0.02))]}, bones={   # a wide, rolling waddle, arms hanging heavy
+        "pelvis": dict(wave=((0, 11, 0), 1, 0.1)),
+        "thigh_l": dict(wave=((0, -11, 0), 1, 0.1), turn=(0, -12, 0)), "thigh_r": dict(wave=((0, -11, 0), 1, 0.1), turn=(0, 12, 0)),
+        "spine_01": dict(turn=(-6, 0, 0), wave=((0, 6, 0), 1, 0.2)), "spine_02": dict(turn=(-4, 0, 0)),
+        "upperarm_l": dict(amp=0.4, turn=(0, 8, 0)), "upperarm_r": dict(amp=0.4, turn=(0, -8, 0)),
+        "Head": dict(turn=(8, 0, 0), wave=((0, -14, 0), 1, 0.6))}),
+    "hangman": dict(speed=0.9, bones={   # the broken neck: head rolled hard onto the shoulder, bobbing a beat late; arms dead
+        "Head": dict(turn=(-10, 55, 0), wave=((12, 6, 0), 2, 0.25)), "neck_01": dict(turn=(0, 20, 0), wave=((6, 0, 0), 2, 0.15)),
+        "upperarm_l": dict(rest=True, amp=0.0, aim=hang((0.1, 0.05, -1)), wave=((10, 0, 0), 1, 0.3)),
+        "upperarm_r": dict(rest=True, amp=0.0, aim=hang((-0.1, 0.05, -1)), wave=((10, 0, 0), 1, 0.8)),
+        "lowerarm_l": dict(rest=True, amp=0.0), "lowerarm_r": dict(rest=True, amp=0.0),
+        "thigh_l": dict(amp=0.6), "thigh_r": dict(amp=0.6), "spine_02": dict(turn=(10, 6, 0))}),
+    "rotjaw": dict(speed=1.2, bones={   # an aggressive lurch, pitched forward, clawing low and ahead
+        "spine_01": dict(turn=(8, 0, 0)), "spine_02": dict(turn=(8, 0, 0)), "Head": dict(turn=(-20, 0, 0)),
+        "thigh_l": dict(amp=1.3), "thigh_r": dict(amp=1.3),
+        "upperarm_l": dict(aim=hang((0.5, -0.9, -0.6), 0.8), wave=((-16, 0, 0), 1, 0.0)),
+        "upperarm_r": dict(aim=hang((-0.5, -0.9, -0.6), 0.8), wave=((-16, 0, 0), 1, 0.5)),
+        "lowerarm_l": dict(turn=(-20, 0, 0)), "lowerarm_r": dict(turn=(-20, 0, 0))}),
+    "charred": dict(speed=0.85, bones={   # burn-contracted: a boxer's crouch, fists at the chest, knees locked, short steps
+        "spine_01": dict(amp=0.3, turn=(8, 0, 0)), "spine_02": dict(amp=0.3, turn=(6, 0, 0)), "spine_03": dict(amp=0.3),
+        "upperarm_l": dict(aim=hang((0.2, -0.3, -1), 0.9), amp=0.3), "upperarm_r": dict(aim=hang((-0.2, -0.3, -1), 0.9), amp=0.3),
+        "lowerarm_l": dict(aim=hang((-0.35, -0.85, 0.25), 0.9)), "lowerarm_r": dict(aim=hang((0.35, -0.85, 0.25), 0.9)),
+        "hand_l": dict(turn=(-30, 0, 0)), "hand_r": dict(turn=(-30, 0, 0)),
+        "thigh_l": dict(amp=0.45), "thigh_r": dict(amp=0.45), "calf_l": dict(amp=0.3), "calf_r": dict(amp=0.3),
+        "Head": dict(amp=0.4, turn=(-20, 0, 0))}),
+})
+
+TAKES["Zombie_Scratch"].update({
+    "stitchback": dict(warp=[(0, 0), (0.25, 0.38), (0.42, 0.46), (1, 1)], locstill={"pelvis": CALM}, loc={"pelvis": B_DROP},
+                       bones=merge(calm(TORSO + LEGS), B_LEGS, {   # hands clasped overhead, slammed down, still clasped
+        "spine_02": dict(env=[(0, O), (0.25, (-8, 0, 0)), (0.4, (14, 0, 0)), (0.6, (10, 0, 0)), (0.85, O), (1, O)]),
+        "Head": dict(env=[(0, O), (0.25, (18, 0, 0)), (0.5, O), (1, O)]),
+        "upperarm_r": dict(aim=HAMMER_U), "lowerarm_r": dict(aim=HAMMER_F),
+        "upperarm_l": dict(aim=lift(mirror_aim(HAMMER_U), 0.14, 0.36)), "lowerarm_l": dict(aim=lift(mirror_aim(HAMMER_F), 0.3, 0.36))})),
+    "boilface": dict(speed=0.9, loc={"pelvis": [(0, O), (0.24, (0, 0.06, -0.04)), (0.36, (0, -0.3, -0.05)), (0.62, (0, -0.3, -0.05)),
+                                                 (0.9, O), (1, O)]}, bones=merge(calm(TORSO), {   # coiled low, then both hands at your throat
+        "spine_02": dict(env=[(0, O), (0.18, (16, 0, 0)), (0.26, (12, 0, 0)), (0.36, (10, 0, 0)), (0.62, (8, 0, 0)), (0.85, O), (1, O)]),
+        "upperarm_r": dict(aim=GRAB_U), "lowerarm_r": dict(aim=GRAB_F),
+        "upperarm_l": dict(aim=lift(mirror_aim(GRAB_U, 0.02), 0.14)), "lowerarm_l": dict(aim=lift(mirror_aim(GRAB_F, 0.02), 0.25)),
+        "Head": dict(env=[(0, O), (0.3, (-10, 0, 0)), (0.62, (-10, 0, 0)), (0.85, O), (1, O)]),   # the boil face up at you
+        "thigh_r": dict(env=hold((22, 0, 0))), "thigh_l": dict(env=hold((-8, 0, 0))), "calf_l": dict(env=hold((16, 0, 0)))})),
+    "hangman": dict(speed=1.1, warp=[(0, 0), (0.25, 0.3), (1, 1)],
+                    loc={"pelvis": [(0, O), (0.25, (0, 0.05, 0)), (0.34, (0, -0.22, -0.02)), (0.6, (0, -0.22, -0.02)), (0.9, O), (1, O)]},
+                    bones={   # a lunging bite: the jaw driven at your face, the arms trailing dead
+        **STAND, "spine_02": dict(amp=0.45, env=[(0, O), (0.22, (-4, 0, 0)), (0.34, (4, 0, 0)), (0.6, (4, 0, 0)), (0.85, O), (1, O)]),
+        "neck_01": dict(env=[(0, O), (0.25, (-8, 0, 0)), (0.34, (8, 0, 0)), (0.6, (6, 0, 0)), (0.85, O), (1, O)]),
+        "Head": dict(env=[(0, (0, 30, 0)), (0.25, (-10, 30, 0)), (0.32, (-40, 0, 0)), (0.6, (-30, 0, 0)), (0.85, (0, 30, 0)), (1, (0, 30, 0))]),
+        "upperarm_l": dict(rest=True, amp=0.1, aim=LIMP), "upperarm_r": dict(rest=True, amp=0.1, aim=mirror_aim(LIMP)),
+        "lowerarm_l": dict(rest=True, amp=0.1), "lowerarm_r": dict(rest=True, amp=0.1),
+        "thigh_r": dict(env=hold((18, 0, 0)))}),
+    "rotjaw": dict(speed=1.15, warp=[(0, 0), (0.25, 0.2), (1, 1)], bones={   # the claw cocked across the chest, a high backhand rake
+        **STAND, "spine_02": dict(amp=0.45, env=[(0, O), (0.22, (10, 0, -30)), (0.34, O), (0.5, (-6, 0, 26)), (0.62, (-6, 0, 26)), (0.85, O), (1, O)]),
+        "upperarm_l": dict(aim=BACK_U), "lowerarm_l": dict(aim=BACK_F), "upperarm_r": dict(turn=(0, -12, 0)), "Head": dict(turn=(-8, 0, 0))}),
+    "charred": dict(speed=1.0, bones={   # a frenzy: full overhead arcs, crossing in front of the face
+        **STAND, "spine_02": dict(amp=0.45, wave=((4, 0, 6), 3, 0.0)),
+        "upperarm_r": dict(aim=MILL_U), "lowerarm_r": dict(aim=MILL_F),
+        "upperarm_l": dict(aim=mirror_aim(MILL_U, 0.1)), "lowerarm_l": dict(aim=mirror_aim(MILL_F, 0.1)),
+        "Head": dict(wave=((0, 10, 6), 3, 0.2))}),
+})
+
 def _fcurves(act):
     try:
         out = list(act.fcurves)

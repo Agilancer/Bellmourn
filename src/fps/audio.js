@@ -24,6 +24,8 @@ const SPELL_CAST = {
 };
 // how loud the recorded crowds play at the strike (tools/audio/crowd_preview.html tries them)
 const CROWD_VOL = { gasp: 0.8, panic: 1.2 };
+// how loud the knight's scream plays in the opening, over the star's roar (tools/audio/scream_preview.html)
+const WILHELM_VOL = 1.0;
 const clamp1 = (x) => Math.max(-1, Math.min(1, x));
 /** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
 export function onset(b) {
@@ -90,11 +92,12 @@ export class Sfx {
     } catch (e) { console.warn('sound', url, e?.message || e); return null; }
   }
 
-  /** The village's gasp and panic at the green star's strike (recorded crowds: the whole gasp, the
-   * panic's first 1.5 s), fetched first and on their own, so the opening can wait for just these. */
+  /** The opening's recorded sounds: the knight's scream as the star takes him, and the village's
+   * gasp and panic at its strike (the whole gasp, the panic's first 1.5 s), fetched first and on their
+   * own, so the opening can wait for just these. */
   loadCrowd() {
     if (this.crowding) return this.crowding;
-    this.crowding = Promise.all(['crowd_gasp', 'crowd_panic'].map(async (name) => {
+    this.crowding = Promise.all(['wilhelm_scream', 'crowd_gasp', 'crowd_panic'].map(async (name) => {
       const b = await this.decode(SFX_DIR + name + '.mp3');
       if (b) this.bank[name] = [{ b, off: 0 }];
     }));
@@ -517,6 +520,12 @@ export class Sfx {
     this._tone(t, 0.55, { type: 'sine', f0: 140, f1: 38, gain: 0.22, attack: 0.01 });
     this._tone(t + 0.05, 0.9, { type: 'sine', f0: 660, f1: 1320, gain: 0.04, attack: 0.2 });
     [1568, 2093, 2637].forEach((f, i) => this._tone(t + 0.25 + i * 0.07, 0.9, { type: 'triangle', f0: f, f1: f, gain: 0.02 }));
+  }
+
+  /** The opening's knight, as the green star comes down on him: the Wilhelm scream. */
+  knightScream() {
+    if (!this.ok) return;
+    this.play('wilhelm_scream', { vol: WILHELM_VOL, vary: 0 });
   }
 
   /** The strike, heard from the village: everyone gasps and screams at once, the recorded crowds

@@ -54,10 +54,10 @@ export class Trade {
     const p = this.panel = el('div', 'panel trade hidden');
     const close = el('button', 'close', '&times;');
     close.onclick = () => o.onClose?.();
-    this.head = el('div', 't-head');
+    this.head = el('div', 'tr-head');
     this.tabs = el('div', 'tabs');
-    this.body = el('div', 't-body');
-    this.foot = el('div', 't-foot');
+    this.body = el('div', 'tr-body');
+    this.foot = el('div', 'tr-foot');
     p.append(close, this.head, this.tabs, this.body, this.foot);
     this.tip = el('div', 'tt hidden');
     o.ui.append(p, this.tip);
@@ -278,7 +278,7 @@ export class Trade {
     if (!this.shop) return;
     const S = SHOPS[this.shop], c = this.o.char();
     this.panel.classList.remove('hidden');
-    this.head.innerHTML = `<div><h2>${esc(S.name)}</h2><div class="t-keeper">${esc(this.who === 'Bertha' ? 'Mistress Grimwald' : this.who === 'Grimwald' ? 'Master Grimwald' : S.keeper)}</div></div><div class="t-gold">&#9673; <b>${c.gold || 0}</b> gold</div>`;
+    this.head.innerHTML = `<div><h2>${esc(S.name)}</h2><div class="tr-keeper">${esc(this.who === 'Bertha' ? 'Mistress Grimwald' : this.who === 'Grimwald' ? 'Master Grimwald' : S.keeper)}</div></div><div class="tr-gold">&#9673; <b>${c.gold || 0}</b> gold</div>`;
     this.tabs.innerHTML = '';
     for (const t of S.tabs) {
       const b = el('button', t === this.tab ? 'sel' : '', TAB_NAME[t] + (t === 'back' && this.sold.length ? ` (${this.sold.length})` : ''));
@@ -286,7 +286,7 @@ export class Trade {
       this.tabs.append(b);
     }
     this.body.innerHTML = '';
-    const left = el('div', 't-list'), right = el('div', 't-card');
+    const left = el('div', 'tr-list'), right = el('div', 'tr-card');
     this.body.append(left, right);
     this.tip.classList.add('hidden');
     ({ buy: () => this.drawBuy(left, right), sell: () => this.drawSell(left, right), back: () => this.drawBack(left, right), sockets: () => this.drawSockets(left, right),

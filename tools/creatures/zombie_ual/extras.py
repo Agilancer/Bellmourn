@@ -225,12 +225,18 @@ def build(cfg, arm, coll, rng):
     """All the cfg extras as one object (or None) plus each vertex's weight anchor."""
     B = Builder()
     sides = lambda b: [b + "_l", b + "_r"] if b + "_l" in arm.data.bones else [b]
-    for bone, t0, t1, turns, width, thick, kind, tails in cfg.get("wraps", []):
+    for w in cfg.get("wraps", []):
+        bone, t0, t1, turns, width, thick, kind, tails = w[:8]
+        end = w[8] if len(w) > 8 else None   # (optional) where round the bone the wrap ends, degrees: its tails hang there
         for k, name in enumerate(sides(bone)):
             bb = arm.data.bones[name]
             h, t = np.array(bb.head_local), np.array(bb.tail_local)
-            band(B, h, t - h, np.linalg.norm(t - h), t0, t1, turns * (1 if k == 0 else -1), width, thick, kind, rng,
-                 tails=tails if (k == 0 or tails > 1) else 0, phase=rng.uniform(0, 6.28))
+            tn = turns * (1 if k == 0 else -1)
+            ph = rng.uniform(0, 6.28)
+            if end is not None:
+                ph = math.radians(end) - 2 * math.pi * tn
+            band(B, h, t - h, np.linalg.norm(t - h), t0, t1, tn, width, thick, kind, rng,
+                 tails=tails if (k == 0 or tails > 1) else 0, phase=ph)
     for ring in cfg.get("rings", []):
         c, ax, width, thick, kind, tails = ring[:6]
         band(B, c, ax, 1.0, 0, 0, 1.0, width, thick, kind, rng, tails=tails, arc=ring[6] if len(ring) > 6 else None)

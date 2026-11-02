@@ -823,6 +823,10 @@
   "from": "Wave Attack 2.ogg",
   "kb": 46
  },
+ "sfx/wilhelm_scream.mp3": {
+  "from": "VOXScrm_Wilhelm scream (ID 0477)_BigSoundBank.com.wav",
+  "kb": 18
+ },
  "sfx/wood_chain_jump.mp3": {
   "from": "Wood Chain Jump.ogg",
   "kb": 6
