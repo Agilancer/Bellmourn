@@ -721,7 +721,8 @@ class Slime {
   }
 
   // -------------------------------------------------------------- blows
-  hit(h, { dmg = 0, dir = null, heavy = false, kind = 'blade' } = {}) {
+  hit(h, o = {}) { const before = this.hp; this.takeBlow(h, o); this.owner.feed?.struck(this, before, h, o); }   // (combatfx.js: numbers and the log)
+  takeBlow(h, { dmg = 0, dir = null, heavy = false, kind = 'blade' } = {}) {
     if (this.dead || this.invuln > 0) return;
     const o = this.owner, g = o.goo;
     const p = h.point || this.center(new THREE.Vector3());
@@ -761,10 +762,12 @@ class Slime {
   }
 
   /** Damage with nothing to show for it (fire, poison, a drained life). */
-  harm(dmg) {
+  harm(dmg, kind = 'harm') {
     if (this.dead || this.invuln > 0) return;
+    const before = this.hp;
     this.hp -= dmg * (this.frozen > 0 ? 1.5 : 1);
     if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
+    this.owner.feed?.harmed(this, before, kind);
     this.aggro = true; this.lastT = this.owner.time;
     if (this.owner.player) { this.last.copy(this.owner.player.pos); this.hasLast = true; }
     if (this.hp <= 0) this.die(null, 'harm');
@@ -1305,12 +1308,12 @@ class Slime {
   afflict(dt) {
     const res = this.sp.resist || {};
     if (this.chillT > 0) { this.chillT -= dt; this.chilled = Math.max(this.chilled || 0, 0.1); }   // (the shield's frost)
-    if (this.burnT > 0) { this.burnT -= dt; this.harm((this.burnDps || 4) * dt * (res.fire ?? 1)); }
+    if (this.burnT > 0) { this.burnT -= dt; this.harm((this.burnDps || 4) * dt * (res.fire ?? 1), 'burn'); }
     if (this.burning > 0) {
-      this.burning -= dt; this.harm((this.burnDps || 6) * dt * (res.fire ?? 1));
+      this.burning -= dt; this.harm((this.burnDps || 6) * dt * (res.fire ?? 1), 'burn');
       if (Math.random() < dt * 8) this.owner.fx?.smoke?.emit(this.center(new THREE.Vector3()), _b.set((Math.random() - 0.5) * 0.3, 0.9, (Math.random() - 0.5) * 0.3), { life: 1.4, size: 0.3 + this.R * 0.3, grow: 0.8, alpha: 0.22, shade: 0.95 });
     }
-    if (this.poisoned > 0) { this.poisoned -= dt; this.harm((this.poisonDps || 5) * dt * (res.poison ?? 1)); }
+    if (this.poisoned > 0) { this.poisoned -= dt; this.harm((this.poisonDps || 5) * dt * (res.poison ?? 1), 'poison'); }
     if (this.frozen > 0) this.frozen -= dt;
     if (this.chilled > 0) this.chilled -= dt;
     return this.frozen > 0 ? 0 : this.chilled > 0 ? 0.45 : 1;

@@ -427,6 +427,7 @@ class Foe extends Zombie {
       g.drop(p, _v, 0.008 + Math.random() * 0.01, sp[i % 3]);
     }
     sfx?.clang?.(false, p);   // (heard from the shield)
+    this.owner.feed?.blocked(this, { point: p });
     this.foes.flash(p, 0xffd080, 0.25);
     this.blockT = Math.min(this.blockT, 0.25);
     this.hunt(this.owner.player?.pos, true);

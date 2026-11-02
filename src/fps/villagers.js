@@ -27,6 +27,7 @@ import { speak, talking, hush } from './speech.js';
 import { voice } from './voice.js';
 import { MORE_BARKS, MORE_GREETS, MORE_SITUATIONAL as MS } from './lines/barks.js';
 import { MORE_CHATS } from './lines/chats.js';
+import { nameOf } from './combatfx.js';   // (a foe's name over its bubble: the dead and the Sworn have none of their own)
 
 // (the town's words, and the many more in lines/: what they mutter, greet you with, and say at dusk,
 // in flight, at prayer, at the well and the stalls)
@@ -1456,7 +1457,8 @@ class Bubbles {
     const cine = this.cinema;
     if (cine?.camera) camera = cine.camera;
     const talking = cine ? (cine.who?.talk && cine.who.root?.visible !== false ? [cine.who] : []) : this.hidden ? [] : vill.list.filter((a) => a.talk && !a.talk.hidden && !a.inside && a.root.visible && a.head);
-    if (!cine && !this.hidden && extra) for (const a of extra()) if (a.talk && !a.talk.hidden && a.root?.visible !== false) talking.push(a);
+    // (a foe in the fight, its life bar up, says it in the chat log only: no bubble over its bar)
+    if (!cine && !this.hidden && extra) for (const a of extra()) if (a.talk && !a.talk.hidden && a.root?.visible !== false && !(performance.now() - (a.fxBarT ?? -1e9) < 8000)) talking.push(a);
     const marked = markOf && !this.hidden && !cine ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
     if (!talking.length && !marked.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
     g.clearRect(0, 0, W, H); this.shown = true;
@@ -1572,7 +1574,7 @@ class Bubbles {
     // their name, small, on the rim
     g.font = `italic 600 ${fs * 0.72}px "Alegreya Sans", "Segoe UI", sans-serif`;
     g.fillStyle = '#8a6a3a'; g.textAlign = 'left';
-    g.fillText((a.speaker || a.name) + (t.pages && t.pages.length > 1 ? `  ${t.pi + 1}/${t.pages.length}` : ''), bx + 9 * s, by - 7 * s);
+    g.fillText((a.speaker || a.name || nameOf(a)) + (t.pages && t.pages.length > 1 ? `  ${t.pi + 1}/${t.pages.length}` : ''), bx + 9 * s, by - 7 * s);
     g.restore();
   }
 }
