@@ -8,6 +8,7 @@
 //
 // The character (equipment, bag, gold, potions, level) lives in localStorage under bm.char.
 import { levelStats, fitLevel } from './level.js';
+import { rollSockets, applyGems, gemValue, GEMS } from './gems.js';
 
 export const RARITY = [
   { id: 0, name: 'Common', color: '#e8e8e8', weight: 70, affixes: [0, 0], finish: 'worn', mul: 1 },
@@ -93,6 +94,9 @@ export const ENCHANTS = {
   holy: { name: 'Sanctified', desc: (v) => `Each blow your shield turns heals you ${v}`, v: [2, 5] },
   ward: { name: 'Spellward', desc: () => 'The raised shield stops spells as it stops blades', v: [1, 1] },
   repel: { name: 'Repelling', desc: () => 'Blows against your shield throw the attacker back', v: [1, 1] },
+  // (only from gems: gems.js)
+  storm: { name: 'Stormwall', desc: (v) => `Strikes against your shield call lightning down on the attacker (${v} damage)`, v: [5, 10], gem: true },
+  venom: { name: 'Venomous', desc: (v) => `Strikes against your shield poison the attacker (${v} a second)`, v: [3, 6], gem: true },
 };
 const STAT_LABEL = {
   dmgPct: (v) => `+${v}% Damage`, dmg: (v) => `+${v} Damage`, crit: (v) => `+${v}% Critical Strike`, critDmg: (v) => `+${v}% Critical Damage`,
@@ -102,6 +106,8 @@ const STAT_LABEL = {
   guardRegen: (v) => `+${v}% Guard Recovery`, blockPct: (v) => `+${v}% Blocked`, thorns: (v) => `Thorns: ${v} damage to whatever strikes your shield`,
   burnHit: (v) => `Your blows set the dead burning (${v} a second)`, chillHit: (v) => `Your blows chill the dead to a crawl for ${v} seconds`,
   xpPct: (v) => `+${v}% Experience`,
+  shockHit: (v) => `Your blows loose lightning at the nearest foes (${v} damage)`, poisonHit: (v) => `Your blows poison what they strike (${v} a second)`,
+  magicFind: (v) => `+${v}% better things found`, manaSteal: (v) => `${v}% of melee damage stolen as mana`, spellWard: (v) => `${v}% less hurt by spells`,
 };
 export const statLabel = (s, v) => (STAT_LABEL[s] ? STAT_LABEL[s](v) : `${s} ${v}`);
 
@@ -185,12 +191,13 @@ export function makeGear(opts = {}) {
     it.enchants ||= [];
     for (let i = 0; i < k; i++) {
       const have = new Set(it.enchants.map((e) => e.e));
-      const e = pick(Object.keys(ENCHANTS).filter((x) => !have.has(x)), R);
+      const e = pick(Object.keys(ENCHANTS).filter((x) => !have.has(x) && !ENCHANTS[x].gem), R);
       if (!e) break;
       const E = ENCHANTS[e];
       it.enchants.push({ e, v: E.v[0] === E.v[1] ? E.v[0] : roll(E.v, ilvl, 1, R) });
     }
   }
+  it.sockets = rollSockets(it, R);   // (the rarer, the likelier: gems.js)
   it.name = itemName(it, R);
   it.req = Math.max(1, Math.floor(ilvl * 0.8));
   return it;
@@ -206,7 +213,9 @@ export function itemName(it, R = Math.random) {
   return `${pick(UNIQUE, R)}, ${it.base}`;
 }
 
-export const itemColor = (it) => (it.type === 'gear' ? RARITY[it.rarity].color : it.type === 'gold' ? '#ffd34a' : '#e8dcc0');
+const PLAN_COLOR = ['#cfc4a8', '#4fd65a', '#4f8dff', '#ff9a2a', '#ff4058'];   // (craft.js's)
+export const itemColor = (it) => (it.type === 'gear' ? RARITY[it.rarity].color : it.type === 'gold' ? '#ffd34a' : it.type === 'gem' ? GEMS[it.gem]?.color || '#fff'
+  : it.type === 'recipe' ? PLAN_COLOR[it.tier ?? 1] : '#e8dcc0');
 export const fitsSlot = (it, slot) => !!it && it.type === 'gear' && (it.slot === slot || (it.slot === 'ring' && RING_SLOTS.includes(slot)));
 export const slotFor = (equip, it) => (it.slot !== 'ring' ? it.slot : RING_SLOTS.find((s) => !equip[s]) || RING_SLOTS[0]);
 export const isTwoHanded = (it) => it && (it.kind === 'twohand');
@@ -215,9 +224,15 @@ export function makePotion(kind = 'life', n = 1) {
   return { id: uid(), type: 'potion', kind, count: n, name: kind === 'life' ? 'Healing Draught' : 'Mana Draught' };
 }
 
+/** What a merchant gives for it (trade.js asks four times as much for what it sells). For a stack,
+ * one of them. */
 export function itemValue(it) {
-  if (it.type === 'potion') return 12 * (it.count || 1);
-  return Math.round((8 + it.ilvl * 4) * (1 + it.rarity * it.rarity * 0.9) * (1 + it.affixes.length * 0.25));
+  if (it.type === 'potion') return 12;
+  if (it.type === 'gem') return gemValue(it.gem, it.grade);
+  if (it.type === 'recipe') return [10, 30, 140, 700, 1500][it.tier ?? 1];
+  if (it.type !== 'gear') return 1;
+  const gems = (it.sockets || []).reduce((a, g) => a + (g ? gemValue(g.gem, g.grade) : 0), 0);
+  return Math.round((8 + it.ilvl * 4) * (1 + it.rarity * it.rarity * 0.9) * (1 + it.affixes.length * 0.25) * (1 + (it.sockets?.length || 0) * 0.15)) + gems;
 }
 
 // ------------------------------------------------------------------ the character
@@ -248,6 +263,8 @@ export function fitCharacter(c) {
   const unwand = (it) => (it?.type === 'gear' && it.kind === 'wand' ? { ...makeGear({ ilvl: it.ilvl, rarity: it.rarity, kind: 'staff' }), id: it.id } : it);
   for (const s of Object.keys(c.equip)) c.equip[s] = unwand(c.equip[s]);
   c.bag = c.bag.map(unwand);
+  if (!c.mats || typeof c.mats !== 'object') c.mats = {};   // (the crafter's pouch, and the plans known: craft.js)
+  if (!Array.isArray(c.recipes)) c.recipes = [];
   for (const it of [...Object.values(c.equip), ...c.bag]) {
     if (!it || it.type !== 'gear' || !ARM[it.kind] || modelsOf(it.kind).some((m) => m.id === it.model)) continue;
     const e = modelsOf(it.kind).find((m) => m.id === STARTER[it.kind]) || modelsOf(it.kind)[0];
@@ -278,10 +295,11 @@ export function saveCharacter(c) { try { localStorage.setItem('bm.char', JSON.st
 
 /** Put an item in the first free place in the bag (potions stack). False when it's full. */
 export function addToBag(c, it) {
-  if (it.type === 'potion') {
-    const same = c.bag.find((b) => b && b.type === 'potion' && b.kind === it.kind);
-    if (same) { same.count += it.count || 1; return true; }
-  }
+  // (draughts stack, and like gems, and like plans)
+  const same = it.type === 'potion' ? c.bag.find((b) => b && b.type === 'potion' && b.kind === it.kind)
+    : it.type === 'gem' ? c.bag.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.grade === it.grade)
+      : it.type === 'recipe' ? c.bag.find((b) => b && b.type === 'recipe' && b.recipe === it.recipe) : null;
+  if (same) { same.count = (same.count || 1) + (it.count || 1); return true; }
   const i = c.bag.findIndex((b) => !b);
   if (i < 0) return false;
   c.bag[i] = it;
@@ -292,14 +310,17 @@ export function addToBag(c, it) {
 /** The character's numbers from what it wears. */
 export function computeStats(c) {
   const st = { dmgPct: 0, dmg: 0, crit: 5, critDmg: 50, lifeSteal: 0, spellPct: 0, armor: 0, armorPct: 0, life: 0, mana: 0,
-    lifeRegen: 0.4, manaRegen: 6, moveSpeed: 0, guard: 0, guardRegen: 0, blockPct: 0, thorns: 0, burnHit: 0, chillHit: 0, xpPct: 0, enchants: {} };
+    lifeRegen: 0.4, manaRegen: 6, moveSpeed: 0, guard: 0, guardRegen: 0, blockPct: 0, thorns: 0, burnHit: 0, chillHit: 0, xpPct: 0,
+    shockHit: 0, poisonHit: 0, magicFind: 0, manaSteal: 0, spellWard: 0, enchants: {} };
   for (const s of SLOTS) {
     const it = c.equip[s];
     if (!it) continue;
     if (it.armor) st.armor += it.armor;
     for (const a of [...(it.implicit || []), ...(it.affixes || [])]) st[a.s] = (st[a.s] || 0) + a.v;
     if (s === 'offhand') for (const e of it.enchants || []) st.enchants[e.e] = (st.enchants[e.e] || 0) + e.v;
+    if (it.sockets?.length) applyGems(st, it, s);   // the gems set in it (gems.js)
   }
+  st.spellWard = Math.min(60, st.spellWard);
   levelStats(c, st);   // what the level and the attributes bring
   st.armor = Math.round(st.armor * (1 + st.armorPct / 100));
   const w = c.equip.weapon, sh = c.equip.offhand;

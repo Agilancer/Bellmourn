@@ -188,10 +188,12 @@ export class Hud {
     for (const k of SPELL_KEYS) {
       const id = book[k], s = this.o.spells[id];
       const slot = this.slotEl[k];
-      slot.querySelector('img').src = id ? this.spellIcons[id] : '';
+      const img = slot.querySelector('img');
+      if (id && this.spellIcons[id]) img.src = this.spellIcons[id];
+      img.style.visibility = id && this.spellIcons[id] ? '' : 'hidden';   // (an empty slot: no broken picture)
       slot.querySelector('small').textContent = s ? s.name : '—';
       const t = this.touch.querySelector('.spell' + k + ' img');   // (a phone has buttons for F and R only)
-      if (t) t.src = id ? this.spellIcons[id] : '';
+      if (t) { if (id && this.spellIcons[id]) t.src = this.spellIcons[id]; t.style.visibility = id && this.spellIcons[id] ? '' : 'hidden'; }
     }
   }
 

@@ -3,8 +3,12 @@
 // what you can do with it, and the character's numbers. Drag an item onto a slot or another
 // place in the bag (mouse or finger); click to look at it; double-click (or right-click) to put
 // it on or take it off; drag it out of the window to drop it. Potions drink on double-click.
-// The spellbook is the second tab.
+// Drag a gem onto anything with an empty socket to set it there (or pick it from the gem's card);
+// double-click a plan to learn it. The spellbook is the second tab; the third is the materials
+// pouch and the plans you know (craft.js).
 import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats } from './gear.js';
+import { GEMS, GRADES, gemName, gemBonus, gemPlace, freeSocket } from './gems.js';
+import { MATS, MAT_TIER, MAT_TIER_COLOR, RECIPES, PLAN_TIER, PLAN_COLOR, known, knows, check, learn, fitCraft } from './craft.js';
 import { ATTRS, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
 import { SPELL_KEYS } from './hud.js';
 
@@ -65,6 +69,66 @@ const PX = {
   potion: ['................', '......ddd.......', '......dmd.......', '......ddd.......', '......dld.......', '.....daaad......', '....daaaaad.....', '...daalaaaad....',
     '...dalaaaaad....', '...daaaaaaad....', '...daaaaaaad....', '...daaaaaaad....', '....daaaaad.....', '.....ddddd......', '................', '................'],
 };
+// gems by grade (1 chipped .. 5 perfect; the starshard its own), a plan's scroll, and the materials
+Object.assign(PX, {
+  gem1: ['................', '................', '................', '................', '................', '................', '......dd........', '.....dlmd.......',
+    '....dlmmmd......', '....dmmmad......', '.....dmmd.......', '......dd........', '................', '................', '................', '................'],
+  gem2: ['................', '................', '................', '................', '.....dddd.......', '....dllmmd......', '...dlmmmmmd.....', '...dmmmmmad.....',
+    '....dmmmmd......', '.....dmmd.......', '......dd........', '................', '................', '................', '................', '................'],
+  gem3: ['................', '................', '................', '.....dddddd.....', '....dllmmmmd....', '...dlmmmmmmad...', '..dddddddddddd..', '..dmlmmmmmmmmd..',
+    '...dmlmmmmmmd...', '....dmmmmmmd....', '.....dmmmmd.....', '......dmmd......', '.......dd.......', '................', '................', '................'],
+  gem4: ['................', '................', '....dddddddd....', '...dllllmmmmd...', '..dlmmmmmmmmad..', '.dlmmmmmmmmmmad.', 'dddddddddddddddd', 'dmllmmmmmmmmmmmd',
+    '.dmlmmmmmmmmmmd.', '..dmlmmmmmmmmd..', '...dmmmmmmmmd...', '....dmmmmmmd....', '.....dmmmmd.....', '......dmmd......', '.......dd.......', '................'],
+  gem5: ['.......a........', '......aaa..a....', '....dddddddd....', '...dllllmmmmd...', '..dlallmmmmmad..', '.dlmmmmmmmmmmad.', 'dddddddddddddddd', 'dmllammmmmmmmmmd',
+    '.dmlmmmmmmmmmmd.', '..dmlmmmmmmmmd..', '...dmmmmmmmmd...', '....dmmmmmmd....', '.a...dmmmmd.....', 'aaa...dmmd......', '.a.....dd.......', '................'],
+  star: ['........a.......', '.......dld......', '......dllmd.....', '......dlmmd.....', '.....dllmmmd....', '.....dlmmmad....', '....dllmmmmd....', '....dlmmmmad.a..',
+    '...dllmmmmmd.aa.', '...dlmmmmmd..a..', '..dllmmmmmd.....', '..dlmmmmmd......', '.dlmmmmmd.......', '.ddddddd........', '................', '................'],
+  scroll: ['................', '..dddddddddddd..', '.dllllllllllllld', '.dmmmmmmmmmmmmmd', '..dllllllllllld.', '..dlddddddddlld.', '..dllllllllllld.', '..dldddddlllld..',
+    '..dllllllllllld.', '..dlddddddlaad..', '..dllllllllaaad.', '.dddddddddaaad..', '.dllllllllllad..', '.dmmmmmmmmmmmd..', '..ddddddddddd...', '................'],
+  ingot: ['................', '................', '................', '................', '................', '.....dddddddd...', '....dllllllld...', '...dllllllldmd..',
+    '..dmmmmmmmdmmd..', '..dmmmmmmmdmd...', '..dmmmmmmmdd....', '..ddddddddd.....', '................', '................', '................', '................'],
+  hide: ['................', '................', '....dd....dd....', '...dmmd..dmmd...', '...dmmmddmmmd...', '....dmlmmmmd....', '...dmllmmmmmd...', '..dmmlmmmmmmmd..',
+    '..dmmmmmmmammd..', '...dmmmmmmmmd...', '...dmmmddmmmd...', '....dd...ddd....', '................', '................', '................', '................'],
+  cloth: ['................', '................', '................', '..dddddddddddd..', '..dlllllllllld..', '..dmmmmmmmmmmd..', '..dlllllllllld..', '..dmmmmmmmmmmd..',
+    '..dllllllllllld.', '..dmmmmmmmmmmmd.', '..ddddddddddddd.', '................', '................', '................', '................', '................'],
+  bone: ['................', '................', '................', '..dd.........dd.', '.dlld.......dlld', '.dllld.....dllld', '..dlllddddddlld.', '...dlllllllllld.',
+    '..dllddddddlllld', '.dlld.......dlld', '.dlld.......dlld', '..dd.........dd.', '................', '................', '................', '................'],
+  log: ['................', '................', '................', '................', '....ddddddddd...', '...dmmmmmmmmdld.', '..dmmmmmmmmdlald', '..dmlmmmmmmdlald',
+    '..dmmmmlmmmdlald', '...dmmmmmmmmdld.', '....ddddddddd...', '................', '................', '................', '................', '................'],
+  pile: ['................', '................', '................', '................', '................', '................', '.......dd.......', '.....ddmmdd.....',
+    '....dmmlmmmd....', '...dmmlmmamd....', '..dmmmmmmmmmmd..', '.dmmlmmmammmmmd.', '.dddddddddddddd.', '................', '................', '................'],
+  blob: ['................', '................', '................', '......dddd......', '....ddllmmdd....', '...dllmmmmmmd...', '...dlmmmmmmmd...', '..dlmmmmmmmmmd..',
+    '..dmmmmmmmmamd..', '..dmmmmmmmmmmd..', '...dmmmmmmmmd...', '....dddddddd....', '................', '................', '................', '................'],
+  fang: ['................', '.....ddddd......', '....dlllllld....', '....dllllmld....', '.....dllmmd.....', '.....dlllmd.....', '......dllmd.....', '......dllmd.....',
+    '.......dlmd.....', '.......dlmd.....', '........dld.....', '........dmd.....', '.........d......', '................', '................', '................'],
+  plate: ['................', '................', '...dddddddddd...', '..dllllllllmmd..', '..dlmmmmmmmmmd..', '..ddddddddddd...', '..dlmmmmmmmmmd..', '..dmmmmmmmmmmd..',
+    '...ddddddddd....', '...dlmmmmmmd....', '....dmmmmmd.....', '.....ddddd......', '................', '................', '................', '................'],
+  sparkle: ['.......a........', '......aaa.......', '.......a....a...', '...a.......aaa..', '..aaa.......a...', '...a..dddd......', '.....dmlmmd.....', '....dmlmmamd....',
+    '...dmmmmmmmmd...', '..dmmlmmmammmd..', '..dddddddddddd..', '................', '................', '................', '................', '................'],
+  flame: ['.......d........', '......dld.......', '......dlld......', '.....dllld......', '....dllalld.....', '....dlaaalld....', '...dllaaaalld...', '...dlaaaaaald...',
+    '...dllaaaalld...', '....dllaalld....', '.....dlllld.....', '......dddd......', '................', '................', '................', '................'],
+  shard: ['.........d......', '........dld.....', '.......dlld.....', '......dllmd.....', '.....dllmmd.....', '.....dlmmmd.....', '....dllmmd......', '....dlmmmd......',
+    '...dllmmd.......', '...dlmmd........', '..dlmmd.........', '..dddd..........', '................', '................', '................', '................'],
+  heart: ['................', '...ddd...ddd....', '..dllmd.dmmmd...', '.dlllmmdmmmmmd..', '.dllmmmmmmmmmd..', '.dlmmmmmmmmmmd..', '..dmmmmmmmmmd...', '...dmmmmmmmd....',
+    '....dmmmmmd.....', '.....dmmmd......', '......dmd.......', '.......d........', '................', '................', '................', '................'],
+  vial: ['......dddd......', '......dmmd......', '.......dd.......', '......dlld......', '.....dlllld.....', '....dlmmmmld....', '...dlmaammmmd...', '...dlmaammmmd...',
+    '...dmmmmmmmmd...', '...dmmmmmmmmd...', '....dmmmmmmd....', '.....dddddd.....', '................', '................', '................', '................'],
+  signet: ['................', '......aaaa......', '.....aallaa.....', '.....aaaaaa.....', '......aaaa......', '.....dmmmmd.....', '....dm....md....', '...dm......md...',
+    '...dm......md...', '...dm......md...', '....dm....md....', '.....dmmmmd.....', '................', '................', '................', '................'],
+});
+/** A colour's dark, light and sparkle for a gem (from its own colour). */
+const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; return '#' + c.map((v) => Math.round(k < 1 ? v * k : v + (255 - v) * (k - 1)).toString(16).padStart(2, '0')).join(''); };
+const gemTint = (gem) => { const c = GEMS[gem]?.color || '#ffffff'; return { m: c, d: shade(c, 0.32), l: shade(c, 1.55), a: '#ffffff' }; };
+/** The picture of a gem, a plan or a material (gems.js, craft.js), as a data URL. */
+export function craftIcon(it) {
+  if (it.type === 'gem') return pixelIcon(GEMS[it.gem]?.only ? 'star' : 'gem' + Math.max(1, Math.min(5, it.grade || 3)), gemTint(it.gem));
+  if (it.type === 'recipe') return pixelIcon('scroll', { l: '#efe0b4', m: '#c8a868', d: '#4a3418', a: PLAN_COLOR[it.tier ?? 1] });
+  const M = MATS[it.mat || it.id];
+  if (!M) return pixelIcon('pile', { m: '#888', d: '#222', l: '#ccc', a: '#fff' });
+  const [m, d, l, a] = M.tint;
+  return pixelIcon(M.icon, M.icon === 'signet' ? { m: '#d8a838', d: '#3a2a08', l: '#fff0a0', a: m } : { m, d, l, a: a || l });
+}
+
 const TINT = {
   hood: { m: '#5a4a3a', d: '#1a120c', l: '#7a6a50', a: '#8a6a40' }, cap: { m: '#6a4a2a', d: '#1e140a', l: '#8a6a40', a: '#a07040' },
   kettle: { m: '#8a8e94', d: '#22262a', l: '#c8ccd0', a: '#6a5a40' }, sallet: { m: '#9aa0a8', d: '#202428', l: '#d8dce0', a: '#6a5a40' },
@@ -109,14 +173,14 @@ export class Bag {
     close.onclick = () => opts.onClose?.();
     const tabs = el('div', 'tabs');
     this.tabBtn = {};
-    for (const [k, label] of [['gear', 'Inventory &amp; Character'], ['spells', 'Spellbook']]) {
+    for (const [k, label] of [['gear', 'Inventory &amp; Character'], ['spells', 'Spellbook'], ['mats', 'Materials &amp; Plans']]) {
       const b = el('button', '', label);
       b.onclick = () => { this.tab = k; this.render(); };
       this.tabBtn[k] = b;
       tabs.append(b);
     }
     this.body = el('div', 'bag-body');
-    p.append(close, tabs, this.body);
+    p.append(close, el('div', 'keys', 'Tab or I to close · Esc to go back to the game'), tabs, this.body);
     this.tip = el('div', 'tt hidden');
     root.append(p, this.tip);
     this.drag = null;
@@ -126,6 +190,43 @@ export class Bag {
 
   get open() { return !this.panel.classList.contains('hidden'); }
   show(on) { this.panel.classList.toggle('hidden', !on); this.tip.classList.add('hidden'); if (on) this.render(); }
+
+  // -------------------------------------------------------------- gems and plans
+  /** Set the gem in bag place `gi` into the first empty socket of `target` (an item). */
+  socket(gi, target) {
+    const c = this.o.char(), g = c.bag[gi];
+    if (!g || g.type !== 'gem' || !target || target.type !== 'gear') return false;
+    const i = freeSocket(target);
+    if (i < 0) { this.o.toast?.(target.sockets?.length ? `${target.name} has no empty socket` : `${target.name} has no sockets: Garrow the smith can cut one`); return false; }
+    target.sockets[i] = { gem: g.gem, grade: g.grade };
+    if (--g.count <= 0) c.bag[gi] = null;
+    this.o.toast?.(`The ${gemName(g.gem, g.grade)} is set in ${target.name}`);
+    this.o.onSocket?.(target, g);
+    this.changed();
+    return true;
+  }
+
+  /** Read a plan: learnt for good (the scroll is used up). */
+  learnAt(i) {
+    const c = this.o.char(), it = c.bag[i];
+    if (!it || it.type !== 'recipe') return;
+    fitCraft(c);
+    if (!learn(c, it.recipe)) { this.o.toast?.('You know these plans already: a merchant will buy them'); return; }
+    if (--it.count <= 0) c.bag[i] = null;
+    const R = RECIPES[it.recipe];
+    this.o.toast?.(`Learnt: ${R.name}. ${R.at === 'gems' ? 'Idris' : 'Garrow'} can make it for you`);
+    this.o.onLearn?.(it);
+    this.sel = null;
+    this.changed();
+  }
+
+  /** Everything gear in the bag and worn with room for a gem: [{it, where}] (what's worn first). */
+  socketable() {
+    const c = this.o.char(), out = [];
+    for (const s of SLOTS) if (freeSocket(c.equip[s]) >= 0) out.push({ it: c.equip[s], where: SLOT_NAMES[s] });
+    for (const it of c.bag) if (it?.type === 'gear' && freeSocket(it) >= 0) out.push({ it, where: 'bag' });
+    return out;
+  }
 
   item(ref) {
     const c = this.o.char();
@@ -180,12 +281,19 @@ export class Bag {
     if (!it) return;
     if (it.type === 'gear') this.equipFromBag(idx);
     else if (it.type === 'potion') { this.o.onUse?.(idx); this.changed(); }
+    else if (it.type === 'recipe') this.learnAt(idx);
+    else if (it.type === 'gem') {   // into the first empty socket of what you're wearing (the weapon first)
+      const to = this.socketable().find((x) => x.where !== 'bag');
+      if (to) this.socket(idx, to.it); else this.o.toast?.('Nothing you wear has an empty socket: drag the gem onto a piece in the bag');
+    }
   }
 
   dropOnBag(idx, data) {
     const c = this.o.char();
     if (data.where === 'bag') {
       if (data.idx === idx) return;
+      // a gem dropped on gear: set in it
+      if (c.bag[data.idx]?.type === 'gem' && c.bag[idx]?.type === 'gear') { this.socket(data.idx, c.bag[idx]); return; }
       [c.bag[data.idx], c.bag[idx]] = [c.bag[idx], c.bag[data.idx]];
       this.sel = { where: 'bag', idx };
       this.changed();
@@ -200,6 +308,7 @@ export class Bag {
       return;
     }
     const it = this.o.char().bag[data.idx];
+    if (it?.type === 'gem' && this.o.char().equip[slot]) { this.socket(data.idx, this.o.char().equip[slot]); return; }
     if (!fitsSlot(it, slot)) { this.o.toast?.(`That doesn't go there`); return; }
     this.equipFromBag(data.idx, slot);
   }
@@ -207,8 +316,9 @@ export class Bag {
   sort() {
     const c = this.o.char();
     const items = c.bag.filter(Boolean);
-    const rank = (it) => (it.type === 'gear' ? 0 : it.type === 'potion' ? 1 : 2);
-    items.sort((a, b) => rank(a) - rank(b) || (b.rarity || 0) - (a.rarity || 0) || (a.slot || '').localeCompare(b.slot || '') || (b.ilvl || 0) - (a.ilvl || 0));
+    const rank = (it) => ({ gear: 0, potion: 1, gem: 2, recipe: 3 }[it.type] ?? 4);
+    items.sort((a, b) => rank(a) - rank(b) || (b.rarity || 0) - (a.rarity || 0) || (a.slot || '').localeCompare(b.slot || '') || (b.ilvl || 0) - (a.ilvl || 0)
+      || (a.gem || '').localeCompare(b.gem || '') || (b.grade || 0) - (a.grade || 0) || (b.tier || 0) - (a.tier || 0));
     c.bag = c.bag.map((_, i) => items[i] || null);
     this.sel = null;
     this.changed();
@@ -260,25 +370,28 @@ export class Bag {
     const url = this.iconOf(it, () => this.render());
     if (url) img.src = url;
     d.append(img);
-    if (it.type === 'potion' && it.count > 1) d.append(el('span', 'stack', 'x' + it.count));
+    if (it.type !== 'gear' && it.count > 1) d.append(el('span', 'stack', 'x' + it.count));
+    if (it.sockets?.length) d.append(sockDots(it));
     return d;
   }
 
   iconOf(it, again) {
     if (it.type === 'potion') return pixelIcon('potion', TINT[it.kind] || TINT.life);
+    if (it.type === 'gem' || it.type === 'recipe' || it.type === 'mat') return craftIcon(it);
     if (it.type === 'quest') return pixelIcon('ring', TINT.ringGold || TINT.tunic);
     if (it.kind === 'gauntlet') { const m = GAUNT_TINT[it.model] || '#7a5a3a'; return pixelIcon('gauntlet', { m, d: '#141010', l: '#e8e0d0', a: '#2a2420' }); }
     if (it.icon) return pixelIcon(PX[it.icon] ? it.icon : 'ring', TINT[it.icon] || TINT.tunic);
     return this.o.icon?.(it, again) || null;
   }
 
-  rclass(it) { return it ? (it.type === 'gear' ? 'r' + it.rarity : 'r0') : ''; }
+  rclass(it) { return it ? (it.type === 'gear' ? 'r' + it.rarity : it.type === 'gem' ? 'gm' : it.type === 'recipe' ? 'p' + (it.tier ?? 1) : 'r0') : ''; }
 
   render() {
     if (!this.open) return;
     for (const [k, b] of Object.entries(this.tabBtn)) b.classList.toggle('sel', k === this.tab);
     this.body.innerHTML = '';
     if (this.tab === 'spells') { this.renderSpells(); return; }
+    if (this.tab === 'mats') { this.renderMats(); return; }
     const c = this.o.char();
     const wrap = el('div', 'inv-wrap');
     // the doll and the card
@@ -339,7 +452,9 @@ export class Bag {
     if (!it) return;
     const c = this.o.char();
     const cmp = ref.where === 'bag' && it.type === 'gear' ? c.equip[slotFor(c.equip, it)] : null;
-    this.tip.innerHTML = tooltip(it, { compare: cmp, hint: ref.where === 'bag' ? (it.type === 'gear' ? 'Double-click to put it on' : 'Double-click to drink') : 'Double-click to take it off' });
+    const hint = ref.where !== 'bag' ? 'Double-click to take it off' : it.type === 'gear' ? 'Double-click to put it on' : it.type === 'potion' ? 'Double-click to drink'
+      : it.type === 'gem' ? 'Drag it onto a piece with an empty socket (double-click: into what you wear)' : it.type === 'recipe' ? 'Double-click to learn it' : '';
+    this.tip.innerHTML = tooltip(it, { compare: cmp, hint, char: c });
     this.tip.classList.remove('hidden');
     this.tipMove(e);
   }
@@ -358,13 +473,23 @@ export class Bag {
     const it = this.item(this.sel);
     if (!it) { box.innerHTML = '<div class="dim">Tap or click a thing to look at it. Drag to put it on, move it, or (out of the window) drop it. Double-click to put on, take off or drink.</div>'; return box; }
     const c = this.o.char();
-    box.innerHTML = tooltip(it, { compare: this.sel.where === 'bag' && it.type === 'gear' ? c.equip[slotFor(c.equip, it)] : null });
+    box.innerHTML = tooltip(it, { compare: this.sel.where === 'bag' && it.type === 'gear' ? c.equip[slotFor(c.equip, it)] : null, char: c });
     const row = el('div', 'row');
     const btn = (label, fn, cls = 'small') => { const b = el('button', cls, label); b.onclick = fn; row.append(b); };
     if (this.sel.where === 'bag') {
       const i = this.sel.idx;
       if (it.type === 'gear') btn('Put on', () => this.equipFromBag(i));
       if (it.type === 'potion') btn('Drink', () => this.use(i));
+      if (it.type === 'recipe') btn(knows(c, it.recipe) ? 'Known already' : 'Learn it', () => this.learnAt(i), knows(c, it.recipe) ? 'small' : 'small sel');
+      if (it.type === 'gem') {   // set it: in which piece (what's worn first)
+        const list = this.socketable();
+        if (list.length) {
+          const pickEl = el('select', 'gemto');
+          list.forEach((x, k) => { const o = el('option', null, esc(`${x.it.name} (${x.where === 'bag' ? 'in the bag' : x.where})`)); o.value = k; pickEl.append(o); });
+          row.append(pickEl);
+          btn('Set it', () => this.socket(i, list[Number(pickEl.value)]?.it), 'small sel');
+        } else row.append(el('span', 'dim small', 'Nothing has an empty socket. Garrow the smith cuts them.'));
+      }
       btn('Drop', () => { this.o.onDrop?.(i); this.sel = null; this.changed(); }, 'small red');
     } else {
       const s = this.sel.slot;
@@ -415,6 +540,38 @@ export class Bag {
     return box;
   }
 
+  /** The third tab: the materials pouch, the plans known, and the great ones' reagents. */
+  renderMats() {
+    const c = fitCraft(this.o.char());
+    const wrap = el('div', 'mats-wrap');
+    const left = el('div', 'col');
+    left.append(el('h3', null, 'Materials <em>— what the dead, the Vigil and the boxes leave. They take no room in the bag</em>'));
+    const grid = el('div', 'matgrid');
+    const have = Object.keys(MATS).filter((m) => c.mats[m] > 0 && !MATS[m].boss).sort((a, b) => MATS[a].tier - MATS[b].tier);
+    if (!have.length) grid.append(el('div', 'dim', 'Nothing yet. Strike down the dead and the Vigil, break crates and search chests: what a smith can use goes in here.'));
+    for (const m of have) grid.append(this.matCell(m, c.mats[m]));
+    left.append(grid);
+    left.append(el('h3', null, 'Reagents of the Great <em>— each carried by one of them only</em>'));
+    const great = el('div', 'matgrid');
+    for (const m of Object.keys(MATS).filter((k) => MATS[k].boss)) great.append(this.matCell(m, c.mats[m] || 0, true));
+    left.append(great);
+    const right = el('div', 'col plans');
+    right.append(el('h3', null, 'Plans you know <em>— forged at Hammerfall (Garrow); gems at the Alchemist’s (Idris)</em>'));
+    for (const id of known(c)) right.append(planRow(id, c));
+    right.append(el('div', 'dim small', 'More plans lie in chests and on the bodies of the Vigil, and merchants sell some. Double-click one in the bag to learn it.'));
+    wrap.append(left, right);
+    this.body.append(wrap);
+  }
+
+  matCell(m, n, great = false) {
+    const M = MATS[m], d = el('div', 'mcell' + (great && !n ? ' none' : ''));
+    d.innerHTML = `<img src="${craftIcon({ type: 'mat', mat: m })}" alt=""><b style="color:${MAT_TIER_COLOR[M.tier]}">${esc(M.name)}</b><span>${n ? '× ' + n : great ? (M.future ? 'not yet risen' : 'not had') : ''}</span>`;
+    d.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; this.tip.innerHTML = matTip(m, n); this.tip.classList.remove('hidden'); this.tipMove(e); };
+    d.onpointerleave = () => this.tip.classList.add('hidden');
+    d.onclick = (e) => { this.tip.innerHTML = matTip(m, n); this.tip.classList.remove('hidden'); this.tipMove(e); };
+    return d;
+  }
+
   renderSpells() {
     const { spells, spellIcons } = this.o, book = this.o.book();
     const grid = el('div', 'grid spells');
@@ -438,7 +595,8 @@ export class Bag {
 /** How much of a blow armour takes off (a share, never all of it). */
 export const armorCut = (a) => a / (a + 60);
 
-export function tooltip(it, { compare = null, hint = '' } = {}) {
+export function tooltip(it, opts = {}) {
+  const { compare = null, hint = '' } = opts;
   const col = itemColor(it);
   let h = `<div class="tt-name" style="color:${col}">${esc(it.name)}</div>`;
   if (it.type === 'potion') {
@@ -456,8 +614,39 @@ export function tooltip(it, { compare = null, hint = '' } = {}) {
       h += '<div class="tt-sep"></div>';
       for (const e of it.enchants) h += `<div class="tt-ench"><b>${ENCHANTS[e.e].name}</b>: ${esc(ENCHANTS[e.e].desc(e.v))}</div>`;
     }
+    if (it.sockets?.length) {
+      h += '<div class="tt-sep"></div>';
+      const place = gemPlace(it.slot);
+      for (const g of it.sockets) {
+        if (!g || !GEMS[g.gem]) { h += '<div class="tt-gem empty"><i></i>Empty socket</div>'; continue; }
+        const G = GEMS[g.gem];
+        h += `<div class="tt-gem"><i style="background:${G.color}; box-shadow: 0 0 6px ${G.color}"></i><b style="color:${G.color}">${esc(gemName(g.gem, g.grade))}</b>: ${esc(gemWhat(g, place))}</div>`;
+      }
+      const look = it.sockets.find((g) => g && GEMS[g.gem]);
+      const worn = ['head', 'body', 'legs', 'feet', 'ring'].includes(it.slot);
+      if (look) h += `<div class="tt-look">${esc(worn ? GEMS[look.gem].lookWorn : it.slot === 'hands' ? GEMS[look.gem].lookHands : GEMS[look.gem].look)}</div>`;
+    }
+    if (it.forged) h += `<div class="tt-forged">Forged at Hammerfall from the plans for ${esc(it.forged)}</div>`;
     if (it.lore) h += `<div class="tt-sep"></div><div class="tt-lore">${esc(it.lore)}</div>`;
     h += `<div class="tt-price">${it.unique ? '<span class="tt-uniq">Unique</span> · ' : ''}Worth ${itemValue(it)} gold</div>`;
+  } else if (it.type === 'gem') {
+    const G = GEMS[it.gem] || GEMS.ruby, g = { gem: it.gem, grade: it.grade };
+    h += `<div class="tt-base">${G.only ? 'A piece of the green star' : `${GRADES[it.grade]?.name || 'Cut'} gem`}${it.count > 1 ? ` · ${it.count} of them` : ''}</div>`;
+    const line = (place, label) => `<div class="tt-gemplace"><b>${label}:</b> ${esc(gemWhat(g, place))}</div>`;
+    h += '<div class="tt-sep"></div>' + line('weapon', 'In a weapon or staff') + line('armor', 'In armour, gauntlets or a ring') + line('shield', 'In a shield');
+    h += `<div class="tt-sep"></div><div class="tt-look"><b>In hand:</b> ${esc(G.look)}</div><div class="tt-look"><b>On gauntlets:</b> ${esc(G.lookHands)}</div><div class="tt-look"><b>Worn:</b> ${esc(G.lookWorn)}</div>`;
+    if (!G.only) h += `<div class="dim small">${it.grade >= 5 ? 'A perfect stone: it shows at its brightest.' : 'The finer the gem, the brighter it shows. Three of a grade make one of the next, at Idris’s.'}</div>`;
+    h += `<div class="tt-price">Worth ${itemValue(it)} gold${it.count > 1 ? ' each' : ''}</div>`;
+  } else if (it.type === 'recipe') {
+    const R = RECIPES[it.recipe];
+    if (R) {
+      h += `<div class="tt-base">${PLAN_TIER[R.tier]} · for ${R.at === 'gems' ? 'Idris the alchemist' : 'Garrow’s forge'} · level ${R.level || 1}</div>`;
+      h += `<div class="tt-line">${esc(planMakes(R))}</div>`;
+      if (R.desc || R.makes.unique?.lore) h += `<div class="tt-lore">${esc(R.desc || R.makes.unique.lore)}</div>`;
+      h += '<div class="tt-sep"></div>' + needsHtml(it.recipe, opts.char);
+      if (opts.char && knows(opts.char, it.recipe)) h += '<div class="dim small">You know these plans already.</div>';
+    }
+    h += `<div class="tt-price">Worth ${itemValue(it)} gold</div>`;
   }
   if (hint) h += `<div class="dim small">${hint}</div>`;
   return h;
@@ -468,4 +657,66 @@ function cmpLine(other, it, k) {
   const a = Array.isArray(it[k]) ? (it[k][0] + it[k][1]) / 2 : it[k], b = Array.isArray(other[k]) ? (other[k][0] + other[k][1]) / 2 : other[k];
   const d = Math.round(a - b);
   return d ? ` <span class="${d > 0 ? 'up' : 'down'}">(${d > 0 ? '+' : ''}${d})</span>` : '';
+}
+
+/** What a gem does where it's set, in words. */
+export function gemWhat(g, place) {
+  const b = gemBonus(g, place);
+  return [...b.stats.map(([st, v]) => statLabel(st, v)), ...b.enchants.map(([e, v]) => (e === 'thorns' ? statLabel('thorns', v) : `${ENCHANTS[e]?.name}: ${ENCHANTS[e]?.desc(v)}`))].join('; ');
+}
+
+/** The small round sockets on a cell: empty ones dark, filled ones the gem's colour. */
+export function sockDots(it) {
+  const d = el('div', 'sock');
+  for (const g of it.sockets) {
+    const i = el('i');
+    if (g && GEMS[g.gem]) { i.style.background = GEMS[g.gem].color; i.style.boxShadow = `0 0 4px ${GEMS[g.gem].color}`; i.className = 'on'; }
+    d.append(i);
+  }
+  return d;
+}
+
+// what each kind of thing is called in a plan
+const MAKES = { onehand: 'One-handed weapon', twohand: 'Two-handed weapon', staff: 'Staff', shield_round: 'Round shield', shield_kite: 'Kite shield',
+  head: 'Helm', body: 'Body armour', legs: 'Leg armour', feet: 'Boots', hands: 'Gauntlet', ring: 'Ring' };
+const ADDS = { spellPct: 'spell damage', moveSpeed: 'speed', armor: 'armour', dmgPct: 'damage', guard: 'guard', crit: 'critical strike', critDmg: 'critical damage', life: 'life', lifeRegen: 'life regeneration' };
+/** What a plan makes, in a line. */
+export function planMakes(R) {
+  const M = R.makes;
+  if (M.gem) return `Makes a ${GEMS[M.gem]?.name || 'gem'}`;
+  if (M.unique) { const u = M.unique; return `Makes ${u.name}: a ${RARITY[u.rarity].name} ${(MAKES[u.kind || u.slot] || '').toLowerCase()}, ${u.sockets} socket${u.sockets === 1 ? '' : 's'}`; }
+  const r = M.rarity[0] === M.rarity[1] ? RARITY[M.rarity[0]].name : `${RARITY[M.rarity[0]].name} or ${RARITY[M.rarity[1]].name}`;
+  const so = M.sockets ? (M.sockets[0] === M.sockets[1] ? `${M.sockets[0]}` : `${M.sockets[0]}-${M.sockets[1]}`) : '0';
+  const extra = Object.keys(M.add || {}).map((k) => ADDS[k] || k);
+  return `Makes a ${r} ${(MAKES[M.kind || M.slot] || '').toLowerCase()}${M.base ? ` (${M.base})` : ''}, ${so} socket${so === '1' ? '' : 's'}${extra.length ? `, with more ${extra.join(' and ')}` : ''}`;
+}
+/** What a plan wants, with what you have of each. */
+export function needsHtml(id, c = null) {
+  const R = RECIPES[id];
+  const chk = c ? check(c, id) : null;
+  let h = '<div class="needs">';
+  for (const [m, n] of Object.entries(R.needs)) {
+    const M = MATS[m], hv = c ? c.mats?.[m] || 0 : null;
+    h += `<span class="${hv == null ? '' : hv >= n ? 'up' : 'down'}"><img src="${craftIcon({ type: 'mat', mat: m })}" alt="">${esc(M?.name || m)} ${hv == null ? '' : hv + ' / '}${n}</span>`;
+  }
+  h += `<span class="${chk ? (chk.gold ? 'up' : 'down') : ''}">&#9673; ${R.gold || 0} gold</span></div>`;
+  return h;
+}
+/** A known plan, in the materials tab: what it makes and what it wants. */
+function planRow(id, c) {
+  const R = RECIPES[id], d = el('div', 'plan-row');
+  const ok = check(c, id).ok;
+  d.innerHTML = `<img src="${craftIcon({ type: 'recipe', tier: R.tier })}" alt=""><div><b style="color:${PLAN_COLOR[R.tier]}">${esc(R.name)}</b>${ok ? ' <em class="up">ready to make</em>' : ''}
+    <div class="dim small">${esc(planMakes(R))} · ${R.at === 'gems' ? 'Idris' : 'Garrow'}</div>${needsHtml(id, c)}</div>`;
+  return d;
+}
+/** A material's tip. */
+export function matTip(m, n = 0) {
+  const M = MATS[m];
+  let h = `<div class="tt-name" style="color:${MAT_TIER_COLOR[M.tier]}">${esc(M.name)}</div><div class="tt-base">${MAT_TIER[M.tier]}${n ? ` · ${n} in the pouch` : ''}</div>`;
+  h += `<div class="tt-lore">${esc(M.desc)}</div>`;
+  if (M.from) h += `<div class="tt-sep"></div><div class="${M.future ? 'tt-future' : 'tt-ench'}">Carried by ${esc(M.from)}${M.future ? ' — a power not yet risen in Bellmourn' : ''}</div>`;
+  const uses = Object.entries(RECIPES).filter(([, R]) => R.needs[m]).map(([, R]) => R.name);
+  if (uses.length) h += `<div class="dim small">Wanted for: ${esc(uses.slice(0, 6).join(', '))}${uses.length > 6 ? '…' : ''}</div>`;
+  return h;
 }

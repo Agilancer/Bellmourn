@@ -388,9 +388,9 @@ export class Villagers {
 
   // ------------------------------------------------------------------ routines
   /** Where a quest giver waits while they've work for you (main can move it: postAt). */
-  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || null; }
-  /** Does this one stay at their post (they've something for you)? */
-  stays(a) { return !!(GIVERS[a.name] && this.quests?.business(a.name) && !a.garrison); }
+  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || this.shops?.[a.name] || null; }
+  /** Does this one stay at their post (they've something for you, or a shop to keep: main's shops)? */
+  stays(a) { return !!(((GIVERS[a.name] && this.quests?.business(a.name)) || this.shops?.[a.name]) && !a.garrison); }
 
   pickRoutine(a) {
     if (this.stays(a)) return this.run(this.keepPost(a), [a]);
@@ -1016,7 +1016,7 @@ export class Villagers {
       a.root.position.copy(a.pos);
       a.root.rotation.y = a.yaw;
     }
-    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) : null, this.extraSpeakers);
+    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) || this.shopMark?.(a) : null, this.extraSpeakers);
   }
 }
 
@@ -1356,6 +1356,7 @@ class Bubbles {
     if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return;
     const x = (p.x * 0.5 + 0.5) * W, y = (-p.y * 0.5 + 0.5) * H;
     const s = dpr * Math.max(0.5, Math.min(1.6, 9 / Math.max(dist, 1)));
+    if (a.mark[0] === '$') { if (dist < 32) vill.drawShopMark?.(g, a.mark, x, y, s * 0.85); return; }   // a merchant's coin (trade.js)
     const glyph = a.mark === '!' ? '!' : '?', grey = a.mark === 'g';
     g.save();
     g.font = `900 ${Math.round(34 * s)}px "Cinzel Decorative", Cinzel, Georgia, serif`;
