@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knight Scream Preview</title>
+<style>
+  body { background:#111; color:#ddd; font:16px system-ui, sans-serif; max-width:520px; margin:40px auto; padding:0 16px; }
+  button { font-size:22px; padding:14px 34px; background:#2c5a2c; color:#fff; border:0; border-radius:8px; cursor:pointer; }
+  label { display:block; margin:18px 0 4px; } input[type=range] { width:100%; } .v { float:right; color:#9c9; }
+</style></head><body>
+<h2>The intro's knight: his scream</h2>
+<p>The dive as in the opening: the star's roar for 2.6 s, the Wilhelm scream before it strikes, the boom, then the village.
+Set the two values in <code>src/fps/audio.js</code> (WILHELM_VOL) and <code>src/fps/intro.js</code> (SCREAM_LEAD).</p>
+<button id="play">▶ Play</button>
+<label>Scream volume <span class="v" id="tv"></span></label><input type="range" id="vol" min="0" max="2" step="0.05" value="1">
+<label>Seconds before the strike <span class="v" id="tl"></span></label><input type="range" id="lead" min="0.3" max="2" step="0.05" value="0.9">
+<label><input type="checkbox" id="village" checked> The village's scream after it</label>
+<script type="module">
+import { Sfx } from '../../src/fps/audio.js';
+const sfx = new Sfx(), $ = (id) => document.getElementById(id);
+const show = () => { $('tv').textContent = (+$('vol').value).toFixed(2); $('tl').textContent = (+$('lead').value).toFixed(2); };
+$('vol').oninput = $('lead').oninput = show; show();
+const DIVE = 2.6;   // the dive shot (intro.js SHOTS: 20.6 to 23.2 s)
+let loaded = null, timers = [];
+async function load() {   // (audio.js loads from the game's page; this one is two folders down)
+  sfx.start();
+  await Promise.all(['wilhelm_scream', 'crowd_gasp', 'crowd_panic'].map(async (n) => {
+    const b = await sfx.decode('../../assets/audio/sfx/' + n + '.mp3');
+    if (b) sfx.bank[n] = [{ b, off: 0 }];
+  }));
+}
+$('play').onclick = async () => {
+  sfx.start(); loaded ||= load(); await loaded; sfx.start();
+  for (const t of timers) clearInterval(t), clearTimeout(t);
+  timers = [];
+  const roar = sfx.roar(), t0 = performance.now();
+  // the roar as the dive sets it each frame (roar(0.8 + 0.2u, u))
+  const tick = () => { const u = Math.min(1, (performance.now() - t0) / 1000 / DIVE); roar.set(0.8 + 0.2 * u, u); };
+  tick(); timers.push(setInterval(tick, 30));
+  timers.push(setTimeout(() => sfx.play('wilhelm_scream', { vol: +$('vol').value, vary: 0 }), (DIVE - +$('lead').value) * 1000));
+  timers.push(setTimeout(() => { clearInterval(timers[0]); roar.stop(0.05); sfx.impact(); }, DIVE * 1000));
+  if ($('village').checked) timers.push(setTimeout(() => sfx.villageScreams(), (DIVE + 1.84) * 1000));
+};
+</script>
+</body></html>
