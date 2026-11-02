@@ -114,7 +114,7 @@ def catalog():
         hit = next((i for i, f in enumerate(frames) if f.get("hit")), None)
         if hit is not None and clip["kind"] == "attack":
             # which way the blade's tip travels across the screen at the hit (x right, y up)
-            R.set_view(R.REST_SCALE)
+            R.set_view(frames[hit].get("view", R.REST_SCALE))
             a, b = (drawn_tip(frames[j]) for j in (max(0, hit - 1), min(len(frames) - 1, hit + 1)))
             d = np.array([b[0] - a[0], a[1] - b[1]])
             d /= np.linalg.norm(d) or 1
@@ -133,10 +133,11 @@ def catalog():
                           events=ev, names=[f["name"] for f in frames],
                           sides="".join(sorted({s for k in clip["frames"] for s in k})),
                           ref=sorted({r.split("@")[0] for r in refs}))
-    return dict(stretch=moves.STRETCH, clips=clips, slots=moves.SLOTS)
+    # (views: a weapon kind drawn at its own scale; two-handers unshrunk, see mocap2h.py)
+    return dict(stretch=moves.STRETCH, views=dict(twohand=moves.mocap2h.VIEW), clips=clips, slots=moves.SLOTS)
 
 
-MARGIN = 0.07 * R.SCREEN_H   # clearance kept under the top of the screen (bob, recoil)
+# (no top-of-screen margin any more: the user retired that rule with the 3D models)
 
 
 def halfway(f0, f1):
@@ -245,7 +246,7 @@ def attack_checks(cid, keys, stab=False):
     diagonal 35-55 degrees off it)."""
     out = []
     hit = next(i for i, f in enumerate(keys) if f.get("hit"))
-    R.set_view(R.REST_SCALE)
+    R.set_view(keys[hit].get("view", R.REST_SCALE))   # (each blow measured as it is drawn)
     arms = R.pose_frame(keys[hit])
     arm = next(x for x in arms if x["side"] == "R")
     sl = moves.slide(arms).get("R", 0.0)
@@ -290,8 +291,8 @@ def attack_checks(cid, keys, stab=False):
 
 
 def check():
-    """Every frame and every halfway between frames: a margin under the top of the screen,
-    nothing that smears from behind the camera, and how far a fist falls short of where it was
+    """Every frame and every halfway between frames: how high it reaches on screen (reported
+    only), nothing that smears from behind the camera, and how far a fist falls short of where it was
     keyed (out of reach)."""
     bad = 0
     for cid, clip in moves.MOVES.items():
@@ -313,8 +314,6 @@ def check():
         flag = []
         if clip["kind"] == "attack":
             flag += attack_checks(cid, keys, clip.get("stab"))
-        if worst_top < MARGIN:
-            flag.append(f"TOO NEAR THE TOP {worst_top:.0f}px (keep {MARGIN:.0f})")
         if worst_miss > 0.015:
             flag.append(f"short {worst_miss * 100:.1f} cm")
         if behind:
