@@ -23,7 +23,7 @@
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Zombie, goreMaterial, goreShell, wrap } from './zombies.js';
+import { Zombie, goreMaterial, goreShell, wrap, longLow } from './zombies.js';
 import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
@@ -516,8 +516,11 @@ class Foe extends Zombie {
     else if (st === 'charge') this.charging(dt, player, dist, facingErr);
     else if (st === 'down') { if (this.done()) { this.state = 'getup'; this.play('getup', 0.12); } }
     else if (st === 'jump') {
-      this.pos.addScaledVector(this.forward(), 2.3 * dt);
-      if (this.done()) { this.state = 'move'; owner.physics.slide(this.pos, 0, 0, this.r, 1.6, 0.45); }
+      // up and over (it can't pass through what it hasn't cleared), ending when it comes down
+      const f = this.forward();
+      owner.physics.slide(this.pos, f.x * 2.3 * dt, f.z * 2.3 * dt, this.r, 1.6, 0.45);
+      this.leapT = (this.leapT || 0) + dt;
+      if ((this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6) this.state = 'move';
     } else this.decide(dt, player, active, dist, facingErr);
     this.ground(dt);
     // you can't walk through it
@@ -603,7 +606,8 @@ class Foe extends Zombie {
     if (look) {
       if (this.avoidT > 0) this.avoidT -= dt;
       // (circling, the Sworn turn partly the way they're going, so they walk round you rather than slide)
-      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (!face && this.avoidT > 0 ? this.avoid : 0) + side * lean;
+      // (the way round what's in front of it, felt for below, or a sidestep when stuck)
+      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (face ? 0 : this.avoidT > 0 ? this.avoid : this.detour || 0) + side * lean;
       const turn = K.turn * dt;
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
@@ -613,15 +617,27 @@ class Foe extends Zombie {
     this.feelT -= dt;
     if (this.feelT <= 0) {
       this.feelT = 0.2;
-      const y0 = this.pos.y + 0.45;
-      const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], 1.0);
-      if (low && low.box && !face) {
-        const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
-        if (this.goal === 'chase' && this.feet && this.air === 0 && !high && low.box.max[1] - this.pos.y < 1.5) { this.state = 'jump'; this.play('jump', 0.1); return; }
-        const sideRay = (a) => { const c = Math.cos(this.yaw + a), s = Math.sin(this.yaw + a); return phys.ray([this.pos.x, y0, this.pos.z], [s, 0, c], 1.4); };
-        const l = sideRay(0.8), r = sideRay(-0.8);
-        this.avoid = !l ? 0.9 : !r ? -0.9 : (l.t > r.t ? 0.9 : -0.9);
-        this.avoidT = 0.7;
+      // walk round what's in the way (a grave, a crate, a pillar) the nearest clear way to where it's
+      // going; only a long low wall, with no way round in sight, is jumped
+      const direct = Math.atan2(target.x - this.pos.x, target.z - this.pos.z);
+      const far = Math.max(0.4, Math.min(1.8, Math.hypot(target.x - this.pos.x, target.z - this.pos.z)));
+      const way = face ? direct : phys.wayRound(this.pos, direct, this.r, 1.6, 0.45, far, this.detourSide || (this.id % 2 ? 1 : -1));
+      if (face) this.detour = 0;
+      else if (way !== null) {
+        this.detour = wrap(way - direct);
+        if (Math.abs(this.detour) > 0.01) this.detourSide = Math.sign(this.detour);
+      } else {
+        this.detour = 0;
+        const y0 = this.pos.y + 0.45;
+        const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], 1.0);
+        if (low && low.box) {
+          const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
+          if (this.goal === 'chase' && this.feet && this.air === 0 && !high && longLow(low.box, this.pos.y, 1.5)) { this.vault(low.box.max[1]); return; }
+          const sideRay = (a) => { const c = Math.cos(this.yaw + a), s = Math.sin(this.yaw + a); return phys.ray([this.pos.x, y0, this.pos.z], [s, 0, c], 1.4); };
+          const l = sideRay(0.8), r = sideRay(-0.8);
+          this.avoid = !l ? 0.9 : !r ? -0.9 : (l.t > r.t ? 0.9 : -0.9);
+          this.avoidT = 0.7;
+        }
       }
       this.stuckT = (this.stuckT || 0) + 0.2;
       if (this.stuckT >= 1) {
@@ -630,7 +646,7 @@ class Foe extends Zombie {
         this.stuckT = 0;
       }
     }
-    const err = face ? 0 : Math.abs(wrap(Math.atan2(target.x - this.pos.x, target.z - this.pos.z) - this.yaw));
+    const err = face ? 0 : Math.abs(wrap(Math.atan2(target.x - this.pos.x, target.z - this.pos.z) + (this.avoidT > 0 ? this.avoid : this.detour || 0) - this.yaw));   // (slows to turn, not to go round)
     const sp = speed * Math.max(0.25, Math.cos(Math.min(Math.PI / 2, err)));
     phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
     if (side) this.play('walk', 0.3, lean ? Math.max(0.5, speed / (K.gait?.walk || K.walk)) : 0.8);

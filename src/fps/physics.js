@@ -54,6 +54,34 @@ export class Physics {
     return true;
   }
 
+  /** The way round what's in front of a walker: the heading nearest `want` (radians, as atan2(dx, dz))
+   * along which a cylinder at p (radius r, height h, stepping up `step`) has `far` metres clear,
+   * trying `bias`'s side first (+1 or -1) so it doesn't dither, out to `spread` radians either way.
+   * Things low enough to step onto don't count. Returns the heading, or null when every way is shut. */
+  wayRound(p, want, r, h, step, far = 1.8, bias = 1, spread = 2.1) {
+    const list = [];
+    for (const b of this.near(p.x - far - r, p.z - far - r, p.x + far + r, p.z + far + r))
+      if (b.max[1] > p.y + step && b.min[1] < p.y + h) list.push(b);
+    const outdoors = this.terrain && p.y > this.groundAt(p.x, p.z) - 0.5;
+    const open = (a) => {
+      const sx = Math.sin(a), cz = Math.cos(a);
+      let gy = outdoors ? this.groundAt(p.x, p.z) : 0;
+      for (let d = Math.min(0.4, far); d <= far + 1e-6; d += 0.4) {
+        const x = p.x + sx * d, z = p.z + cz * d;
+        for (const b of list) if (b.seg ? segDist(b, x, z) < r + b.half : circleBox(x, z, r, b)) return false;
+        if (outdoors && this.hasGround(x, z)) { const g = this.groundAt(x, z); if (g > gy + step) return false; gy = g; }   // (a bank too steep)
+      }
+      return true;
+    };
+    if (open(want)) return want;
+    const s = bias < 0 ? -1 : 1;
+    for (let k = 0.3; k <= spread + 1e-6; k += 0.3) {
+      if (open(want + s * k)) return want + s * k;
+      if (open(want - s * k)) return want - s * k;
+    }
+    return null;
+  }
+
   groundAt(x, z) { return this.terrain ? this.terrain(x, z) : this.ground; }
 
   add(min, max, tag = 'solid') {

@@ -1177,6 +1177,15 @@ class Slime {
     } else { dir.set(goal.x - this.pos.x, 0, goal.z - this.pos.z); speed = 0.4; }
     if (dir.lengthSq() < 0.04 || speed === 0) { this.ground(dt); this.stretch += (1 - this.stretch) * Math.min(1, dt * 3); return; }
     dir.normalize();
+    // round what's in the way (a grave, a crate), not pressed up against it
+    if ((this.feelT = (this.feelT || 0) - dt) <= 0) {
+      this.feelT = 0.2;
+      const a = Math.atan2(dir.x, dir.z), far = clamp(Math.hypot(goal.x - this.pos.x, goal.z - this.pos.z), 0.4, 1.8);
+      const way = o.physics.wayRound(this.pos, a, clamp(this.R * 0.7, 0.15, 0.7), Math.max(0.3, this.H), 0.42, far, this.detourSide || 1);
+      this.detour = way === null ? 0 : way - a;
+      if (Math.abs(this.detour) > 0.01) this.detourSide = Math.sign(this.detour);
+    }
+    if (this.detour) { const a = Math.atan2(dir.x, dir.z) + this.detour; dir.set(Math.sin(a), 0, Math.cos(a)); }
     this.turnTo(dir, dt, 2.4);
     // it pours: surges and gathers
     this.phase += dt * (2.2 + 0.7 / this.R) * (this.aggro ? 1.35 : 0.8);

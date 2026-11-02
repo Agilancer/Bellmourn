@@ -351,7 +351,7 @@ async function build() {
   const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
   // (the mist on the ground is in the fog shader: engine.js groundMist; these are the wisps drifting over it)
   mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
-    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.75, height: 0.45, density: 0.16 });
+    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.45, height: 0.35, density: 0.16 });   // (low, so they meet the stones down in the ground mist)
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour

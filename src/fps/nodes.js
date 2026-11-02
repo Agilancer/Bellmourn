@@ -237,7 +237,8 @@ export function fogNode(fog, mist = null) {
         const ry = select(abs(rd.y).lessThan(1e-3), select(rd.y.lessThan(0.0), float(-1e-3), float(1e-3)), rd.y);
         const a = float(density).mul(vnoise(mq.mul(0.09)).mul(1.1).add(0.45)).mul(vnoise(mq.mul(0.31).add(7.0)).mul(0.6).add(0.7));
         const b = float(falloff);
-        const m = a.div(b).mul(exp(max(cameraPosition.y, 0.0).mul(b).negate())).mul(exp(dist.mul(ry).mul(b).negate()).oneMinus()).div(ry);
+        // (the exponents held in range, as the GLSL: an overflow here is a black box after the bloom)
+        const m = a.div(b).mul(exp(clamp(cameraPosition.y, 0.0, 20.0).mul(b).negate())).mul(exp(min(dist.mul(ry).mul(b).negate(), 8.0)).oneMinus()).div(ry);
         c.assign(mix(c, color.mul(1.12), clamp(m, 0.0, 0.8).mul(inside)));
       });
     }

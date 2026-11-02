@@ -332,6 +332,9 @@ export class Mist {
           // a sheet seen edge-on fades: no hard line where the top layers run off to the horizon
           vec3 v = vW - cameraPosition;
           a *= smoothstep(0.0, 0.14, abs(v.y) / max(length(v), 1e-3));
+          // and close by it goes: a flat sheet cuts a hard white line across whatever stands in it (a
+          // headstone, a trunk, the dead), plainest near the eye; there the ground mist is enough
+          a *= smoothstep(4.0, 16.0, length(v));
           ${exclude.map(([a0, b0, a1, b1]) => `if (vW.x > ${a0.toFixed(1)} && vW.x < ${a1.toFixed(1)} && vW.z > ${b0.toFixed(1)} && vW.z < ${b1.toFixed(1)}) a = 0.0;`).join(' ')}
           gl_FragColor = vec4(color * light, a);
         }`,
@@ -366,6 +369,8 @@ function mistMaterial(u, [x0, z0, x1, z1], exclude) {
     // a sheet seen edge-on fades: no hard line where the top layers run off to the horizon
     const v = vW.sub(cameraPosition);
     a.mulAssign(smoothstep(0.0, 0.14, abs(v.y).div(max(length(v), 1e-3))));
+    // and close by it goes: no hard white line across what stands in it (as the GLSL)
+    a.mulAssign(smoothstep(4.0, 16.0, length(v)));
     for (const [a0, b0, a1, b1] of exclude) {
       a.assign(select(vW.x.greaterThan(r(a0)).and(vW.x.lessThan(r(a1))).and(vW.z.greaterThan(r(b0))).and(vW.z.lessThan(r(b1))), float(0.0), a));
     }

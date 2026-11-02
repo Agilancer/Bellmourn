@@ -1527,11 +1527,11 @@ export class Zombie {
       }
       if (this.done()) { this.state = 'move'; this.cool = 0.35 + Math.random() * 0.4; }
     } else if (this.state === 'jump') {
-      const f = this.forward();
-      this.pos.addScaledVector(f, (this.leapV ?? 2.3) * dt);
-      // (a hop ends with its clip; a leap when it comes down)
+      // up and over (it can't pass through what it hasn't cleared), ending when it comes down
+      const f = this.forward(), v = this.leapV ?? 2.3;
+      phys.slide(this.pos, f.x * v * dt, f.z * v * dt, 0.3, 1.6, 0.45);
       this.leapT = (this.leapT || 0) + dt;
-      const over = this.leapV ? (this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6 : this.done();
+      const over = (this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6;
       if (over) { this.state = 'move'; this.leapV = null; phys.slide(this.pos, 0, 0, 0.3, 1.6, 0.45); }
     } else {
       this.steer(dt, player, active, dist, facingErr);
@@ -1616,6 +1616,7 @@ export class Zombie {
             const c = Math.floor(w.z - nav.z0) * nav.nx + Math.floor(w.x - nav.x0);
             if (c < 0 || c >= walk.length || !walk[c] || (nav.h && Math.abs(nav.h[c] - this.pos.y) > 0.6)) continue;
           }
+          if (!phys.clear(w.x, w.z, this.pos.y, 0.45, 1.6, 0.55)) continue;   // (not a spot inside a grave or a tomb)
           this.wander = w;
           break;
         }
@@ -1625,9 +1626,11 @@ export class Zombie {
     if (!crawl && this.has('head') === false) speed = Math.min(speed, kind.walk * 1.1);
     speed *= this.pace * this.slow;
     if (this.stagger > 0) speed = 0;
+    let want = this.yaw;
     if (target) {
       if (this.avoidT > 0) this.avoidT -= dt;
-      const want = Math.atan2(target.x - this.pos.x, target.z - this.pos.z) + (this.avoidT > 0 ? this.avoid : 0);
+      // (the way round what's in front of it, felt for below, or a sidestep when stuck)
+      want = Math.atan2(target.x - this.pos.x, target.z - this.pos.z) + (this.avoidT > 0 ? this.avoid : this.detour || 0);
       const turn = (crawl ? CRAWL.turn : kind.turn) * dt;
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
@@ -1659,20 +1662,27 @@ export class Zombie {
     }
     if (speed > 0 && !(chasing && dist < reach * 0.8)) {
       const f = this.forward(_f);
-      // feel ahead: jump what it can get over, else turn to the clearer side
+      // feel ahead: walk round what's in the way (a grave, a crate, a pillar), the nearest clear way
+      // to where it's going; only a long low wall, with no way round in sight, is jumped
       this.feelT -= dt;
       if (this.feelT <= 0) {
         this.feelT = 0.2;
-        const y0 = this.pos.y + (crawl ? 0.25 : 0.45);
-        const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], crawl ? 0.8 : 1.0);
-        if (low && low.box) {
-          const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
-          if (this.goal === 'chase' && !crawl && this.feet && this.air === 0 && !high && low.box.max[1] - this.pos.y < 1.6) {
-            this.state = 'jump';
-            this.play('jump', 0.1);
-            return;
-          }
-          if (!routed) {   // (the corridors' own route already goes round the walls)
+        const direct = target ? Math.atan2(target.x - this.pos.x, target.z - this.pos.z) : this.yaw;
+        const far = target ? Math.max(0.4, Math.min(1.8, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) : 1.8;
+        const way = phys.wayRound(this.pos, direct, crawl ? 0.35 : 0.3, crawl ? 0.6 : 1.6, crawl ? 0.45 : 0.55, far, this.detourSide || (this.id % 2 ? 1 : -1));
+        if (way !== null) {
+          this.detour = wrap(way - direct);
+          if (Math.abs(this.detour) > 0.01) this.detourSide = Math.sign(this.detour);
+        } else {
+          this.detour = 0;
+          const y0 = this.pos.y + (crawl ? 0.25 : 0.45);
+          const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], crawl ? 0.8 : 1.0);
+          if (low && low.box) {
+            const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
+            if (this.goal === 'chase' && !crawl && this.feet && this.air === 0 && !high && longLow(low.box, this.pos.y, 1.6)) {
+              this.vault(low.box.max[1]);
+              return;
+            }
             const side = (a) => { const c = Math.cos(this.yaw + a), s = Math.sin(this.yaw + a); return phys.ray([this.pos.x, y0, this.pos.z], [s, 0, c], 1.4); };
             const l = side(0.8), r = side(-0.8);
             this.avoid = !l ? 0.9 : !r ? -0.9 : (l.t > r.t ? 0.9 : -0.9);
@@ -1687,7 +1697,7 @@ export class Zombie {
           this.stuckT = 0;
         }
       }
-      const along = Math.max(0.25, Math.cos(Math.min(Math.PI / 2, Math.abs(wrap((target ? Math.atan2(target.x - this.pos.x, target.z - this.pos.z) : this.yaw) - this.yaw)))));
+      const along = Math.max(0.25, Math.cos(Math.min(Math.PI / 2, Math.abs(wrap(want - this.yaw)))));   // (slows to turn, not to go round)
       let sp = speed * along;
       // the edge of a drop ahead (more than a jump down): it stops there, and bellows across it
       // (felt for with the rest, five times a second)
@@ -1725,6 +1735,13 @@ export class Zombie {
     } else {
       this.play(crawl ? 'crawl' : 'idle', 0.35, crawl ? 0.15 : 1);
     }
+  }
+
+  /** A jump up and over something whose top is at `top` (it rises clear of it, then comes down). */
+  vault(top) {
+    this.state = 'jump'; this.play('jump', 0.1);
+    this.vy = Math.sqrt(2 * 22 * Math.max(0.3, top - this.pos.y + 0.35));
+    this.pos.y += 0.05; this.leapT = 0; this.leapV = null;
   }
 
   /** Stand on whatever is below; fall when there's nothing. (And slide on with a shove.) */
@@ -1800,6 +1817,13 @@ function rayCapsule(o, d, a, b, r) {
 }
 
 export function wrap(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
+
+/** Is this a long, low wall (one that can be jumped, from feet at y, being no more than `most` high)?
+ * Graves, crates, tombs and pillars are short: those are walked round, never jumped. */
+export function longLow(b, y, most) {
+  const len = b.seg ? b.len : Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]);
+  return len > 3.2 && b.max[1] - y < most;
+}
 
 function closestOnSeg(p, a, b) {
   const ab = new THREE.Vector3().subVectors(b, a);
