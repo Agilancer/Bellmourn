@@ -65,6 +65,10 @@ let floor = null;          // the line that has the floor
 let quiet = 0;             // s of quiet left before the next speaker
 let hold = null;           // { group, t }: a conversation's hold on the floor between its lines
 
+/** Told of each line as it's said within earshot (on: (line) => {}, the line's `who` and `full`
+ * text): the chat log (main.js). */
+export const speechLog = { on: null };
+
 /** Whether `who` is speaking or waiting to (a bubble lingering after the last word isn't). */
 export const talking = (who) => !!(who && (who.pending || (who.talk && who.talk.state !== 'linger')));
 
@@ -186,6 +190,7 @@ export function tickSpeech(dt) {
 /** A line's bubble goes up (with its voice, or without). */
 function start(L, line) {
   if (L.who.pending === L) L.who.pending = null;
+  if (!L.hidden && !L.logged) { L.logged = true; try { speechLog.on?.(L); } catch (e) { console.warn('speech log', e); } }
   L.line = line;
   L.state = 'up'; L.age = 0; L.total = 0; L.pi = 0; L.text = L.pages[0]; L.t = 1;
   L.left = readTime(L.pages[0]);

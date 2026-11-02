@@ -985,8 +985,10 @@ export class Zombie {
     this.mixer.timeScale = this.chillT > 0 ? 0.45 : 1;
     if (this.burnT > 0 && !this.dead) {
       this.burnT -= dt;
+      const before = this.hp;
       this.hp -= (this.burnDps || 3) * dt;
       if (this.owner.oneHit) this.hp = Math.min(this.hp, 0);
+      this.owner.feed?.harmed(this, before, 'burn');
       if (Math.random() < dt * 24) this.owner.gore.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.6 + Math.random(), (Math.random() - 0.5) * 0.5)),
         _w.set((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4), 0.014, EMBER[Math.floor(Math.random() * 3)]);
       if (this.hp <= 0) this.die();
@@ -1178,8 +1180,10 @@ export class Zombie {
 
   /** A blow landing at h (bone, point) along dir. kind: 'blade' (a gash along `edge`, the
    * blade's sweep in the world, when given), 'blunt', or a spell's; push: how hard it shoves;
-   * blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. */
-  hit(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0, blow = 0 }) {
+   * blow: a spell's chance (times BLOW for where it lands) to blow off what it hits. The damage
+   * numbers and the chat log (combatfx.js, owner.feed) are told what it took. */
+  hit(h, o) { const before = this.hp; this.takeBlow(h, o); this.owner.feed?.struck(this, before, h, o); }
+  takeBlow(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0, blow = 0 }) {
     const owner = this.owner, g = owner.gore;
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
@@ -1306,6 +1310,7 @@ export class Zombie {
     g.splat(joint.x, owner.floorY(joint.x, joint.z, joint.y), joint.z, waist ? 1.4 : 0.9, 0.15);
     owner.sound('sever', joint);
     if (name === 'head') { this.hp -= 30; this.jitter = 1; }
+    owner.feed?.severed(this, name);
     // without a leg (or its legs) it can no longer stand
     if (!this.dead && this.mode === 'stand' && !this.legs) {
       this.state = 'collapse';
@@ -1386,11 +1391,14 @@ export class Zombie {
     (this.pushV ||= new THREE.Vector3()).x += x; this.pushV.z += z;
     if (up > 0 && !this.dead) { this.pos.y += 0.05; this.vy = Math.max(this.vy, up); }
   }
-  /** Damage with no wound to show for it (fire, poison, a drained life). */
-  harm(dmg) {
+  /** Damage with no wound to show for it (fire, poison, a drained life); kind: what did it, for the
+   * damage numbers and the log ('burn' and 'poison' are the lingering ones). */
+  harm(dmg, kind = 'harm') {
     if (this.dead || this.gone) return;
+    const before = this.hp;
     this.hp -= dmg * (this.kind.armor ?? 1) * (this.frozen > 0 ? 1.5 : 1);
     if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
+    this.owner.feed?.harmed(this, before, kind);
     if (this.state === 'playdead' || this.state === 'buried') this.wake(this.owner.player?.pos);
     else this.hunt(this.owner.player?.pos, true);
     if (this.hp <= 0) this.die();
@@ -1401,8 +1409,8 @@ export class Zombie {
     if (this.chillT > 0 || this.burnT > 0) this.afflictShield(dt);
     if (!(this.frozen || this.chilled || this.burning || this.poisoned || this.pushV)) return 1;
     if (this.dead) this.frozen = this.chilled = this.burning = this.poisoned = 0;
-    if (this.burning > 0) { this.burning -= dt; this.harm(this.burnDps * dt); }
-    if (this.poisoned > 0) { this.poisoned -= dt; this.harm(this.poisonDps * dt); }
+    if (this.burning > 0) { this.burning -= dt; this.harm(this.burnDps * dt, 'burn'); }
+    if (this.poisoned > 0) { this.poisoned -= dt; this.harm(this.poisonDps * dt, 'poison'); }
     if (this.frozen > 0) this.frozen -= dt;
     if (this.chilled > 0) this.chilled -= dt;
     const v = this.pushV;

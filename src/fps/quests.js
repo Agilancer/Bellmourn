@@ -22,6 +22,7 @@ import { tooltip } from './bag.js';
 import { STAIRS, GRAVEYARD } from './world.js';
 import { DELVES } from './delves.js';
 import { glowTex } from './crater.js';
+const qn = (t) => `<b class="c-q">${esc(t)}</b>`;   // a quest's name in the log
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -180,7 +181,8 @@ function itemModel(kind) {
 
 // ====================================================================== the quests' state and work
 export class Quests {
-  /** o: { ui, ctx, zombies, foes, villagers, sfx, char(), toast(text), onReward({xp, gold, items, potions}), onOpen(on) } */
+  /** o: { ui, ctx, zombies, foes, villagers, sfx, char(), toast(text), onReward({xp, gold, items, potions}), onOpen(on),
+   * log(kind, html): the chat log's lines ('quest', 'qitem') } */
   constructor(o) {
     this.o = o;
     this.ctx = o.ctx;
@@ -195,6 +197,8 @@ export class Quests {
   }
 
   // -------------------------------------------------------------- state
+  /** A line in the chat log (main.js). */
+  say(kind, html) { this.o.log?.(kind, html); }
   get(id) { return this.state[id]; }
   status(id) { return this.state[id]?.s || (this.available(id) ? 'available' : 'locked'); }
   available(id) {
@@ -235,6 +239,7 @@ export class Quests {
     this.raise(id);
     this.o.sfx?.quest(false);
     this.o.toast(`Quest taken: ${q.title}`);
+    this.say('quest', `Quest taken: ${qn(q.title)} <i>from ${esc(GIVERS[q.giver]?.call || q.giver)}</i>`);
     this.check(id);
     this.refresh();
   }
@@ -245,6 +250,7 @@ export class Quests {
     delete this.state[id];
     this.items = this.items.filter((it) => { if (it.quest === id) { this.group.remove(it.obj); return false; } return true; });
     this.o.toast(`Quest given up: ${BY_ID[id].title}`);
+    this.say('quest', `Quest given up: ${qn(BY_ID[id].title)}`);
     this.refresh();
   }
 
@@ -257,6 +263,7 @@ export class Quests {
     this.o.onReward({ xp: q.reward.xp, gold: q.reward.gold || 0, items: [...items, ...potions], title: q.title });
     this.o.sfx?.quest(true);
     this.o.toast(`Quest done: ${q.title}`);
+    this.say('quest', `Quest complete: ${qn(q.title)}`);
     this.refresh();
   }
 
@@ -302,6 +309,7 @@ export class Quests {
 
   progress(q, ob, st, i) {
     this.o.toast(`${ob.label}: ${Math.min(st.p[i], st.n[i])}/${st.n[i]}`);
+    this.say('quest', `${esc(ob.label)}: <b class="c-num">${Math.min(st.p[i], st.n[i])}/${st.n[i]}</b> <i>(${esc(q.title)})</i>`);
   }
 
   /** All its objectives met: it's ready to hand in. */
@@ -312,6 +320,7 @@ export class Quests {
       st.s = 'ready';
       this.o.sfx?.quest(true);
       this.o.toast(`${BY_ID[id].title}: done — return to ${GIVERS[BY_ID[id].giver].call}`);
+      this.say('quest', `${qn(BY_ID[id].title)}: all done. Return to ${esc(GIVERS[BY_ID[id].giver].call)}`);
     }
   }
 
@@ -417,6 +426,7 @@ export class Quests {
         const ob = BY_ID[it.quest].objectives[it.obj_i];
         this.o.sfx?.equip();
         this.o.toast(`${ob.name}: ${st.p[it.obj_i]}/${st.n[it.obj_i]}`);
+        this.say('qitem', `${esc(ob.type === 'fetch' ? 'Found' : 'Gathered')}: <b class="c-qitem">${esc(ob.name)}</b> <b class="c-num">${st.p[it.obj_i]}/${st.n[it.obj_i]}</b> <i>(${esc(BY_ID[it.quest].title)})</i>`);
         // a gathered set is complete: the spare ones wither
         if (st.p[it.obj_i] >= st.n[it.obj_i]) this.items = this.items.filter((q) => { if (q.quest === it.quest && q.obj_i === it.obj_i) { this.group.remove(q.obj); return false; } return true; });
         this.check(it.quest);
