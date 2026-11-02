@@ -47,9 +47,9 @@ export const UNIQUES = {
   // the knight's things, thrown about the crater
   vigilsword: { name: 'Vigil Arming Sword', kind: 'onehand', model: 'arming_sword', finish: 'ancient', rarity: 1, ilvl: 2, affixes: { dmgPct: 6 },
     lore: 'A Sworn’s sword, scorched black. Still sharp.' },
-  vigilshield: { name: 'Vigil Kite Shield', kind: 'shield_kite', model: 'thorned_kite', rarity: 1, ilvl: 2, affixes: { guard: 10 },
+  vigilshield: { name: 'Vigil Knight’s Kite', kind: 'shield_kite', model: 'knights_kite', rarity: 1, ilvl: 2, affixes: { guard: 10 },
     lore: 'Velscour’s V, half melted off its face.' },
-  vigilstaff: { name: 'Vigil Adept’s Staff', kind: 'staff', model: 'skull_staff', rarity: 1, ilvl: 2, affixes: { spellPct: 6 },
+  vigilstaff: { name: 'Vigil Crescent Staff', kind: 'staff', model: 'crescent_staff', rarity: 1, ilvl: 2, affixes: { spellPct: 6 },
     lore: 'The knight carried it for an adept who never came back from the wood.' },
 };
 
@@ -63,5 +63,7 @@ export function makeUnique(id) {
   it.lore = u.lore;
   it.affixes = Object.entries(u.affixes).map(([s, v]) => ({ s, v }));
   if (u.enchants) it.enchants = u.enchants.map(([e, v]) => ({ e, v }));
+  // a treasure's sockets are its own, not rolled: the village's finest have one, Tessariel's Brand two
+  it.sockets = Array(u.sockets ?? (u.rarity >= 5 ? 2 : u.rarity >= 3 ? 1 : 0)).fill(null);
   return it;
 }

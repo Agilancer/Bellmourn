@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knight Cry Preview</title>
+<style>
+  body { background:#111; color:#ddd; font:16px system-ui, sans-serif; max-width:560px; margin:40px auto; padding:0 16px; }
+  button { font-size:18px; padding:12px 22px; margin:6px 6px 6px 0; background:#2c5a2c; color:#fff; border:0; border-radius:8px; cursor:pointer; }
+  button:disabled { background:#444; color:#888; cursor:default; }
+  #st { color:#9c9; margin:14px 0; min-height:1.3em; } label { display:block; margin:12px 0; }
+</style></head><body>
+<h2>The intro's knight: his cry and scream</h2>
+<p>Played as in the opening: his words to his lord, then 3.3 s later the scream (the star hits at 5.2 s).</p>
+<div id="st">Loading the voices…</div>
+<button id="both" disabled>▶ Cry, then scream</button>
+<button id="cry" disabled>Cry only</button>
+<button id="scream" disabled>Scream only</button>
+<label><input type="checkbox" id="calm"> Calm (his ordinary voice, to compare)</label>
+<script type="module">
+// the intro's own lines and voice (src/fps/intro.js CRIES, KNIGHT_VOICE)
+import { Sfx } from '../../src/fps/audio.js';
+import { voice } from '../../src/fps/voice.js';
+const LINE = 'Lord Velscour! What have I done... to anger you?!', SCREAM = 'Aaaaaaaaaaaaaaaaaaaah!';
+const sfx = new Sfx(), $ = (id) => document.getElementById(id), st = $('st');
+voice.useSound(sfx);
+const cast = () => ({ key: 'Sworn', kind: 'knight', sex: 'm', fear: !$('calm').checked, pri: 3 });
+const tell = setInterval(() => { const [g, o] = voice.progress, dl = voice.download; st.textContent = dl ? `Loading the voice model… ${dl[0]} of ${dl[1]} MB` : `Loading the voices… ${g} of ${o}`; }, 300);
+voice.warm().then((ok) => {
+  clearInterval(tell);
+  st.textContent = ok ? 'Ready. (The first play makes his lines: it can take a few seconds.)' : 'The neural voices could not load: the browser’s own voice will speak.';
+  for (const b of ['both', 'cry', 'scream']) $(b).disabled = false;
+  voice.prefetch([[null, LINE, cast()], [null, SCREAM, cast()]], 0);
+});
+let line = null, timer = null;
+const say = (text) => { line?.cancel?.(); line = voice.say(null, text, cast()); };
+const scream = () => { say(SCREAM); sfx.scream(1, 0.15); sfx.scream(1, 0.15); };
+$('cry').onclick = () => { sfx.start(); clearTimeout(timer); say(LINE); };
+$('scream').onclick = () => { sfx.start(); clearTimeout(timer); scream(); };
+$('both').onclick = () => { sfx.start(); clearTimeout(timer); say(LINE); timer = setTimeout(scream, 3300); };
+</script>
+</body></html>

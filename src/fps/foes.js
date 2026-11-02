@@ -12,13 +12,19 @@
 //   sorcerers keep their distance, cast bolts, raise the dead around you or hex the ground under
 //             you, and blink away when you get close
 //   ghasts    lie in wait in the dark, shriek when they find you, come at you in a zigzag lope,
-//             pounce from a few strides off, rake and fall back
-//   grubbers  waddle, charge, smash with their nail-studded clubs and bite
+//             pounce from a few strides off, rake and fall back. Each has its own way for good: a
+//             raker (both hands, again and again), a pouncer (from further off, raking as it lands)
+//             or a circler (wheeling round you till your back is to it, then in and away); badly
+//             hurt, one shrieks again for the others
+//   grubbers  waddle, charge, smash with their nail-studded clubs and bite: a brawler (club blows
+//             one after another), a biter (the jaws first) or a charger (from further off, a ram that
+//             throws you back); badly hurt, frenzied: quicker, and hardly a pause between blows
 // Weapons and shields are the player's own models (the viewmodel's), held in sockets the build
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Zombie, goreMaterial, wrap } from './zombies.js';
+import { Zombie, goreMaterial, goreShell, wrap, longLow } from './zombies.js';
+import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
 import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
@@ -137,7 +143,9 @@ function foeMaterial(src, lib, u = null) {
     mat.emissive = src.emissive.clone().multiplyScalar(src.emissiveIntensity);
     mat.map = null;
     mat.userData.eyes = true;
+    if (WEBGPU) mat.colorNode = null;   // (the crisp map it had is gone: its colour alone)
   }
+  if (WEBGPU) return goreShell(mat);    // (TSL: zombies.js goreKind, its shell variant)
   const base = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh) => {
     base(sh);
@@ -389,7 +397,8 @@ class Foe extends Zombie {
 
   // -------------------------------------------------------------- being hit
   hit(h, opts) {
-    if (!this.dead && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
+    // (GOD MODE, the Debug Menu: no shield or parry turns a blow)
+    if (!this.dead && !this.owner.oneHit && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
       const f = this.forward(_t);
       if (f.dot(opts.dir) < -0.3) return this.deflect(h, opts);
     }
@@ -507,8 +516,11 @@ class Foe extends Zombie {
     else if (st === 'charge') this.charging(dt, player, dist, facingErr);
     else if (st === 'down') { if (this.done()) { this.state = 'getup'; this.play('getup', 0.12); } }
     else if (st === 'jump') {
-      this.pos.addScaledVector(this.forward(), 2.3 * dt);
-      if (this.done()) { this.state = 'move'; owner.physics.slide(this.pos, 0, 0, this.r, 1.6, 0.45); }
+      // up and over (it can't pass through what it hasn't cleared), ending when it comes down
+      const f = this.forward();
+      owner.physics.slide(this.pos, f.x * 2.3 * dt, f.z * 2.3 * dt, this.r, 1.6, 0.45);
+      this.leapT = (this.leapT || 0) + dt;
+      if ((this.leapT > 0.15 && this.air === 0) || this.leapT > 1.6) this.state = 'move';
     } else this.decide(dt, player, active, dist, facingErr);
     this.ground(dt);
     // you can't walk through it
@@ -594,7 +606,8 @@ class Foe extends Zombie {
     if (look) {
       if (this.avoidT > 0) this.avoidT -= dt;
       // (circling, the Sworn turn partly the way they're going, so they walk round you rather than slide)
-      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (!face && this.avoidT > 0 ? this.avoid : 0) + side * lean;
+      // (the way round what's in front of it, felt for below, or a sidestep when stuck)
+      const want = Math.atan2(look.x - this.pos.x, look.z - this.pos.z) + (face ? 0 : this.avoidT > 0 ? this.avoid : this.detour || 0) + side * lean;
       const turn = K.turn * dt;
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
     }
@@ -604,15 +617,27 @@ class Foe extends Zombie {
     this.feelT -= dt;
     if (this.feelT <= 0) {
       this.feelT = 0.2;
-      const y0 = this.pos.y + 0.45;
-      const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], 1.0);
-      if (low && low.box && !face) {
-        const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
-        if (this.goal === 'chase' && this.feet && this.air === 0 && !high && low.box.max[1] - this.pos.y < 1.5) { this.state = 'jump'; this.play('jump', 0.1); return; }
-        const sideRay = (a) => { const c = Math.cos(this.yaw + a), s = Math.sin(this.yaw + a); return phys.ray([this.pos.x, y0, this.pos.z], [s, 0, c], 1.4); };
-        const l = sideRay(0.8), r = sideRay(-0.8);
-        this.avoid = !l ? 0.9 : !r ? -0.9 : (l.t > r.t ? 0.9 : -0.9);
-        this.avoidT = 0.7;
+      // walk round what's in the way (a grave, a crate, a pillar) the nearest clear way to where it's
+      // going; only a long low wall, with no way round in sight, is jumped
+      const direct = Math.atan2(target.x - this.pos.x, target.z - this.pos.z);
+      const far = Math.max(0.4, Math.min(1.8, Math.hypot(target.x - this.pos.x, target.z - this.pos.z)));
+      const way = face ? direct : phys.wayRound(this.pos, direct, this.r, 1.6, 0.45, far, this.detourSide || (this.id % 2 ? 1 : -1));
+      if (face) this.detour = 0;
+      else if (way !== null) {
+        this.detour = wrap(way - direct);
+        if (Math.abs(this.detour) > 0.01) this.detourSide = Math.sign(this.detour);
+      } else {
+        this.detour = 0;
+        const y0 = this.pos.y + 0.45;
+        const low = phys.ray([this.pos.x, y0, this.pos.z], [f.x, 0, f.z], 1.0);
+        if (low && low.box) {
+          const high = phys.ray([this.pos.x, this.pos.y + 1.65, this.pos.z], [f.x, 0, f.z], 1.6);
+          if (this.goal === 'chase' && this.feet && this.air === 0 && !high && longLow(low.box, this.pos.y, 1.5)) { this.vault(low.box.max[1]); return; }
+          const sideRay = (a) => { const c = Math.cos(this.yaw + a), s = Math.sin(this.yaw + a); return phys.ray([this.pos.x, y0, this.pos.z], [s, 0, c], 1.4); };
+          const l = sideRay(0.8), r = sideRay(-0.8);
+          this.avoid = !l ? 0.9 : !r ? -0.9 : (l.t > r.t ? 0.9 : -0.9);
+          this.avoidT = 0.7;
+        }
       }
       this.stuckT = (this.stuckT || 0) + 0.2;
       if (this.stuckT >= 1) {
@@ -621,7 +646,7 @@ class Foe extends Zombie {
         this.stuckT = 0;
       }
     }
-    const err = face ? 0 : Math.abs(wrap(Math.atan2(target.x - this.pos.x, target.z - this.pos.z) - this.yaw));
+    const err = face ? 0 : Math.abs(wrap(Math.atan2(target.x - this.pos.x, target.z - this.pos.z) + (this.avoidT > 0 ? this.avoid : this.detour || 0) - this.yaw));   // (slows to turn, not to go round)
     const sp = speed * Math.max(0.25, Math.cos(Math.min(Math.PI / 2, err)));
     phys.slide(this.pos, f.x * sp * dt, f.z * sp * dt, this.r, 1.6, 0.45);
     if (side) this.play('walk', 0.3, lean ? Math.max(0.5, speed / (K.gait?.walk || K.walk)) : 0.8);
@@ -978,22 +1003,56 @@ class Foe extends Zombie {
   // ---- ghasts
   ghast(dt, player, dist, fe) {
     const K = this.kind;
+    this.routine ??= ['raker', 'pouncer', 'circler'][Math.floor(Math.random() * 3)];
     if (!this.shrieked && this.has('head')) {
       this.shrieked = true; this.state = 'shriek'; this.play('shriek', 0.1);
       this.foes.voice(this, 'shriek');
       this.owner.alert(this, player.pos, 26);
       return;
     }
+    // badly hurt: it falls back and shrieks again, and whatever's near comes
+    if (!this.shrieked2 && this.hp < K.hp * 0.45 && this.has('head') && dist > 1.8) {
+      this.shrieked2 = true; this.state = 'shriek'; this.play('shriek', 0.1);
+      this.foes.voice(this, 'shriek');
+      this.owner.alert(this, player.pos, 32);
+      this.retreatT = 0.7;
+      return;
+    }
     if (dist < 1.7 && fe < 0.6 && !this.cool) {
       const moves = [this.arm('R') && 'attack1', this.arm('L') && 'attack2'].filter(Boolean);
-      if (moves.length) { this.strike(moves[Math.floor(Math.random() * moves.length)]); this.retreatT = Math.random() < 0.4 ? 0.9 : 0; return; }
+      if (moves.length) {
+        const first = moves[Math.floor(Math.random() * moves.length)];
+        this.strike(first);
+        this.diving = false; this.circleT = 0;
+        if (this.routine === 'raker' && moves.length > 1) {          // one hand, the other, and again
+          this.comboQ = Math.random() < 0.5 ? [first === 'attack1' ? 'attack2' : 'attack1'] : [first === 'attack1' ? 'attack2' : 'attack1', first];
+          this.retreatT = Math.random() < 0.5 ? 2.4 : 0;
+        } else this.retreatT = this.routine === 'circler' ? 1.3 : Math.random() < 0.4 ? 0.9 : 0;   // (the circler: in, and away)
+        return;
+      }
     }
-    if (dist > 2.6 && dist < 5 && fe < 0.3 && this.lungeCool < 0 && this.feet && (this.arm('L') || this.arm('R'))) {
-      this.lungeCool = 3 + Math.random() * 3;
+    const far = this.routine === 'pouncer' ? 6.8 : 5;
+    if (dist > 2.6 && dist < far && fe < 0.3 && this.lungeCool < 0 && this.feet && (this.arm('L') || this.arm('R'))) {
+      this.lungeCool = (this.routine === 'pouncer' ? 1.6 : 3) + Math.random() * 3;
       this.strike('attack3', 0.45);
+      if (this.routine === 'pouncer') this.comboQ = [this.arm('R') ? 'attack1' : 'attack2'];   // (raking as it lands)
       return;
     }
     if (this.retreatT > 0) { this.go(dt, player.pos, K.run * 0.6, { face: player.pos, back: true }); return; }
+    // the circler wheels round you a few strides off till your back is to it (or it tires of it), then darts in
+    if (this.routine === 'circler' && !this.diving && dist > 2.4 && dist < 8 && this.feet) {
+      const fx = -Math.sin(player.yaw || 0), fz = -Math.cos(player.yaw || 0), tx = this.pos.x - player.pos.x, tz = this.pos.z - player.pos.z, tl = Math.hypot(tx, tz) || 1;
+      const looking = (fx * tx + fz * tz) / tl;
+      this.circleT = (this.circleT || 0) + dt;
+      if (looking < 0.2 || this.circleT > 7) this.diving = true;
+      else {
+        this.wheel ??= Math.random() < 0.5 ? 1 : -1;
+        const a = Math.atan2(tx, tz) + this.wheel * 0.9, r = 4.2;
+        _v.set(player.pos.x + Math.sin(a) * r, this.pos.y, player.pos.z + Math.cos(a) * r);
+        this.go(dt, this.route(_v), K.run * 0.75, { face: player.pos });
+        return;
+      }
+    }
     const t = this.route(_v.copy(player.pos));
     if (t === _v && dist > 3) {                    // a zigzag lope
       this.zig += dt * 3;
@@ -1006,13 +1065,30 @@ class Foe extends Zombie {
   // ---- grubbers
   grubber(dt, player, dist, fe) {
     const K = this.kind;
-    if (dist < K.reach && fe < 0.6 && !this.cool) {
-      const moves = [this.arm('R') && 'attack1', this.has('head') && 'attack2', this.arm('R') && 'attack3'].filter(Boolean);
-      if (moves.length) { this.chargeT = 0; this.strike(moves[Math.floor(Math.random() * moves.length)]); return; }
+    this.routine ??= ['brawler', 'biter', 'charger'][Math.floor(Math.random() * 3)];
+    const mad = this.hp < K.hp * 0.35;                 // (badly hurt: frenzied)
+    if (mad && this.cool > 0.35) this.cool = 0.35;
+    // charging into you: a ram, and you're thrown back (its club blow knocks you back)
+    if (this.chargeT > 0 && dist < K.reach + 0.7 && fe < 0.5 && this.arm('R') && !this.cool) {
+      this.chargeT = 0; this.chargeCool = 2.5 + Math.random() * 2; this.strike('attack1'); return;
     }
-    if (!this.chargeT && !this.chargeCool && dist > 3 && dist < 9 && this.feet) { this.chargeT = 2.5; this.foes.voice(this, 'alert'); }
-    if (this.chargeT > 0) { this.chargeT = Math.max(0, this.chargeT - dt); if (!this.chargeT) this.chargeCool = 4 + Math.random() * 3; }
-    this.go(dt, this.route(player.pos), dist < K.reach * 0.9 ? 0 : this.chargeT > 0 ? K.run : K.walk, dist < K.reach * 0.9 ? { face: player.pos } : {});
+    if (dist < K.reach && fe < 0.6 && !this.cool) {
+      const club = this.arm('R') && 'attack1', over = this.arm('R') && 'attack3', jaw = this.has('head') && 'attack2';
+      const runs = this.routine === 'brawler' ? [[club, over], [over, club], [club, jaw], [club]]
+        : this.routine === 'biter' ? [[jaw, club], [jaw], [jaw, over]]
+        : [[club], [over], [jaw]];
+      const ok = runs.map((r) => r.filter(Boolean)).filter((r) => r.length);
+      if (ok.length) {
+        const r = ok[Math.floor(Math.random() * ok.length)];
+        this.chargeT = 0; this.strike(r[0]); this.comboQ = r.length > 1 ? r.slice(1) : null;
+        return;
+      }
+    }
+    const reach = this.routine === 'charger' ? 12 : 9;
+    if (!this.chargeT && !this.chargeCool && dist > 3 && dist < reach && this.feet) { this.chargeT = this.routine === 'charger' ? 3.2 : 2.5; this.foes.voice(this, 'alert'); }
+    if (this.chargeT > 0) { this.chargeT = Math.max(0, this.chargeT - dt); if (!this.chargeT) this.chargeCool = (this.routine === 'charger' ? 2.5 : 4) + Math.random() * 3; }
+    const speed = (this.chargeT > 0 ? K.run * (this.routine === 'charger' ? 1.15 : 1) : K.walk) * (mad ? 1.3 : 1);
+    this.go(dt, this.route(player.pos), dist < K.reach * 0.9 ? 0 : speed, dist < K.reach * 0.9 ? { face: player.pos } : {});
   }
 }
 const _f = new THREE.Vector3();

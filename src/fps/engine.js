@@ -9,11 +9,13 @@
 //  - Characters are culled to what the camera (and the sun) can see.
 //  - Before the first frame of play everything is loaded, every texture uploaded and every shader
 //    compiled, so nothing is made on the GPU in the middle of a fight.
+//  - Two renderers (index.html picks one before anything loads): WebGPU (three r187, its shaders in
+//    TSL: nodes.js) where the browser has it, else WebGL (three r170, the GLSL below).
 import * as THREE from 'three';
+import { TEXELS, WEBGPU, crispColor, shared, T } from './nodes.js';
 
+export { TEXELS, WEBGPU };
 const store = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
-/** 'crisp' (square texels, anti-aliased) or 'smooth' (plain bilinear). */
-export const TEXELS = store('bm.texels', 'crisp') === 'smooth' ? 'smooth' : 'crisp';
 
 // ------------------------------------------------------------------ crisp texels, anti-aliased
 /** sharpTexel(t, uv): a texel-crisp sample whose texel seams are one screen pixel of blend (the
@@ -61,8 +63,8 @@ float untileMask( vec2 p, float seed ) {
 `;
 // three's own materials take it where a material asks (SHARP_MAP, set by crisp()): a painted
 // picture, never a soft glow drawn on a canvas, which would come out in squares
-THREE.ShaderChunk.map_pars_fragment = SHARP_GLSL + THREE.ShaderChunk.map_pars_fragment;
-THREE.ShaderChunk.map_fragment = THREE.ShaderChunk.map_fragment.replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+if (!WEBGPU) THREE.ShaderChunk.map_pars_fragment = SHARP_GLSL + THREE.ShaderChunk.map_pars_fragment;
+if (!WEBGPU) THREE.ShaderChunk.map_fragment = THREE.ShaderChunk.map_fragment.replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
   '#ifdef SHARP_MAP\n\tvec4 sampledDiffuseColor = sharpTexel( map, vMapUv );\n#else\n\tvec4 sampledDiffuseColor = texture2D( map, vMapUv );\n#endif');
 
 const IMAGE = (t) => t && t.isTexture && !t.isDataTexture && !t.isDataArrayTexture && !t.isData3DTexture && !t.isCompressedTexture
@@ -72,6 +74,10 @@ const IMAGE = (t) => t && t.isTexture && !t.isDataTexture && !t.isDataArrayTextu
  * crisp texels. Returns the material. */
 export function crisp(m) {
   const t = m?.map;
+  if (WEBGPU) {
+    if (TEXELS === 'crisp' && IMAGE(t) && !t.isCanvasTexture && m.blending !== THREE.AdditiveBlending && !m.userData.sharp && !m.colorNode) crispColor(m);
+    return m;
+  }
   if (TEXELS === 'crisp' && IMAGE(t) && !t.isCanvasTexture && m.blending !== THREE.AdditiveBlending && !('SHARP_MAP' in (m.defines || {}))) {
     m.defines = { ...(m.defines || {}), SHARP_MAP: '' };
     m.needsUpdate = true;
@@ -85,7 +91,9 @@ export function crisp(m) {
  * the eye looks through on its way, thick on the ground and thinning by knee height, broken into
  * banks by noise, and fading out over the last `edge` metres of the box. Call before anything is
  * compiled. Its colour is the fog's (so it follows the day and the night). */
+export let MIST = null;
 export function groundMist(box, { density = 0.07, falloff = 1.5, edge = 12 } = {}) {
+  if (WEBGPU) { MIST = { box, density, falloff, edge }; return; }   // (nodes.js fogNode draws it)
   const [x0, z0, x1, z1] = box.map((v) => v.toFixed(1));
   const C = THREE.ShaderChunk;
   C.fog_pars_vertex += '\n#ifdef USE_FOG\n\tvarying vec3 vFogWorld;\n#endif\n';
@@ -113,7 +121,9 @@ export function groundMist(box, { density = 0.07, falloff = 1.5, edge = 12 } = {
 			float ry = abs( rd.y ) < 1e-3 ? ( rd.y < 0.0 ? -1e-3 : 1e-3 ) : rd.y;
 			float a = ${density.toFixed(3)} * ( 0.45 + 1.1 * bmMistNoise( mq * 0.09 ) ) * ( 0.7 + 0.6 * bmMistNoise( mq * 0.31 + 7.0 ) );
 			float b = ${falloff.toFixed(2)};
-			float mist = a / b * exp( - max( cameraPosition.y, 0.0 ) * b ) * ( 1.0 - exp( - dist * ry * b ) ) / ry;
+			// (the exponents held in range: looking down a long way, exp() overflows, and at a phone's
+			// precision far sooner; an Inf or NaN here, smeared by the bloom, is a black box on screen)
+			float mist = a / b * exp( - clamp( cameraPosition.y, 0.0, 20.0 ) * b ) * ( 1.0 - exp( min( - dist * ry * b, 8.0 ) ) ) / ry;
 			gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor * 1.12, clamp( mist, 0.0, 0.8 ) * inside );
 		}
 	}
@@ -124,8 +134,10 @@ export function groundMist(box, { density = 0.07, falloff = 1.5, edge = 12 } = {
 /** The anisotropy every texture gets (set once the renderer is known). */
 export let ANISO = 8;
 
-/** The renderer, drawing to `canvas`. */
+/** The renderer, drawing to `canvas` (WebGPU: a promise, settled once the GPU's device is ours;
+ * it rejects where there's no WebGPU device to be had, and the game goes back to WebGL). */
 export function makeRenderer(canvas, { touch }) {
+  if (WEBGPU) return makeWebGPU(canvas, { touch });
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
   renderer.setPixelRatio(1);   // (the size is set in device pixels: Resolution)
   ANISO = Math.min(touch ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
@@ -133,9 +145,60 @@ export function makeRenderer(canvas, { touch }) {
   return renderer;
 }
 
+async function makeWebGPU(canvas, { touch }) {
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias: false, powerPreference: 'high-performance', trackTimestamp: true });
+  await renderer.init();
+  if (!renderer.backend.isWebGPUBackend) throw new Error('no WebGPU device (three fell back to WebGL2)');
+  renderer.setPixelRatio(1);
+  renderer.setClearColor(0x000000, 0);   // (a pass without a background of its own clears to nothing: the arms)
+  ANISO = Math.min(touch ? 4 : 16, renderer.getMaxAnisotropy());
+  THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
+  shadowNodesShared(renderer);
+  // ?debugrender: a draw that throws names its object and material, once each
+  if (/[?&]debugrender/.test(location.search)) {
+    Error.stackTraceLimit = 60;
+    const draw = renderer._renderObjectDirect.bind(renderer), told = new Set();
+    renderer._renderObjectDirect = (object, material, scene, camera, ...rest) => {
+      try { return draw(object, material, scene, camera, ...rest); } catch (e) {
+        if (!told.has(material)) { told.add(material); console.error('draw failed:', object.type, object.name, '|', material.type, material.name, Object.keys(material).filter((k) => /Node$|map$/i.test(k) && material[k]).join(','), '|', scene.overrideMaterial?.type || '', e.message); }
+      }
+    };
+  }
+  return renderer;
+}
+
+/** In a shadow pass three draws its own depth material, given the object's map alpha through a node
+ * that names that one material (reference('map', material)): a node build, kept, for every textured
+ * material and kind of shadow (6,600 of them for 163 shaders; most of the WebGPU heap). Here an opaque
+ * caster gets no colour node at all (its alpha is never looked at), and an alpha-cut one (leaves, hair)
+ * one graph for all: its own colour node's alpha where it has one (a shared graph), else its map's,
+ * through a texture that follows the material (nodes.js shared). */
+function shadowNodesShared(renderer) {
+  const base = renderer._getShadowNodes?.bind(renderer);
+  if (!base) return;
+  const byColor = new WeakMap(), byMap = new Map();
+  renderer._getShadowNodes = (material) => {
+    if (material.castShadowNode?.isNode || material.maskShadowNode?.isNode || material.maskNode?.isNode) return base(material);
+    const positionNode = material.castShadowPositionNode?.isNode ? material.castShadowPositionNode : material.positionNode?.isNode ? material.positionNode : null;
+    const depthNode = material.depthNode?.isNode ? material.depthNode : null;
+    if (!(material.alphaTest > 0 || material.alphaHash)) return { colorNode: null, depthNode, positionNode };
+    let colorNode = null;
+    if (material.colorNode?.isNode) {
+      colorNode = byColor.get(material.colorNode);
+      if (!colorNode) byColor.set(material.colorNode, colorNode = T.vec4(T.vec3(0), material.colorNode.a));
+    } else if (material.map?.isTexture) {
+      const m = material.map, k = `${m.colorSpace}|${m.channel}`;
+      colorNode = byMap.get(k);
+      if (!colorNode) byMap.set(k, colorNode = T.vec4(T.vec3(0), shared((mat) => mat.map, m).sample(T.uv(m.channel)).a));
+    } else return base(material);
+    return { colorNode, depthNode, positionNode };
+  };
+}
+
 /** The composer's buffers: the one the world is drawn into is multisampled (EffectComposer draws its
  * scene passes into readBuffer, renderTarget2); the other only ever takes full-screen passes. */
 export function multisample(composer, renderer, samples) {
+  if (WEBGPU) return samples;   // (the world's pass is made multisampled: main.js)
   const gl = renderer.getContext();
   // half-float multisampled buffers need a float colour buffer (some phone GPUs have none)
   if (!renderer.extensions.has('EXT_color_buffer_float') && !renderer.extensions.has('EXT_color_buffer_half_float')) samples = 0;
@@ -334,6 +397,12 @@ export async function compile(renderer, pairs, target) {
   } finally { renderer.setRenderTarget(was); }
 }
 
+/** How many shader programs (WebGL) or render pipelines (WebGPU) have been made so far. */
+export function programCount(renderer) {
+  if (renderer.isWebGPURenderer) return renderer._pipelines?.caches?.size ?? renderer.info.memory?.programs ?? 0;
+  return renderer.info.programs?.length ?? 0;
+}
+
 // ------------------------------------------------------------------ the picture's size
 /** The picture's size in device pixels: the window's, times the device's pixels (capped), times the
  * player's resolution choice, times one of a few fixed steps (LEVELS) that the frames choose; and no
@@ -372,6 +441,7 @@ export class Resolution {
 
   /** The GPU's own timer round each frame's drawing, where there is one: begin() before, end() after. */
   gpuTimer(renderer) {
+    if (renderer.isWebGPURenderer) return this.gpuTimerWebGPU(renderer);
     const gl = renderer.getContext(), ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
     const T = this.timer = { begin() {}, end() {} };
     if (!ext) return T;
@@ -385,6 +455,21 @@ export class Resolution {
         if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) { this.win.gpu += gl.getQueryParameter(done, gl.QUERY_RESULT) / 1e6; this.win.gpuN++; }
         gl.deleteQuery(done);
       }
+    };
+    return T;
+  }
+
+  /** WebGPU's timestamps (every render pass's, a frame's summed by three), read back every few frames. */
+  gpuTimerWebGPU(renderer) {
+    const T = this.timer = { begin() {}, end() {} };
+    if (!renderer.backend.trackTimestamp || !renderer.hasFeature?.('timestamp-query')) return T;
+    let n = 0, busy = false;
+    T.end = () => {
+      if (busy || ++n % 8) return;
+      busy = true;
+      renderer.resolveTimestampsAsync('render').then((ms) => {
+        if (ms > 0 && ms < 1000) { this.win.gpu += ms; this.win.gpuN++; }
+      }).catch(() => {}).finally(() => { busy = false; });
     };
     return T;
   }
@@ -418,4 +503,57 @@ export class Resolution {
     if (this.quick >= 3 && this.level > 0) { this.quick = 0; this.level--; return true; }
     return false;
   }
+}
+
+// ------------------------------------------------------------------ WebGPU: shaders not yet in TSL
+/** Under WebGPU a GLSL ShaderMaterial can't be drawn (three draws a blank node material in its place,
+ * which reads a colour it hasn't got, and the frame throws). Any still about under `roots` is hidden,
+ * and named once in the console, so the rest of the world draws; one made later is caught by the
+ * prototype's colour (drawn blank, not thrown). Returns how many were hidden. */
+export function hideUnported(...roots) {
+  if (!WEBGPU) return 0;
+  if (!THREE.ShaderMaterial.prototype.color) THREE.ShaderMaterial.prototype.color = new THREE.Color(0, 0, 0);
+  const seen = new Set();
+  for (const root of roots) root?.traverse((o) => {
+    for (const m of [o.material].flat()) {
+      if (!m?.isShaderMaterial || m.isNodeMaterial || seen.has(m)) continue;
+      seen.add(m);
+      m.visible = false;
+    }
+    for (const m of [o.customDepthMaterial, o.customDistanceMaterial]) if (m?.isShaderMaterial && !m.isNodeMaterial) { o.customDepthMaterial = o.customDistanceMaterial = undefined; }
+  });
+  if (seen.size) console.warn(`WebGPU: ${seen.size} GLSL ShaderMaterials hidden (not yet in TSL):`, [...seen].map((m) => m.name || m.type).slice(0, 20));
+  return seen.size;
+}
+
+/** ?debugrender: which object makes a WebGPU frame throw. Every drawable under `scene` is hidden, then
+ * shown in halves (its shadow maps redrawn each time) until the one that throws is found; names it
+ * and its material, and puts everything back. */
+export async function findBadDraw(renderer, scene, camera, target) {
+  const all = [];
+  scene.traverse((o) => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) all.push(o); });
+  const lights = []; scene.traverse((o) => { if (o.isLight && o.castShadow) lights.push(o); });
+  const tryOn = (list) => {
+    for (const o of all) o.visible = false;
+    for (const o of list) o.visible = true;
+    renderer._nodes?.nodeFrame?.update?.();   // (a new frame: shadow maps are drawn once a frame)
+    for (const l of lights) l.shadow.needsUpdate = true;
+    const was = renderer.getRenderTarget();
+    try { renderer.setRenderTarget(target); renderer.render(scene, camera); return null; } catch (e) { return e; } finally { renderer.setRenderTarget(was); }
+  };
+  let list = all, found = [];
+  if (!tryOn(list)) { for (const o of all) o.visible = true; return 'no failure'; }
+  while (list.length > 1) {
+    const a = list.slice(0, list.length >> 1), b = list.slice(list.length >> 1);
+    if (tryOn(a)) list = a; else if (tryOn(b)) list = b; else { found = ['only together', a.length, b.length]; break; }
+  }
+  for (const o of all) o.visible = true;
+  const o = list[0], m = [o.material].flat()[0];
+  const err = tryOn([o]);
+  for (const x of all) x.visible = true;
+  const path = []; for (let p = o; p; p = p.parent) path.push(p.name || p.type);
+  const info = { object: o.type, path: path.slice(0, 6).join(' < '), material: m?.type, name: m?.name, keys: Object.keys(m || {}).filter((k) => /Node$|map$|Map$/.test(k) && m[k]).join(','),
+    defines: m?.defines, userData: Object.keys(m?.userData || {}).join(','), geometry: Object.keys(o.geometry?.attributes || {}).join(','), err: err?.message, found };
+  console.error('bad draw:', JSON.stringify(info));
+  return info;
 }

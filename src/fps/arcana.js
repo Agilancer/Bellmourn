@@ -8,6 +8,7 @@
 // noise(at, r). What lingers on a body (frozen, chilled, burning, poisoned, shoved) is the
 // zombie's own (zombies.js afflict); this only draws it.
 import * as THREE from 'three';
+import { WEBGPU, T, ref } from './nodes.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const rnd = () => new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
@@ -46,15 +47,45 @@ const beamFrag = /* glsl */`
     gl_FragColor = vec4(c * f * f * flow * alpha * smoothstep(0.0, 0.05, vUv.y), 1.0);
   }`;
 
+let _beam = null;
+/** A beam layer's material under WebGPU (beamVert / beamFrag): one graph for every layer of every
+ * beam; each one's time, length, wave and colours its own (material.uniforms, as the GLSL's). */
+function beamMaterial(uniforms) {
+  if (!_beam) {
+    const { Fn, uv, positionLocal, positionView, normalViewGeometry, varying, vec3, vec4, sin, cos, abs, dot, normalize, mix, smoothstep } = T;
+    const u = (k, type) => ref(`uniforms.${k}.value`, type);
+    const time = u('time', 'float'), len = u('len', 'float'), wave = u('wave', 'float');
+    const t = uv();
+    const s = sin(t.y.mul(3.14159));
+    const position = vec3(positionLocal.x.add(wave.mul(s).mul(sin(t.y.mul(len).mul(2.3).sub(time.mul(9.0))))), positionLocal.y,
+      positionLocal.z.add(wave.mul(s).mul(cos(t.y.mul(len).mul(1.9).sub(time.mul(7.0))))));
+    const vN = varying(normalViewGeometry), vV = varying(normalize(positionView.negate()));
+    // bright down the middle, fading to the edges, with pulses running along it; HDR so it blooms
+    const frag = Fn(() => {
+      const f = abs(dot(normalize(vN), normalize(vV)));
+      const flow = sin(t.y.mul(len).mul(5.0).sub(time.mul(38.0)).add(sin(t.x.mul(18.85)).mul(1.5))).mul(0.4).add(0.6);
+      const c = mix(u('edge', 'color'), u('core', 'color'), f.mul(f).mul(f));
+      return vec4(c.mul(f).mul(f).mul(flow).mul(u('alpha', 'float')).mul(smoothstep(0.0, 0.05, t.y)), 1.0);
+    })();
+    _beam = { position, frag };
+  }
+  const m = new THREE.NodeMaterial();
+  m.positionNode = _beam.position; m.fragmentNode = _beam.frag;
+  m.blending = THREE.AdditiveBlending; m.transparent = true; m.depthWrite = false; m.fog = false;
+  m.uniforms = uniforms;
+  return m;
+}
+
 /** A beam from a to b: nested additive tubes, widening away from the hand. */
 class Beam {
   constructor(scene, layers) {
     this.scene = scene;
     this.layers = layers.map((o) => {
       const geo = new THREE.CylinderGeometry(1, o.tail ?? 0.4, 1, 12, 24, true).translate(0, 0.5, 0);
-      const mat = new THREE.ShaderMaterial({ vertexShader: beamVert, fragmentShader: beamFrag, blending: THREE.AdditiveBlending,
-        transparent: true, depthWrite: false, uniforms: { time: { value: 0 }, len: { value: 1 }, wave: { value: (o.wave || 0) / o.r },
-          core: { value: o.core }, edge: { value: o.edge }, alpha: { value: o.alpha ?? 1 } } });
+      const uniforms = { time: { value: 0 }, len: { value: 1 }, wave: { value: (o.wave || 0) / o.r },
+        core: { value: o.core }, edge: { value: o.edge }, alpha: { value: o.alpha ?? 1 } };
+      const mat = WEBGPU ? beamMaterial(uniforms) : new THREE.ShaderMaterial({ vertexShader: beamVert, fragmentShader: beamFrag, blending: THREE.AdditiveBlending,
+        transparent: true, depthWrite: false, uniforms });
       const m = new THREE.Mesh(geo, mat);
       m.frustumCulled = false; m.renderOrder = 6; m.visible = false;
       scene.add(m);
@@ -116,7 +147,7 @@ export class Arcana {
   // -------------------------------------------------------------- helpers
   /** The dead that can be struck (not the buried, nor those lying still to fool you). */
   foes() { return (this.m.targets?.() || []).filter((z) => !z.dead && !z.gone && z.state !== 'buried' && z.state !== 'playdead'); }
-  chest(z, out = new THREE.Vector3()) { return out.set(z.pos.x, z.pos.y + (z.mode === 'crawl' ? 0.35 : 1.15), z.pos.z); }
+  chest(z, out = new THREE.Vector3()) { if (z.chestAt) return z.chestAt(out); return out.set(z.pos.x, z.pos.y + (z.mode === 'crawl' ? 0.35 : 1.15), z.pos.z); }
   cols(def) { return def.colors.slice(0, 3).map((c) => new THREE.Color(c)); }
 
   /** Nothing solid between a and b. */

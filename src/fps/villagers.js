@@ -23,14 +23,15 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { CHATS, BARKS, GREETS, SHOPPING, WORK, DUSK, FLEE, PRAY, WELL } from './townscripts.js';
-import { speak, tickTalk } from './speech.js';
+import { speak, talking, hush } from './speech.js';
 import { voice } from './voice.js';
 import { MORE_BARKS, MORE_GREETS, MORE_SITUATIONAL as MS } from './lines/barks.js';
 import { MORE_CHATS } from './lines/chats.js';
 
 // (the town's words, and the many more in lines/: what they mutter, greet you with, and say at dusk,
 // in flight, at prayer, at the well and the stalls)
-CHATS.push(...MORE_CHATS.filter((c) => !c.tags.includes('trio')));   // (the scenes seat two: the trios wait for a third)
+CHATS.push(...MORE_CHATS.filter((c) => !c.tags.includes('trio')));
+const TRIOS = MORE_CHATS.filter((c) => c.tags.includes('trio'));      // (held by three: trio())
 for (const [k, v] of Object.entries(MORE_BARKS)) BARKS[k] = [...(BARKS[k] || []), ...v];
 for (const [k, v] of Object.entries(MORE_GREETS)) GREETS[k] = [...(GREETS[k] || []), ...v];
 DUSK.push(...MS.dusk, ...MS.night); FLEE.push(...MS.flee); PRAY.push(...MS.pray); WELL.push(...MS.well); SHOPPING.push(...MS.shopping.map((s) => [[s]]));   // (a stall's exchanges are lists of lines)
@@ -39,6 +40,7 @@ import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
 import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
 import { cullable, shareSkeletons } from './engine.js';
+import { WEBGPU, T, keyed, ref, shared, sharpGrad, sourceOf } from './nodes.js';
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
 // image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
@@ -151,7 +153,9 @@ export class Villagers {
       .then((src) => ualBody(src, g, { names: VILLAGER_BONES, recipes: { ...RECIPES, ...CALM } }))
       .then((made) => {
         const have = new Set(made.clips.map((c) => c.name));
-        return { ...made, clips: [...made.clips, ...g.animations.filter((c) => !have.has(c.name))] };
+        const clips = [...made.clips, ...g.animations.filter((c) => !have.has(c.name))];
+        relaxHands(clips, g.scene);
+        return { ...made, clips };
       })
       .catch((e) => { console.warn('villagers: the library', e); return null; }));
   }
@@ -197,11 +201,12 @@ export class Villagers {
     if (armor) this.wear(model, armor);
     let head = null;
     model.traverse((c) => {
-      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; skinTone(c.material); }
       if (c.isBone && c.name === 'Head') head = c;
     });
     // one skeleton for all thirteen-odd parts of them, culled to what can be seen (engine.js)
     shareSkeletons(model);
+    fitHands(model, !armor);           // (hands that look like hands: see the end of the file)
     cullable(model);
     // their clips: the knight's (clipsFor), or their own; each made into an action when first played
     const mixer = new THREE.AnimationMixer(model), actions = {};
@@ -323,36 +328,31 @@ export class Villagers {
 
   face(a, x, z) { if (x && x.pos) { z = x.pos.z; x = x.pos.x; } a.faceTo = Math.atan2(x - a.pos.x, z - a.pos.z); }
 
-  /** a says text (paged into more bubbles if it's long, and aloud in their own voice). */
-  say(a, text, toYou = false) {
-    return speak(a, text, toYou, { voice: this.voiceOf(a) });
+  /** a says text (paged into more bubbles if it's long, and aloud in their own voice), on their turn
+   * (speech.js): the scene they're in waits till they're done. o: { group, must, wait } (speech.js);
+   * a scene of two or more is a conversation (its lines keep the floor between them). */
+  say(a, text, toYou = false, o = {}) {
+    const group = o.group ?? this.scenes.find((s) => !s.dead && s.people.length > 1 && s.people.includes(a)) ?? null;
+    return speak(a, text, toYou, { voice: { ...this.voiceOf(a), pri: toYou ? 2 : 0 }, group, must: o.must, wait: o.wait, now: o.now });
   }
 
-  /** How a villager sounds (voice.js). */
+  /** Walk straight to (x, z), off the streets (the meadow by the crater). */
+  walkTo(a, x, z) { a.path = []; a.goal = [x, z]; a.faceTo = null; a.stuck = 0; return () => !a.goal; }
+
+  /** How a villager sounds (voice.js): Velscour's garrison in the town as the knights they are. */
   voiceOf(a) {
-    return { key: a.name, sex: /_f\d/.test(a.m) ? 'f' : 'm', kind: 'villager', age: a.tags?.includes('old') ? 'old' : a.tags?.includes('young') ? 'young' : null, pos: a.pos };
+    return { key: a.name, sex: /_f\d/.test(a.m) ? 'f' : 'm', kind: a.garrison ? 'knight' : 'villager',
+      age: a.tags?.includes('old') ? 'old' : a.tags?.includes('young') ? 'young' : null, pos: a.pos };
   }
 
   near(a, player) { return player && Math.hypot(player.pos.x - a.pos.x, player.pos.z - a.pos.z) < NEAR; }
 
-  talkingNear(player) { return this.list.filter((q) => q.talk && q.talk.t > 0.15 && !q.inside && this.near(q, player)).length; }
-
-  canSpeak(a, priority = 0) {
-    if (this.time < QUIET) return false;
-    const p = this.player;
-    if (!this.near(a, p)) return true;   // out of earshot: free
-    const n = this.talkingNear(p);
-    return priority ? n < 3 : n < 2 && this.time >= this.nextAmbient;
-  }
-
-  /** A line in a scene: waits for a speech slot (giving up after `patience` s: acted out silently). */
-  * line(a, text, priority = 0, patience = 6) {
-    let waited = 0;
-    while (!this.canSpeak(a, priority) && waited < patience) { waited += 0.25; yield 0.25; }
-    if (waited >= patience) { yield 1.2; return; }
-    const dur = this.say(a, text);
-    this.nextAmbient = this.time + 0.9;
-    yield dur + 0.25;
+  /** A line in a scene, said on their turn (let go if it waits `patience` s for it); the scene goes
+   * on a moment after it's said. Quiet for the first few seconds of a game. */
+  * line(a, text, priority = 0, patience = 9) {
+    if (this.time < QUIET) { yield 1.2; return; }
+    this.say(a, text, false, { wait: patience });
+    yield 0.25;
   }
 
   fill(text, a, b) {
@@ -378,7 +378,8 @@ export class Villagers {
     for (const s of this.scenes) {
       if (s.dead) continue;
       if (s.test) { s.testT += dt; if (!s.test() && s.testT < 25) continue; s.test = null; }
-      else if ((s.wait -= dt) > 0) continue;
+      else if (s.people.some(talking) ? (s.talkT = (s.talkT || 0) + dt) < 40 : (s.wait -= dt) > 0) continue;   // (a wait starts once they've said their piece)
+      s.talkT = 0;
       const r = s.gen.next();
       if (r.done) { s.dead = true; for (const q of s.people) q.busy = false; continue; }
       if (typeof r.value === 'function') { s.test = r.value; s.testT = 0; } else s.wait = r.value || 0;
@@ -388,9 +389,9 @@ export class Villagers {
 
   // ------------------------------------------------------------------ routines
   /** Where a quest giver waits while they've work for you (main can move it: postAt). */
-  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || null; }
-  /** Does this one stay at their post (they've something for you)? */
-  stays(a) { return !!(GIVERS[a.name] && this.quests?.business(a.name) && !a.garrison); }
+  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || this.shops?.[a.name] || null; }
+  /** Does this one stay at their post (they've something for you, or a shop to keep: main's shops)? */
+  stays(a) { return !!(((GIVERS[a.name] && this.quests?.business(a.name)) || this.shops?.[a.name]) && !a.garrison); }
 
   pickRoutine(a) {
     if (this.stays(a)) return this.run(this.keepPost(a), [a]);
@@ -406,7 +407,12 @@ export class Villagers {
     const tending = this.list.filter((q) => q.tending && q !== a);
     if (a.stall && r < 0.3 && !this.list.some((q) => q.tending === a.stallAt)) return this.run(this.keepStall(a), [a]);
     if (r < 0.2 && tending.length) return this.run(this.shop(a, pick(tending)), [a]);
-    if (r < 0.58 && partner) return this.run(this.chat([a, partner]), [a, partner]);
+    if (r < 0.58 && partner) {
+      // now and then a third joins them
+      const third = chance(0.3) ? pick(near.filter((q) => q !== partner)) : null;
+      if (third) return this.run(this.trio([a, partner, third]), [a, partner, third]);
+      return this.run(this.chat([a, partner]), [a, partner]);
+    }
     if (r < 0.68) return this.run(this.work(a), [a]);
     if (r < 0.74) return this.run(this.well(a), [a]);
     if (r < 0.79) return this.run(this.pray(a), [a]);
@@ -476,6 +482,55 @@ export class Villagers {
     }
     if (chance(0.25)) this.gesture(pick(people), 'wave');
     yield rand(0.6, 1.6);
+  }
+
+  /** Three of them, stood round together, in one of the conversations for three: the other two
+   * come over to the first, all three face in, and each line is said in turn. */
+  * trio(people) {
+    const [a, b, c] = people;
+    const ang = rand(0, 6.28);
+    const gb = this.go(b, a.pos.x + Math.sin(ang) * 1.25, a.pos.z + Math.cos(ang) * 1.25);
+    const gc = this.go(c, a.pos.x + Math.sin(ang + 1.9) * 1.25, a.pos.z + Math.cos(ang + 1.9) * 1.25);
+    yield () => gb() && gc();
+    const mid = { pos: { x: (a.pos.x + b.pos.x + c.pos.x) / 3, z: (a.pos.z + b.pos.z + c.pos.z) / 3 } };
+    for (const q of people) this.face(q, mid);
+    yield 0.4;
+    const t = this.pickTrio(people);
+    if (!t) return;
+    const { conv, order } = t;
+    const fill = (s) => s.replace(/\{a\}/g, order[0].call).replace(/\{b\}/g, order[1].call).replace(/\{c\}/g, order[2].call);
+    voice.prefetch(conv.lines.map(([w, s]) => [order[w], fill(s), this.voiceOf(order[w])]));
+    for (const [w, s] of conv.lines) {
+      const sp = order[w];
+      for (const q of order) if (q !== sp) this.face(q, sp);
+      yield* this.line(sp, fill(s));
+    }
+    for (const q of people) this.face(q, mid);
+    if (chance(0.3)) this.gesture(pick(people), 'wave');
+    yield rand(0.6, 1.6);
+  }
+
+  /** A conversation for these three, and who says which part: one of a calling's is begun by the one
+   * who has it (the garrison's by one of the garrison); nobody says "Tessariel" with the garrison by. */
+  pickTrio(people) {
+    const has = (q, role) => q.tags.includes(role) || (role === 'velscour' && q.garrison);
+    const roleOf = (c) => c.tags.find((x) => x !== 'trio' && x !== 'any' && x !== 'gossip');
+    const hush = people.some((q) => q.garrison || this.garrisonNear(q));
+    const list = TRIOS.filter((c) => {
+      const role = roleOf(c);
+      if (role && !people.some((q) => has(q, role))) return false;
+      if (!role && people.some((q) => q.garrison)) return false;          // (the garrison don't gossip with the town)
+      return !(hush && c.lines.some(([, x]) => /Tessariel/.test(x)));
+    });
+    if (!list.length) return null;
+    this.saidTrio ||= [];
+    const fresh = list.filter((c) => !this.saidTrio.includes(c));
+    const conv = pick(fresh.length ? fresh : list);
+    this.saidTrio.push(conv); if (this.saidTrio.length > 12) this.saidTrio.shift();
+    const role = roleOf(conv);
+    let order = people.slice().sort(() => Math.random() - 0.5);
+    if (role) { const lead = order.find((q) => has(q, role)); order = [lead, ...order.filter((q) => q !== lead)]; }
+    return { conv, order };
   }
 
   /** At their post, facing out, waiting for you: a word now and then, while there's work. */
@@ -599,99 +654,203 @@ export class Villagers {
   /** Whether a villager's gift (a unique's id) has been given already (this game). */
   gave(id) { try { return !!localStorage.getItem('bm.taken.gift.' + id); } catch { return false; } }
 
+  /** What `a` will say when you next speak to them (picked ahead, so it can be made ahead): Garrow's
+   * gift the first time, else a line of theirs about who you are. */
+  replyFor(a) {
+    if (a.name === 'Garrow' && this.onGift && !this.gave('garrowsoath')) return GARROW_GIFT;
+    if (!a.reply) {
+      const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
+      a.reply = [pick(lines)];
+    }
+    return a.reply;
+  }
+
+  /** You're about to speak to `a` (coming up to them, or looking at them in reach: pri higher): their
+   * answer, and their good day, made now, so either is heard the moment it's due. */
+  expect(a, pri = 2) {
+    if (!a || a.gathered || !voice.natural || (a.expected >= pri && this.time - a.expectT < 20)) return;
+    a.expected = pri; a.expectT = this.time;
+    const v = this.voiceOf(a), list = this.replyFor(a).map((t) => [a, t, v]);
+    if (pri < 8 && this.time - a.greeted > 50) list.push([a, this.greetingFor(a), v]);
+    voice.prefetch(list, pri);
+  }
+
+  /** You speak to someone: they answer at once (whoever else was talking stops for them), turning
+   * to you as they do, the line they'd ready for you (expect). */
   talkTo(a, player) {
-    if (a.gathered) return;   // (at the edge of town after the green star: they're already talking to you)
+    if (a.gathered) { this.gatherPoke = a; return; }   // (at the crater after the green star: it hurries them on)
+    if (a.answering && talking(a)) return;              // (still answering you)
     this.stopScenes(a);
     a.busy = true; a.greeted = this.time;
-    const self = this;
+    const lines = this.replyFor(a), gift = lines === GARROW_GIFT;
+    a.reply = null; a.expected = 0;
+    this.face(a, player); a.quick = 0.8;
+    if (chance(gift ? 0.2 : 0.35)) this.gesture(a, 'wave'); else if (chance(0.3)) this.gesture(a, 'nod_yes');
+    const self = this, turn = { answer: a };
+    a.answering = true;
+    this.say(a, lines[0], true, { now: true, must: true, group: turn });
     this.run((function* () {
-      self.face(a, player);
-      yield 0.2;
-      if (chance(0.4)) self.gesture(a, 'wave');
-      // Garrow the smith, the first time: he gives you his son's great sword
-      if (a.name === 'Garrow' && self.onGift && !self.gave('garrowsoath')) {
-        a.talk = null;
-        for (const ln of GARROW_GIFT) { const d = self.say(a, ln, true); yield d + 0.3; }
-        if (chance(0.6)) self.gesture(a, 'wave');
-        self.onGift('garrowsoath', a);
-        return;
-      }
-      const lines = a.garrison ? SACRED_TALK.velscour : [...SACRED_TALK.any, ...a.tags.flatMap((t) => (t === 'velscour' ? [] : SACRED_TALK[t] || []))];
-      a.talk = null;
-      const d = self.say(a, pick(lines), true);
-      yield d + 0.4;
+      try {
+        // Garrow the smith, the first time: he gives you his son's great sword
+        for (const ln of lines.slice(1)) { yield 0.3; self.face(a, player); self.say(a, ln, true, { must: true, group: turn }); }
+        yield 0.4;
+        if (gift) { if (chance(0.6)) self.gesture(a, 'wave'); self.onGift('garrowsoath', a); }
+      } finally { a.answering = false; }
     })(), [a]);
   }
 
-  /** After the green star: the village gathered on the meadow at the edge of town, well back from the
-   * crater (nobody goes near the hole). `cast` [{name, at: [x, z]}] are put where they stand (main
-   * does it in the black, so they've been there a while), facing `look` [x, z], the crater. Till you
-   * come to them they talk among themselves about the man who fell out of the sky (`chatter`
-   * [{name, text}], in turn and round again), and call out when you climb out of it (`sight`, once
-   * out(player)); once you're within `near` m of them they turn to you, and `script` [{name, text,
-   * gift, wave}] is said in turn, each to you (they wait whenever you walk off), onGift(gift, who)
-   * as each gives theirs; onDone() after the last line. False if none of them is here. */
-  gather(player, cast, { look, chatter, sight, script, out, near = 9, onGift, onDone }) {
-    const people = cast.map((c) => ({ ...c, a: this.list.find((v) => v.name === c.name) })).filter((c) => c.a);
+  /** After the green star: the village has come out to the crater. One of them (`caller` {name, at:
+   * [x, z]}) stands up on its edge where you'll see her as you come round, looking down at you; the
+   * rest (`group` [{name, at}]) keep back from the hole, in a loose knot on the meadow, spread out,
+   * hidden from you by the rim till you climb up to it. main puts them there in the black, so they've
+   * been there a while; `look` [x, z] is the crater's middle.
+   *  - The caller calls down to you (`calls` [{name, text, toYou, wave}]: the first exchange, the
+   *    group calling to her and her answering over her shoulder; then `again`, her calls now and then,
+   *    and between them the group's own talk, `chatter`), till you come up near her (or out of the
+   *    hole anywhere: `out(player)`).
+   *  - Then she says `lead` to you, turns, and walks back to the others (stopping for you if you
+   *    lag: `lag`), and they call out at the sight of you climbing out (`sight`).
+   *  - Once you're come to them, they turn to you, step in round you a little, and `script` [{name,
+   *    text, ifArms (said instead while the knight's things still lie in the crater: arms()), gift,
+   *    wave}] is said in turn, each to you: who they are, who you are, what they give you
+   *    (onGift(gift, who) as each gives theirs). They wait whenever you walk off (`away`, once).
+   *    onDone() after the last line.
+   * E on one of them hurries it on (talkTo). False if none of them is here. */
+  gather(player, { caller, group, look, calls = [], again = [], chatter = [], lead = [], lag = [], sight = [], script = [], away = [], out, arms, onGift, onDone }) {
+    const find = (c) => ({ ...c, a: this.list.find((v) => v.name === c.name) });
+    const crowd = group.filter((g) => g.name !== caller?.name).map(find).filter((c) => c.a), C = caller ? find(caller) : null;
+    const people = [...crowd, ...(C?.a ? [C] : [])];
     if (!people.length) return false;
     const self = this, id = (this.gatherId = (this.gatherId || 0) + 1);   // (a new game's gathering ends the last one: it gives nothing then)
-    const mid = [people.reduce((s, c) => s + c.at[0], 0) / people.length, people.reduce((s, c) => s + c.at[1], 0) / people.length];
-    const far = () => Math.hypot(player.pos.x - mid[0], player.pos.z - mid[1]);
+    const flat = (p, q) => Math.hypot(p.x - q[0], p.z - q[1]);
+    const mid = [crowd.reduce((s, c) => s + c.at[0], 0) / Math.max(1, crowd.length), crowd.reduce((s, c) => s + c.at[1], 0) / Math.max(1, crowd.length)];
+    const home = C?.a ? (group.find((g) => g.name === C.name)?.at || mid) : mid;   // (where the caller goes back to)
+    const toGroup = () => Math.min(...people.filter((c) => c !== C || C.back).map((c) => flat(player.pos, [c.a.pos.x, c.a.pos.z])));
     for (const c of people) {
       this.stopScenes(c.a);
-      Object.assign(c.a, { inside: false, flee: 0, headingHome: false, hurry: false, path: [], goal: null, talk: null, gesture: 0 });
+      hush(c.a);
+      Object.assign(c.a, { inside: false, flee: 0, headingHome: false, hurry: false, path: [], goal: null, gesture: 0, reply: null, greeting: null });
       c.a.root.visible = true;
       c.a.pos.set(c.at[0], 0, c.at[1]);
       c.a.pos.y = this.physics.floorAt(c.at[0], c.at[1], 5, 0.25, 9);
-      this.face(c.a, look[0] + rand(-4, 4), look[1] + rand(-4, 4));
+      // (the caller looks down into it; the rest at her, or at the hole, or at each other, as people stand)
+      if (c === C) this.face(c.a, look[0], look[1]);
+      else if (C?.a && chance(0.6)) this.face(c.a, C.at[0] + rand(-1.5, 1.5), C.at[1] + rand(-1.5, 1.5));
+      else this.face(c.a, look[0] + rand(-5, 5), look[1] + rand(-5, 5));
       c.a.yaw = c.a.faceTo;
     }
-    // a line: the speaker turns to `to` (you, or the crater), the rest to the speaker (or, once
-    // they've seen you, to you)
-    let seen = false;
+    if (C) C.back = !C.a;
+    const gathering = { gather: id };    // (their lines keep the floor between them)
+    let seen = false, given = 0, finished = false;
+    // a line: the speaker turns to you and keeps to you while they say it (or, said among
+    // themselves, to whoever it's said to), the rest to the speaker (some of them to you, once you're
+    // among them); the caller, up on the edge, keeps her eyes on you, unless it's her they're calling to
     const speak = (ln, toYou) => {
       const c = people.find((q) => q.name === ln.name);
       if (!c) return 0;
+      const toHer = !toYou && c !== C && ln.to === 'caller', crowdTalk = !toYou && c === C && !C.back;
       for (const q of people) {
-        if (q === c) { if (toYou || seen) self.face(q.a, player); else self.face(q.a, look[0], look[1]); } else self.face(q.a, seen ? player : c.a);
+        q.a.track = null;
+        if (q === C && !C.back) {
+          if (q === c && crowdTalk) self.face(q.a, mid[0], mid[1]);     // (answering the others, over her shoulder)
+          else if (toHer) self.face(q.a, c.a);
+          else q.a.track = player;
+        } else if (q === c) {
+          if (toYou || seen) q.a.track = player;
+          else self.face(q.a, toHer || (C?.a && !C.back) ? C.a : { pos: { x: look[0], z: look[1] } });
+        } else if (seen && chance(0.3)) self.face(q.a, player);
+        else self.face(q.a, c.a);
       }
       if (ln.wave) self.gesture(c.a, 'wave');
-      c.a.talk = null;
-      return self.say(c.a, ln.text, toYou);
+      else if (seen && chance(0.2)) { const n = pick(people.filter((q) => q !== c && q.a.gesture <= 0 && !q.a.goal)); if (n) self.gesture(n.a, 'nod_yes'); }   // (someone nods along)
+      const text = ln.ifArms && arms?.() ? ln.ifArms : ln.text;
+      return self.say(c.a, text, toYou, { group: gathering, must: toYou, wait: 20 });
     };
+    const after = (s) => { const t0 = self.time; return () => self.time - t0 >= s; };
+    // wait `s` once everyone's quiet, or till `brk()` (checked every frame)
+    const wait = (s, brk = null) => {
+      let quiet = null;
+      return () => {
+        if (brk?.()) return true;
+        if (people.some((q) => talking(q.a))) { quiet = null; return false; }
+        quiet ??= self.time;
+        return self.time - quiet >= s;
+      };
+    };
+    const poked = () => { const p = self.gatherPoke; self.gatherPoke = null; return !!p; };
+    const nearCaller = () => !C?.a || flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6.5 || out(player);
     for (const c of people) c.a.gathered = true;   // (E on one of them doesn't break it up: talkTo)
-    let given = 0, finished = false;
     this.run((function* () {
       try {
-        // among themselves, watching the hole, till you come
-        let i = 0;
-        yield 1.5;
-        while (far() > near) {
-          if (!seen && out(player)) {
-            seen = true;
-            for (const ln of sight) { const d = speak(ln, false); yield d * 0.75 + 0.15; if (far() <= near) break; }
-            continue;
-          }
-          const d = speak(chatter[i++ % chatter.length], false);
-          yield d * 0.8 + rand(0.3, 0.9);
+        // ------------------------------------------------ the caller, down into the crater
+        yield 1.2;
+        if (C?.a) C.a.track = player;
+        // (the first exchange; then two of her calls to one of the others' remarks, round again)
+        let n = 0, ai = 0, ci = 0;
+        const first = calls.slice();
+        while (C?.a && !nearCaller() && !poked()) {
+          let ln;
+          if (first.length) ln = first.shift();
+          else if (again.length && (n++ % 3 !== 2 || !chatter.length)) ln = { ...again[ai++ % again.length], name: C.name, toYou: true };
+          else ln = { ...chatter[ci++ % chatter.length], toYou: false };
+          speak(ln, !!ln.toYou);
+          yield wait(first.length ? rand(0.3, 0.7) : ln.toYou ? rand(3.5, 6) : rand(1.2, 2.5), nearCaller);
         }
-        // you've come: they turn to you, and say it all in turn (waiting if you walk off)
+        // ------------------------------------------------ she takes you to the others
+        if (C?.a && !C.back) {
+          if (lead.length) speak({ ...lead[0], name: C.name }, true);
+          yield wait(0, () => talking(C.a) && C.a.talk?.state === 'up');   // (she's begun)
+          yield after(0.9);                                                  // (and turns, still talking)
+          C.a.track = null;
+          let lagged = 0;
+          self.walkTo(C.a, home[0], home[1]);
+          while (C.a.goal) {
+            if (!seen && out(player)) { seen = true; for (const ln of sight) speak(ln, false); }
+            // (you've fallen behind: she stops and turns, and waits for you)
+            if (flat(player.pos, [C.a.pos.x, C.a.pos.z]) > 9 && flat(C.a.pos, C.at) > 3 && lag.length) {
+              const goal = C.a.goal;
+              C.a.goal = null; self.face(C.a, player);
+              if (lagged++ < 3) speak({ ...lag[(lagged - 1) % lag.length], name: C.name, toYou: true }, true);
+              yield wait(0.2, () => flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6);
+              yield () => flat(player.pos, [C.a.pos.x, C.a.pos.z]) < 6;
+              self.walkTo(C.a, goal[0], goal[1]);
+            }
+            yield () => !C.a.goal || (!seen && out(player)) || flat(player.pos, [C.a.pos.x, C.a.pos.z]) > 9;
+          }
+          C.back = true;
+          self.face(C.a, player);
+        }
+        // ------------------------------------------------ till you come to them
+        while (toGroup() > 7.5 && !poked()) {
+          if (!seen && out(player)) { seen = true; for (const ln of sight) speak(ln, false); }
+          yield wait(0.3, () => toGroup() <= 7.5 || (!seen && out(player)));
+        }
         seen = true;
-        for (const c of people) self.face(c.a, player);
-        yield 0.5;
+        // ------------------------------------------------ you've come: they turn to you and close in a little
+        for (const c of people) { self.face(c.a, player); c.a.quick = 0; }
+        self.closeIn(people.map((c) => c.a), player.pos);
+        yield 0.6;
+        let left = false;
         for (const ln of script) {
-          while (far() > near + 7) yield 0.25;
+          // (you walk off: they wait, one of them calls after you once)
+          if (toGroup() > 13) {
+            if (!left && away.length) { left = true; speak(away[0], true); }
+            yield () => toGroup() < 9;
+            for (const c of people) self.face(c.a, player);
+            yield 0.4;
+          }
           const c = people.find((q) => q.name === ln.name);
           if (ln.gift) { given++; if (c) self.gesture(c.a, 'interact'); }
           if (!c) { if (ln.gift) onGift?.(ln.gift, null); continue; }
-          const d = speak(ln, true);
+          speak(ln, true);
           if (ln.gift) onGift?.(ln.gift, c.a);
-          yield d + 0.35;
+          yield wait(rand(0.22, 0.5));
         }
         finished = true;
         onDone?.();
         yield 1;
       } finally {
+        for (const c of people) c.a.track = null;
         if (id === self.gatherId) for (const c of people) c.a.gathered = false;
         // broken up before the end (something dead came at them): you still get what they'd have given
         if (!finished && id === self.gatherId) {
@@ -703,6 +862,25 @@ export class Villagers {
     return true;
   }
 
+  /** A few people turning to meet someone at `at`: each takes a step or two in, to between 3.2 and 5
+   * m off, kept a little apart from the next, so they stand round them in a loose half-ring. */
+  closeIn(list, at) {
+    const spots = list.map((a) => {
+      const dx = a.pos.x - at.x, dz = a.pos.z - at.z, d = Math.hypot(dx, dz) || 1;
+      const r = Math.min(d, Math.max(3.2, Math.min(5, d * 0.55)) + rand(-0.3, 0.3));
+      return { a, x: at.x + (dx / d) * r, z: at.z + (dz / d) * r };
+    });
+    for (let it = 0; it < 24; it++) {
+      for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) {
+        const p = spots[i], q = spots[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+        if (d >= 1.6 || d < 1e-4) continue;
+        const push = (1.6 - d) / 2;
+        p.x -= (dx / d) * push; p.z -= (dz / d) * push; q.x += (dx / d) * push; q.z += (dz / d) * push;
+      }
+    }
+    for (const s of spots) if (Math.hypot(s.x - s.a.pos.x, s.z - s.a.pos.z) > 0.6) this.walkTo(s.a, s.x, s.z);
+  }
+
   /** Call off the gathering after the green star (a new game, or a save loaded): they go about their
    * day, and give nothing more. */
   endGather() {
@@ -710,20 +888,23 @@ export class Villagers {
     for (const a of this.list) if (a.gathered) { a.gathered = false; this.stopScenes(a); }
   }
 
+  /** The good day `a` will give you next (picked ahead, as their answer is). */
+  greetingFor(a) {
+    return (a.greeting ||= pick(a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
+      : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])]));
+  }
+
   /** Someone you come up to: they stop, turn to you, wave and say good day. */
   greet(a, player) {
     this.stopScenes(a);
     a.busy = true;
-    const self = this;
+    const self = this, line = this.greetingFor(a);
+    a.greeting = null;
     this.run((function* () {
-      self.face(a, player);
+      self.face(a, player); a.quick = 0.6;
       yield 0.25;
       self.gesture(a, 'wave');
-      const lines = a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
-        : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])];
-      let waited = 0;
-      while (!self.canSpeak(a, 1) && waited < 3) { waited += 0.25; yield 0.25; }
-      if (waited < 3) { a.talk = null; const d = self.say(a, pick(lines), true); yield d + 0.3; }
+      if (self.time >= QUIET) { self.say(a, line, true, { wait: 3 }); yield 0.3; }   // (a passing good day: let go if others are talking)
       yield 0.8;
     })(), [a]);
   }
@@ -733,6 +914,21 @@ export class Villagers {
     this.time += dt; this.player = player;
     const night = this.night = hour < 6.2 || hour > 20.5;
     this.stepScenes(dt);
+    // whoever you're walking up to: what they'll say to you made now (expect), so it's heard at once
+    if ((this.expectIn = (this.expectIn || 0) - dt) <= 0 && this.camera && voice.natural) {
+      this.expectIn = 0.3;
+      this.camera.getWorldDirection(_d);
+      const fl = Math.max(Math.hypot(_d.x, _d.z), 1e-3);
+      let best = null, bs = -1;
+      for (const a of this.list) {
+        if (a.inside || !a.root.visible || a.gathered) continue;
+        const dx = a.pos.x - player.pos.x, dz = a.pos.z - player.pos.z, d = Math.hypot(dx, dz);
+        if (d > 10 || d < 1e-3) continue;
+        const dot = (dx * _d.x + dz * _d.z) / d / fl;
+        if (dot > 0.5 && dot - d * 0.06 > bs) { bs = dot - d * 0.06; best = a; }
+      }
+      if (best) this.expect(best, 2);
+    }
     for (const a of this.list) {
       const dx = player.pos.x - a.pos.x, dz = player.pos.z - a.pos.z, dist = Math.hypot(dx, dz);
       const far = dist > 95 || player.pos.y < -4;
@@ -758,14 +954,14 @@ export class Villagers {
         const n = this.graph[a.home]; this.go(a, n.x, n.z);
       }
       if (goHome && !a.goal && Math.hypot(this.graph[a.home].x - a.pos.x, this.graph[a.home].z - a.pos.z) < 1.6) {
-        a.inside = true; a.root.visible = false; a.busy = false; a.headingHome = false; a.flee = 0; a.talk = null; continue;
+        a.inside = true; a.root.visible = false; a.busy = false; a.headingHome = false; a.flee = 0; hush(a); continue;
       }
       if (!goHome) a.headingHome = false;
       if (!goHome && a.busy && !this.scenes.some((s) => s.people.includes(a))) a.busy = false;   // a flight or a walk home called off
       // a free villager picks something to do
       if (!a.busy && !goHome && (a.nextT -= dt) <= 0) { this.pickRoutine(a); a.nextT = rand(0.5, 2.5); }
       // you come up to them, and they greet you
-      if (!goHome && !this.hush && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !(a.talk && a.talk.t > 0) && !(a.busy && this.scenes.some((sc) => sc.people.includes(a) && sc.people.length > 2))) {
+      if (!goHome && !this.hush && !a.gathered && dist < 3.6 && this.time - a.greeted > 50 && this.time - this.greetT > 6 && !a.tending && !talking(a) && !(a.busy && this.scenes.some((sc) => sc.people.includes(a) && sc.people.length > 2))) {
         // only if you're looking their way
         let looking = true;
         if (this.camera) { this.camera.getWorldDirection(_d); looking = -(dx * _d.x + dz * _d.z) / Math.max(dist, 1e-3) / Math.max(Math.hypot(_d.x, _d.z), 1e-3) > 0.6; }
@@ -792,10 +988,16 @@ export class Villagers {
             a.last.copy(a.pos); a.stuck = 0;
           }
         }
-      } else if (a.faceTo != null) {
-        let e = a.faceTo - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
-        a.yaw += Math.max(-dt * 3, Math.min(dt * 3, e));
+      } else {
+        if (a.track) this.face(a, a.track);         // (whoever they're talking to, wherever they go)
+        if (a.faceTo != null) {
+          // (turned to quickly when you speak to them: a.quick)
+          let e = a.faceTo - a.yaw; while (e > Math.PI) e -= Math.PI * 2; while (e < -Math.PI) e += Math.PI * 2;
+          const turn = (a.quick > 0 ? 8 : 3) * dt;
+          a.yaw += Math.max(-turn, Math.min(turn, e));
+        }
       }
+      if (a.quick > 0) a.quick -= dt;
       a.pos.y = this.physics.floorAt(a.pos.x, a.pos.z, a.pos.y + 0.5, 0.25, 0.6);
       if (!Number.isFinite(a.pos.y)) a.pos.y = 0;
       if (a.gesture > 0 && !moving) a.gesture -= dt;
@@ -805,8 +1007,6 @@ export class Villagers {
         if (moving) this.play(a, gait, a.gait?.[gait] ? Math.max(0.3, a.sp / a.gait[gait]) : run ? 1 : a.speed / 1.05);   // (the feet don't slide)
         else this.play(a, a.ual && a.talk && a.talk.t > 0 ? 'idle_talk' : a.rest);   // (talking with their hands while their words are up; some stand arms folded)
       }
-      // speech ages
-      if (a.talk) tickTalk(a, dt);
       // you can't walk through them
       if (dist < 0.55 && dist > 1e-4 && Math.abs(player.pos.y - a.pos.y) < 1.5) { player.pos.x = a.pos.x + dx / dist * 0.55; player.pos.z = a.pos.z + dz / dist * 0.55; }
       a.root.visible = !far;
@@ -817,7 +1017,310 @@ export class Villagers {
       a.root.position.copy(a.pos);
       a.root.rotation.y = a.yaw;
     }
-    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) : null, this.extraSpeakers);
+    if (this.camera) this.bubbles.draw(this, this.camera, this.quests ? (a) => this.quests.markOf(a.name) || this.shopMark?.(a) : null, this.extraSpeakers);
+  }
+}
+
+// ====================================================================== hands
+// The villagers' hands. Their models' finger bones sit a segment's worth further out than the
+// fingers they move (each joint 1.5 to 3 cm past where its skin hands over to the next bone), so a
+// finger bent in the middle of a bone, not at a knuckle; and the library's clips, carried over joint
+// for joint, bent every finger joint 65-80 degrees (claws), all alike, partly about the wrong axis.
+// So: each villager's finger joints are moved to where the skin hands over (fitHands: the hands
+// rigged as the hands are built), a little fuller across; and a hand rests as a hand does (relaxHands):
+// each finger curled a little more than the one before it, a few degrees apart (whatever the model's
+// own spread), the end joint following the middle one, the thumb easy beside the first finger; the
+// clip's own motion (a fist, a hand opened to wave) laid over that, bend only, about each finger's
+// own hinge, a part of it, within a joint's reach. A little shading goes with them: pale nails, shade
+// between the fingers and in the palm (in the skin's own shader: skinTone).
+const FINGER = /^(Index|Middle|Ring|Pinky|Thumb)(\d)([LR])$/;
+const REST_CURL = { Index: [15, 25, 10], Middle: [20, 30, 12], Ring: [25, 35, 15], Pinky: [30, 40, 18] };   // degrees: knuckle, middle joint, last
+const SPREAD = { Index: 3, Middle: 0, Ring: -2.5, Pinky: -5 };                                               // degrees from the middle finger, toward the thumb
+const TAKE = [0.35, 0.5, 0.3];                                                                               // how much of the clip's own bend each joint takes
+const MAX_CURL = [55, 65, 35];
+const DEG = Math.PI / 180;
+
+/** Each skeleton's clips, once: the fingers' turns remade (as above), their moves and stretches dropped. */
+function relaxHands(clips, scene) {
+  let mesh = null;
+  scene.traverse((o) => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; });
+  if (!mesh) return;
+  const sk = mesh.skeleton, at = new Map(sk.bones.map((b, i) => [b, i]));
+  const named = (n) => sk.bones.find((b) => b.name === n);
+  const bindWorld = (b) => new THREE.Matrix4().copy(sk.boneInverses[at.get(b)]).invert();
+  const where = (n) => { const b = named(n); return b ? new THREE.Vector3().setFromMatrixPosition(bindWorld(b)) : null; };
+  const info = new Map(), hands = {};
+  for (const side of ['L', 'R']) {
+    const w = where('Wrist' + side), i2 = where('Index2' + side), p2 = where('Pinky2' + side);
+    if (!w || !i2 || !p2) continue;
+    const across = i2.clone().sub(p2).normalize();                        // (toward the thumb)
+    const palm = new THREE.Vector3().crossVectors(i2.clone().sub(w), p2.clone().sub(w)).normalize();
+    hands[side] = { across, palm };
+    for (const b of sk.bones) {
+      const m = b.name.match(FINGER);
+      if (!m || m[3] !== side) continue;
+      const W = bindWorld(b), R = new THREE.Matrix4().extractRotation(W), Rt = R.clone().transpose();
+      const local = (at.has(b.parent) ? bindWorld(b.parent).invert() : new THREE.Matrix4()).multiply(W);
+      const rest = new THREE.Quaternion();
+      local.decompose(new THREE.Vector3(), rest, new THREE.Vector3());
+      const dir = new THREE.Vector3(0, 1, 0).applyMatrix4(R).normalize();
+      const hingeW = new THREE.Vector3().crossVectors(dir, palm).normalize();
+      const toward = new THREE.Vector3().crossVectors(palm, dir).dot(across) >= 0 ? 1 : -1;   // (a turn about the palm's normal that takes it toward the thumb)
+      info.set(b.name, { rest, f: m[1], k: +m[2], side, dir, hingeW, hinge: hingeW.clone().applyMatrix4(Rt).normalize(), spread: palm.clone().applyMatrix4(Rt).normalize(), toward, spreadDeg: 0 });
+    }
+  }
+  // which way is a curl: the library's idle curls the fingers in, so its middle joints' mean bend is a curl
+  const bend = (I, q) => {
+    const d = I.rest.clone().invert().multiply(q);
+    if (d.w < 0) d.set(-d.x, -d.y, -d.z, -d.w);
+    return 2 * Math.atan2(d.x * I.hinge.x + d.y * I.hinge.y + d.z * I.hinge.z, d.w);
+  };
+  const idle = clips.find((c) => c.name === 'idle') || clips[0];
+  const q = new THREE.Quaternion();
+  const idleFirst = new Map((idle?.tracks || []).filter((t) => t.name.endsWith('.quaternion')).map((t) => [t.name.slice(0, -11), new THREE.Quaternion().fromArray(t.values, 0)]));
+  const first = (bone) => idleFirst.get(bone) || null;     // (read before any clip is remade)
+  for (const side of Object.keys(hands)) {
+    let sum = 0;
+    for (const f of ['Index', 'Middle', 'Ring', 'Pinky']) { const I = info.get(f + '3' + side), q0 = I && first(f + '3' + side); if (q0) sum += bend(I, q0); }
+    if (sum < 0) for (const I of info.values()) if (I.side === side) { I.hinge.negate(); I.hingeW.negate(); }
+    // each finger's spread as modelled, measured from the middle finger in the palm's plane: what's
+    // turned is the difference to a hand's few degrees
+    const mid = info.get('Middle2' + side);
+    if (!mid) continue;
+    const plane = (v) => v.clone().addScaledVector(hands[side].palm, -v.dot(hands[side].palm)).normalize();
+    const ref = plane(mid.dir);
+    for (const f of ['Index', 'Ring', 'Pinky', 'Middle']) {
+      const I = info.get(f + '2' + side);
+      if (!I) continue;
+      const d = plane(I.dir), a = Math.acos(Math.max(-1, Math.min(1, d.dot(ref)))) * (d.dot(hands[side].across) >= ref.dot(hands[side].across) ? 1 : -1);
+      I.spreadDeg = SPREAD[f] - a / DEG;
+    }
+  }
+  // the idle's bend at each joint: what the clips' motion is measured from; the thumb's idle pose
+  const base = new Map(), thumbIdle = new Map();
+  for (const t of idle?.tracks || []) {
+    const bone = t.name.slice(0, t.name.lastIndexOf('.')), I = info.get(bone);
+    if (!I || !t.name.endsWith('.quaternion')) continue;
+    q.fromArray(t.values, 0);
+    if (I.f === 'Thumb') { if (I.rest.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w); thumbIdle.set(bone, I.rest.clone().slerp(q, 0.4)); }
+    else base.set(bone, bend(I, q));
+  }
+  const hq = new THREE.Quaternion(), sq = new THREE.Quaternion(), dq = new THREE.Quaternion(), one = new THREE.Quaternion();
+  for (const c of clips) {
+    c.tracks = c.tracks.filter((t) => !(info.has(t.name.slice(0, t.name.lastIndexOf('.'))) && !t.name.endsWith('.quaternion')));
+    const byBone = new Map(c.tracks.filter((t) => t.name.endsWith('.quaternion')).map((t) => [t.name.slice(0, -11), t]));
+    const middles = new Map();          // a finger's middle-joint bends, key by key (its last joint follows them)
+    const order = [...byBone.keys()].filter((b) => info.has(b)).sort((a, b) => info.get(a).k - info.get(b).k);
+    for (const bone of order) {
+      const I = info.get(bone), t = byBone.get(bone), v = t.values;
+      for (let i = 0, key = 0; i < v.length; i += 4, key++) {
+        q.fromArray(v, i);
+        if (I.f === 'Thumb') {                               // the thumb: eased a little toward its idle (the library curls it hard), and a little of the clip's motion from there
+          const easy = thumbIdle.get(bone) || I.rest, idleQ = first(bone) || I.rest;
+          dq.copy(idleQ).invert().multiply(q);
+          if (dq.w < 0) dq.set(-dq.x, -dq.y, -dq.z, -dq.w);
+          hq.copy(easy).multiply(one.identity().slerp(dq, 0.35)).toArray(v, i);
+          continue;
+        }
+        const j = I.k - 2;                                   // (0 the knuckle, 1 the middle joint, 2 the last; the palm's bone stays)
+        if (j < 0) { I.rest.toArray(v, i); continue; }
+        let a = REST_CURL[I.f][j] * DEG + TAKE[j] * (bend(I, q) - (base.get(bone) ?? 0));
+        a = Math.max(-8 * DEG, Math.min(MAX_CURL[j] * DEG, a));
+        if (j === 1) (middles.get(I.f) || middles.set(I.f, []).get(I.f))[key] = a;
+        if (j === 2) { const m = middles.get(I.f)?.[key]; if (m != null) a = Math.min(MAX_CURL[2] * DEG, Math.max(a, 0.66 * m)); }
+        hq.setFromAxisAngle(I.hinge, a);
+        sq.setFromAxisAngle(I.spread, j === 0 ? I.spreadDeg * DEG * I.toward : 0);
+        hq.premultiply(sq).premultiply(I.rest).toArray(v, i);
+      }
+    }
+  }
+}
+
+/** Where a model's finger joints belong: for each finger bone, the point along its parent where the
+ * skin hands over from the one to the other (the vertices about half and half). Bind space; worked out
+ * once for each model (from its body's skin). */
+function fingerJoints(mesh) {
+  const g = mesh.geometry;
+  if (g.userData.fingerJoints) return g.userData.fingerJoints;
+  const sk = mesh.skeleton, at = new Map(sk.bones.map((b, i) => [b.name, i]));
+  const bind = (n) => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(sk.boneInverses[at.get(n)]).invert());
+  const P = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  const out = {}, v = new THREE.Vector3();
+  for (const side of ['L', 'R']) {
+    for (const f of ['Index', 'Middle', 'Ring', 'Pinky', 'Thumb']) {
+      const chain = (f === 'Thumb' ? [1, 2, 3] : [1, 2, 3, 4]).map((k) => f + k + side).filter((n) => at.has(n));
+      for (let c = 1; c < chain.length; c++) {
+        const A = at.get(chain[c - 1]), B = at.get(chain[c]);
+        const a = out[chain[c - 1]] || bind(chain[c - 1]), b = bind(chain[c]), dir = b.clone().sub(bind(chain[c - 1])).normalize();
+        const ss = [];
+        for (let i = 0; i < P.count; i++) {
+          let wa = 0, wb = 0;
+          for (let k = 0; k < 4; k++) { const s = si.getComponent(i, k), w = sw.getComponent(i, k); if (s === A) wa += w; else if (s === B) wb += w; }
+          if (wa > 0.08 && wb > 0.08 && Math.abs(wa - wb) < 0.4) ss.push(v.fromBufferAttribute(P, i).applyMatrix4(mesh.bindMatrix).sub(a).dot(dir));
+        }
+        if (ss.length < 4) continue;
+        ss.sort((x, y) => x - y);
+        const s = ss[ss.length >> 1];
+        const len = b.clone().sub(a).dot(dir);
+        if (s > 0.25 * len && s < 1.05 * len) out[chain[c]] = a.clone().addScaledVector(dir, s);
+      }
+    }
+  }
+  return (g.userData.fingerJoints = out);
+}
+
+/** The villagers' skin (head and body: V_Skin_*) a little less orange than its pictures paint it, as
+ * the first-person arms' skin is (the world's warm light deepens it further): a quarter of its
+ * colour greyed out, in the shader, once for each material; and on the hands, their tone (bmTone:
+ * fitHands) — nails paler, shade between the fingers and in the palm. */
+function skinTone(m) {
+  if (!m || Array.isArray(m) || !/^V_Skin/.test(m.name || '') || m.userData.toned) return;
+  m.userData.toned = true;
+  if (WEBGPU) {
+    // TSL: the colour (its map crisp, as crisp() would make it, greyed and toned) and the light it
+    // ends with (greyed where faint, before the fog), on the material three keeps for them
+    m.colorNode = skinColor(m.map);
+    m.setupLighting = skinLighting;   // (copied onto the node material three draws it with)
+    keyed(m, 'bm-skin');
+    return;
+  }
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev?.call(m, sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float bmTone;\nvarying float vBmTone;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvBmTone = bmTone;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBmTone;').replace('#include <map_fragment>',
+      '#include <map_fragment>\n\tdiffuseColor.rgb = mix( diffuseColor.rgb, vec3( dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ) ), 0.27 );\n\tdiffuseColor.rgb *= 1.0 + vBmTone * mix( vec3( 1.0 ), vec3( 0.8, 1.0, 1.1 ), step( 0.0, vBmTone ) );')
+      // (in shadow skin goes grey, not orange-brown: what's lit faintly is greyed by up to a third)
+      .replace('#include <opaque_fragment>', 'outgoingLight = mix( outgoingLight, vec3( dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ), 0.32 * ( 1.0 - smoothstep( 0.06, 0.3, dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ) ) );\n#include <opaque_fragment>');
+  };
+  const key = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => (key ? key() : '') + '|bm-skin';
+  m.needsUpdate = true;
+}
+
+// (WebGPU) the skin's colour, one graph for every skin material (per kind of map): its map sampled
+// crisp, times its colour, a quarter greyed, times the hands' tone (bmTone; 0 where a body has none)
+const _skin = new Map();
+function skinColor(map) {
+  const k = map ? 'map|' + map.colorSpace + '|' + map.type : 'none';
+  if (_skin.has(k)) return _skin.get(k);
+  const { Fn, uv, dFdx, dFdy, attribute, float, vec3, vec4, dot, mix, step } = T;
+  let tex = null;
+  if (map) {
+    const u = uv();
+    tex = sharpGrad(shared((mat) => mat.map, map), u, dFdx(u), dFdy(u));
+    tex.onObjectUpdate((f) => sourceOf(f).map || undefined);   // (the sample follows the material too)
+  }
+  const tone = Fn((builder) => (builder.geometry?.hasAttribute('bmTone') ? attribute('bmTone', 'float') : float(0)))();
+  const g = Fn(() => {
+    const b = (tex || vec4(1)).toVar();
+    const c = b.rgb.mul(ref('color', 'color')).toVar();
+    c.assign(mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.27));
+    const t = tone.toVar();
+    c.mulAssign(t.mul(mix(vec3(1.0), vec3(0.8, 1.0, 1.1), step(0.0, t))).add(1.0));
+    return vec4(c, b.a);
+  })();
+  _skin.set(k, g);
+  return g;
+}
+
+/** (WebGPU) The skin's light as it leaves (setupLighting, on the node material three makes of the
+ * skin's): in shadow, grey, not orange-brown — what's lit faintly greyed by up to a third. */
+function skinLighting(builder) {
+  const { vec3, dot, mix, smoothstep } = THREE.TSL;
+  const out = Object.getPrototypeOf(this).setupLighting.call(this, builder);
+  const l = dot(out, vec3(0.299, 0.587, 0.114));
+  return mix(out, vec3(l), smoothstep(0.06, 0.3, l).oneMinus().mul(0.32));
+}
+
+/** A villager's own hands, once each (their bones and binds are their own; the meshes are shared, and
+ * smoothed and toned once each): each finger joint moved to where the skin hands over (fingerJoints),
+ * so it bends at its knuckle; the fingers a little fuller across; unless gauntlets cover them (they're
+ * bound to the bones as they were). The hands' faceted normals smoothed, and their tone. */
+function fitHands(model, bare) {
+  const bones = {};
+  model.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  let body = null;
+  const skels = new Set();
+  model.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    skels.add(o.skeleton);
+    if (o.material?.name === 'V_Skin_Body') body = o;
+    const g = o.geometry;
+    if (g.userData.handsSmoothed || !g.attributes.normal || !g.attributes.skinIndex) return;
+    g.userData.handsSmoothed = true;
+    const names = o.skeleton.bones.map((b) => b.name);
+    const hand = new Set(names.map((n, i) => (/^(Wrist|Index|Middle|Ring|Pinky|Thumb)/.test(n) ? i : -1)).filter((i) => i >= 0));
+    const P = g.attributes.position, N = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, at = new Map();
+    const tone = new Float32Array(P.count);
+    for (let i = 0; i < P.count; i++) {
+      let h = 0, top = 0, topW = 0;
+      for (let k = 0; k < 4; k++) {
+        const s = si.getComponent(i, k), w = sw.getComponent(i, k);
+        if (hand.has(s)) h += w;
+        if (w > topW) { topW = w; top = s; }
+      }
+      if (h < 0.5) continue;
+      const key = `${P.getX(i).toFixed(5)},${P.getY(i).toFixed(5)},${P.getZ(i).toFixed(5)}`;
+      if (!at.has(key)) at.set(key, []);
+      at.get(key).push(i);
+      // the tone: pale at the fingertips' backs (the nails), shade where two fingers' bones share it (between them)
+      const nm = names[top] || '';
+      if (/^(Index|Middle|Ring|Pinky)4/.test(nm)) tone[i] = 0.09;
+      else if (/^Thumb3/.test(nm)) tone[i] = 0.06;
+      let fingers = new Set();
+      for (let k = 0; k < 4; k++) { const n = names[si.getComponent(i, k)] || ''; const f = n.match(/^(Index|Middle|Ring|Pinky)[2][LR]/); if (f && sw.getComponent(i, k) > 0.12) fingers.add(f[1]); }
+      if (fingers.size > 1) tone[i] = -0.14;
+    }
+    const n = new THREE.Vector3();
+    for (const ids of at.values()) {
+      if (ids.length < 2) continue;
+      n.set(0, 0, 0);
+      for (const i of ids) n.x += N.getX(i), n.y += N.getY(i), n.z += N.getZ(i);
+      n.normalize();
+      for (const i of ids) N.setXYZ(i, n.x, n.y, n.z);
+    }
+    N.needsUpdate = true;
+    g.setAttribute('bmTone', new THREE.BufferAttribute(tone, 1));
+  });
+  if (!bare || !body) return;
+  const J = fingerJoints(body), full = new THREE.Matrix4().makeScale(1.08, 1, 1.08);
+  const bindOf = (s, i) => new THREE.Matrix4().copy(s.boneInverses[i]).invert();
+  const body0 = body.skeleton, at0 = new Map(body0.bones.map((b, i) => [b.name, i]));
+  for (const side of ['L', 'R']) {
+    for (const f of ['Index', 'Middle', 'Ring', 'Pinky', 'Thumb']) {
+      const chain = (f === 'Thumb' ? [1, 2, 3, '3_end'] : [1, 2, 3, 4, '4_end']).map((k) => typeof k === 'number' ? f + k + side : f + k.replace('_end', '') + side + '_end');
+      // the chain's binds, old and new, in the body's bind space (the ends keep where they were)
+      const oldW = {}, newW = {};
+      for (const n of chain) {
+        const i = at0.get(n);
+        if (i == null) continue;
+        oldW[n] = bindOf(body0, i);
+        newW[n] = oldW[n].clone();
+        if (J[n]) newW[n].setPosition(J[n]);
+      }
+      // each bone's rest place under its parent, from the new binds
+      for (let c = 1; c < chain.length; c++) {
+        const n = chain[c], p = chain[c - 1], b = bones[n];
+        if (!b || !newW[p]) continue;
+        const wpos = newW[n] ? new THREE.Vector3().setFromMatrixPosition(newW[n]) : b.getWorldPosition(new THREE.Vector3());
+        if (!newW[n]) continue;
+        b.position.copy(wpos.applyMatrix4(newW[p].clone().invert()));
+      }
+      // every skeleton bound as the body is: its inverse binds moved with them, the fingers a little fuller
+      const was = Object.fromEntries(chain.filter((n) => at0.has(n)).map((n) => [n, body0.boneInverses[at0.get(n)].clone()]));
+      for (const s of skels) {
+        for (const n of chain) {
+          const i = s.bones.findIndex((x) => x.name === n), i0 = at0.get(n);
+          if (i < 0 || i0 == null || !newW[n]) continue;
+          if (s !== body0 && !s.boneInverses[i].equals(was[n])) continue;
+          const inv = newW[n].clone().invert();
+          if (!/_end$/.test(n) && !/^(Index|Middle|Ring|Pinky|Thumb)1/.test(n)) inv.premultiply(full);
+          s.boneInverses[i] = inv;
+        }
+      }
+    }
   }
 }
 
@@ -834,15 +1337,18 @@ class Bubbles {
     if (game && game.parentNode) game.parentNode.insertBefore(c, game.nextSibling); else document.body.appendChild(c);
     this.g = c.getContext('2d');
     this.shown = false;
+    this.cinema = null;   // { who, camera }: a scene's one speaker (the opening's knight), shown alone, from its camera, even while hidden
   }
 
   draw(vill, camera, markOf = null, extra = null) {
     const c = this.canvas, g = this.g, dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
-    const talking = this.hidden ? [] : vill.list.filter((a) => a.talk && !a.inside && a.root.visible && a.head);
-    if (!this.hidden && extra) for (const a of extra()) if (a.talk && a.root?.visible !== false) talking.push(a);
-    const marked = markOf && !this.hidden ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
+    const cine = this.cinema;
+    if (cine?.camera) camera = cine.camera;
+    const talking = cine ? (cine.who?.talk && cine.who.root?.visible !== false ? [cine.who] : []) : this.hidden ? [] : vill.list.filter((a) => a.talk && !a.talk.hidden && !a.inside && a.root.visible && a.head);
+    if (!cine && !this.hidden && extra) for (const a of extra()) if (a.talk && !a.talk.hidden && a.root?.visible !== false) talking.push(a);
+    const marked = markOf && !this.hidden && !cine ? vill.list.filter((a) => !a.inside && a.root.visible && a.head && (a.mark = markOf(a))) : [];
     if (!talking.length && !marked.length) { if (this.shown) { g.clearRect(0, 0, W, H); this.shown = false; } return; }
     g.clearRect(0, 0, W, H); this.shown = true;
     camera.getWorldPosition(_w);
@@ -850,16 +1356,24 @@ class Bubbles {
     const items = [];
     for (const a of talking) {
       if (a.speechAt) a.speechAt(_v); else { a.head.getWorldPosition(_v); _v.y += 0.36; }
-      const dist = _v.distanceTo(_w);
-      if (dist > SHOW) continue;
-      // behind a wall? (checked a few times a second)
-      if (!((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
+      let dist = _v.distanceTo(_w);
+      if (cine) dist = Math.min(dist, 8);   // (a scene's speaker: always shown, never behind a wall)
+      else if (dist > SHOW) continue;
+      // behind a wall, or the lie of the ground (a crater's rim, a hill)? (checked a few times a second)
+      if (!cine && !((a.occT = (a.occT ?? 0) - 1 / 60) > 0)) {
         a.occT = 0.25;
         _d.copy(_v).sub(_w).normalize();
         const hit = vill.physics.ray ? vill.physics.ray(_w, _d, dist) : null;
-        a.occluded = !!(hit && hit.t < dist - 0.6);
+        let hid = !!(hit && hit.t < dist - 0.6);
+        // (the ground's only in the way out of doors: both of you above it, not down in the undercroft)
+        const G = vill.physics.groundAt?.bind(vill.physics), outside = G && _w.y > G(_w.x, _w.z) - 0.3 && _v.y > G(_v.x, _v.z) - 0.3;
+        for (let s = 0.12; s < 0.94 && !hid && outside; s += 0.08) {
+          const k = dist * s;
+          if (G(_w.x + _d.x * k, _w.z + _d.z * k) > _w.y + _d.y * k + 0.05) hid = true;
+        }
+        a.occluded = hid;
       }
-      if (a.occluded) continue;
+      if (!cine && a.occluded) continue;
       const p = _v.clone().project(camera);
       if (p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.3) continue;
       items.push({ a, x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, dist });
@@ -886,6 +1400,7 @@ class Bubbles {
     if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return;
     const x = (p.x * 0.5 + 0.5) * W, y = (-p.y * 0.5 + 0.5) * H;
     const s = dpr * Math.max(0.5, Math.min(1.6, 9 / Math.max(dist, 1)));
+    if (a.mark[0] === '$') { if (dist < 32) vill.drawShopMark?.(g, a.mark, x, y, s * 0.85); return; }   // a merchant's coin (trade.js)
     const glyph = a.mark === '!' ? '!' : '?', grey = a.mark === 'g';
     g.save();
     g.font = `900 ${Math.round(34 * s)}px "Cinzel Decorative", Cinzel, Georgia, serif`;

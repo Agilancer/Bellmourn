@@ -520,6 +520,18 @@ export class Quests {
     this.tip.style.left = x + 'px'; this.tip.style.top = Math.max(4, y) + 'px';
   }
 
+  /** What a giver would say if you spoke with them now (read aloud as their work comes up), or null
+   * if they've none for you: main makes it ahead, while you're looking at them. */
+  words(name) {
+    const mine = QUESTS.filter((q) => q.giver === name && (this.available(q.id) || ['active', 'ready'].includes(this.state[q.id]?.s)));
+    if (!mine.length) return null;
+    const ready = mine.find((q) => this.state[q.id]?.s === 'ready');
+    if (!(mine.length === 1 || ready)) return 'There is more than one thing to be done.';
+    const q = ready || mine[0], st = this.state[q.id];
+    const n = st ? st.n : q.objectives.map((ob) => this.needed(ob));
+    return st?.s === 'ready' ? q.done : st?.s === 'active' ? q.wait : typeof q.text === 'function' ? q.text(n) : q.text;
+  }
+
   /** Speak with a giver: their work (one quest at once, or a list to choose from). True if they
    * had any. */
   talk(name, v = null) {
@@ -537,12 +549,14 @@ export class Quests {
     D.innerHTML = '';
     D.append(this.closeBtn(), el('h2', null, esc(GIVERS[name].call)));
     D.append(el('div', 'q-text', 'There is more than one thing to be done.'));
+    this.o.speak?.(name, 'There is more than one thing to be done.');
     for (const q of list) {
       const st = this.state[q.id];
       const b = el('button', 'q-pick', `<span class="qm ${st ? (st.s === 'ready' ? 'q' : 'g') : 'e'}">${st ? '?' : '!'}</span> ${esc(q.title)}`);
       b.onclick = () => this.show(q, name);
       D.append(b);
     }
+    if (this.o.shopOf?.(name)) { const t = el('button', 'q-pick q-trade', '<span class="qm e">&#9673;</span> Trade'); t.onclick = () => this.o.onTrade?.(name); D.append(t); }
     D.classList.remove('hidden');
   }
 
@@ -571,6 +585,7 @@ export class Quests {
     if (!st) { btn('Accept', () => { this.accept(q.id); this.close(); }, 'sel'); btn('Decline', () => this.close()); }
     else if (st.s === 'ready') btn('Complete the quest', () => { this.complete(q.id); this.close(); }, 'sel');
     else btn('Goodbye', () => this.close());
+    if (this.o.shopOf?.(name)) btn('Trade', () => this.o.onTrade?.(name));   // (a merchant: their shop from here too)
     D.append(row);
     D.classList.remove('hidden');
   }

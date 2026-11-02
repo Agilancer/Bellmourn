@@ -12,6 +12,7 @@
 // also drops the outdoor ground there so the boxes are what you walk on. Foes find their way
 // to you along the passages by a flow field over the open cells.
 import * as THREE from 'three';
+import { WEBGPU, T, shared, keyed, ref, settled } from './nodes.js';
 
 const G = 0.5;                                    // grid step (metres)
 const DEEP = -9;                                  // the cavern floor (well under the 'under' line)
@@ -151,6 +152,14 @@ export function rockTexture() {
 export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   // two-sided: the roof's top shows as a ledge over the mouth from outside
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, specular: 0x181a1c, shininess: 14, side: THREE.DoubleSide });
+  if (WEBGPU) {   // (one graph per kind of rock texture; its picture, brightness and repeat are the material's)
+    ROCK_TEX.set(m, tex);
+    m.userData.rockK = k; m.userData.rockTile = tile;
+    const g = rockNode(tex);
+    m.colorNode = settled(g.node);
+    keyed(m, 'cave-rock-' + g.key);
+    return m;
+  }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tRock = { value: tex };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 cP; varying vec3 cN;')
@@ -166,6 +175,35 @@ export function rockMaterial(tex, k = 2.2, tile = 2.6) {
   };
   m.customProgramCacheKey = () => `cave-rock-${k}-${tile}`;
   return m;
+}
+
+// ------------------------------------------------------------------ the rock in TSL (WebGPU)
+const ROCK_TEX = new WeakMap();   // material -> its rock texture (a sampler of the GLSL's, not a map)
+const _rock = new Map();
+function rockNode(like) {
+  const key = `${like.colorSpace}-${like.type}-${like.minFilter}-${like.magFilter}`;
+  if (!_rock.has(key)) {
+    const { Fn, positionWorld, normalWorldGeometry, vec3, vec4, float, pow, abs, normalize, smoothstep, mix, select, textureSize } = T;
+    const tRock = shared((mat) => ROCK_TEX.get(mat), like);
+    const k = ref('userData.rockK', 'float', 2.2), tile = ref('userData.rockTile', 'float', 2.6);
+    const t1 = tile, ty = tile.mul(1.9), tz = tile.mul(0.85);
+    const node = Fn(() => {
+      const cP = positionWorld.toVar(), n = normalize(normalWorldGeometry).toVar();
+      const tw0 = pow(abs(n), vec3(4.0)), tw = tw0.div(tw0.x.add(tw0.y).add(tw0.z)).toVar();
+      // (both read before the choice: a select() becomes a branch, and these sample with the
+      // pixel's own gradients)
+      const under = tRock.sample(cP.zx.div(ty)).rgb.toVar(), over = tRock.sample(cP.xz.div(tz)).rgb.toVar();
+      const top = select(n.y.lessThan(0.0), under, over);
+      const rk = tRock.sample(cP.zy.div(t1)).rgb.mul(tw.x).add(tRock.sample(cP.xy.div(t1)).rgb.mul(tw.z)).add(top.mul(tw.y)).toVar();
+      const wet = smoothstep(0.6, 0.95, n.y);
+      rk.assign(mix(rk, rk.mul(vec3(0.78, 0.92, 0.86)), wet.mul(0.6)));
+      // (a zero that keeps the texture's own node in the graph, so its picture follows the material)
+      const held = float(textureSize(tRock, 0).x).mul(0.0);
+      return vec4(rk.mul(k).mul(ref('color', 'color')).add(held), 1.0);
+    })();
+    _rock.set(key, { node, key });
+  }
+  return _rock.get(key);
 }
 
 /** A small glowing mushroom (stem and cap), for instancing. */
@@ -337,6 +375,46 @@ export class Cave {
   }
 
   floorAt(x, z) { const j = this.idx(x, z); return j < 0 ? null : this.floor[j]; }
+
+  /** The rock as it is drawn at (x, z), between the grid's points (what the slimes stick to, see
+   * slimes.js): out.floor and out.roof, the two surfaces as they curl into each other at the walls
+   * (the roof Infinity out past the mouth), and out.s, the field (past 0.9, solid rock). Null off
+   * the grid. */
+  rockAt(x, z, out = {}) {
+    const fi = (x - this.px - this.a0) / G, fk = (z - this.pz - this.b0) / G;
+    const i = Math.floor(fi), k = Math.floor(fk);
+    if (i < 0 || k < 0 || i + 1 >= this.nx || k + 1 >= this.nz) return null;
+    const u = fi - i, v = fk - k;
+    let fl = 0, rf = 0, s = 0, open = false;
+    for (let c = 0; c < 4; c++) {
+      const di = c & 1, dk = c >> 1, w = (di ? u : 1 - u) * (dk ? v : 1 - v);
+      const j = (k + dk) * this.nx + i + di, a = this.a0 + (i + di) * G;
+      const l = a < 0 ? 0 : smooth(CURL, 0.9, this.s[j]) * (this.height[j] * 0.5 + 0.35) * smooth(-0.5, 1.5, a);
+      fl += w * (this.floor[j] + l);
+      if (a < 0.5) { if (w > 0) open = true; } else rf += w * (this.floor[j] + this.height[j] - l);
+      s += w * this.s[j];
+    }
+    out.floor = fl; out.roof = open ? Infinity : rf; out.s = s;
+    return out;
+  }
+
+  /** The way out of the rock's face at (x, z), into the open: the roof's (`roof`) or the floor's. */
+  rockNormal(x, z, roof, out) {
+    const e = 0.3, R = this._rk || (this._rk = {});
+    const y = (xx, zz) => { const r = this.rockAt(xx, zz, R); return r ? (roof ? r.roof : r.floor) : NaN; };
+    const xp = y(x + e, z), xm = y(x - e, z), zp = y(x, z + e), zm = y(x, z - e);
+    if (!Number.isFinite(xp + xm + zp + zm)) return out.set(0, roof ? -1 : 1, 0);
+    const gx = (xp - xm) / (2 * e), gz = (zp - zm) / (2 * e);
+    return roof ? out.set(gx, -1, gz).normalize() : out.set(-gx, 1, -gz).normalize();
+  }
+
+  /** Level, out of the rock's side at (x, z) (down the field's slope). */
+  wallNormal(x, z, out) {
+    const e = 0.4, R = this._rk || (this._rk = {});
+    const s = (xx, zz) => this.rockAt(xx, zz, R)?.s ?? 1;
+    out.set(s(x - e, z) - s(x + e, z), 0, s(x, z - e) - s(x, z + e));
+    return out.lengthSq() > 1e-8 ? out.normalize() : out.set(1, 0, 0);
+  }
 
   build() {
     const { nx, nz, s: S, floor: FL, height: HT, px, pz, a0, b0, ctx } = this;
@@ -686,5 +764,6 @@ export function caveNav(cave) {
     spot: (tag, inset) => cave.spot(tag, inset),
     tags: cave.features.map((f) => f.tag),
     mouth: cave.mouth,
+    rock: cave,   // (its rock as drawn: rockAt, rockNormal, wallNormal, for the slimes)
   };
 }

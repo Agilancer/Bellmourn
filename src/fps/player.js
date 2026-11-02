@@ -109,4 +109,27 @@ export class Player {
     this.healing -= h;
     this.health = Math.min(this.maxHealth, this.health + h + dt * this.lifeRegen);
   }
+
+  /** No-clip (the Debug Menu): flying where you look, through anything, with no weight and no walls.
+   * WASD (or the stick) along the view, Space up, C down, Shift faster. */
+  fly(dt, input) {
+    this.yaw -= input.look[0];
+    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
+    const [ax, ay] = input.axes();
+    const fast = input.held('ShiftLeft') || input.held('ShiftRight') || input.stickRun;
+    const top = fast ? 42 : 14;
+    const cp = Math.cos(this.pitch);
+    const fx = -Math.sin(this.yaw) * cp, fy = Math.sin(this.pitch), fz = -Math.cos(this.yaw) * cp;   // (forward, pitch and all)
+    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+    const up = (input.held('Space') ? 1 : 0) - (input.held('KeyC') ? 1 : 0);
+    const k = 1 - Math.exp(-dt * 9);   // (eased: it starts and stops quickly, never with a jolt)
+    this.vel.x += ((fx * ay + rx * ax) * top - this.vel.x) * k;
+    this.vel.y += ((fy * ay + up) * top - this.vel.y) * k;
+    this.vel.z += ((fz * ay + rz * ax) * top - this.vel.z) * k;
+    this.pos.addScaledVector(this.vel, dt);
+    this.onGround = false; this.speed = 0; this.heldT = 0;
+    this.stair = 0; this.ease[0] = this.ease[1] = 0;
+    this.camera.position.set(this.pos.x, this.pos.y + EYE, this.pos.z);
+    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+  }
 }

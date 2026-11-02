@@ -4,8 +4,8 @@
 //    under the menu. It's fetched and decoded before the first card comes up (title.js waits for it)
 //    and booked on the audio clock at the logo's moment, the same as the title's bells: it starts on
 //    the very sample however hard the loading holds the main thread.
-//  - The opening: "Cursed Citadel", from the moment a new game begins, over the whole of the opening
-//    (round again if the getting-ready runs long), fading as you wake in the crater.
+//  - The opening: "Cursed Citadel", from the opening's first shot (the title's song plays on under the
+//    getting-ready before it), over the whole of the opening, fading as you wake in the crater.
 //  - Then the music of wherever you are (SETS: the village, the open country, the wood, the
 //    graveyard, the keep, below the ground), a track at a time with a quiet between, crossfading
 //    when you go somewhere else; a fight brings in the action tracks over it (the place's own track
@@ -169,7 +169,7 @@ export class Music {
     this.titleBuf = null;
   }
 
-  /** The opening's song loaded ahead, so a new game's starts on the click. */
+  /** The opening's song loaded ahead, so it starts on the opening's first shot. */
   preloadIntro() {
     const s = this.player(0);
     if (!s || s.use || s.url === INTRO_SONG) return;
@@ -178,13 +178,25 @@ export class Music {
   }
 
   // ------------------------------------------------------------------ the opening's song
-  /** A new game: the title's song (or the place's music) gives way to the opening's, at once. */
-  intro() {
-    this.leaveTitle(1.4);
+  /** A new game asked for: the place's music (a game under way) gives way, and nothing new starts
+   * till the opening does; the title's song plays on under the getting-ready. The opening's song is
+   * made ready on a player of its own. */
+  toIntro() {
     for (const s of this.slots) if (s?.use && s.use !== 'stinger') this.fade(s, 1.2);
     this.area = this.fight = null; this.inFight = false; this.set = this.want = null;
     this.phase = 'intro';
     const s = this.slots[0]?.url === INTRO_SONG && !this.slots[0].use ? this.slots[0] : this.free();
+    if (s && !s.use && s.url !== INTRO_SONG) { s.el.src = s.url = INTRO_SONG; s.el.load(); }
+    this.introNext = s;
+  }
+
+  /** The opening's first shot: its song from this very moment, the title's fading under it. */
+  intro() {
+    if (this.phase !== 'intro') this.toIntro();
+    this.leaveTitle(1.4);
+    const n = this.introNext;
+    this.introNext = null;
+    const s = n && !n.use ? n : this.free();
     this.introSlot = this.begin(s, INTRO_SONG, 'intro', { loop: true, vol: LEVEL.intro, fade: 0.06 });
   }
 

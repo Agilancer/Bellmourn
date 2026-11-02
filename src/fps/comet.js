@@ -8,8 +8,16 @@
 // cone, a teal veil, a white-hot core streak) with flowing noise; and particles let go into the world
 // as it flies, so they hang where it has been: embers, sparks flung wide, and two streamers spiralling
 // round its path.
+//
+// Under WebGPU (nodes.js WEBGPU) the shaders are TSL node graphs, one per kind for every comet and
+// sky made (cometGraphs: the shells, the flame, the tails, the trail and its smoke, the stars, the
+// nebula, the world and its air), each material's own values (colour, time, rim, the tails' speeds)
+// read from it (nodes.js ref): its `uniforms` stay { value } objects the code sets as before.
+// Points (the trail, the stars) are drawn as quads there (effects.js pointQuads).
 import * as THREE from 'three';
 import { glowTex } from './crater.js';
+import { WEBGPU, T, ref } from './nodes.js';
+import { nodeMaterial, pointQuads, pointQuad } from './effects.js';
 
 const TOUCH_LITE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -23,8 +31,140 @@ const NOISE = /* glsl */`
   float cFbm(vec3 p) { return cNoise(p) * 0.5 + cNoise(p * 2.03 + 3.1) * 0.27 + cNoise(p * 4.1 + 7.7) * 0.15 + cNoise(p * 8.3 + 1.7) * 0.08; }
 `;
 
+// ------------------------------------------------------------------ WebGPU: the graphs
+let _g = null;
+/** Every graph the comet and the deep sky draw with, made once (TSL; WebGPU only). */
+function cometGraphs() {
+  if (_g) return _g;
+  const { Fn, vec3, vec4, float, fract, floor, mix, normalize, abs, dot, clamp, pow, smoothstep, min, max, exp, step, distance, attribute, varying,
+    texture, uv, positionGeometry, normalGeometry, positionLocal, positionWorld, positionView, cameraPosition, modelWorldMatrix } = T;
+  // NOISE
+  const cHash = Fn(([p0]) => {
+    const p = fract(p0.mul(0.3183099).add(0.1)).mul(17.0).toVar();
+    return fract(p.x.mul(p.y).mul(p.z).mul(p.x.add(p.y).add(p.z)));
+  }).setLayout({ name: 'cmHash', type: 'float', inputs: [{ name: 'p', type: 'vec3' }] });
+  const cNoise = Fn(([x]) => {
+    const i = floor(x).toVar(), f0 = fract(x).toVar(), f = f0.mul(f0).mul(f0.mul(-2.0).add(3.0)).toVar();
+    const h = (a, b, c) => cHash(i.add(vec3(a, b, c)));
+    return mix(mix(mix(h(0, 0, 0), h(1, 0, 0), f.x), mix(h(0, 1, 0), h(1, 1, 0), f.x), f.y),
+      mix(mix(h(0, 0, 1), h(1, 0, 1), f.x), mix(h(0, 1, 1), h(1, 1, 1), f.x), f.y), f.z);
+  }).setLayout({ name: 'cmNoise', type: 'float', inputs: [{ name: 'x', type: 'vec3' }] });
+  const cFbm = Fn(([p]) => cNoise(p).mul(0.5).add(cNoise(p.mul(2.03).add(3.1)).mul(0.27)).add(cNoise(p.mul(4.1).add(7.7)).mul(0.15)).add(cNoise(p.mul(8.3).add(1.7)).mul(0.08)))
+    .setLayout({ name: 'cmFbm', type: 'float', inputs: [{ name: 'p', type: 'vec3' }] });
+  // the drawn material's own values
+  const u = (k, type) => ref(`uniforms.${k}.value`, type);
+  const uTime = u('uTime', 'float'), uAmt = u('uAmt', 'float'), uColor = u('uColor', 'color');
+  // (as the GLSL's varyings: the normal turned by the model, the way to the eye)
+  const vN = varying(normalize(modelWorldMatrix.mul(vec4(normalGeometry, 0.0)).xyz));
+  const vV = varying(normalize(cameraPosition.sub(positionWorld)));
+  // (clamped: pow of a hair below 0 is NaN, which bloom smears into a black box)
+  const rimOf = () => clamp(abs(dot(normalize(vN), normalize(vV))).oneMinus(), 0.0, 1.0);
+
+  /** The shell of light: fresnel rim, clear in the middle. */
+  const shell = Fn(() => {
+    const f = rimOf(), vP = positionLocal;
+    const n = cFbm(vP.mul(3.0).add(vec3(0.0, uTime.mul(2.3), uTime.mul(1.1)))).toVar(), m = cFbm(vP.mul(7.0).sub(vec3(uTime.mul(3.1), 0.0, uTime.mul(1.7))));
+    const a = pow(f, u('uRim', 'float')).mul(smoothstep(0.2, 0.8, n.mul(0.6).add(m.mul(0.6)))).mul(1.4).add(u('uCore', 'float').mul(n));
+    return vec4(uColor.mul(a).mul(0.55).mul(uAmt), 1.0);
+  })();
+
+  /** The flames: a sphere pushed out by noise, more so behind it (+z). */
+  const uR = u('uR', 'float');
+  const heat = cFbm(positionGeometry.div(uR).mul(1.3).add(vec3(0.0, 0.0, uTime.mul(-6.0))));
+  const back = smoothstep(-0.2, 1.0, normalize(positionGeometry).z);
+  const flamePosition = positionGeometry.add(normalGeometry.mul(uR).mul(heat.mul(0.25).add(back.mul(heat.mul(heat).mul(1.3).add(0.2)))));
+  const vHeat = varying(heat);
+  const flame = Fn(() => {
+    const f = rimOf(), vP = positionLocal;
+    const n = cFbm(vP.div(0.6).mul(1.6).add(vec3(0.0, 0.0, uTime.mul(-9.0)))).toVar(), m = cNoise(vP.div(0.6).mul(4.0).add(vec3(uTime.mul(4.0), 0.0, uTime.mul(-12.0)))).toVar();
+    const a = smoothstep(0.42, 0.95, n.mul(0.65).add(vHeat.mul(0.45)).add(m.mul(0.2))).mul(f.mul(0.85).add(0.15));
+    const c = mix(vec3(0.05, 0.55, 0.15), vec3(0.85, 1.0, 0.55), smoothstep(0.55, 0.95, n.add(m.mul(0.2))));
+    return vec4(c.mul(a).mul(0.55).mul(uAmt), 1.0);
+  })();
+
+  /** A tail: an open cone, its noise flowing back (its speeds, edge and brightness the material's). */
+  const vCam = varying(distance(cameraPosition, positionWorld));
+  const tail = Fn(() => {
+    const vUv = uv(), along = vUv.y;                                    // 0 at the head, 1 at the end
+    const face = abs(dot(normalize(vN), vV));                           // edge-on is faint
+    const n = cFbm(vec3(vUv.x.mul(6.0), along.mul(5.0).sub(uTime.mul(ref('userData.speed', 'float'))), along.mul(2.0)));
+    const streak = cFbm(vec3(vUv.x.mul(22.0), along.mul(1.4).sub(uTime.mul(ref('userData.speed2', 'float'))), 4.0));
+    const near = u('uNear', 'float');
+    const a = pow(clamp(along.oneMinus(), 0.0, 1.0), 1.6).mul(smoothstep(0.0, 0.04, along)).mul(n.mul(0.9).add(0.35)).mul(streak.mul(0.8).add(0.5))
+      .mul(mix(float(1.0), face, ref('userData.edge', 'float'))).mul(smoothstep(near.mul(0.3), near, vCam));
+    return vec4(uColor.mul(a).mul(ref('userData.bright', 'float')).mul(uAmt), 1.0);
+  })();
+
+  /** The trail's particles, or its smoke: round glows drawn as quads, as the GLSL sized its points. */
+  const trail = (smoke) => {
+    const size = attribute('size', 'float'), fade = attribute('fade', 'float'), color = attribute('color', 'vec3');
+    const z = positionView.z.negate();
+    const near = smoothstep(2.0, 7.0, z);          // none swelling up over the lens
+    const { vertex, coord } = pointQuad(min(float(smoke ? 180.0 : 64.0), size.mul(u('uScale', 'float')).div(max(0.5, z))));
+    const vC = varying(color.mul(near)), vF = varying(fade.mul(near));
+    const a = texture(glowTex()).sample(coord).r;
+    return { vertex, fragment: smoke ? vec4(vC, clamp(a.mul(vF), 0.0, 1.0)) : vec4(vC.mul(a), 1.0) };
+  };
+
+  /** The stars: PointsMaterial's square points, 2.4 pixels across, in their vertex colours. */
+  const stars = { vertex: pointQuad(float(2.4)).vertex, fragment: vec4(attribute('color', 'vec3'), 1.0) };
+
+  /** The nebula: a band of faint cloud across the sky. */
+  const vD = varying(normalize(positionGeometry));
+  const nebula = Fn(() => {
+    const bd = dot(vD, normalize(vec3(0.3, 0.8, 0.5))).div(0.32), band = exp(bd.mul(bd).negate());
+    const n = cFbm(vD.mul(4.0)).toVar(), m = cFbm(vD.mul(9.0).add(3.0)).toVar();
+    const c = mix(vec3(0.05, 0.02, 0.09), vec3(0.03, 0.08, 0.12), m).mul(smoothstep(0.35, 0.8, n)).mul(band).mul(1.6).toVar();
+    c.addAssign(vec3(0.12, 0.05, 0.1).mul(pow(smoothstep(0.55, 0.9, n.mul(m).mul(1.6)), 2.0)).mul(band));
+    return vec4(c, 1.0);
+  })();
+
+  /** The world below, lit by the sun (uSun) from the east, its night side to the west. */
+  const uSun = u('uSun', 'vec3');
+  const planet = Fn(() => {
+    const n = normalize(vD).toVar();
+    const land = smoothstep(0.5, 0.56, cFbm(n.mul(3.2).add(2.0))).toVar();
+    const forest = cFbm(n.mul(12.0));
+    const ground = mix(vec3(0.02, 0.06, 0.16), mix(vec3(0.09, 0.16, 0.06), vec3(0.22, 0.2, 0.12), forest), land);
+    const cl = smoothstep(0.66, 0.9, cFbm(n.mul(5.0).add(vec3(uTime.mul(0.01), 0.0, 0.0))).mul(0.7).add(cFbm(n.mul(15.0)).mul(0.4)));
+    const c = mix(ground, vec3(0.7), cl.mul(0.8));
+    const day = dot(n, uSun).toVar();
+    const lit = smoothstep(-0.12, 0.35, day).toVar();
+    const V = normalize(cameraPosition.sub(positionWorld));
+    const rim = pow(clamp(dot(n, V).oneMinus(), 0.0, 1.0), 3.0);
+    const col = c.mul(lit).add(vec3(0.12, 0.3, 0.7).mul(rim).mul(0.4).mul(lit.add(0.1))).toVar();
+    // the lights of towns on the night side
+    col.addAssign(vec3(1.0, 0.7, 0.3).mul(step(0.86, cNoise(n.mul(140.0)))).mul(land).mul(smoothstep(-0.2, 0.05, day).oneMinus()).mul(0.6));
+    return vec4(col, 1.0);
+  })();
+
+  /** Its air: a slightly bigger shell glowing at the limb. */
+  const air = Fn(() => {
+    const V = normalize(cameraPosition.sub(positionWorld));
+    const f = pow(clamp(abs(dot(normalize(vN), V)).oneMinus(), 0.0, 1.0), 4.0);
+    const lit = smoothstep(-0.3, 0.4, dot(normalize(vN), uSun));
+    return vec4(vec3(0.25, 0.5, 1.0).mul(f).mul(lit.mul(0.8).add(0.08)), 1.0);
+  })();
+
+  return (_g = { shell, flame, flamePosition, tail, trail: [trail(false), trail(true)], stars, nebula, planet, air });
+}
+
+/** A node material for one of cometGraphs' kinds, with these settings and its own `uniforms`. */
+function cometMaterial(nodes, uniforms, params, userData = {}) {
+  const m = nodeMaterial(params);
+  Object.assign(m, nodes);
+  m.uniforms = uniforms;
+  Object.assign(m.userData, userData);
+  return m;
+}
+const GLOW = { blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, side: THREE.DoubleSide, toneMapped: false };
+
 /** The shell of light: fresnel rim, clear in the middle. */
 function shellMaterial(color, rim = 2.2, core = 0.05) {
+  if (WEBGPU) {
+    return cometMaterial({ fragmentNode: cometGraphs().shell },
+      { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 }, uRim: { value: rim }, uCore: { value: core }, uAmt: { value: 1 } }, GLOW);
+  }
   return new THREE.ShaderMaterial({
     uniforms: { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 }, uRim: { value: rim }, uCore: { value: core }, uAmt: { value: 1 } },
     vertexShader: /* glsl */`
@@ -51,6 +191,10 @@ function shellMaterial(color, rim = 2.2, core = 0.05) {
 /** The flames streaming back off the ball: a sphere pushed out by noise, more so behind it (the
  * comet flies along -z in its own space). */
 function flameMaterial() {
+  if (WEBGPU) {
+    const g = cometGraphs();
+    return cometMaterial({ positionNode: g.flamePosition, fragmentNode: g.flame }, { uTime: { value: 0 }, uAmt: { value: 1 }, uR: { value: 0.6 } }, GLOW);
+  }
   return new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uAmt: { value: 1 }, uR: { value: 0.6 } },
     vertexShader: /* glsl */`
@@ -84,6 +228,12 @@ function flameMaterial() {
 
 /** A tail: an open cone along +z (head at 0, end at len), its noise flowing back. */
 function tailMaterial(color, speed, edge, bright) {
+  if (WEBGPU) {   // (its numbers as the GLSL bakes them in: to two places)
+    const r = (v) => Number(v.toFixed(2));
+    return cometMaterial({ fragmentNode: cometGraphs().tail },
+      { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uAmt: { value: 1 }, uNear: { value: 10 } }, GLOW,
+      { speed: r(speed), speed2: r(speed * 0.6), edge: r(edge), bright: r(bright) });
+  }
   return new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uAmt: { value: 1 }, uNear: { value: 10 } },
     vertexShader: /* glsl */`
@@ -124,7 +274,9 @@ class Trail {
     geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3));
     geo.setAttribute('size', new THREE.BufferAttribute(this.size, 1));
     geo.setAttribute('fade', new THREE.BufferAttribute(this.fade, 1));
-    this.mat = new THREE.ShaderMaterial({
+    this.mat = WEBGPU ? cometMaterial({ vertexNode: cometGraphs().trail[smoke ? 1 : 0].vertex, fragmentNode: cometGraphs().trail[smoke ? 1 : 0].fragment },
+      { uMap: { value: glowTex() }, uScale: { value: 600 } },
+      { blending: smoke ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, side: THREE.DoubleSide }) : new THREE.ShaderMaterial({
       uniforms: { uMap: { value: glowTex() }, uScale: { value: 600 } },
       vertexShader: /* glsl */`
         attribute float size, fade; attribute vec3 color; varying vec3 vC; varying float vF; uniform float uScale;
@@ -142,7 +294,7 @@ class Trail {
         void main() { float a = texture2D(uMap, gl_PointCoord).r; gl_FragColor = vec4(vC * a, 1.0); }`,
       blending: smoke ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false,
     });
-    this.points = new THREE.Points(geo, this.mat);
+    this.points = WEBGPU ? new THREE.Mesh(pointQuads(geo), this.mat) : new THREE.Points(geo, this.mat);
     this.points.frustumCulled = false;
     for (let k = 0; k < n; k++) this.p.push({ x: 0, y: -1e5, z: 0, vx: 0, vy: 0, vz: 0, t: 1, life: 1, s: 0, c: [0, 0, 0] });
   }
@@ -362,10 +514,11 @@ export class Space {
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.BufferAttribute(P, 3));
     sg.setAttribute('color', new THREE.BufferAttribute(C, 3));
-    this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 2.4, sizeAttenuation: false, vertexColors: true, toneMapped: false, depthWrite: false }));
+    this.stars = WEBGPU ? new THREE.Mesh(pointQuads(sg), cometMaterial({ vertexNode: cometGraphs().stars.vertex, fragmentNode: cometGraphs().stars.fragment }, {}, { toneMapped: false, depthWrite: false, side: THREE.DoubleSide }))
+      : new THREE.Points(sg, new THREE.PointsMaterial({ size: 2.4, sizeAttenuation: false, vertexColors: true, toneMapped: false, depthWrite: false }));
     s.add(this.stars);
     // the nebula: a band of faint cloud across the sky
-    this.nebula = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), new THREE.ShaderMaterial({
+    this.nebula = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), WEBGPU ? cometMaterial({ fragmentNode: cometGraphs().nebula }, {}, { side: THREE.BackSide, depthWrite: false, toneMapped: false }) : new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, toneMapped: false,
       vertexShader: 'varying vec3 vD; void main() { vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: /* glsl */`
@@ -383,7 +536,7 @@ export class Space {
     // the world below, lit by the sun from the east, its night side to the west
     this.sunDir = new THREE.Vector3(0.75, 0.35, -0.55).normalize();
     const R = 900;
-    this.planet = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), new THREE.ShaderMaterial({
+    this.planet = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), WEBGPU ? cometMaterial({ fragmentNode: cometGraphs().planet }, { uSun: { value: this.sunDir }, uTime: { value: 0 } }, {}) : new THREE.ShaderMaterial({
       uniforms: { uSun: { value: this.sunDir }, uTime: { value: 0 } },
       vertexShader: 'varying vec3 vN, vP; void main() { vN = normalize(position); vP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.0); }',
       fragmentShader: /* glsl */`
@@ -409,7 +562,8 @@ export class Space {
     this.planet.position.set(0, -R - 160, 0);
     s.add(this.planet);
     // its air: a slightly bigger shell glowing at the limb
-    this.air = new THREE.Mesh(new THREE.SphereGeometry(R * 1.012, 96, 64), new THREE.ShaderMaterial({
+    this.air = new THREE.Mesh(new THREE.SphereGeometry(R * 1.012, 96, 64), WEBGPU ? cometMaterial({ fragmentNode: cometGraphs().air }, { uSun: { value: this.sunDir } },
+      { blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, side: THREE.FrontSide, toneMapped: false }) : new THREE.ShaderMaterial({
       uniforms: { uSun: { value: this.sunDir } },
       vertexShader: 'varying vec3 vN, vP; void main() { vN = normalize(mat3(modelMatrix) * normal); vP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.0); }',
       fragmentShader: /* glsl */`
