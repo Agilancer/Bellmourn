@@ -457,7 +457,7 @@ export class Arcana {
     if ((ch.tick -= dt) <= 0) {
       ch.tick = 0.2;
       if (flesh) { this.m.onHit?.(def, end.clone(), dir.clone(), flesh, { dmg: def.dmg, heavy: false, blow: 0.12 }); flesh.z.ignite(3, 8); }
-      for (const z of this.foes()) if (z !== flesh?.z && this.chest(z).distanceTo(end) < 1.4) { z.harm(def.dmg * 0.5); z.ignite(3, 6); }
+      for (const z of this.foes()) if (z !== flesh?.z && this.chest(z).distanceTo(end) < 1.4) { z.harm(def.dmg * 0.5, 'fire'); z.ignite(3, 6); }
       this.m.smash?.(end, 0.8, 12);
       this.m.noise?.(end, 14);
     }
@@ -573,7 +573,7 @@ export class Arcana {
     if (Math.random() < dt * 6) z.owner.gore?.spray(c, back.clone().normalize(), 3, { speed: 3.5, spread: 0.25 });
     if ((ch.tick -= dt) <= 0) {
       ch.tick = 0.25;
-      z.harm(def.dmg);
+      z.harm(def.dmg, 'drain');
       player.health = Math.min(player.maxHealth, player.health + def.dmg * def.heal);
       this.hands(def, 2.4);
       if (z.dead) {   // the last of it, all at once
@@ -654,7 +654,7 @@ export class Arcana {
       if ((f.tick -= dt) <= 0 && k > 0.3) {   // what stands in it burns
         f.tick = 0.25;
         for (const z of this.foes()) if (f.zone(z.pos)) {
-          z.harm(f.def.dps * 0.25); z.ignite(4, f.def.burn);
+          z.harm(f.def.dps * 0.25, 'fire'); z.ignite(4, f.def.burn);
           if (!f.touched.has(z)) { f.touched.add(z); this.strike(z, z.pos.clone().add(new THREE.Vector3(Math.random() - 0.5, 0.3, Math.random() - 0.5)), f.def, 12, { heavy: false, blow: 0 }); }
         }
       }
@@ -736,7 +736,7 @@ export class Arcana {
         const d = Math.hypot(z.pos.x - n.c.x, z.pos.z - n.c.z);
         if (d > Math.min(front, n.R) || Math.abs(z.pos.y - n.c.y) > 3) continue;
         n.hit.add(z);
-        z.harm(n.def.dmg); z.freeze(n.def.freeze); z.chill(n.def.freeze + 3);   // and slow a while after it thaws
+        z.harm(n.def.dmg, 'frost'); z.freeze(n.def.freeze); z.chill(n.def.freeze + 3);   // and slow a while after it thaws
         for (let k = 0; k < 2; k++) {   // rime where the cold bit in
           const b = this.m.nearest?.(z, this.chest(z).add(rnd().multiplyScalar(0.5)));
           if (b) z.wound(b.point, b.bone, 0.05, 3);
@@ -898,7 +898,7 @@ export class Arcana {
         if (Math.random() < 0.06) this.m.decals.add('frost', p, UP, 0.6 + Math.random() * 0.5, { life: 10 });
         for (const z of this.foes()) {
           if (Math.hypot(z.pos.x - p.x, z.pos.z - p.z) > 0.8 || Math.abs(z.pos.y - p.y) > 2) continue;
-          z.harm(def.dmg); z.chill(2.5);
+          z.harm(def.dmg, 'frost'); z.chill(2.5);
           if (Math.random() < 0.3) { const b = this.m.nearest?.(z, sh.m.position); if (b) z.wound(b.point, b.bone, 0.035, 3); }
         }
         return false;
