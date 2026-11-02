@@ -13,6 +13,7 @@ from mathutils import Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
+ONLY = argv[1].split(",") if len(argv) > 1 else list("BCDE")   # which takes to show under each clip
 os.makedirs(OUT, exist_ok=True)
 sc = bpy.context.scene
 ARM = bpy.data.objects["Armature"]
@@ -41,7 +42,9 @@ for t in ad.nla_tracks:
 for base in ("Zombie_Idle_Loop", "Zombie_Walk_Fwd_Loop", "Zombie_Scratch"):
     paths = []
     ncol = 8 if "Scratch" in base else 5      # the attacks need more moments to catch the wind-up and the hit
-    for name in [base] + [base + "_" + s for s in "BCDE"]:
+    if len(argv) > 1 and base == "Zombie_Idle_Loop":
+        continue
+    for name in ([base] if len(argv) == 1 else []) + [base + "_" + s for s in ONLY]:
         act = bpy.data.actions.get(name)
         if act is None:
             continue
@@ -55,7 +58,9 @@ for base in ("Zombie_Idle_Loop", "Zombie_Walk_Fwd_Loop", "Zombie_Scratch"):
             sc.render.filepath = p
             bpy.ops.render.render(write_still=True)
             paths.append(p)
-    sheet = os.path.join(OUT, base + ".png")
+    if not paths:
+        continue
+    sheet = os.path.join(OUT, base + (".png" if len(argv) == 1 else "_variants.png"))
     code = ("import sys;from PIL import Image,ImageDraw;n=int(sys.argv[2]);ps=sys.argv[3:];ims=[Image.open(p) for p in ps];w,h=ims[0].size;"
             "s=Image.new('RGB',(w*n,h*(len(ims)//n)));d=ImageDraw.Draw(s)\n"
             "for i,(p,im) in enumerate(zip(ps,ims)):\n"
