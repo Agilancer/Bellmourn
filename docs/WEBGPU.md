@@ -87,10 +87,6 @@ if (WEBGPU) { /* TSL */ } else { /* the GLSL, untouched */ }
   replays: culled per cell against whichever camera draws (world, sun, torches), re-recorded only when a
   piece in it is shown, hidden or stops casting. This took the CPU from 16.8 to 10.2 ms a frame (mean of
   the nine bench views at 1080p; WebGL: 16.3). `?nocells` turns it off.
-  **Bundles are played at the end of the pass, after the transparent list**: anything see-through drawn
-  with the world (the windows' glass) is painted over by the still world behind it, or, if it writes
-  depth, hides it. Such things go in `worldPass.late` (post.js), a scene drawn over the finished world
-  against its depth (main.js moves the houses' glass there).
 - `src/fps/engine.js` — `makeRenderer` (WebGPU or WebGL), `hideUnported` (a GLSL ShaderMaterial still
   about under WebGPU is hidden and named in the console, not thrown on), `findBadDraw` / `?debugrender`
   (which object makes a frame throw), `programCount` (pipelines under WebGPU).

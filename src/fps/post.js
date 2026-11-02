@@ -13,34 +13,25 @@ import { SKY } from './nodes.js';
 const T = THREE.TSL;
 
 /** The world's pass, with the arms drawn after it into the same buffer, depth cleared between (as
- * the WebGL composer's vmPass: clear false, clearDepth true). Between the two, `late` (a scene, or
- * null): drawn over the finished world against its depth. The windows' glass is there: the still world
- * is in render bundles (cells.js), which three plays at the end of the pass, after anything
- * see-through, so glass drawn with the world was painted over (or hid what lay behind it). */
+ * the WebGL composer's vmPass: clear false, clearDepth true). */
 class WorldPass extends THREE.PassNode {
   constructor(scene, camera, samples) {
     super(THREE.PassNode.COLOR, scene, camera, { samples, type: THREE.HalfFloatType });
     this.renderTarget.samples = samples;
     this.vm = { scene: null, camera: null, enabled: true, clear: false, clearDepth: true };
-    this.late = null;
   }
 
   updateBefore(frame) {
     super.updateBefore(frame);
-    if (this.late?.children.length) this.over(frame.renderer, this.late, this.camera, false);
     const vm = this.vm;
     if (!vm.enabled || !vm.scene || !vm.camera) return;
-    this.over(frame.renderer, vm.scene, vm.camera, true);
-  }
-
-  /** Draw `scene` into the world's buffer over what's there (its depth cleared first, or kept). */
-  over(r, scene, camera, clearDepth) {
+    const r = frame.renderer;
     const was = r.getRenderTarget(), mrt = r.getMRT();
     const ac = r.autoClear, acc = r.autoClearColor, acd = r.autoClearDepth, acs = r.autoClearStencil;
     r.setRenderTarget(this.renderTarget);
     r.setMRT(this._mrt);
-    r.autoClear = true; r.autoClearColor = false; r.autoClearDepth = clearDepth; r.autoClearStencil = false;
-    try { r.render(scene, camera); } finally {   // (a draw that throws mustn't leave the world's buffer bound)
+    r.autoClear = true; r.autoClearColor = false; r.autoClearDepth = true; r.autoClearStencil = false;
+    try { r.render(vm.scene, vm.camera); } finally {   // (a draw that throws mustn't leave the world's buffer bound)
       r.autoClear = ac; r.autoClearColor = acc; r.autoClearDepth = acd; r.autoClearStencil = acs;
       r.setRenderTarget(was);
       r.setMRT(mrt);

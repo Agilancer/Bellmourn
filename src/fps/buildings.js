@@ -451,7 +451,7 @@ export function cart(ctx, x, z, rot, mats) {
 /** Shared materials for the houses (some from the library's unused textures). */
 export function houseMaterials(lib, M) {
   // the windows' glass: clear leaded panes you see the rooms through (the sun comes in through them);
-  // unlit, its brightness set with the day's (main.js), and drawn after the world (post.js WorldPass.late)
+  // unlit, its brightness set with the day's (main.js), and drawn after the other see-through things
   const glass = new THREE.MeshBasicMaterial({ color: 0xffffff, map: leadedGlass(), side: THREE.DoubleSide, transparent: true, depthWrite: false });
   glass.userData = { tileU: 1, tileV: 1, noCast: true, renderOrder: 50 };
   // the dark of an attic behind a window up in the roof

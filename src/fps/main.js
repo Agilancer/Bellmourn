@@ -671,14 +671,6 @@ async function prepare(mark) {
       if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
     }
   }
-  // (WebGPU: the windows' glass drawn over the finished world, as the arms are, not with it: post.js
-  // WorldPass.late says why)
-  if (WEBGPU && ctx.glass) {
-    const late = new THREE.Scene();
-    late.fog = scene.fog; late.fogNode = scene.fogNode;
-    for (const m of ctx.built || []) if (m.material === ctx.glass && m.parent === scene) { scene.remove(m); late.add(m); }
-    worldPass.late = late;
-  }
   // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
   // frame; made before the shaders are compiled, which take it in)
   if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
