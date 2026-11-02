@@ -30,6 +30,7 @@ import { voice } from './voice.js';
 import { speak, hush, hushAll, tickSpeech, speaking } from './speech.js';
 import { Chatter } from './chatter.js';
 import { Doors } from './doors.js';
+import { Nav } from './nav.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
@@ -294,6 +295,7 @@ async function build() {
   ctx.cutouts = await new Cutouts(ctx).load();      // the biome packs' arches and gateways
   physics.terrain = terrainHeight; // the downs; flat ground everywhere else
   ctx.doors = new Doors(ctx);
+  physics.nav = new Nav(physics, ctx.doors);   // (monsters finding their way: out of a house by its door; nav.js)
   ctx.tufts = new Tufts();   // (grass at the roads' edges: the builders add, finished with the rest)
   ctx.scatter = new Scatter3D(ctx);
   ctx.trees3d = new Trees3D(ctx);
@@ -1388,7 +1390,8 @@ function light(dt, t) {
   ctx.stained.update(ld, day.day * surface, day.ambient * surface);
   // lit windows and lanterns come up as the light goes
   const dusk = 1 - THREE.MathUtils.smoothstep(day.day, 0.1, 0.9);
-  if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;
+  // (the glass is unlit: as bright as the day, warming a little with the lamps inside after dark)
+  if (ctx.glass) { const k = 0.16 + 0.84 * day.day; ctx.glass.color.setRGB(k + 0.55 * dusk, k + 0.32 * dusk, k + 0.1 * dusk); }
   if (ctx.lantern) ctx.lantern.color.setRGB(0.9 + 1.8 * dusk, 0.6 + 1.1 * dusk, 0.3 + 0.55 * dusk);
   mist.update(t, 0.35 + 0.65 * day.day);
   lantern.position.set(camera.position.x, camera.position.y + 0.35, camera.position.z);
@@ -2382,6 +2385,7 @@ function tick(dt) {
   hud.guard(guard, vm.blocking);
   player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
+  physics.nav?.frame(dt);
   ctx.props.update(dt);   // (searched chests' lids swinging open, broken things' pieces flying)
   if (active) ctx.loot.update(dt, player, !cheats.fly);
   ctx.trees3d.update(t);

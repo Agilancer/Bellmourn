@@ -243,9 +243,18 @@ function windmill(ctx, M, x, z, y, hm) {
       const a = a0 + (a1 - a0) * f, p = q(a, r0 - 0.25, 0);
       physics.add([p[0] - 0.55, y, p[2] - 0.55], [p[0] + 0.55, y + hgt, p[2] + 0.55], 'wall');
     }
-    if (k === 3 || k === 7) { // a small window, lit at night
-      const am = (a0 + a1) / 2, w = q(am, r0 + 0.02 - (r0 - r1) * 0.55, hgt * 0.55);
-      b.place(w[0], w[1], w[2], -am + Math.PI / 2, 1, (B) => B.box([-0.35, -0.5, -0.05], [0.35, 0.5, 0.05], hm.glass, { solid: false }), { solid: false });
+    if (k === 3 || k === 7) { // a small window, lit at night: a clear leaded pane over the dark in the wall's depth
+      // (laid on the wall's own leaning face, a little proud of it)
+      const at = (f, h, out) => {
+        const rr = r0 + (r1 - r0) * (h - 0.25) / (hgt - 0.25), A = q(a0, rr, h), B = q(a1, rr, h);
+        return [A[0] + (B[0] - A[0]) * f + Math.cos((a0 + a1) / 2) * out, h + y, A[2] + (B[2] - A[2]) * f + Math.sin((a0 + a1) / 2) * out];
+      };
+      const f0 = 0.5 - 0.35 / side, f1 = 0.5 + 0.35 / side, h0 = hgt * 0.55 - 0.5, h1 = hgt * 0.55 + 0.5, uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      for (const [m, out] of [[hm.attic, 0.02], [hm.glass, 0.05]]) b.quad(m, at(f1, h0, out), at(f0, h0, out), at(f0, h1, out), at(f1, h1, out), uv);
+      for (const [fa, fb, ha, hb] of [[f0, f1, h0, h0], [f0, f1, h1, h1], [f0, f0, h0, h1], [f1, f1, h0, h1]]) {   // its timber frame
+        const pa = at(fa, ha, 0.07), pb = at(fb, hb, 0.07);
+        b.beam(pa, pb, 0.09, 0.09, timber);
+      }
     }
   }
   // floors inside, a ceiling, the cap
