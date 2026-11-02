@@ -732,6 +732,7 @@ class Slime {
     if (kind === 'fire' || kind === 'lightning') k *= 1.15;
     if (this.frozen > 0) k *= 1.5;              // brittle with ice
     this.hp -= dmg * k;
+    if (o.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);   // (GOD MODE, the Debug Menu: one blow of anything bursts it)
     // the jelly gives where it was struck, and shivers all over
     const local = this.body.worldToLocal(_a.copy(p));
     this.dentDir.set(local.x, local.y - 0.45, local.z);
@@ -763,6 +764,7 @@ class Slime {
   harm(dmg) {
     if (this.dead || this.invuln > 0) return;
     this.hp -= dmg * (this.frozen > 0 ? 1.5 : 1);
+    if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
     this.aggro = true; this.lastT = this.owner.time;
     if (this.owner.player) { this.last.copy(this.owner.player.pos); this.hasLast = true; }
     if (this.hp <= 0) this.die(null, 'harm');
