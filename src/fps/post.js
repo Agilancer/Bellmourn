@@ -31,10 +31,11 @@ class WorldPass extends THREE.PassNode {
     r.setRenderTarget(this.renderTarget);
     r.setMRT(this._mrt);
     r.autoClear = true; r.autoClearColor = false; r.autoClearDepth = true; r.autoClearStencil = false;
-    r.render(vm.scene, vm.camera);
-    r.autoClear = ac; r.autoClearColor = acc; r.autoClearDepth = acd; r.autoClearStencil = acs;
-    r.setRenderTarget(was);
-    r.setMRT(mrt);
+    try { r.render(vm.scene, vm.camera); } finally {   // (a draw that throws mustn't leave the world's buffer bound)
+      r.autoClear = ac; r.autoClearColor = acc; r.autoClearDepth = acd; r.autoClearStencil = acs;
+      r.setRenderTarget(was);
+      r.setMRT(mrt);
+    }
   }
 }
 
@@ -113,9 +114,13 @@ export function makeComposer(renderer, scene, camera, { samples = 4, bloom = tru
     // (each render a new frame for three's nodes: the world's pass, the shadow maps and anything else
     // updated "once a frame" go by it, and three's own loop only steps it once per animation frame;
     // the opening's warm-up draws several shots in one)
+    // (always to the screen: its last pass draws into whatever buffer is bound, and a frame left with
+    // the world's own buffer bound (a draw that threw half-way) would draw the picture into the very
+    // buffer it reads, which WebGPU refuses: the screen would hold its last picture from then on)
     render() {
       const nf = renderer._nodes?.nodeFrame;
       if (nf) { nf.update(); renderer.info.frame = nf.frameId; }
+      if (renderer.getRenderTarget()) { renderer.setRenderTarget(null); renderer.setMRT(null); }
       pipeline.render();
     },
     setSize() { /* (the passes follow the canvas: renderer.setSize) */ },
