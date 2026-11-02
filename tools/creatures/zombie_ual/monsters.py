@@ -17,7 +17,7 @@ _EYES = dict(eye_fwd=0.002, eye_scale=1.08, finger=0.8)
 MONSTERS = {
     "zombie": dict(sheet="art/creatures/zombie_skin.webp", spec="zombie",
                    v=dict(mouth="zombie", lids="heavy", nose="rotted", crown=True, tear=True),
-                   grade=dict(trickle=True), rags=(1.0, 1.0, 1.0)),
+                   grade=dict(trickle=True, cmatch=0.0), rags=(1.0, 1.0, 1.0)),
     "veinwretch": dict(sheet=_S.format(2), spec="veinwretch", v=dict(_PLAIN, lids="open", cheeks=True, ropes=1.9, nose="skull", hollow=1.0), rags=(0.8, 0.62, 0.6),
                        wounds=[("face", 252, 192, 0.0135, 0.018), ("face", 448, 192, 0.0135, 0.018), ("front", 505, 548, 0.022, 0.02)],
                        grade=dict(dark=1.0, rot=0.15, soot=0.35, vein=0.6, eyeglow=0.8, eyecol=(1.0, 0.8, 0.25), tint=(1.05, 1.0, 1.05), mouthdark=0.7)),
@@ -94,3 +94,80 @@ for _n, _c in MONSTERS.items():
         _c.setdefault("grade", {}).setdefault("eyeglow", 0.4)
         if _n != "veinwretch":
             _c["grade"].setdefault("mouthq", 1.02)
+
+
+# Five variants of the main zombie: its sculpt (caved crown, torn cheek, slack jaw), lightly varied, with body
+# regions taken from the other sheets (mix: region -> source; mix_order[0] is the head's sheet). Each has its
+# own walk and attack: Zombie_Walk_Fwd_Loop_<name> and Zombie_Scratch_<name> in ual2_clips.glb.
+_ZV = dict(mouth="zombie", lids="heavy", nose="rotted", crown=True, tear=True)
+_ZS = "art/creatures/zombie_skin.webp"
+VARIANTS = {
+    "zombie_stitchback": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, bony=0.6), grade=dict(trickle=True, vein=0.9, rot=0.7, flay=(1, 0.72)),
+                              rags=(0.85, 0.8, 0.75), clip="stitchback", stitches=True,
+                              mix=dict(head="zombie", torso="veinwretch", arms="zombie", legs="shambler"),
+                              mix_order=["zombie", "veinwretch", "shambler"]),
+    "zombie_boilface": dict(sheet=_S.format(11), spec="plague", v=dict(_ZV, crown=False, bloat=0.3), rags=(0.75, 0.72, 0.55),
+                            clip="boilface", grade=dict(bumpkind=0, sat=0.78, rmin=0.62, headtint=(1.1, 0.98, 0.72), headtint_zw=(1.22, 0.28, 0.0)), mixh=0.12,
+                            bumps=[((-0.08, -0.11, 1.6), (0.08, 0.0, 1.78), 12, (0.003, 0.007), False),
+                                   ((-0.06, -0.07, 1.48), (0.06, 0.05, 1.58), 9, (0.004, 0.008), False, 3),
+                                   ((-0.1, -0.14, 1.15), (0.1, -0.04, 1.36), 10, (0.004, 0.009), False, 3)],
+                            mix=dict(head="plague", torso="zombie", arms="drowned", legs="zombie"),
+                            mix_order=["plague", "zombie", "drowned"]),
+    "zombie_hangman": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, crown=False), sag=1.2, rags=(0.6, 0.72, 1.0), clip="hangman",
+                           grade=dict(welts=1.0, headtint=(0.78, 0.64, 0.8), headtint_zw=(1.6, 0.04, 1.0)),
+                           extras=dict(cols=dict(rope=(0.33, 0.29, 0.22)),
+                                       wraps=[("lowerarm", 0.74, 0.97, 3.0, 0, 0.012, "rope", 0),
+                                              ("neck_01", 0.55, 0.88, 1.3, 0, 0.013, "rope", 2)]),
+                           mix=dict(head="zombie", torso="ancient", arms="ropebound", legs="zombie"),
+                           mix_order=["zombie", "ancient", "ropebound"]),
+    "zombie_rotjaw": dict(sheet=_S.format(8), spec="shambler", v=dict(_ZV, crown=False, tear=False, cheeks=True, lids="open"),
+                          rags=(0.9, 0.85, 0.75), clip="rotjaw", stitches=True, mixh=0.7,
+                          grade=dict(meat=1.0, rmin=0.62, vein=0.6, rot=0.8, soot=0.6),
+                          wounds=[("face", 466, 200, 0.026, 0.032, "cheek")],
+                          mix=dict(head="shambler", torso="zombie", arms="veinwretch", legs="mummy"),
+                          mix_order=["shambler", "zombie", "veinwretch", "mummy"]),
+    "zombie_charred": dict(sheet=_S.format(5), spec="cinder", v=dict(_ZV, bulk=0.3, lips=0.5), rags=(0.3, 0.26, 0.24),
+                           clip="charred", grade=dict(tint=(0.85, 0.8, 0.8), sat=0.72, dark=0.75)),   # burnt head to toe
+}
+for _c in VARIANTS.values():   # the main zombie's own grade: no pull toward the sheet's average
+    _c.setdefault("grade", {}).setdefault("cmatch", 0.0)
+MONSTERS.update(VARIANTS)
+
+# Five near-twins of the main zombie for crowds: the same sheet, face and sculpt, nudged in tone, rot,
+# build, crown and cheek, so a summoned horde never shows one face repeated. They share the zombie clips.
+KIN = {
+    "zombie_pale": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, bulk=-0.3, bony=0.3), rags=(0.9, 0.9, 0.85), crown_mirror=True,
+                        rags_seed=23, rags_bot=0.66, decals=[("eyes", 0.03, "shadow"), ("eyes", 0.013, "pale")],
+                        grade=dict(trickle=True, tint=(1.32, 1.3, 1.28), sat=0.55, dark=0.85, rot=0.45)),
+    "zombie_grim": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, crown=False), rags=(0.75, 0.7, 0.62),
+                        grade=dict(tint=(0.92, 0.97, 0.92), dark=0.72, soot=0.62)),
+    "zombie_rotten": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, tear=False, bulk=0.2), rags=(0.85, 0.75, 0.6),
+                          rags_seed=37,
+                          decals=[((-0.05, -0.065, 1.64), 0.03, "rot"), ((0.1, -0.07, 1.22), 0.06, "rot"), ((-0.11, -0.05, 1.18), 0.05, "rot"),
+                                  (("bone", "thigh_l", 0.4), 0.07, "rot"), (("bone", "thigh_r", 0.6), 0.06, "rot"),
+                                  (("bone", "lowerarm_r", 0.5), 0.05, "rot"), ((0.0, -0.085, 1.645), 0.03, "shadow")],
+                          grade=dict(trickle=True, tint=(1.18, 1.03, 0.68), sat=1.5, rot=0.85)),
+    "zombie_bruised": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, lids="open", bloat=0.2), rags=(0.7, 0.62, 0.66),
+                           crown_mirror=True, rags_seed=41,
+                           wounds=[("front", 360, 430, 0.012, 0.016), ("front", 380, 465, 0.012, 0.016), ("front", 400, 500, 0.012, 0.016)],
+                           decals=[((0.1, -0.06, 1.22), 0.06, "bruise"), ((-0.1, -0.06, 1.2), 0.055, "bruise"),
+                                   (("bone", "upperarm_l", 0.6), 0.05, "bruise"), (("bone", "lowerarm_r", 0.4), 0.05, "bruise"),
+                                   ((0.05, -0.06, 1.6), 0.035, "bruise"), (("bone", "calf_l", 0.7), 0.06, "bruise"),
+                                   (("bone", "calf_r", 0.7), 0.06, "bruise")],
+                           grade=dict(trickle=True, tint=(1.0, 0.98, 1.0), soot=0.65)),
+    "zombie_gaunt": dict(sheet=_ZS, spec="zombie", v=dict(_ZV, crown=False, bulk=-0.6, bony=0.8), rags=(0.6, 0.6, 0.62), ribs=0.8,
+                         rags_seed=53, rags_bot=0.64,
+                         decals=[((0.055, -0.045, 1.635), 0.025, "shadow"), ((-0.055, -0.045, 1.635), 0.025, "shadow"),
+                                 ((0.07, 0.0, 1.72), 0.025, "shadow"), ((-0.07, 0.0, 1.72), 0.025, "shadow"), ("eyes", 0.03, "shadow")],
+                         grade=dict(tint=(0.82, 0.86, 0.92))),
+}
+for _c in KIN.values():
+    _c["grade"].setdefault("cmatch", 0.0)
+MONSTERS.update(KIN)
+
+# the whole zombie family's hands: tapered tips, a dark nail plate on the back of each, no black caps, no mini-claws
+for _c in list(VARIANTS.values()) + list(KIN.values()):
+    _c["v"]["taper"] = 1.0
+    _c["v"]["claws"] = 1.0
+    _c["grade"].setdefault("nailcol", (0.4, 0.33, 0.23))   # grimy horn
+    _c["grade"].setdefault("bed", 0.12)

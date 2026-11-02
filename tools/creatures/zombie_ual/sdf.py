@@ -98,7 +98,7 @@ MOUTH_R = (0.021, 0.042, 0.011)
 # variant switches, set per monster (monsters.py); the defaults are the first zombie
 V = dict(mouth="zombie", lids="heavy", nose="rotted", crown=True, tear=True, bloat=0.0, bulk=0.0, claws=1.0,
          brow=1.0, cheeks=False, holes=[], teeth=1.0, gape=1.0, dome=1.0, shoulder=0.0, ropes=False, bony=0.0, lips=1.0, teeth_fwd=0.0,
-         bumps=[], ridges=[], ears=1.0, canine=1.0, slitw=1.0, hollow=0.0, inner=[])
+         bumps=[], ridges=[], ears=1.0, canine=1.0, slitw=1.0, hollow=0.0, inner=[], taper=0.0)
 SLIT_C = np.array([0.0, -0.068, 1.625])  # the maw: a slit splitting the face from the eyes to the chin
 SLIT_R = np.array([0.0115, 0.042, 0.068])
 
@@ -190,7 +190,8 @@ def nail_c(name):
     pts = finger_pts(name)
     tip, prev = np.array(pts[-1]), np.array(pts[-2])
     dirv = (tip - prev) / np.linalg.norm(tip - prev)
-    return tip + dirv * (0.0018 + 0.0075 * (V["claws"] - 1)) + np.array([0, 0, FINGER_R[name] * 0.42])
+    nb = V["taper"]   # tapered fingers: the nail sits back on the top of the tip, the tip's skin shows past it
+    return tip + dirv * (0.0018 - 0.0062 * nb + 0.0075 * (V["claws"] - 1)) + np.array([0, 0, FINGER_R[name] * (0.42 + 0.1 * nb)])
 
 
 def unbend(P):
@@ -359,14 +360,15 @@ def hand(m):
         f = None
         for j in range(len(pts) - 1):
             last = j == len(pts) - 2
-            tipr = max(0.45, 0.62 - 0.12 * (V["claws"] - 1))     # claws: the last joint tapers to a hook
+            tipr = min(max(0.45, 0.62 - 0.12 * (V["claws"] - 1)), 0.62 - 0.22 * V["taper"])   # claws / taper: the last joint narrows
             seg = round_cone(m, pts[j], pts[j + 1], r * (0.86 - 0.08 * j), r * (tipr if last else 0.78 - 0.08 * j))
             f = seg if f is None else smin(f, seg, 0.003)
             if 0 < j:
                 f = smin(f, sphere(m, pts[j] + (0, 0, 0.0012), r * (1.12 - 0.07 * j)), 0.003)  # bony knuckles
         tip, prev = np.array(pts[-1]), np.array(pts[-2])
         dirv = (tip - prev) / np.linalg.norm(tip - prev)
-        f = smin(f, ellipsoid(m, nail_c(name), (0.0098 * V["claws"], r * 0.6, 0.0016 * min(V["claws"], 1.6))), 0.0015)  # nails, overhanging to a point
+        f = smin(f, ellipsoid(m, nail_c(name), (0.0098 * V["claws"] * (1 - 0.35 * V["taper"]), r * 0.6 * (1 - 0.15 * V["taper"]),
+                                                0.0016 * min(V["claws"], 1.6))), 0.0015)  # nails, overhanging to a point
         d = smin(d, f, 0.007 if name != "thumb" else 0.012)
     return d
 
