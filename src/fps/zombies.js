@@ -35,6 +35,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
 import { cullable, shareSkeletons, refineTexture, crisp } from './engine.js';
+import { WEBGPU, T, sourceOf } from './nodes.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -234,6 +235,197 @@ float gore(inout vec4 col) {
   return 1.0;
 }`;
 
+// The same under WebGPU (TSL): a node material of its own kind (GoreMaterial), one graph for every
+// body (and for the foes' variant, whose `shellNode` keeps armour and cloth as they are inside).
+// What differs from body to body comes from the body drawn: its wounds and marks, packed into one
+// uniform array each time one of its parts is drawn (sourceOf: its own material even in a shadow
+// pass). The gore is laid on in setupDiffuseColor, after the map (as map_fragment's patch was), so
+// the shadow pass (three's own depth material, given only the colour's alpha) draws the whole body as
+// the GLSL shadow did; and how wet it is sets the specular strength in its own lighting (Phong's, the
+// specular times mix(0.15, 2.6, wet)).
+let GORE = null;
+function goreKind() {
+  if (GORE) return GORE;
+  const { Fn, If, Loop, Discard, int, float, bool, vec3, vec4, uniformArray, attribute, frontFacing, property, fract, floor, mix, min, max, abs,
+    length, dot, clamp, step, smoothstep, sin, select, diffuseColor, normalView, positionViewDirection, specularColor, shininess, BRDF_Lambert, F_Schlick } = T;
+  const W = WOUNDS, S = STAINS, AT = { d: W, b: 2 * W, s: 3 * W, t: 3 * W + S, n: 3 * W + 2 * S };
+  // [wounds | their D | their B | stains | stain kinds (x) | (wound count, stain count)]
+  const slots = Array.from({ length: AT.n + 1 }, () => new THREE.Vector4());
+  const buf = uniformArray(slots, 'vec4');
+  buf.onObjectUpdate((frame) => {
+    const u = sourceOf(frame)?.userData?.u;
+    if (!u?.uWound) return;
+    for (let i = 0; i < W; i++) {
+      slots[i].copy(u.uWound.value[i]); slots[AT.d + i].copy(u.uWoundD.value[i]);
+      const b = u.uWoundB.value[i]; slots[AT.b + i].set(b.x, b.y, b.z, 0);
+    }
+    if (u.uStain) for (let i = 0; i < S; i++) { slots[AT.s + i].copy(u.uStain.value[i]); slots[AT.t + i].x = u.uStainT.value[i]; }
+    slots[AT.n].set(u.uWoundN.value, u.uStainN?.value || 0, 0, 0);
+  });
+  const gHash = Fn(([p0]) => {
+    const p = fract(p0.mul(0.3183099).add(0.1)).mul(17.0).toVar();
+    return fract(p.x.mul(p.y).mul(p.z).mul(p.x.add(p.y).add(p.z)));
+  }).setLayout({ name: 'bmGoreHash', type: 'float', inputs: [{ name: 'p', type: 'vec3' }] });
+  const gNoise = Fn(([x]) => {
+    const i = floor(x).toVar(), f0 = fract(x).toVar(), f = f0.mul(f0).mul(f0.mul(-2.0).add(3.0)).toVar();
+    const H = (a, b, c) => gHash(i.add(vec3(a, b, c)));
+    return mix(mix(mix(H(0, 0, 0), H(1, 0, 0), f.x), mix(H(0, 1, 0), H(1, 1, 0), f.x), f.y),
+      mix(mix(H(0, 0, 1), H(1, 0, 1), f.x), mix(H(0, 1, 1), H(1, 1, 1), f.x), f.y), f.z);
+  }).setLayout({ name: 'bmGoreNoise', type: 'float', inputs: [{ name: 'x', type: 'vec3' }] });
+  const vb = attribute('bindPos', 'vec3');
+  const wetP = property('float', 'goreWet');
+  // (a reversed smoothstep, written the right way round: WGSL leaves smoothstep(hi, lo, x) undefined)
+  const down = (a, b, x) => smoothstep(b, a, x).oneMinus();
+
+  // the marks: col and wet (vars) taken up by them (GLSL stains())
+  function stains(col, wet) {
+    Loop(int(buf.element(AT.n).y), ({ i }) => {
+      const st = buf.element(i.add(AT.s)).toVar();
+      const q = vb.sub(st.xyz).toVar();
+      const d = length(q).div(st.w).toVar();
+      If(d.lessThanEqual(2.6), () => {
+        const t = buf.element(i.add(AT.t)).x.toVar();
+        const seed = float(i).mul(13.7).toVar();
+        const edge = d.add(gNoise(vb.mul(38.0).add(seed)).sub(0.5).mul(0.9)).add(gNoise(vb.mul(110.0).add(seed)).sub(0.5).mul(0.35)).toVar();
+        const drop = step(0.86, gNoise(vb.mul(260.0).add(seed))).mul(step(d, 2.1)).mul(step(0.9, edge)).toVar();
+        If(t.lessThan(0.5), () => {
+          const below = q.y.negate().div(st.w).toVar(), across = length(q.xz).div(st.w);
+          const run = step(0.0, below).mul(step(below, 2.2)).mul(step(0.66, gNoise(vec3(vb.x.mul(90.0), 0.0, vb.z.mul(90.0)).add(seed))))
+            .mul(step(across, float(0.8).sub(below.mul(0.25))));
+          const k = max(max(step(edge, 1.0), drop), run.mul(0.85)).toVar();
+          If(k.greaterThan(0.0), () => {
+            const blood = mix(vec3(0.26, 0.012, 0.016), vec3(0.45, 0.03, 0.03), gNoise(vb.mul(70.0).add(seed)));
+            col.assign(mix(col, mix(col.mul(vec3(0.45, 0.04, 0.04)), blood, 0.65), k));
+            wet.assign(max(wet, k.mul(0.85)));
+          });
+        }).ElseIf(t.lessThan(1.5), () => {
+          col.assign(mix(col, col.mul(mix(0.06, 0.32, gNoise(vb.mul(55.0).add(seed)))), down(1.15, 0.7, edge)));
+        }).ElseIf(t.lessThan(2.5), () => {
+          const k = down(1.2, 0.75, edge).toVar();
+          col.assign(mix(col, mix(vec3(0.78, 0.88, 0.98), vec3(0.95, 0.98, 1.0), gNoise(vb.mul(90.0).add(seed))), k.mul(0.85)));
+          wet.assign(max(wet, k));
+        }).Else(() => {
+          const k = max(down(1.1, 0.7, edge), drop).toVar();
+          col.assign(mix(col, col.mul(vec3(0.3, 0.42, 0.16)), k));
+          wet.assign(max(wet, k.mul(0.6)));
+        });
+      });
+    });
+  }
+
+  // the gore on diffuseColor (GLSL gore()), its wetness into goreWet; shell: the foes' attribute
+  function gore(shell) {
+    const col = vec3(diffuseColor.rgb).toVar(), wet = float(0).toVar();
+    const hole = float(99).toVar(), cut = float(99).toVar(), gash = float(99).toVar(), run = float(0).toVar(), burn = float(99).toVar(), ice = float(99).toVar();
+    Loop(int(buf.element(AT.n).x), ({ i }) => {
+      const w = buf.element(i).toVar(), D = buf.element(i.add(AT.d)).toVar();
+      If(D.w.greaterThan(1.5), () => {
+        const d = length(vb.sub(w.xyz)).div(w.w).toVar();
+        If(D.w.greaterThan(2.5), () => { ice.assign(min(ice, d)); }).Else(() => { burn.assign(min(burn, d)); });
+      }).ElseIf(D.w.greaterThan(0.5), () => {
+        const B = buf.element(i.add(AT.b)).xyz.toVar();
+        const q0 = vb.sub(w.xyz).toVar();
+        const dep = dot(q0, B).toVar();
+        If(dep.lessThanEqual(0.07).and(dep.greaterThanEqual(-0.16)), () => {   // only the side the blow struck
+          const q = q0.sub(B.mul(dep)).toVar();
+          const t = clamp(dot(q, D.xyz).div(max(dot(D.xyz, D.xyz), 1e-6)), -1.0, 1.0);
+          const e = q.sub(D.xyz.mul(t)).toVar();
+          gash.assign(min(gash, length(e).div(w.w)));
+          const below = e.y.negate().toVar(), side = length(e.xz).div(w.w).toVar();
+          If(below.greaterThan(0.0).and(below.lessThan(w.w.mul(5.0))), () => {
+            run.assign(max(run, below.div(w.w.mul(5.0)).oneMinus().mul(step(side, float(0.9).sub(below.div(w.w.mul(7.0)))))));
+          });
+        });
+      }).Else(() => {
+        const d = length(vb.sub(w.xyz)).div(abs(w.w)).toVar();
+        If(w.w.greaterThan(0.0), () => { hole.assign(min(hole, d)); }).Else(() => { cut.assign(min(cut, d)); });
+      });
+    });
+    const n = gNoise(vb.mul(60.0)).mul(0.65).add(gNoise(vb.mul(170.0)).mul(0.35)).toVar();
+    const h = hole.add(n.sub(0.5).mul(0.6)).toVar();
+    const c = cut.add(n.sub(0.5).mul(0.5)).toVar();
+    const s = gash.add(n.sub(0.5).mul(0.45)).toVar();
+    const sp = min(burn, ice).add(n.sub(0.5).mul(0.08)).toVar();   // spell holes: clean discs, barely ragged
+    const raw = mix(vec3(0.30, 0.015, 0.02), vec3(0.70, 0.12, 0.10), n).toVar();
+    If(frontFacing, () => {
+      If(h.lessThan(0.6).or(sp.lessThan(0.62)), () => { Discard(); });   // torn (or blown) open
+      If(s.lessThan(0.45), () => {                                       // the gash
+        col.assign(mix(vec3(0.16, 0.0, 0.01), raw, smoothstep(0.12, 0.45, s))); wet.assign(1.0);
+      }).Else(() => {
+        const done = bool(false).toVar();
+        const spots = s.lessThan(1.5).and(gNoise(vb.mul(90.0)).greaterThan(0.25))
+          .or(run.mul(gNoise(vb.mul(vec3(240.0, 30.0, 240.0))).mul(0.8).add(0.6)).greaterThan(0.8));
+        If(spots, () => {   // blood about the lips of it, and down from it (in spots)
+          const k = select(s.lessThan(1.5), smoothstep(0.45, 1.5, s), float(0.3)).toVar();
+          col.assign(mix(col.mul(vec3(0.32, 0.03, 0.03)), col, k));
+          If(s.lessThan(1.5), () => { wet.assign(k.oneMinus().mul(0.9)); done.assign(true); });
+        });
+        If(done.not(), () => {
+          If(h.lessThan(0.86).or(c.lessThan(0.55)), () => { col.assign(raw); wet.assign(1.0); })
+            .ElseIf(sp.lessThan(0.7), () => { col.assign(raw.mul(0.5)); wet.assign(1.0); })   // a thin lip of seared meat
+            .Else(() => {
+              const soak = min(smoothstep(0.86, 1.3, h), smoothstep(0.55, 1.15, c)).toVar();
+              col.assign(mix(col.mul(vec3(0.40, 0.05, 0.04)), col, soak));   // blood-soaked around it
+              wet.assign(soak.oneMinus().mul(0.7));
+              stains(col, wet);
+              If(sp.lessThan(1.9), () => {
+                // the rim: a glowing edge gone to char (frost: white rime), then soot (a blue chill) fading out
+                const frozen = ice.lessThan(burn).toVar();
+                const rim = select(frozen, mix(vec3(0.92, 0.97, 1.0), vec3(0.55, 0.74, 0.92), smoothstep(0.7, 1.0, sp.add(n.mul(0.2)))),
+                  mix(vec3(0.62, 0.17, 0.03), vec3(0.03, 0.022, 0.018), smoothstep(0.7, 0.78, sp.add(n.mul(0.06)))));
+                const fade = select(frozen, col.mul(vec3(0.6, 0.76, 1.0)), col.mul(mix(0.12, 0.45, n)));
+                col.assign(select(sp.lessThan(1.0), rim, mix(fade, col, smoothstep(1.0, 1.9, sp))));
+                wet.assign(select(sp.lessThan(1.0), select(frozen, float(1.0), float(0.05)), max(wet, select(frozen, float(0.5), float(0.0)))));
+              });
+            });
+        });
+      });
+    }).Else(() => {
+      // inside the body: wet meat, coils of gut, yellow fat (the kilt's inner face stays cloth; a foe's
+      // armour, cape and robe stay what they are)
+      const cloth = shell ? shell.greaterThan(0.5) : vb.y.greaterThan(0.52).and(vb.y.lessThan(1.0));
+      If(cloth.and(h.greaterThan(3.0)).and(c.greaterThan(3.0)).and(sp.greaterThan(3.0)), () => { col.mulAssign(0.4); wet.assign(0.0); }).Else(() => {
+        const coil = sin(vb.x.mul(95.0).add(sin(vb.y.mul(60.0)).mul(2.5)).add(vb.z.mul(40.0)));
+        const meat = mix(vec3(0.20, 0.008, 0.015), vec3(0.58, 0.07, 0.07), n).toVar();
+        meat.assign(mix(meat, vec3(0.72, 0.36, 0.34), smoothstep(0.7, 0.95, coil).mul(0.65)));
+        meat.assign(mix(meat, vec3(0.80, 0.70, 0.45), step(0.88, n).mul(0.5)));
+        col.assign(meat); wet.assign(1.0);
+      });
+    });
+    diffuseColor.assign(vec4(col, diffuseColor.a));
+    wetP.assign(wet);
+  }
+
+  // Phong's, the specular strength the gore's (specularmap_fragment's patch)
+  const strength = mix(0.15, 2.6, wetP);
+  class GoreLighting extends THREE.PhongLightingModel {
+    direct({ lightDirection, lightColor, reflectedLight }) {
+      const irradiance = normalView.dot(lightDirection).clamp().mul(lightColor);
+      reflectedLight.directDiffuse.addAssign(irradiance.mul(BRDF_Lambert({ diffuseColor: diffuseColor.rgb })));
+      const half = lightDirection.add(positionViewDirection).normalize();
+      const dotNH = normalView.dot(half).clamp(), dotVH = positionViewDirection.dot(half).clamp();
+      const F = F_Schlick({ f0: specularColor, f90: 1.0, dotVH });
+      const D = shininess.mul(0.5).add(1.0).mul(1 / Math.PI).mul(dotNH.pow(shininess));
+      reflectedLight.directSpecular.addAssign(irradiance.mul(F.mul(0.25).mul(D)).mul(strength));
+    }
+  }
+  class GoreMaterial extends THREE.MeshPhongNodeMaterial {
+    static get type() { return 'GoreMaterial'; }
+    constructor(parameters) { super(parameters); this.shellNode = null; }
+    setupDiffuseColor(builder) { super.setupDiffuseColor(builder); gore(this.shellNode); }
+    setupLightingModel() { return new GoreLighting(); }
+  }
+  GORE = { Material: GoreMaterial, shell: attribute('shell', 'float') };
+  return GORE;
+}
+
+/** (WebGPU) The foes' variant of a gore material: armour, capes and robes stay armour and cloth
+ * inside (their `shell` vertex attribute), as foes.js's GLSL patch makes them. */
+export function goreShell(mat) {
+  mat.shellNode = goreKind().shell;
+  return mat;
+}
+
 /** The gore shader on a body's material. `u`: the wound uniforms to use (a body of several
  * materials shares one set, so a wound shows across all of them); a new set if not given. */
 export function goreMaterial(src, lib, u = null) {
@@ -242,7 +434,7 @@ export function goreMaterial(src, lib, u = null) {
   refineTexture(map);   // (crisp texels, anti-aliased: engine.js)
   // alpha to coverage on its cut-outs, as on every body made before play (engine.js refineScene), so a
   // body that claws out of a grave mid-game draws with the shaders already made
-  const mat = new THREE.MeshPhongMaterial({ map, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true, specular: 0x2c1e1c, shininess: 30 });
+  const mat = new (WEBGPU ? goreKind().Material : THREE.MeshPhongMaterial)({ map, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true, specular: 0x2c1e1c, shininess: 30 });
   mat.name = src.name || '';   // (the Sworn's fittings find their pieces by it)
   if (map && lib?.normals) {
     if (!normals.has(map)) normals.set(map, lib.normalFrom(map, 1.0));
@@ -261,6 +453,7 @@ export function goreMaterial(src, lib, u = null) {
   u.uStainT ||= { value: new Array(STAINS).fill(0) };
   u.uStainN ||= { value: 0 };
   mat.userData.u = u;
+  if (WEBGPU) return crisp(mat);   // (the gore is the material's own kind: goreKind)
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
@@ -285,6 +478,35 @@ const DROP_FRAG = /* glsl */`
 varying vec3 vCol; uniform float light;
 void main() { vec2 q = gl_PointCoord - 0.5; if (dot(q, q) > 0.25) discard; gl_FragColor = vec4(vCol * light, 1.0); }`;
 
+/** The drops under WebGPU, where a point is drawn a pixel across: each drop a small quad (an
+ * instance of `geo`, its dropPos/dropCol/dropSize), as many pixels across as gl_PointSize made it.
+ * `uniforms` as the ShaderMaterial's (the game sets scale and light each frame). */
+function dropMaterial() {
+  const { Fn, uniform, renderGroup, attribute, modelViewMatrix, vec4, uv, dot, clamp, screenDPR } = T;
+  const scale = uniform(300).setGroup(renderGroup), light = uniform(1).setGroup(renderGroup);
+  const m = new THREE.PointsNodeMaterial({ sizeAttenuation: false, fog: false });
+  m.transparent = false;
+  const pos = attribute('dropPos', 'vec3');
+  m.positionNode = pos;
+  m.sizeNode = clamp(attribute('dropSize', 'float').mul(scale).div(modelViewMatrix.mul(vec4(pos, 1.0)).z.negate()), 1.0, 5.0).div(screenDPR);
+  m.colorNode = Fn(() => {
+    const q = uv().sub(0.5);
+    dot(q, q).greaterThan(0.25).discard();
+    return vec4(attribute('dropCol', 'vec3').mul(light), 1.0);
+  })();
+  m.uniforms = { scale, light };
+  return m;
+}
+/** A quad geometry with room for `max` instances of the drops' attributes (dropMaterial). */
+function dropGeometry(attrs) {
+  const q = new THREE.PlaneGeometry(1, 1), g = new THREE.InstancedBufferGeometry();
+  g.setIndex(q.index); g.setAttribute('position', q.attributes.position); g.setAttribute('uv', q.attributes.uv);
+  for (const [k, a] of Object.entries(attrs)) g.setAttribute(k, a);
+  g.instanceCount = 0;
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+  return g;
+}
+
 function splatTexture() {
   const S = 64, cv = document.createElement('canvas');
   cv.width = cv.height = S;
@@ -308,18 +530,28 @@ class Gore {
     this.pos = new Float32Array(M * 3); this.vel = new Float32Array(M * 3); this.col = new Float32Array(M * 3);
     this.size = new Float32Array(M); this.life = new Float32Array(M); this.floor = new Float32Array(M);
     this.blood = new Uint8Array(M);   // blood splats where it lands; earth doesn't
-    const g = new THREE.BufferGeometry();
-    this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aCol = new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage);
-    this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('position', this.aPos); g.setAttribute('color', this.aCol); g.setAttribute('size', this.aSize);
-    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
-    this.mat = new THREE.ShaderMaterial({ vertexShader: DROP_VERT, fragmentShader: DROP_FRAG,
-      uniforms: { scale: { value: 300 }, light: { value: 1 } } });
-    this.points = new THREE.Points(g, this.mat);
-    this.points.frustumCulled = false;
-    this.geo = g;
-    scene.add(this.points);
+    if (WEBGPU) {
+      const A = (a, n) => new THREE.InstancedBufferAttribute(a, n).setUsage(THREE.DynamicDrawUsage);
+      this.aPos = A(this.pos, 3); this.aCol = A(this.col, 3); this.aSize = A(this.size, 1);
+      this.geo = dropGeometry({ dropPos: this.aPos, dropCol: this.aCol, dropSize: this.aSize });
+      this.mat = dropMaterial();
+      this.points = new THREE.Mesh(this.geo, this.mat);
+      this.points.frustumCulled = false;
+      scene.add(this.points);
+    } else {
+      const g = new THREE.BufferGeometry();
+      this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.aCol = new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage);
+      this.aSize = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('position', this.aPos); g.setAttribute('color', this.aCol); g.setAttribute('size', this.aSize);
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+      this.mat = new THREE.ShaderMaterial({ vertexShader: DROP_VERT, fragmentShader: DROP_FRAG,
+        uniforms: { scale: { value: 300 }, light: { value: 1 } } });
+      this.points = new THREE.Points(g, this.mat);
+      this.points.frustumCulled = false;
+      this.geo = g;
+      scene.add(this.points);
+    }
     this.reds = ['#4a0306', '#6a0709', '#8a0c0c', '#a5150f', '#5c0a0a'].map((c) => new THREE.Color(c));
     this.soil = ['#2a2016', '#3a2c1c', '#4a3a26', '#1e1810'].map((c) => new THREE.Color(c));
     // splats and pools on the ground
@@ -328,6 +560,9 @@ class Gore {
     this.splats = new THREE.InstancedMesh(sg, new THREE.MeshPhongMaterial({ map: splatTexture(), alphaTest: 0.5, color: 0x8a8a8a,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, shininess: 60, specular: 0x401010 }), this.splatMax);
     this.splats.count = 0; this.splatNext = 0;
+    // (WebGPU: its colours made now, so its shader has them from the first; three r187 doesn't make
+    // the shader again when they come later, and the blood was drawn grey)
+    if (WEBGPU) this.splats.setColorAt(0, this.reds[0]);
     // drawn with the see-through things, after the roads and yards laid over the ground (which are
     // drawn there too, and would cover blood drawn before them)
     this.splats.material.transparent = true;
@@ -414,7 +649,8 @@ class Gore {
         i--;
       }
     }
-    this.geo.setDrawRange(0, this.n);
+    if (WEBGPU) this.geo.instanceCount = this.n;   // (a quad for each drop)
+    else this.geo.setDrawRange(0, this.n);
     this.aPos.needsUpdate = this.aCol.needsUpdate = this.aSize.needsUpdate = true;
     for (const p of this.pools) {
       if (p.r >= p.to) continue;
@@ -711,6 +947,7 @@ export class Zombie {
     if (this.burnT > 0 && !this.dead) {
       this.burnT -= dt;
       this.hp -= (this.burnDps || 3) * dt;
+      if (this.owner.oneHit) this.hp = Math.min(this.hp, 0);
       if (Math.random() < dt * 24) this.owner.gore.drop(_t.copy(this.pos).add(_u.set((Math.random() - 0.5) * 0.5, 0.6 + Math.random(), (Math.random() - 0.5) * 0.5)),
         _w.set((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4), 0.014, EMBER[Math.floor(Math.random() * 3)]);
       if (this.hp <= 0) this.die();
@@ -908,6 +1145,7 @@ export class Zombie {
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
+    if (owner.oneHit && dmg > 0) dmg = 1e6;   // (GOD MODE, the Debug Menu: anything dies at one blow, and comes apart where it's struck)
     const max = this.champ?.max || (this.kindName && this.kind?.hp) || HP;
     // the wound and its blood: an edge leaves a gash where it cut, a spell a round hole seared at
     // the rim, anything else a ragged hole
@@ -1113,6 +1351,7 @@ export class Zombie {
   harm(dmg) {
     if (this.dead || this.gone) return;
     this.hp -= dmg * (this.kind.armor ?? 1) * (this.frozen > 0 ? 1.5 : 1);
+    if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
     if (this.state === 'playdead' || this.state === 'buried') this.wake(this.owner.player?.pos);
     else this.hunt(this.owner.player?.pos, true);
     if (this.hp <= 0) this.die();
@@ -1168,7 +1407,7 @@ export class Zombie {
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
     const d = this.dist = Math.hypot(dx, dz);
     this.canSee = false;
-    if (!active) return;
+    if (!active || player.unseenUntil > performance.now()) return;   // (just come through a portal: not yet seen)
     const same = Math.abs(player.pos.y - this.pos.y) < (this.dg?.sameY ?? 2.6);
     const eyes = this.has('head');
     if (eyes && same && d < this.kind.sight * (this.zone === 'dungeon' ? 0.8 : 1)) {
@@ -1981,6 +2220,8 @@ export class Zombies {
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
     const own = (src) => {
       const mat = src.clone();
+      // (WebGPU: a node material's clone keeps its kind and its node graph, so its key and pipeline)
+      if (WEBGPU) { mat.userData.u = z.u; return mat; }
       mat.defines = { ...(src.defines || {}) };   // (clone() leaves them behind: the shader would differ, and be made mid-fight)
       mat.userData.u = z.u;
       mat.onBeforeCompile = src.onBeforeCompile;

@@ -204,7 +204,8 @@ export class Loot {
     return it;
   }
 
-  update(dt, player) {
+  /** take: whether walking over things takes them up (not while flying in no-clip: the Debug Menu). */
+  update(dt, player, take = true) {
     const p = player.pos;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const it = this.list[i], h = it.holder.position;
@@ -216,7 +217,7 @@ export class Loot {
       } else h.y = it.floor + 0.45 + Math.sin(it.t * 2.2) * 0.04;
       if (it.model) it.model.rotation.y += dt * 1.2;
       it.glow.material.opacity = 0.45 + 0.25 * Math.max(0, Math.sin(it.t * 4.3)) ** 4;
-      if (it.age < 0.6) continue;
+      if (it.age < 0.6 || !take) continue;
       const near = Math.hypot(p.x - h.x, p.z - h.z) < 1.2 && Math.abs(p.y + 0.5 - h.y) < 1.6;
       if (!near) { it.warned = false; continue; }
       const took = this.take(it.item);

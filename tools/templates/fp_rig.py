@@ -192,7 +192,7 @@ def _pose_open_hand(side, key):
     return dict(side=side, S=s, E=e, W=w, G=g, D=h, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)), weapon=None, shield=None,
                 face=None, curl=key.get("curl", 0.5), spread=key.get("spread", 1.0),
-                cast=bool(key.get("cast")))
+                shape=key.get("shape"), cast=bool(key.get("cast")))
 
 
 def cast_point(arm):

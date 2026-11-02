@@ -1,7 +1,7 @@
 """Static dev server for the game with caching disabled (ES modules are cached aggressively).
 Serves the checkout it lives in, wherever it is started from.
 
-POST /shot?name=foo with a PNG body saves art/view/shots/foo.png, so exact game-canvas frames
+POST /shot?name=foo with a PNG body saves art/view/shots/foo.png (&ext=wav: foo.wav, a voice sample), so exact game-canvas frames
 can be pulled out of the browser for pixel review (localhost only).
 POST /picks with a JSON body saves templates/models/fp_picks.json: the attacks chosen in the
 move picker (moves.html)."""
@@ -48,12 +48,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
             return
-        name = parse_qs(u.query).get('name', ['shot'])[0]
-        if u.path != '/shot' or not re.fullmatch(r'[\w-]{1,64}', name):
+        q = parse_qs(u.query)
+        name, ext = q.get('name', ['shot'])[0], q.get('ext', ['png'])[0]
+        if u.path != '/shot' or not re.fullmatch(r'[\w-]{1,64}', name) or ext not in ('png', 'wav'):
             self.send_error(400)
             return
         os.makedirs(SHOTS, exist_ok=True)
-        with open(os.path.join(SHOTS, name + '.png'), 'wb') as f:
+        with open(os.path.join(SHOTS, name + '.' + ext), 'wb') as f:
             f.write(data)
         self.send_response(204)
         self.end_headers()

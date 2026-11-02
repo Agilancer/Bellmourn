@@ -8,6 +8,7 @@ import { Builder } from './geo.js';
 import { detailedHouse } from './buildings.js';
 import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, streamAt, riverAt } from './terrain.js';
 import { buildWater } from './water.js';
+import { PORTALS, PORTAL_PAD } from './portals.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -35,6 +36,8 @@ export function buildRegion(ctx, M, hm) {
     { name: 'weaver', title: "The Weaver's House", x: 498, z: -90, w: 12, d: 10, door: 'e', wall: 'town_wall_dressed_limestone', upper: 'town_wall_wattle_daub', roof: 'town_roof_terracotta', floor: 'vc_planks_05', chimney: [-3, -2] },
   ];
   for (const h of homes) h.y = addPad(h.x, h.z, Math.max(h.w, h.d) * 0.75);
+  // the portals out here stand on level ground (portals.js)
+  for (const p of PORTALS) if (p.x >= REGION.x0) addPad(p.x, p.z, PORTAL_PAD);
   const paths = [
     [[REGION.x0 - 2, 0], [330, 6], [370, 26], [404, 52], [430, 68]],
     [[430, 68], [470, 72], [520, 76], [556, 78], [560, 76]],
@@ -43,6 +46,7 @@ export function buildRegion(ctx, M, hm) {
     [[592, 30], [572, 4], [548, -34], [520, -62], [504, -84]],
     [[604, -10], [640, -24], [672, -34], [684, -36]],
   ];
+  for (const p of PORTALS) if (p.spur) paths.push([[p.x, p.z], p.spur]);   // (a portal's way to the path)
   const downsMat = buildTerrain(ctx, lib, paths);
   ctx.water = buildWater(ctx);
   const H = (x, z) => terrainHeight(x, z);

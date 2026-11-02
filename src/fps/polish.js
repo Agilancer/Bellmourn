@@ -4,7 +4,7 @@
 //  - the village's offerings at the crater: candles, wreaths and funeral flowers set round its rim on
 //    the town's side, where the people of Bellmourn have come to pray to the one who fell.
 import * as THREE from 'three';
-import { glowTex, CRATER } from './crater.js';
+import { glowPoints, CRATER } from './crater.js';
 
 export class Fireflies {
   constructor(scene, ground, n = 260) {
@@ -13,8 +13,7 @@ export class Fireflies {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P, 3));
     g.setAttribute('color', new THREE.BufferAttribute(C, 3));
-    this.points = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.11, map: glowTex(), vertexColors: true, blending: THREE.AdditiveBlending,
-      depthWrite: false, transparent: true, toneMapped: false }));
+    this.points = glowPoints(g, 0.11);
     this.points.frustumCulled = false;
     scene.add(this.points);
     this.f = Array.from({ length: n }, () => ({ x: 0, y: -999, z: 0, ph: Math.random() * 6.28, sp: 0.3 + Math.random() * 0.6, h: 0.4 + Math.random() * 1.8, set: false }));

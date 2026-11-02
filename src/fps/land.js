@@ -16,6 +16,7 @@
 // rock round anything steep, and dusts the cold country with snow.
 import * as THREE from 'three';
 import { REGION, POOL, STREAM, terrainHeight as downsHeight, streamAt } from './terrain.js';
+import { WEBGPU, T, keyed, ref, settled } from './nodes.js';
 
 export const WORLD = { x0: -1150, x1: 1250, z0: -1200, z1: 1200 };
 export const CORE_R = 300;   // the village clearing and the Darkwood: flat ground (y = 0)
@@ -129,6 +130,48 @@ export function worldHeight(x, z) {
   const a = grid[k * NX + i], b = grid[k * NX + i + 1], c = grid[(k + 1) * NX + i], d = grid[(k + 1) * NX + i + 1];
   // the two triangles the mesh draws, so you stand exactly on what you see
   return u + v < 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
+}
+
+/** Land.groundMaterial's colour in TSL (WebGPU): no ground in the holes, the tile of the cell under a
+ * jittered point, rock round anything steep, snow on the gentler slopes, then snapped back onto the
+ * palette. One graph for the one land (its textures are its own). */
+function landNode({ arr, map, rect, kitU, holes }) {
+  const { Fn, If, Discard, texture, uniform, uniformArray, positionWorld, normalGeometry, vec2, vec3, vec4, float, int, floor, step, mix, pow, abs, max, clamp, dot, normalize } = T;
+  const gArr = texture(arr), gMap = texture(map), gRect = uniform(rect), G = kitU.kGrime, lut = kitU.kLut;
+  const boxN = uniformArray(holes.box.value, 'vec4').setGroup(T.renderGroup), topN = uniformArray(holes.top.value, 'float').setGroup(T.renderGroup), n = holes.n;
+  const gTex = (layer, p) => gArr.sample(p.div(3.0)).depth(int(layer.add(0.5))).rgb;
+  const gSnap = (c) => {
+    const s = clamp(pow(max(c, vec3(0.0)), vec3(1.0 / 2.2)), 0.0, 1.0).mul(31.0).add(0.5);
+    const uv = vec2(floor(s.b).mul(32.0).add(floor(s.r)).add(0.5).div(1024.0), floor(s.g).add(0.5).div(32.0));
+    return pow(lut.sample(uv).rgb, vec3(2.2));
+  };
+  return Fn(() => {
+    const gP = positionWorld.toVar();
+    for (let i = 0; i < 8; i++) {   // cave mouths and the like: no ground here (below their top)
+      const hb = boxN.element(i);
+      If(n.greaterThan(i).and(gP.x.greaterThan(hb.x)).and(gP.x.lessThan(hb.z)).and(gP.z.greaterThan(hb.y)).and(gP.z.lessThan(hb.w)).and(gP.y.lessThan(topN.element(i))), () => { Discard(); });
+    }
+    const gp = gP.xz;
+    const nz = G.sample(gp.mul(0.21)).toVar(), nz2 = G.sample(gp.mul(0.047).add(0.3)).toVar();
+    // which tile: the cell under a jittered point, so the borders come out ragged
+    const j = vec2(nz.r, nz2.g).sub(0.5).mul(4.0);
+    const cell = gMap.sample(gp.add(j).sub(gRect.xy).div(gRect.zw)).toVar();
+    const ta = floor(cell.r.mul(255.0 / 16.0).add(0.5)), tb = floor(cell.g.mul(255.0 / 16.0).add(0.5));
+    const pick = step(cell.b.oneMinus(), nz.b.mul(0.9).add(nz.g.mul(0.1)));
+    const c = gTex(mix(ta, tb, pick), gp).toVar();
+    // rock wraps round anything steep
+    const nn = normalize(normalGeometry).toVar();
+    const slope = nn.y.oneMinus().toVar();
+    const w0 = pow(abs(nn), vec3(4.0)), w = w0.div(w0.x.add(w0.y).add(w0.z)).toVar();
+    const cliff = float(L.cliff);
+    const rock = gTex(cliff, gP.zy).mul(w.x).add(gTex(cliff, gP.xz).mul(w.y)).add(gTex(cliff, gP.xy).mul(w.z));
+    c.assign(mix(c, rock, step(nz.r.sub(0.5).mul(0.12).add(0.32), slope)));
+    // snow settles on the gentler slopes
+    const snow = cell.a.mul(step(slope, nz.g.mul(0.1).add(0.42)));
+    c.assign(mix(c, gTex(float(L.snow), gp), step(0.55, snow.add(nz2.b.sub(0.5).mul(0.3)))));
+    c.assign(mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.3).mul(nz2.r.mul(0.35).add(0.7)));   // a drabber, darker country
+    return vec4(gSnap(c).mul(ref('color', 'color')), 1.0);
+  })();
 }
 
 // ------------------------------------------------------------------ the ground mesh
@@ -272,7 +315,15 @@ export class Land {
     }))).then(() => { arr.needsUpdate = true; });
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x060606, shininess: 4 });
     m.userData.noGlass = true;
-    this.holes = { box: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) }, top: { value: new Float32Array(8) }, n: { value: 0 } };
+    if (WEBGPU) {   // (the same in TSL: hole() fills the same arrays; the count is a uniform)
+      const box = Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)), top = new Array(8).fill(0);
+      this.holes = { box: { value: box }, top: { value: top }, n: T.uniform(0).setGroup(T.renderGroup) };
+      m.colorNode = landNode({ arr, map: this.map, rect: new THREE.Vector4(WORLD.x0 - STEP / 2, WORLD.z0 - STEP / 2, NX * STEP, NZ * STEP), kitU: kit.U, holes: this.holes });
+      settled(m.colorNode);
+      keyed(m, 'land');
+      return m;
+    }
+    this.holes ={ box: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 0)) }, top: { value: new Float32Array(8) }, n: { value: 0 } };
     const U = { gHoleBox: this.holes.box, gHoleTop: this.holes.top, gHoleN: this.holes.n, gArr: { value: arr }, gMap: { value: this.map }, gRect: { value: new THREE.Vector4(WORLD.x0 - STEP / 2, WORLD.z0 - STEP / 2, NX * STEP, NZ * STEP) },
       gCliff: { value: L.cliff }, gSnowL: { value: L.snow } };
     m.onBeforeCompile = (sh) => {

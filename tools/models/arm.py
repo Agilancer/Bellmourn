@@ -196,13 +196,82 @@ def finger_locals(curl=1.0, spread=1.0):
     return out
 
 
+def _flex(d):
+    """A finger segment's direction (hand space, fan taken out) -> its bend from the hand's +z
+    toward the palm (-x), in degrees."""
+    return math.degrees(math.atan2(-d[0], d[2]))
+
+
+def shape_of(curl=1.0, spread=1.0):
+    """A curl/spread hand pose as a hand shape (see shape_locals), so the two kinds blend."""
+    o_frac = 1.0 - curl
+    out = {}
+    for f in FINGERS + ("thumb",):
+        j = finger_joints(f)
+        dirs = _open_dirs(f, spread)
+        if f == "thumb":
+            out[f] = [tuple(norm(_turn(j[k + 1] - j[k], o, o_frac) @ (j[k + 1] - j[k])))
+                      for k, o in enumerate(dirs)]
+            continue
+        flex = []
+        for k, o in enumerate(dirs):
+            seg = j[k + 1] - j[k]
+            a_b, a_o = math.atan2(seg[2], seg[0]), math.atan2(o[2], o[0])
+            a = a_b - ((a_b - a_o) % (2 * math.pi)) * o_frac
+            flex.append(_flex((math.cos(a), 0.0, math.sin(a))))
+        fan = math.degrees(math.atan2(dirs[0][1], math.hypot(dirs[0][0], dirs[0][2])) * o_frac)
+        out[f] = flex + [fan]
+    return out
+
+
+def blend_shape(a, b, s):
+    """A hand shape part-way (s = 0..1) from a to b."""
+    out = {}
+    for f in FINGERS:
+        out[f] = [p + (q - p) * s for p, q in zip(a[f], b[f])]
+    out["thumb"] = [tuple(norm(np.asarray(p) + (np.asarray(q) - np.asarray(p)) * s))
+                    for p, q in zip(a["thumb"], b["thumb"])]
+    return out
+
+
+def shape_locals(shape):
+    """Finger and thumb bone matrices for a hand shape (right-hand bind space): each finger
+    [bend of segment 1, 2, 3 (degrees from the hand's +z toward the palm, each measured from
+    the hand, not the segment before), fan (degrees toward the thumb side)]; the thumb, its
+    three segments' directions. As finger_locals, each finger segment turns about the hinge
+    only, the uncurling way, then the finger fans from the knuckle."""
+    out = {}
+    for f in FINGERS + ("thumb",):
+        j = finger_joints(f)
+        t = j[0].copy()
+        if f != "thumb":
+            fan = _tilt(math.radians(shape[f][3]))
+        for k in range(3):
+            seg = j[k + 1] - j[k]
+            if f == "thumb":
+                r = _turn(seg, shape[f][k], 1.0)
+            else:
+                p = math.radians(shape[f][k])
+                a_b, a_o = math.atan2(seg[2], seg[0]), math.atan2(math.cos(p), -math.sin(p))
+                r = fan @ _hinge((a_b - a_o) % (2 * math.pi))
+            m = np.eye(4)
+            m[:3, :3], m[:3, 3] = r, t
+            out[f"{f}{k + 1}"] = m
+            t = t + r @ seg
+    return out
+
+
 MIRROR4 = np.diag([-1.0, 1.0, 1.0, 1.0])
 
 
 def finger_mats(arm, side):
-    """Finger bone matrices relative to the hand for this arm's hand pose."""
-    loc = finger_locals(arm.get("curl", 1.0) if arm.get("curl") is not None else 1.0,
-                        arm.get("spread", 1.0))
+    """Finger bone matrices relative to the hand for this arm's hand pose (a hand `shape` if it
+    has one, else curl and spread)."""
+    if arm.get("shape"):
+        loc = shape_locals(arm["shape"])
+    else:
+        loc = finger_locals(arm.get("curl", 1.0) if arm.get("curl") is not None else 1.0,
+                            arm.get("spread", 1.0))
     if side == "L":
         loc = {n: MIRROR4 @ m @ MIRROR4 for n, m in loc.items()}
     return loc
