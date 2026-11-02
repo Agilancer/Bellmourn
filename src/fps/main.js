@@ -10,7 +10,7 @@
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
 import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
-import { fogNode, SKY } from './nodes.js';
+import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
@@ -607,6 +607,15 @@ async function prepare(mark) {
   if (WEBGPU && !/[?&]nocells/.test(location.search)) {
     const { makeCells } = await import('./cells.js');
     cells = makeCells(renderer, scene, [...(ctx.built || []), ...(ctx.builtUnder || [])].filter((m) => m.static));
+    // and the billboards (sprites.js: a mesh a kind of plant, its graph read only from the material and
+    // shared uniforms: settled), still too, in one bundle never culled
+    const G = bill.graph;
+    if (G) {
+      for (const n of [G.world, G.frag, G.castAt, G.mask]) if (n) settledGraph(n);
+      const boards = scene.children.filter((o) => o.isMesh && o.material?.positionNode === G.world);
+      for (const m of boards) { m.updateMatrix(); m.matrixAutoUpdate = false; m.static = true; }
+      cells.addGlobal(boards);
+    }
   }
   ctx.detail = new DetailCull(cells ? ctx.built.filter((m) => !m.parent?.isCell) : ctx.built, { touch, under: ctx.builtUnder });
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and

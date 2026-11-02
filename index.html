@@ -5,7 +5,8 @@
 <script>
   // (cross-origin isolation, coi.js: the voices' model runs on several cores. The first visit registers
   // it and reloads once it's in charge; once only a session, in case a browser won't have it.)
-  if (!self.crossOriginIsolated && 'serviceWorker' in navigator && self.isSecureContext) {
+  // (?nocoi: skipped, for tests that must see the whole load in one page; the voices then run on one core)
+  if (!/[?&]nocoi\b/.test(location.search) &&!self.crossOriginIsolated && 'serviceWorker' in navigator && self.isSecureContext) {
     let tried = false;
     try { tried = sessionStorage.getItem('bm.coi') === '1'; sessionStorage.setItem('bm.coi', '1'); } catch (e) { tried = true; }
     navigator.serviceWorker.register('coi.js').then((reg) => {

@@ -57,6 +57,17 @@ export function makeCells(renderer, scene, meshes, size = 40) {
     cells,
     update() { for (const c of cells) { const s = sig(c); if (s !== c.sig) { c.sig = s; c.needsUpdate = true; } } },
     all(on) { all += on ? 1 : -1; },
+    /** Still things that span the world (the billboards: one instanced mesh a kind of plant) in a bundle
+     * of their own, never culled. */
+    addGlobal(list) {
+      const cell = new Cell();
+      cell.name = 'cell global';
+      cell.box.set(new THREE.Vector3(-1e7, -1e7, -1e7), new THREE.Vector3(1e7, 1e7, 1e7));
+      for (const m of list) { if (m.parent !== scene) continue; scene.remove(m); cell.add(m); }
+      scene.add(cell); cell.updateMatrixWorld(true); cell.sig = sig(cell);
+      cells.push(cell);
+      return cell.children.length;
+    },
     count: () => cells.reduce((n, c) => n + c.children.length, 0),
   };
 }
