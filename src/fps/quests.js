@@ -22,6 +22,8 @@ import { tooltip } from './bag.js';
 import { STAIRS, GRAVEYARD } from './world.js';
 import { DELVES } from './delves.js';
 import { glowTex } from './crater.js';
+import { TOWER } from './belltower.js';
+import { makeCharm } from './charms.js';
 const qn = (t) => `<b class="c-q">${esc(t)}</b>`;   // a quest's name in the log
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -39,6 +41,8 @@ export const GIVERS = {
   Tobias: { call: 'Tobias', post: [18.2, 20.6, -Math.PI / 2] },
   Osric: { call: 'Reeve Osric', post: [3.2, 31.8, Math.PI] },
   Wren: { call: 'Wren', post: [84, 7.5, -Math.PI / 2] },
+  // the Bellwright, in the bell tower's hall on Bell Knoll (belltower.js; he never leaves it)
+  Orrin: { call: 'Orrin the Bellwright', post: [TOWER.x + 2.7, TOWER.z - 2.3, -0.785] },
 };
 
 // ---------------------------------------------------------------------- the quests
@@ -115,6 +119,70 @@ export const QUESTS = [
     objectives: [{ type: 'slay', who: 'malgrave', label: 'Ser Malgrave, the Red Hand, slain' }],
     map: 'keep', reward: { xp: 2600, gold: 400, items: ['tessarielsbrand'] } },
 ];
+// the Bellwright's twelve: down the founders' shaft under his tower to the Shrine of Velscour
+// (undershrine.js), stage by stage, each stage's gate opened by the key its warden carries
+QUESTS.push(
+  { id: 'bell_hatch', giver: 'Orrin', title: 'The Hatch Under the Bells', lvl: 6,
+    text: (n) => `You climbed my knoll. Most don't. Listen: under this floor is the shaft the abbots' founders cut to cast my bells, and under that, something Velscour's adepts dug. Twice a day I ring the bells and twice a day it quiets. It is not quieting any more. I will break the seal on the hatch. Go down, and put the founders' dead back into their slag. All ${n[0]} of them.`,
+    brief: (n) => `Go down the shaft under the Bell Tower and destroy all ${n[0]} of the dead in the Founders' Pit.`,
+    wait: 'They were bellfounders. They are patient. Be quicker.', done: 'Quiet, from the pit. I heard it through the floor. Good. The next part is worse.',
+    objectives: [{ type: 'kill', where: 'founders', count: 'all', label: "Founders' dead destroyed" }],
+    map: 'shrine', reward: { xp: 1100, gold: 90, potions: [['life', 4]] } },
+  { id: 'bell_warden', giver: 'Orrin', title: 'The Furnace-Warden', lvl: 6, after: ['bell_hatch'],
+    text: 'Brother Slag kept the great furnace for the abbots, and he keeps it still, though he is mostly cinders now. The Iron Gate to the adepts\' cloister answers to the key on his belt. Put him out.',
+    brief: 'Destroy Brother Slag, the Furnace-Warden, in the Great Furnace, and take the Iron Key.',
+    wait: 'East of the pit. You will feel the heat before you see him.', done: 'The Iron Key. It was hot when they hung it on him, too.',
+    objectives: [{ type: 'boss', champ: 'warden', label: 'Brother Slag destroyed' }], map: 'shrine', reward: { xp: 1400, gold: 120 } },
+  { id: 'bell_seals', giver: 'Orrin', title: "The Founders' Seals", lvl: 6, after: ['bell_warden'],
+    text: 'Every bell the founders cast, they stamped with a bronze seal and kept the stamp. The adepts scattered them: they use the bronze. Bring me six and I will know which of my bells they meant to crack.',
+    brief: "Gather 6 of the founders' bronze seals in the Founders' Pit and the cloister below.", wait: 'Six. Bronze. Small. Look in the corners, the adepts never do.',
+    done: 'Mourn\'s seal. And Vigil\'s, twice. They meant to silence the two that face the cliff. They are cleverer than they were.',
+    objectives: [{ type: 'gather', item: 'seal', name: "Founders' seal", count: 6, label: "Founders' seals gathered", spots: 'shrine' }], map: 'shrine', reward: { xp: 1300, gold: 100 } },
+  { id: 'bell_vigil', giver: 'Orrin', title: 'The Vigil Below', lvl: 7, after: ['bell_seals'],
+    text: (n) => `Past the Iron Gate is the cloister the adepts built themselves, and the Vigil keep its watch there in Velscour's colours. I wore those colours. I know how they stand a watch. ${n[0]} of them. Break it.`,
+    brief: (n) => `Kill all ${n[0]} of the Vigil keeping the Cloister of the Vigil.`, wait: 'They change the watch at midnight. Don\'t wait for it.', done: 'The cloister is ours. Theirs, still, but empty.',
+    objectives: [{ type: 'kill', where: 'cloister', count: 'all', label: 'The Vigil in the cloister slain' }], map: 'shrine', reward: { xp: 1700, gold: 140, potions: [['life', 3], ['mana', 3]] } },
+  { id: 'bell_hollin', giver: 'Orrin', title: 'Ser Hollin Vane', lvl: 7, after: ['bell_vigil'],
+    text: 'Ser Hollin Vane holds the Oath Hall north of the cloister. He swore me in, once, and swore me out. He carries the Bronze Key. He will not give it to you. He would not give it to me.',
+    brief: 'Slay Ser Hollin Vane, the Knight-Warden, in the Oath Hall, and take the Bronze Key.', wait: 'He fights with his shield high and his temper low. Make him lose one of them.',
+    done: 'The Bronze Key. He kept it polished. Of course he did.',
+    objectives: [{ type: 'slay', who: 'hollin', label: 'Ser Hollin Vane slain' }], map: 'shrine', reward: { xp: 2000, gold: 180 } },
+  { id: 'bell_grimoire', giver: 'Orrin', title: "The Adepts' Grimoire", lvl: 7, after: ['bell_hollin'],
+    text: 'The adepts write everything down. It is the only thing about them I miss. Their grimoire lies on the lectern in the scriptorium off the cloister. Bring it to me, and I will read you what Morcant is doing down there.',
+    brief: "Bring Orrin the adepts' grimoire from the Scriptorium west of the cloister.", wait: 'The lectern. West. It will be open; they never close it.',
+    done: '... Oh. Oh, Morcant. He is not holding a rite. He is ringing a bell of his own, in the rock, under mine. Mine are all that keep it from sounding.',
+    objectives: [{ type: 'fetch', item: 'grimoire', name: "The adepts' grimoire", at: 'scriptorium', label: "The adepts' grimoire" }], map: 'shrine', reward: { xp: 1600, gold: 130 } },
+  { id: 'bell_drowned', giver: 'Orrin', title: 'Under the Seep', lvl: 8, after: ['bell_grimoire'],
+    text: (n) => `Past the Bronze Gate the adepts threw their dead, and the seep came in after them. ${n[0]} lie in that water and none of them are resting. Wade in.`,
+    brief: (n) => `Destroy all ${n[0]} of the dead in the Drowned Ossuary and its chapel.`, wait: 'Ankle deep. They are under it. Watch the water move.',
+    done: 'You smell of the seep. I would offer you a bath, but I have only the bell trap.',
+    objectives: [{ type: 'kill', where: 'ossuary', count: 'all', label: 'Dead of the ossuary destroyed' }], map: 'shrine', reward: { xp: 2100, gold: 170, potions: [['life', 4]] } },
+  { id: 'bell_murrain', giver: 'Orrin', title: 'Mother Murrain', lvl: 8, after: ['bell_drowned'],
+    text: 'In the pit south of the ossuary the plague years\' dead were tipped in on one another, and what came of them calls itself Mother. She swallowed the Silver Key. I will not ask how I know.',
+    brief: 'Destroy Mother Murrain in the Murrain Pit, and take the Silver Key.', wait: 'South of the ossuary. Breathe through your sleeve.',
+    done: 'The Silver Key. Wash it. Wash it twice.',
+    objectives: [{ type: 'boss', champ: 'murrain', label: 'Mother Murrain destroyed' }], map: 'shrine', reward: { xp: 2400, gold: 200 } },
+  { id: 'bell_relic', giver: 'Orrin', title: 'The Bone Chapel', lvl: 8, after: ['bell_murrain'],
+    text: 'North of the ossuary the adepts made a chapel of their dead, and in it a thing of bone that turns without a hand on it. Under it is a skull they took from my abbey. It was the last abbot\'s. Bring him home.',
+    brief: "Bring the last abbot's skull from the Bone Chapel north of the ossuary.", wait: 'The turning thing. Under it. Do not look at it too long.',
+    done: 'Abbot Hale. I will put him in the bell trap, under Mourn. He always liked Mourn.',
+    objectives: [{ type: 'fetch', item: 'relic', name: "The last abbot's skull", at: 'chapel', label: "The last abbot's skull" }], map: 'shrine', reward: { xp: 2000, gold: 160 } },
+  { id: 'bell_kneeling', giver: 'Orrin', title: 'The Hall of Kneeling', lvl: 9, after: ['bell_relic'],
+    text: (n) => `Past the Silver Gate the Processional goes down under the cliff to the Hall of Kneeling, where Morcant's honour guard waits for him to need them. ${n[0]} of them. Do not let them kneel again.`,
+    brief: (n) => `Slay all ${n[0]} of Morcant's honour guard in the Hall of Kneeling.`, wait: 'Down the Processional. You will hear them pray. Stop them.',
+    done: 'Then there is only him.',
+    objectives: [{ type: 'kill', where: 'kneeling', count: 'all', label: 'The honour guard slain' }], map: 'shrine', reward: { xp: 2600, gold: 220, potions: [['life', 4], ['mana', 4]] } },
+  { id: 'bell_morcant', giver: 'Orrin', title: 'The Violet Hand', lvl: 10, after: ['bell_kneeling'],
+    text: 'Magister Morcant. My brother in the Vigil, my master after, and what Velscour made of him at the last. He is in the shrine at the bottom, under the colossus, and he is stronger than anything you have fought. He will make more of himself. He will raise the floor against you. When he burns green, he is almost done. So are you. Do not stop.',
+    brief: 'Slay Magister Morcant, the Violet Hand, in the Shrine of Velscour.', wait: 'Under the colossus. When he burns green, do not stop.',
+    done: 'The rock is quiet. I have not heard it quiet in nineteen years.',
+    objectives: [{ type: 'slay', who: 'morcant', label: 'Magister Morcant slain' }], map: 'shrine', reward: { xp: 4200, gold: 450 } },
+  { id: 'bell_peal', giver: 'Orrin', title: 'The Last Peal', lvl: 10, after: ['bell_morcant'],
+    text: 'One thing more. His sigil, the violet one, will be lying where he fell. Bring it up to me and I will melt it into Mourn\'s clapper, and then I will give you what I have been keeping for whoever did this. I did not think it would be you. I am glad it is.',
+    brief: "Bring Morcant's sigil up from the Shrine of Velscour to Orrin.", wait: 'Where he fell. It will still be warm.',
+    done: 'There. Hear that? No, you cannot, not yet. At noon. Here: the Wingbell. Ring it in the air and the air rings back. You will find the cliffs to the north-west are not so high, now.',
+    objectives: [{ type: 'fetch', item: 'sigil', name: "Morcant's sigil", at: 'arena', label: "Morcant's sigil" }], map: 'shrine', reward: { xp: 3000, gold: 300, charms: ['wingbell'] } },
+);
 const BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
 
 // the champions: one of the dead grown huge, in its place below ground
@@ -123,6 +191,8 @@ const CHAMPS = {
   mother: { name: 'The Drowned Mother', variant: 'bloated_drowner', place: 'grotto', tag: 'drowned', scale: 1.65, hp: 10, dmg: 2.5, xp: 950, tint: [0.7, 0.9, 1.1] },
   wight: { name: 'The Wight of Saint Ivo', variant: 'tomb_mummy', place: 'barrow', scale: 1.45, hp: 9, dmg: 2.4, xp: 900, tint: [1.2, 1.15, 0.7] },
   king: { name: 'Old Gnarlgut, the Trollhole King', variant: 'bog_troll', place: 'troll', tag: 'lair', scale: 1.7, hp: 12, dmg: 2.8, xp: 1200, tint: [0.8, 1.05, 0.7] },
+  warden: { name: 'Brother Slag, the Furnace-Warden', variant: 'ember_husk', place: 'founders', scale: 1.6, hp: 9, dmg: 2.4, xp: 950, tint: [1.9, 0.6, 0.15] },
+  murrain: { name: 'Mother Murrain', variant: 'plague_bearer', place: 'ossuary', scale: 1.7, hp: 11, dmg: 2.6, xp: 1100, tint: [0.7, 1.5, 0.35] },
 };
 
 // where each quest is done, for the map (above ground: the way in)
@@ -139,6 +209,7 @@ function places(ctx) {
     grotto: { ...m(cave('The Drowned Grotto')), r: 0, name: 'The Drowned Grotto' },
     troll: { ...m(cave('The Trollhole')), r: 0, name: 'The Trollhole' },
     keep: { x: -262, z: 0, r: 0, name: 'The Red Throne, Blackvigil Keep' },
+    shrine: { x: TOWER.x, z: TOWER.z, r: 0, name: 'The hatch in the Bell Tower, Bell Knoll' },
   };
 }
 
@@ -149,6 +220,10 @@ const ITEM_LOOK = {
   steel: { color: 0x40404a, glow: [1.0, 0.85, 0.4], shape: 'shard' },
   reliquary: { color: 0xd8a838, glow: [1.2, 1.0, 0.5], shape: 'box' },
   standard: { color: 0x2a4a9a, glow: [0.6, 0.8, 1.4], shape: 'banner' },
+  seal: { color: 0xb8803a, glow: [1.3, 0.9, 0.4], shape: 'shard' },
+  grimoire: { color: 0x4a2a6a, glow: [0.8, 0.5, 1.5], shape: 'box' },
+  relic: { color: 0xd8ccae, glow: [0.8, 1.2, 0.8], shape: 'box' },
+  sigil: { color: 0x9a4cff, glow: [1.0, 0.5, 1.7], shape: 'shard' },
 };
 function itemModel(kind) {
   const L = ITEM_LOOK[kind], g = new THREE.Group();
@@ -234,6 +309,7 @@ export class Quests {
   accept(id) {
     const q = BY_ID[id];
     if (!this.available(id)) return;
+    if (id === 'bell_hatch') this.ctx.shrine?.unseal();   // (the Bellwright breaks the hatch's seal)
     const n = q.objectives.map((ob) => this.needed(ob));
     this.state[id] = { s: 'active', p: q.objectives.map(() => 0), n, track: true };
     this.raise(id);
@@ -260,7 +336,8 @@ export class Quests {
     st.s = 'done';
     const items = (q.reward.items || []).map((u) => makeUnique(u)).filter(Boolean);
     const potions = (q.reward.potions || []).map(([k, c]) => makePotion(k, c));
-    this.o.onReward({ xp: q.reward.xp, gold: q.reward.gold || 0, items: [...items, ...potions], title: q.title });
+    const charms = (q.reward.charms || []).map((c) => makeCharm(c)).filter(Boolean);
+    this.o.onReward({ xp: q.reward.xp, gold: q.reward.gold || 0, items: [...items, ...potions, ...charms], title: q.title });
     this.o.sfx?.quest(true);
     this.o.toast(`Quest done: ${q.title}`);
     this.say('quest', `Quest complete: ${qn(q.title)}`, { big: true });
@@ -283,6 +360,8 @@ export class Quests {
       case 'cellars': return nm === 'The Old Watch Cellars';
       case 'downs': return !!z.def && !z.def.body && (z.kindName === 'knight' || z.kindName === 'sorcerer');
       case 'knights': return !!z.def && z.kindName === 'knight';
+      case 'founders': case 'cloister': case 'ossuary': case 'kneeling': return z.shrineTag === where && !z.mirror;
+      case 'morcant': return z.slay === 'morcant';
       default: return false;
     }
   }
@@ -296,7 +375,7 @@ export class Quests {
         if (st.p[i] >= st.n[i]) return;
         if (ob.type === 'kill' && this.matches(ob.where, z)) { st.p[i]++; this.progress(q, ob, st, i); }
         else if (ob.type === 'boss' && z.champ?.key === ob.champ) { st.p[i] = 1; this.progress(q, ob, st, i); }
-        else if (ob.type === 'slay' && ob.who === 'malgrave' && z.def?.boss) { st.p[i] = 1; this.progress(q, ob, st, i); }
+        else if (ob.type === 'slay' && (ob.who === 'malgrave' ? z.def?.boss && !z.slay : z.slay === ob.who && !z.mirror)) { st.p[i] = 1; this.progress(q, ob, st, i); }
         else if (ob.type === 'drop' && this.matches(ob.from, z)) {
           const want = st.n[i] - st.p[i] - this.items.filter((it) => it.quest === id && it.obj_i === i).length;
           if (want > 0) this.drop(id, i, ob.item, z.pos.x, z.pos.y + 0.5, z.pos.z);
@@ -337,6 +416,7 @@ export class Quests {
         const r = this.deepest(ob.at);
         if (r) this.drop(id, i, ob.item, r[0], r[1], r[2], true);
       } else if (ob.type === 'boss') this.champion(ob.champ);
+      else if (ob.type === 'slay' && ob.who !== 'malgrave') this.ctx.shrine?.raiseFoe(ob.who);
     });
   }
 
@@ -348,6 +428,8 @@ export class Quests {
         const s = Z.graveSpot?.(null);
         if (s && !out.some((o) => Math.hypot(o[0] - s[0], o[2] - s[1]) < 6)) out.push([s[0], 0.4, s[1]]);
       }
+    } else if (kind === 'shrine') {
+      out.push(...(this.ctx.shrine?.spots(n) || []));
     } else if (kind === 'gloam') {
       const cave = this.ctx.caves?.find((c) => c.name === 'The Gloamhollow');
       const tags = ['cavern', 'north', 'nest', 'south', 'warren', 'shrine', 'bones', 'loop', 'cavern', 'warren'];
@@ -358,6 +440,8 @@ export class Quests {
 
   /** The room furthest from a dungeon's way in (a spot on its floor), or a cave chamber. */
   deepest(place) {
+    const at = this.ctx.shrine?.fetchSpot(place);
+    if (at) return at;
     const dg = this.dungeonOf(place);
     if (!dg) return null;
     if (dg.spot) { const p = dg.spot(this.CAVE_TAG?.[place] || 'pool', 1); return p ? [p.x, p.y + 0.4, p.z] : null; }
@@ -377,7 +461,7 @@ export class Quests {
     const c = this.ctx, cave = (n) => c.caves?.find((q) => q.name === n);
     return { deep: c.deep, undercroft: c.dungeon, barrow: c.unders?.find((u) => u.dg.name === 'The Barrow of Saint Ivo')?.dg,
       cellars: c.unders?.find((u) => u.dg.name === 'The Old Watch Cellars')?.dg, grotto: cave('The Drowned Grotto'), troll: cave('The Trollhole'),
-      gloam: cave('The Gloamhollow') }[place] || null;
+      gloam: cave('The Gloamhollow'), founders: c.shrine?.dgs.founders, ossuary: c.shrine?.dgs.ossuary }[place] || null;
   }
 
   /** Raise a champion (if it isn't up already). */

@@ -67,6 +67,7 @@ import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './c
 import { makeGem, GEMS } from './gems.js';
 import { makeCharm, hasAbility, CHARMS } from './charms.js';
 import { Chimes } from './belltower.js';
+import { buildUndershrine } from './undershrine.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -321,6 +322,9 @@ async function build() {
   ctx.dungeon = ctx.catacombs.upper; ctx.deep = ctx.catacombs.deep; await mark('dungeon');
   buildKeep(ctx); await mark('keep');
   ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', cat: true }, { dg: ctx.deep, haunt: 'deep', cat: true }, { dg: ctx.catacombs.gulfDg, haunt: 'undercroft', cat: true }, ...buildDelves(ctx)];
+  // the Undershrine of Velscour, under the bell tower (undershrine.js)
+  ctx.shrine = buildUndershrine(ctx);
+  ctx.unders.push(...ctx.shrine.unders);
   await mark('delves');
   portalsClear();
   ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
@@ -429,6 +433,8 @@ async function build() {
     else zombies.populateDungeon(u.dg, few(u.n), u.haunt);
   }
   ctx.catacombs.populate(zombies, few);
+  ctx.shrine.populate(zombies, few);
+  ctx.say = (who, line) => hud.announce(who, line);
   ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
   zombies.populateWild([
@@ -534,7 +540,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
-  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
+  quests = ctx.quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
     // stops for them; closing the window hushes them)
     speak: (name, text) => {
@@ -1927,6 +1933,7 @@ function onDeath(z) {
   if (zombies.feed) fx?.died(z);
   gainXp(xpFor(z), nameOf(z));
   quests?.onKill(z);
+  ctx.shrine?.onKill(z);   // (a stage's warden leaves its gate's key where it falls)
   if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
   // materials, now and then a gem or a plan (craft.js); a great one's reagent and its plans
   const lv = placeLevel(z.pos, z.zone === 'dungeon' || z.zone === 'cave' || !!z.cave);
@@ -2430,6 +2437,9 @@ function tick(dt) {
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
+  } else if (acting && ctx.shrine?.prompt) {
+    hud.prompt(ctx.shrine.prompt);
+    if (inp.was('KeyE')) ctx.shrine.act(sfx, (t) => hud.toast(t));
   } else if (acting && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
@@ -2481,6 +2491,7 @@ function tick(dt) {
     if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
   }
   for (const f of ctx.animated) f(dt, t);
+  if (ctx.shrine) { ctx.shrine.update(dt, player, { foes, sfx, toast: (m) => hud.toast(m), acting }); if (foes.gltf?.sworn_lord || foes.gltf?.sworn_m) ctx.shrine.makeStatue(foes); }
   chimes?.update(dt, timeMode === 'cycle' && !holdHour ? hour : null, sfx.ear, L.under, 1 - day.day);
   for (const a of villagers.list) if (a.staffGlow) {   // (the Bellwright's crystal: a faint glow, blazing while the bells ring)
     a.flare = Math.max(0, (a.flare || 0) - dt);

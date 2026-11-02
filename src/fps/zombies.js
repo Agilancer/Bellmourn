@@ -70,6 +70,11 @@ export const HAUNTS = {
   troll: ['bog_troll', 'bog_troll', 'fungal_husk'],
   hollow: ['chitin_fiend', 'fungal_husk', 'pale_ghoul'],
   wood: ['pale_ghoul', 'rotting_zombie', 'fungal_husk'],
+  // the Undershrine (undershrine.js): the founders' dead out of the slag, the drowned of the seep,
+  // the bone chapel's keepers (and what Morcant raises)
+  founders: ['ember_husk', 'ember_husk', 'ember_husk', 'rotting_zombie', 'tomb_mummy'],
+  ossuary: ['bloated_drowner', 'bloated_drowner', 'deep_maw', 'plague_bearer', 'pale_ghoul'],
+  chapel: ['fungal_husk', 'chitin_fiend', 'pale_ghoul'],
 };
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
   clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',

@@ -67,6 +67,11 @@ export const FOES = {
     caster: true, spell: 'blood', R: ['reliquary_blade', 'grave_messer', 'fang_blade', 'flanged_mace'], L: ['serpent_staff', 'antler_staff', 'brazier_staff', 'skull_staff'], Lsock: 'gripL' },
   sworn_adept_f: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_f08', armor: 'fiend', sex: 'f', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
     caster: true, spell: 'blood', R: ['reliquary_blade', 'scimitar', 'fang_blade', 'grave_messer'], L: ['serpent_staff', 'skull_staff', 'crosier', 'iron_crook'], Lsock: 'gripL' },
+  // the Undershrine's (undershrine.js): the Oath Hall's Knight-Warden, and the Violet Hand in his shrine
+  sworn_hollin: { kind: 'knight', title: 'Ser Hollin Vane, the Knight-Warden', body: { villager: 'villager_m03', armor: 'fiend', sex: 'm' }, finish: ['ancient'], stats: 'champion',
+    scale: 1.18, R: ['coffin_hammer', 'war_hammer'], L: ['knights_kite'] },
+  sworn_archmage: { kind: 'knight', title: 'Magister Morcant, the Violet Hand', body: { villager: 'villager_m04', armor: 'runebound', sex: 'm', helm: false, casts: 'sorcerer_b' }, finish: ['ancient'], stats: 'archmage',
+    caster: true, spell: 'arcane', boss: true, scale: 1.35, glow: 0x9a4cff, glow2: 0x50ff60, R: ['reliquary_blade'], L: ['skull_staff'], Lsock: 'gripL' },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
@@ -107,6 +112,10 @@ export const STATS = {
     dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, leap: 20, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
   adept: { hp: 165, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
     dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, leap: 16, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
+  champion: { hp: 640, armor: 0.58, limb: 2.8, walk: 1.6, run: 4.2, turn: 4.2, sight: 30, tier: 5, heft: 3, swing: 1.12, gait: GAIT,
+    dmg: { attack1: 20, attack2: 25, attack3: 18, attack4: 28, bash: 10, lunge: 22, leap: 26, punch1: 7, punch2: 9 }, cool: [0.4, 1.0] },
+  archmage: { hp: 1500, armor: 0.66, limb: 4, walk: 1.5, run: 3.8, turn: 4.6, sight: 36, hear: 1.4, reach: 2.2, flinch: 0.05, tier: 6, heft: 4, swing: 1.1, gait: GAIT,
+    dmg: { attack1: 20, attack2: 24, attack3: 18, attack4: 26, lunge: 20, leap: 24, punch1: 8, punch2: 10 }, cool: [0.45, 1.0] },
   lord: { hp: 1150, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
     dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, leap: 32, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
@@ -129,6 +138,7 @@ const SPELL = { // bolt colour, its glow, damage
   venom: { core: 0xd8ffc0, glow: 0x5cff3a, dmg: 9, speed: 12 },
 };
 
+const _gA = new THREE.Color(), _gB = new THREE.Color();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
 const EMBERS = [new THREE.Color(1, 0.55, 0.15), new THREE.Color(1, 0.22, 0.06), new THREE.Color(0.9, 0.08, 0.03)];
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
@@ -595,6 +605,7 @@ class Foe extends Zombie {
   route(p) {
     if (this.zone === 'cave' && !this.canSee && this.foes.cave?.flowDir(this.pos, _w)) return _t.copy(this.pos).addScaledVector(_w, 2);
     if (this.zone === 'keep' && !this.canSee && this.foes.keep?.flowDir(this.pos, _w)) return _t.copy(this.pos).addScaledVector(_w, 2);
+    if (this.zone === 'dungeon' && this.dg && !this.canSee && this.owner.flowDir?.(this.pos, _w, this.dg)) return _t.copy(this.pos).addScaledVector(_w, 2);   // (the Undershrine's Vigil: the dead's flow)
     return p;
   }
 
@@ -778,7 +789,10 @@ class Foe extends Zombie {
    * him and the red light he throws. */
   burn(dt, player) {
     const k = (this.dead ? Math.max(0, 1 - this.deadT / 3) : 1) * (0.72 + 0.28 * Math.sin(this.owner.time * 3.1)) * (this.enraged ? 1.6 : 1);
-    for (const m of this.glowMats || []) m.emissive.setRGB(1.7 * k, 0.17 * k, 0.05 * k);
+    if (this.def.glow2) {   // (the Violet Hand: violet and green in turn, the green coming up as he burns down)
+      const g = Math.max(0, Math.sin(this.owner.time * 0.9)) * (this.enraged ? 1 : 0.6), a = _gA.setHex(this.def.glow).lerp(_gB.setHex(this.def.glow2), g);
+      for (const m of this.glowMats || []) m.emissive.setRGB(a.r * 1.8 * k, a.g * 1.8 * k, a.b * 1.8 * k);
+    } else for (const m of this.glowMats || []) m.emissive.setRGB(1.7 * k, 0.17 * k, 0.05 * k);
     const L = this.foes.bossLight;
     if (L) {
       this.bones.chest.getWorldPosition(L.position);
