@@ -51,17 +51,26 @@ if "eye_fwd" in CFG:   # eyes pushed forward and enlarged so they read when the 
     sdf.EYE_R = sdf.EYE_R * CFG.get("eye_scale", 1.0)
 uvmap.use(sheets.SHEETS[CFG["spec"]])
 if sdf.V["slitw"] != 1.0:
+    pass
+if CFG.get("crown_mirror"):
+    sdf.CROWN[:] = [(np.asarray(c) * [-1, 1, 1], r) for c, r in sdf.CROWN]
+    sdf.CROWN_C = tuple(sdf.CROWN[0][0])
+if sdf.V["slitw"] != 1.0:
     sdf.SLIT_R = sdf.SLIT_R * np.array([sdf.V["slitw"], 1.0, 0.8])
     sdf.SLIT_C = sdf.SLIT_C + np.array([0.0, 0.0, 0.016])
 GRADE = dict(trickle=False, glow=0.0, rough=1.0, tint=(1.0, 1.0, 1.0), dark=0.8, rot=0.6, soot=0.5, vein=0.0,
              eyeglow=0.0, eyecol=(1.0, 0.85, 0.4), crotch=0.15, mouthdark=0.95, mouthq=1.3,
              sat=1.0, green=0.0, eyehot=0.0, gullet=0.0, cmatch=0.8, bumpkind=0, ivory=0.0, rmin=0.0, mould=0.0,
-             sores=0.0, bed=0.65, meat=0.0)
+             sores=0.0, bed=0.65, meat=0.0, headtint=(1.0, 1.0, 1.0), welts=0.0, nailcol=(0.72, 0.67, 0.52),
+             headtint_zw=(1.56, 0.05, 0.0), flay=(-1, 0.0), feather=(0.0, 0.13, 1.0), tiplift=0.0)
 GRADE.update(CFG.get("grade", {}))
 TEX = os.path.join(WORK, NAME, "tex")
 OUT = os.path.join(WORK, NAME, "out")
 os.makedirs(OUT, exist_ok=True)
 SIZE = np.load(os.path.join(TEX, "zombie_mask.npy"), mmap_mode="r").shape[0]
+SW = np.load(os.path.join(TEX, "zombie_mask.npy"), mmap_mode="r").shape[1]   # wider than SIZE for a mixed variant
+MIX = CFG.get("mix")
+OFF = {n: k * SIZE for k, n in enumerate(CFG.get("mix_order", []))}         # each source sheet's x offset
 
 
 def resolve_wounds(wounds):
@@ -345,7 +354,9 @@ for s in (1, -1):
             prev = add(A(tuple(q)), sdf.FINGER_R[name] * 1.15, prev)
 
 _bu, _bl = sdf.V["bulk"], sdf.V["bloat"]
-R = [r * (1 + 0.12 * _bu + 0.1 * _bl) for r in R]
+# the hand's nodes (wrist, palm, fingers: out past x 0.55) keep their size: scaled, the skin hull
+# stops joining the palm to the forearm and the hands come off as separate pieces
+R = [r * (1 + 0.12 * _bu + 0.1 * _bl) if abs(V[i][0]) < 0.55 else r for i, r in enumerate(R)]
 for _i in (hips, s1, s2, s3):
     R[_i] *= 1 + 0.25 * _bl
 cm = bpy.data.meshes.new("cage")
@@ -511,11 +522,30 @@ PT = sdf.unbend(P)                 # the sheet maps the arms straight out
 cenT = np.zeros((nf, 3)); np.add.at(cenT, lf, PT[lv]); cenT /= lt[:, None]
 reg, subr = uvmap.classify(cenT)
 U, Vv = uvmap.corner_uv(PT[lv], cenT[lf], reg[lf], subr[lf])
+if MIX:   # a variant stitched from several sheets: each body region mapped onto its own sheet's layout
+    _groups = {"head": (uvmap.HEAD, uvmap.MOUTH), "torso": (uvmap.TORSO,), "arms": (uvmap.ARM, uvmap.PALM, uvmap.FINGER),
+               "legs": (uvmap.THIGH, uvmap.SHIN, uvmap.FOOT)}
+    for _part, _src in MIX.items():
+        if OFF[_src] == 0:
+            continue
+        _sel = np.isin(reg[lf], _groups[_part])
+        uvmap.use(sheets.SHEETS[monsters.MONSTERS[_src]["spec"]])
+        _r2, _s2 = uvmap.classify(cenT)
+        _U2, _V2 = uvmap.corner_uv(PT[lv], cenT[lf], _r2[lf], _s2[lf])
+        U[_sel] = _U2[_sel] + OFF[_src]; Vv[_sel] = _V2[_sel]
+    uvmap.use(sheets.SHEETS[CFG["spec"]])
+    log("mixed", {p: s for p, s in MIX.items()})
 uvl = me.uv_layers.new(name="UVMap")
 uvl.data.foreach_set("uv", np.stack([U / SIZE, 1 - Vv / SIZE], 1).ravel())
+SEAMV = np.zeros(len(P))
+if MIX and CFG.get("stitches"):
+    _blk = (U // SIZE).astype(int)
+    _bmin = np.full(len(P), 99); _bmax = np.full(len(P), -1)
+    np.minimum.at(_bmin, lv, _blk); np.maximum.at(_bmax, lv, _blk)
+    SEAMV = (_bmax > _bmin).astype(float)
 log("regions", {k: int((reg == k).sum()) for k in range(9)})
 MASK = np.load(os.path.join(TEX, "zombie_mask.npy"))
-inside = MASK[np.clip(Vv.astype(int), 0, SIZE - 1), np.clip(U.astype(int), 0, SIZE - 1)]
+inside = MASK[np.clip(Vv.astype(int), 0, SIZE - 1), np.clip(U.astype(int), 0, SW - 1)]
 log("corners off the paint % by region", {k: round(100 * float((~inside[reg[lf] == k]).mean()), 1) for k in range(9) if (reg == k).any()})
 np.savez_compressed(os.path.join(OUT, "uvdebug.npz"), U=U, V=Vv, reg=reg[lf], sub=subr[lf], lt=lt)
 
@@ -587,13 +617,15 @@ if CFG.get("chestpatch"):
 if not sdf.V["crown"]:   # the head mapping's pole sits on the crown: cover it with clone-stamped skin
     WPATCH = np.maximum(WPATCH, 0.92 * np.clip((P[:, 2] - 1.714) / 0.024, 0, 1) * (np.abs(P[:, 0]) < 0.2))
 WPATCH = WPATCH * WPATCH * (3 - 2 * WPATCH)
+if SEAMV.any():
+    SEAMV = smooth(spread(SEAMV, 0.022), 2)      # ~2 cm either side of the join: reads past 2 m
 log("patched verts %", round(100 * float((WPATCH > 0.5).mean()), 1))
 pw = me.attributes.new("patchW", "FLOAT", "POINT")
 pw.data.foreach_set("value", WPATCH.astype(np.float32))
 
 # displacement from the painting's shading (mid frequencies), per-vertex mean of its corners
 H = np.load(os.path.join(TEX, "zombie_height.npy")).astype(np.float32) / 0.062
-hu = np.clip(U.astype(int), 0, SIZE - 1); hv = np.clip(Vv.astype(int), 0, SIZE - 1)
+hu = np.clip(U.astype(int), 0, SW - 1); hv = np.clip(Vv.astype(int), 0, SIZE - 1)
 hs = H[hv, hu]
 amp_r = np.array([0.0011, 0.0026, 0.0014, 0.0007, 0.0004, 0.0015, 0.0013, 0.0009, 0.0])[reg[lf]]
 acc = np.zeros(n); cnt = np.zeros(n)
@@ -847,7 +879,7 @@ def make_rags():
     bm = bmesh.new()
     rng = np.random.default_rng(7)
     grid = {}
-    top, bot = 0.975, 0.60
+    top, bot = 0.975, CFG.get("rags_bot", 0.60)
     for j in range(rows + 1):
         z = top - (top - bot) * j / rows
         for i in range(seg):
@@ -1141,6 +1173,27 @@ chest_cleanup()
 shoulder_weights()
 neck_weights()
 
+
+def wrist_weights():
+    for side in ("l", "r"):
+        hb, lb = ARM.data.bones["hand_" + side], ARM.data.bones["lowerarm_" + side]
+        wr = np.array(hb.head_local); ax = wr - np.array(lb.head_local); ax /= np.linalg.norm(ax)
+        hi, li = body.vertex_groups["hand_" + side].index, body.vertex_groups["lowerarm_" + side].index
+        for v in body.data.vertices:
+            q = np.array(v.co) - wr
+            if np.linalg.norm(q) > 0.07:
+                continue
+            old = {g.group: g.weight for g in v.groups}
+            pair = old.get(hi, 0.0) + old.get(li, 0.0)
+            if pair < 0.9 * sum(old.values()):          # fingers and thumb keep their own weights
+                continue
+            t = ss(-0.024, 0.02, float(q @ ax))
+            body.vertex_groups["hand_" + side].add([v.index], pair * t, "REPLACE")
+            body.vertex_groups["lowerarm_" + side].add([v.index], pair * (1 - t), "REPLACE")
+
+
+wrist_weights()
+
 # ears follow the head; rags copy the nearest body weights (stiffened toward the pelvis)
 bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
 gname = {g.index: g.name for g in body.vertex_groups}
@@ -1267,7 +1320,7 @@ evj = np.zeros(len(me.edges) * 2, int); me.edges.foreach_get("vertices", evj); e
 Wv = np.zeros(nv, np.float32); me.attributes["patchW"].data.foreach_get("value", Wv)
 LOWIMG = np.load(os.path.join(TEX, "zombie_low.npy")).astype(np.float32)
 skin_l = pmat[lf] == 0
-li = np.clip(SPX.astype(int), 0, SIZE - 1)
+li = np.stack([np.clip(SPX[:, 0].astype(int), 0, SW - 1), np.clip(SPX[:, 1].astype(int), 0, SIZE - 1)], 1)
 acc = np.zeros((nv, 3)); cnt = np.zeros(nv)
 np.add.at(acc, lv[skin_l], LOWIMG[li[skin_l, 1], li[skin_l, 0]]); np.add.at(cnt, lv[skin_l], 1)
 LOWV = acc / np.maximum(cnt, 1)[:, None]
@@ -1288,6 +1341,13 @@ for poly in me.polygons:
     poly.select = poly.material_index == 0
     poly.hide = poly.material_index != 0      # rags keep their own tiling UVs
 bpy.context.view_layer.objects.active = body
+_square = []   # a composite sheet is not square; the unwrap and packing must not inherit its aspect
+if SW != SIZE:
+    _dummy = bpy.data.images.new("square", 8, 8)
+    for _m in body.data.materials:
+        for _nd in (_m.node_tree.nodes if _m and _m.use_nodes else []):
+            if _nd.type == "TEX_IMAGE":
+                _square.append((_nd, _nd.image)); _nd.image = _dummy
 bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.uv.smart_project(angle_limit=math.radians(62), island_margin=0.004, area_weight=0.0,
                          correct_aspect=True, scale_to_bounds=False)
@@ -1297,6 +1357,8 @@ try:
 except TypeError:
     bpy.ops.uv.pack_islands(rotate=True, margin=0.0025)
 bpy.ops.object.mode_set(mode="OBJECT")
+for _nd, _im in _square:
+    _nd.image = _im
 me = body.data
 for poly in me.polygons:
     poly.hide = False
@@ -1335,7 +1397,7 @@ _cr = np.clip(1 - np.abs(P[:, 0]) / 0.055, 0, 1) * np.clip((0.93 - P[:, 2]) / 0.
 DARK = np.maximum(DARK, np.where(part != 2, GRADE["crotch"] * _cr, 0.0))   # shadow between the legs, under the flaps
 for (_c, _r), _k in zip(sdf.V["holes"], HOLEKIND):   # carved wounds: dark inside, raw meat round the lip
     _hq = np.linalg.norm(P - _c, axis=1) - _r
-    _dk, _rw = {"cheek": (0.1, 0.014), "ribs": (0.3, 0.012)}.get(_k, (0.45, 0.006))
+    _dk, _rw = {"cheek": (0.1, 0.014), "ribs": (0.3, 0.012), "gash": (0.8, 0.012)}.get(_k, (0.45, 0.006))   # gash: black-red inside, a wide raw lip
     DARK = np.maximum(DARK, np.where((_hq < 0.0015) & (part != 2), _dk, 0.0))
     WOUND = np.maximum(WOUND, np.where(part != 2, np.clip(1 - (_hq - 0.0015) / _rw, 0, 1), 0.0))
 for _s, _t, _r0, _b in SPURS:            # the skin torn and inflamed round each spur
@@ -1359,17 +1421,32 @@ for _pts, _r0, _r1 in sdf.V["inner"]:   # the rib bars themselves are bone
         _dd = np.linalg.norm(P - (_a + _t[:, None] * (_b - _a)), axis=1)
         BONE = np.maximum(BONE, np.clip(1 - (_dd - _r0) / 0.003, 0, 1))
 BONE = np.where(part != 2, BONE, 0.0)
+SEAMB = np.zeros(nv); SEAMB[:len(SEAMV)] = SEAMV[:nv]   # the body's vertices come first after the join
+_KIND = {"bruise": 0, "rot": 1, "blood": 2, "shadow": 3, "pale": 4}
+DECALS = []
+for _where, _r, _k in CFG.get("decals", []):
+    if _where[0] == "bone":                       # ("bone", name, t): a point along that bone (a band round the limb)
+        _b = ARM.data.bones[_where[1]]
+        _c = np.array(_b.head_local) + (np.array(_b.tail_local) - np.array(_b.head_local)) * _where[2]
+    elif _where == "eyes":
+        for _sx in (1, -1):
+            DECALS.append([sdf.EYE[0] * _sx, sdf.EYE[1], sdf.EYE[2], _r, _KIND[_k]])
+        continue
+    else:
+        _c = np.array(_where, float)
+    DECALS.append([*_c, _r, _KIND[_k]])
 MOUTH = np.where((sdf.cavity_q(P, (1.0, 1.0, 1.0)) < 1.0) & (P[:, 1] > -0.079) & (part != 2), 1.0, 0.0).astype(np.float32)
 mT = sdf.unbend(P); mT[:, 0] = np.abs(mT[:, 0])
-NAIL = np.zeros(nv); BED = np.zeros(nv)
+NAIL = np.zeros(nv); BED = np.zeros(nv); TIP = np.zeros(nv)
 for _nm in uvmap.FNAMES:
     _r = sdf.FINGER_R[_nm]
-    _nd = sdf.ellipsoid(mT, sdf.nail_c(_nm), (0.0098, _r * 0.6, 0.0016))
+    _nd = sdf.ellipsoid(mT, sdf.nail_c(_nm), (0.0098 * (1 - 0.35 * sdf.V["taper"]), _r * 0.6 * (1 - 0.15 * sdf.V["taper"]), 0.0016))
     NAIL = np.maximum(NAIL, np.clip(1 - _nd / 0.0022, 0, 1) * (mT[:, 2] > sdf.nail_c(_nm)[2] - 0.0025))
     _fd, _ft, _ = uvmap.finger_param(mT, _nm)
     BED = np.maximum(BED, np.clip((_ft - 0.78) / 0.12, 0, 1) * (_fd < _r * 1.6))
+    TIP = np.maximum(TIP, np.clip((_ft - 0.58) / 0.14, 0, 1) * (_fd < _r * 1.8))   # the last joint, where the sheet's paint goes black
 mesh_hand = np.abs(P[:, 0]) > 0.45
-NAIL *= mesh_hand; BED = BED * mesh_hand * (1 - NAIL)
+NAIL *= mesh_hand; BED = BED * mesh_hand * (1 - NAIL); TIP = TIP * mesh_hand
 log("nail verts", int((NAIL > 0.5).sum()), "nail-bed verts", int((BED > 0.5).sum()))
 _hg = np.zeros(nv, np.float32)
 if "toothh" in me.attributes:
@@ -1388,7 +1465,13 @@ np.savez_compressed(npz, atlas=AUV, sheet=SPX, tri=tl[tm == 0], P=P[lv], N=N[lv]
                     bumps=np.array([[*p, r, GRADE["bumpkind"]] for p, n, r in BUMPS], float).reshape(-1, 5),
                     grade2=np.array([GRADE["sat"], GRADE["green"], GRADE["eyehot"], GRADE["gullet"], GRADE["cmatch"],
                                      GRADE["ivory"], GRADE["rmin"], GRADE["mould"], GRADE["sores"], GRADE["bed"], GRADE["meat"]], float),
-                    ropes=ROPES, eyes=np.array([*sdf.EYE, sdf.EYE_R], float), clone=np.array(uvmap.S["clone"], float),
+                    ropes=ROPES, eyes=np.array([*sdf.EYE, sdf.EYE_R], float),
+                    mix=np.array([CFG.get("mixh", 0.5) if MIX else 0.0, SIZE], float),
+                    SEAM=SEAMB[lv].astype(np.float32), headtint=np.array(GRADE["headtint"], float),
+                    welts=np.array([GRADE["welts"]], float), decals=np.array(DECALS, float).reshape(-1, 5),
+                    crown_c=np.array(sdf.CROWN_C, float), nailcol=np.array(GRADE["nailcol"], float),
+                    headtint_zw=np.array(GRADE["headtint_zw"], float), flay=np.array(GRADE["flay"], float), clone=np.array(uvmap.S["clone"], float),
+                    feather=np.array(GRADE["feather"], float), TIP=TIP[lv].astype(np.float32), tiplift=np.array([GRADE["tiplift"]], float),
                     feat=np.array([GRADE["trickle"], sdf.V["crown"], GRADE["glow"], GRADE["rough"], *GRADE["tint"]], float),
                     grade=np.array([GRADE["dark"], GRADE["rot"], GRADE["soot"], GRADE["vein"], GRADE["eyeglow"], *GRADE["eyecol"]], float))
 BAKED = os.path.join(OUT, "tex")

@@ -137,6 +137,10 @@ if (WEBGPU) { /* TSL */ } else { /* the GLSL, untouched */ }
   that need depth (AO, depth-tested god rays) need it written to a colour target (MRT) first.
 - WGSL's `%` rounds toward zero (GLSL's `mod` floors); TSL `select()` becomes a branch, so sample both
   textures before it.
+- three r187's WebGPU backend replays render bundles at the end of the pass (`finishRender`), after the
+  transparent things. Those write no depth, so the bundled world was drawn over every decal, glow and
+  pool (the spells' frost, rune and plague fields vanished; a transparent thing showed only where nothing
+  bundled stood behind it). cells.js `inOrder` replays them where three puts them in the order: first.
 
 ## Testing
 

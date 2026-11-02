@@ -80,6 +80,33 @@ def wraps(out, cols, size=512):
 
 
 def main(src, out, name=None):
+    """Prep one sheet, or for a mixed variant (cfg mix) every source sheet side by side in mix_order."""
+    os.makedirs(out, exist_ok=True)
+    cfg = {}
+    if name:
+        here = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, here)
+        import monsters
+        cfg = monsters.MONSTERS[name]
+    if cfg.get("mix"):
+        root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+        parts = []
+        for k, srcname in enumerate(cfg["mix_order"]):
+            dk = os.path.join(out, "_src%d" % k)
+            prep_sheet(os.path.join(root, monsters.MONSTERS[srcname]["sheet"]), dk)
+            parts.append(dk)
+        for f in ("zombie_basecolor.png", "zombie_normal.png", "zombie_orm.png"):
+            Image.fromarray(np.concatenate([np.asarray(Image.open(os.path.join(dk, f))) for dk in parts], 1)).save(os.path.join(out, f))
+        for f in ("zombie_height.npy", "zombie_mask.npy", "zombie_low.npy"):
+            np.save(os.path.join(out, f), np.concatenate([np.load(os.path.join(dk, f)) for dk in parts], 1))
+        print("composite of", cfg["mix_order"])
+    else:
+        prep_sheet(src, out)
+    rags(out, seed=cfg.get("rags_seed", 11))
+    wraps(out, cfg.get("extras", {}).get("cols", {}))
+
+
+def prep_sheet(src, out):
     os.makedirs(out, exist_ok=True)
     im = np.asarray(Image.open(src).convert("RGB")).astype(np.float32) / 255.0
     lum = im @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -123,13 +150,6 @@ def main(src, out, name=None):
     low = np.stack([ndimage.gaussian_filter(np.where(mask, im[..., i], 0), 5) for i in range(3)], -1)
     low /= ndimage.gaussian_filter(mask.astype(np.float32), 5)[..., None] + 1e-4
     np.save(os.path.join(out, "zombie_low.npy"), bleed(low, mask).astype(np.float16))
-    rags(out)
-    cols = {}
-    if name:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import monsters
-        cols = monsters.MONSTERS[name].get("extras", {}).get("cols", {})
-    wraps(out, cols)
     print("islands px", int(mask.sum()), "height std", float(height[mask].std()))
 
 
@@ -142,8 +162,8 @@ def fbm(shape, rng, power=2.2):
     return (n - n.mean()) / n.std()
 
 
-def rags(out, size=512):
-    rng = np.random.default_rng(11)
+def rags(out, size=512, seed=11):
+    rng = np.random.default_rng(seed)
     yy, xx = np.mgrid[0:size, 0:size] / size
     u, v = xx, 1 - yy                                                  # v = 0 at the hem line
     weave = 0.5 + 0.5 * np.sin(xx * size * np.pi / 3.5) * np.sin(yy * size * np.pi / 3.5)  # ~7 px threads

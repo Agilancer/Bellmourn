@@ -43,6 +43,7 @@ export function makeCells(renderer, scene, meshes, size = 40) {
   }
   const cells = [...byKey.values()];
   for (const c of cells) { c.updateMatrixWorld(true); c.sig = sig(c); }
+  inOrder(renderer);
   // each render's camera frustum, for the cells' culling (nested renders: the shadows inside the world)
   const render = renderer.render.bind(renderer);
   let depth = 0;
@@ -69,6 +70,25 @@ export function makeCells(renderer, scene, meshes, size = 40) {
       return cell.children.length;
     },
     count: () => cells.reduce((n, c) => n + c.children.length, 0),
+  };
+}
+
+/** The bundles drawn where three puts them in the order (first, before the loose opaque and the
+ * transparent things), not where its WebGPU backend replays them: at the end of the pass, after the
+ * transparent things, which write no depth, so the still world was drawn over them (spells' frost, rune
+ * and plague pools, glows: gone wherever ground or a house stood behind them). */
+function inOrder(renderer) {
+  const be = renderer.backend, base = renderer._renderBundles;
+  if (!base || renderer.bmInOrder) return;
+  renderer.bmInOrder = true;
+  renderer._renderBundles = function (...a) {
+    base.apply(this, a);
+    const d = be.get(this._currentRenderContext);
+    if (!d.currentPass || d.bundleEncoders || !d.renderBundles?.length) return;   // (array cameras: three's way)
+    d.currentPass.executeBundles(d.renderBundles);
+    d.renderBundles = [];
+    // (executing bundles clears the pass's pipeline, bind groups and buffers: so three's record of them)
+    d.currentSets = { attributes: {}, bindingGroups: [], pipeline: null, index: null };
   };
 }
 

@@ -26,7 +26,7 @@ if "--diag" in argv:
     pb = ARM.pose.bones
     only = argv[argv.index("--diag") + 1] if len(argv) > argv.index("--diag") + 1 and not argv[argv.index("--diag") + 1].startswith("--") else ""
     for base in clipvars.BASE:
-        for name in [base] + [base + "_" + s for s in "BCDE"]:
+        for name in [base] + [base + "_" + s for s in clipvars.TAKES.get(base, {})]:
             if only and only not in name:
                 continue
             act = bpy.data.actions[name]
