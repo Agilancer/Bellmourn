@@ -97,7 +97,7 @@ export class Sfx {
    * own, so the opening can wait for just these. */
   loadCrowd() {
     if (this.crowding) return this.crowding;
-    this.crowding = Promise.all(['wilhelm_scream', 'crowd_gasp', 'crowd_panic'].map(async (name) => {
+    this.crowding = Promise.all(['wilhelm_scream', 'crowd_gasp', 'crowd_panic', 'title_bells'].map(async (name) => {
       const b = await this.decode(SFX_DIR + name + '.mp3');
       if (b) this.bank[name] = [{ b, off: 0 }];
     }));
@@ -379,6 +379,47 @@ export class Sfx {
     if (!this.ok) return;
     const t = this.ctx.currentTime, f = (high ? 1600 : 1100) * (0.9 + Math.random() * 0.25);
     this._tone(t, 0.18, { type: 'triangle', f0: f, f1: f * (high ? 2 : 1.4), gain: 0.04 });
+  }
+
+  /** The bell tower's four bells at noon and midnight (belltower.js): the title's peal, three
+   * seconds full, then trailing away and losing its highs. Heard over the whole land: `near` 0..1
+   * (louder, brighter and to one side when you're close), `under` 0..1 (muffled through the ground). */
+  towerBells({ near = 0, pan = 0, under = 0 } = {}) {
+    const b = this.bank.title_bells?.[0]?.b;
+    if (!this.ok || !b) return false;
+    const c = this.ctx, when = c.currentTime + 0.03, hold = 3, trail = 9, down = 40, fall = when + hold, end = fall + trail;
+    const vol = (0.34 + 0.6 * near) * (1 - under * 0.45);
+    const src = c.createBufferSource(), lp = c.createBiquadFilter(), env = c.createGain();
+    src.buffer = b;
+    const curve = new Float32Array(64);
+    for (let i = 0; i < 64; i++) curve[i] = vol * Math.pow(10, -down * Math.pow(i / 63, 1.6) / 20);
+    curve[63] = 0;
+    env.gain.setValueAtTime(vol, when);
+    env.gain.setValueCurveAtTime(curve, fall, trail);
+    // far off the highs are lost to the air; underground, to the earth
+    const top = Math.min(18000, c.sampleRate * 0.45) * (0.25 + 0.75 * near) * (1 - under * 0.85);
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.max(500, top), when);
+    lp.frequency.setValueAtTime(Math.max(500, top), fall);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(300, top * 0.1), end);
+    src.connect(lp); lp.connect(env);
+    let last = env;
+    if (pan && c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = clamp1(pan); env.connect(pn); last = pn; }
+    last.connect(this.out);
+    let off = 0;
+    { const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 0.02) { off = i / b.sampleRate; break; } }
+    src.start(when, off); src.stop(end + 0.05);
+    this.voices++;
+    src.onended = () => { this.voices--; last.disconnect(); };
+    return true;
+  }
+
+  /** The Wingbell rung in the air (a double jump): a small bright bell over a puff of wind. */
+  wingbell() {
+    if (!this.ok) return;
+    const t = this.ctx.currentTime, f = 1760 * (0.97 + Math.random() * 0.06);
+    this._noise(t, 0.28, { f0: 900, f1: 2600, q: 0.9, gain: 0.22, attack: 0.02 });
+    this._tone(t, 0.9, { type: 'sine', f0: f, f1: f, gain: 0.05 });
+    this._tone(t, 0.6, { type: 'sine', f0: f * 2.76, f1: f * 2.76, gain: 0.018 });
   }
 
   /** Torn through the air (a blink). */

@@ -1664,6 +1664,7 @@ export class Foes {
     for (const r of inside.filter((q) => q.biome === 'downs')) {
       if (r.x1 - r.x0 < 2 || r.z1 - r.z0 < 2) continue;
       const who = /barn/i.test(r.name) ? ['knight_c', 'knight_c'] : /farm/i.test(r.name) ? ['sorcerer_b', 'knight_a'] : /windmill/i.test(r.name) ? ['sorcerer_a'] : [pick(SO), ...(R() < 0.5 ? [pick(KN)] : [])];
+      if (r.held) continue;   // (drawn for and not garrisoned: someone keeps it, the bell tower's Bellwright)
       who.forEach((v, i) => { n += inRoom(v, r, i, who.length); });
     }
     // the other countries: a few at their ruins, keeps, chapels and crossroads

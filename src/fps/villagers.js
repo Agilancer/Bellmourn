@@ -81,7 +81,17 @@ const ROSTER = [
   { m: 'villager_m09', name: 'Ulf', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'boneward' },
   { m: 'villager_m04', name: 'Corvus', call: 'Magister Corvus', tags: ['guard', 'velscour', 'learned'], home: /Barracks/, watch: true, garrison: true, armor: 'runebound' },
   { m: 'villager_m07', name: 'Bram', tags: ['guard', 'velscour'], home: /Barracks/, watch: true, garrison: true, armor: 'brawler' },
+  // the Bellwright: an old battle-mage out of Velscour's service who keeps the bell tower on the downs
+  // (belltower.js), in the Runebound Regalia with its helm off, his hair gone silver, his bell-staff in
+  // hand. He lives at his post in the tower's hall (`keeper`: ctx.belltower.post) and never leaves it
+  { m: 'villager_m11', name: 'Orrin', call: 'Orrin the Bellwright', tags: ['learned', 'old', 'bellwright'], keeper: 'belltower', armor: 'runebound', helm: false,
+    hair: [0.86, 0.86, 0.9], pale: 0.7, staff: 'templates/models/belltower/bellstaff.glb' },
 ];
+// what the Bellwright says to himself and to you, between his work
+const BELLWRIGHT = ['Noon and midnight. Never late. Not once in nineteen years.', 'The bronze remembers every hand that rang it.',
+  "Mourn is out of true again. A hair flat. Listen at noon, you'll hear it.", 'Mind the hatch. What is under it does not sleep. It waits.',
+  'Four watches, four bells. The abbots were not subtle men.', 'I wore his colours once. I still wear them. Penance is a garment, too.',
+  'The crows come back every time. Faithful creatures. More than I was.'];
 const GARRISON_ON_PHONE = 3;   // a phone gets this many of the garrison (each set is another download)
 const PHONE_WAIT = 4;          // seconds after the village is built before a phone starts bringing them in
 
@@ -102,6 +112,60 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const chance = (p) => Math.random() < p;
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _d = new THREE.Vector3();
 
+/** A villager in armour bareheaded: the set's helm hidden, their own hair shown, recoloured if asked
+ * ([r, g, b]: from its own map's light and dark, so the strands stay). */
+function bareHead(model, hair = null) {
+  model.traverse((c) => {
+    if (!c.isMesh) return;
+    if (/^Helm/i.test(c.name) || /^Helm/i.test(c.parent?.name || '')) c.visible = false;
+    if (!/^V_Hair/.test(c.name)) return;
+    c.visible = true;
+    if (!hair) return;
+    const m = c.material.clone(), src = m.map?.image;
+    if (src) {
+      const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
+      const g = cv.getContext('2d'); g.drawImage(src, 0, 0);
+      const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const l = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255, v = 0.55 + l * 0.9;
+        d[i] = Math.min(255, v * hair[0] * 255); d[i + 1] = Math.min(255, v * hair[1] * 255); d[i + 2] = Math.min(255, v * hair[2] * 255);
+      }
+      g.putImageData(im, 0, 0);
+      const t = new THREE.CanvasTexture(cv); t.flipY = m.map.flipY; t.colorSpace = m.map.colorSpace; t.wrapS = m.map.wrapS; t.wrapT = m.map.wrapT;
+      m.map = t;
+    } else m.color.setRGB(...hair);
+    c.material = m;
+  });
+}
+
+/** An armour set's colours washed toward white by k (0..1): their saturation halved and their
+ * lightness raised, on copies of its textures (a violet robe reads lavender and silver). */
+function paleArmor(model, k) {
+  const done = new Map();
+  model.traverse((c) => {
+    if (!c.isMesh || /^V_/.test(c.name)) return;
+    const mats = [c.material].flat().map((m) => {
+      if (done.has(m)) return done.get(m);
+      const m2 = m.clone(), src = m2.map?.image;
+      if (src) {
+        const cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
+        const g = cv.getContext('2d'); g.drawImage(src, 0, 0);
+        const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const l = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
+          for (let j = 0; j < 3; j++) { const v = d[i + j] + (l - d[i + j]) * k * 0.9; d[i + j] = Math.min(255, v + (255 - v) * k * 0.42); }
+        }
+        g.putImageData(im, 0, 0);
+        const t = new THREE.CanvasTexture(cv); t.flipY = m2.map.flipY; t.colorSpace = m2.map.colorSpace; t.wrapS = m2.map.wrapS; t.wrapT = m2.map.wrapT;
+        m2.map = t;
+      }
+      done.set(m, m2);
+      return m2;
+    });
+    c.material = Array.isArray(c.material) ? mats : mats[0];
+  });
+}
+
 export class Villagers {
   /** scene: where they stand; ctx: the world (its physics, its interiors). */
   constructor(scene, ctx) {
@@ -120,12 +184,13 @@ export class Villagers {
   populate(n = ROSTER.length) {
     const loader = new GLTFLoader(), cache = new Map();
     const load = (url) => { if (!cache.has(url)) cache.set(url, loader.loadAsync(url)); return cache.get(url); };
-    let who = ROSTER.slice(0, n);
+    let who = [...new Set([...ROSTER.slice(0, n), ...ROSTER.filter((p) => p.keeper)])];   // (a keeper lives at their post: always brought)
     // a phone gets the watch, a few of the garrison and a cross-section of the rest
     if (n < ROSTER.length) {
       const garrison = ROSTER.filter((p) => p.garrison).slice(0, GARRISON_ON_PHONE);
       const givers = ROSTER.filter((p) => GIVERS[p.name] && !p.garrison);   // those with work for you, always
       who = [...new Set([...givers, ...ROSTER.filter((p) => p.watch && !p.garrison), ...garrison, ...ROSTER.filter((p) => !p.watch)])].slice(0, Math.max(n, givers.length + 2));
+      who = [...new Set([...who, ...ROSTER.filter((p) => p.keeper)])];
     }
     let k = 0;
     const bring = (p) => {
@@ -199,6 +264,8 @@ export class Villagers {
     const model = Villagers.take(gltf), root = new THREE.Group();
     root.add(model);
     if (armor) this.wear(model, armor);
+    if (armor && p.helm === false) bareHead(model, p.hair);
+    if (armor && p.pale) paleArmor(model, p.pale);
     let head = null;
     model.traverse((c) => {
       if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; skinTone(c.material); }
@@ -212,16 +279,57 @@ export class Villagers {
     const mixer = new THREE.AnimationMixer(model), actions = {};
     const clips = Object.fromEntries((set?.clips || gltf.animations).map((c) => [c.name, c]));
     const home = this.homeFor(p, k), nd = this.graph[home];
-    const x = nd.x + rand(-1, 1), z = nd.z + rand(-1, 1);
+    const kp = p.keeper ? this.ctx[p.keeper]?.post : null;
+    const x = kp ? kp[0] : nd.x + rand(-1, 1), z = kp ? kp[1] : nd.z + rand(-1, 1);
     const a = { ...p, call: p.call || p.name, root, model, head, mixer, actions, clips, ual: !!set, gait: set?.gaits || null, rest: set && Math.random() < 0.3 ? 'idle_arms' : 'idle', cur: null,
-      pos: new THREE.Vector3(x, 0, z), yaw: rand(0, 6.28), want: null, path: [], goal: null, node: this.nearestNode(x, z), home,
+      pos: new THREE.Vector3(x, kp ? this.ctx[p.keeper].floor : 0, z), yaw: kp ? kp[2] : rand(0, 6.28), want: null, path: [], goal: null, node: this.nearestNode(x, z), home,
       speed: p.tags.includes('old') ? 0.8 : rand(1.0, 1.25), busy: false, inside: false, flee: 0, faceTo: null, gesture: 0,
       talk: null, greeted: -99, frame: k % 4, acc: 0, stuck: 0, last: new THREE.Vector3(x, 0, z), nextT: rand(0, 3), occT: 0, hidden: false };
+    if (kp) { a.keeperPost = kp; a.rest = 'idle'; }
     this.play(a, 'idle');
     mixer.update(Math.random() * 3);
     this.scene.add(root);
     this.list.push(a);
+    if (p.staff) this.giveStaff(a, p.staff);
     return a;
+  }
+
+  /** A staff in the right hand, standing upright from the ground as it's held in their idle (fixed to
+   * the wrist then, so it swings with the arm after). */
+  giveStaff(a, url) {
+    (this._staff ||= new GLTFLoader().loadAsync(url)).then((g) => {
+      const staff = g.scene.clone(true);
+      staff.traverse((o) => {
+        if (!o.isMesh) return;
+        const n = o.material.name || '';
+        o.material = /crystal/.test(n) ? new THREE.MeshBasicMaterial({ color: 0xb48cff })
+          : new THREE.MeshPhongMaterial({ color: /oak/.test(n) ? 0x6a4a2e : /bronze/.test(n) ? 0xb08a50 : /leather/.test(n) ? 0x3a2418 : 0x2c2a2a,
+            specular: /bronze|iron/.test(n) ? 0x7a6a50 : 0x111111, shininess: /bronze|iron/.test(n) ? 40 : 8 });
+        o.castShadow = true;
+      });
+      let wrist = null;
+      a.model.traverse((c) => { if (c.isBone && c.name === 'WristR') wrist = c; });
+      if (!wrist) return;
+      a.root.position.copy(a.pos); a.root.rotation.y = a.yaw; a.mixer.update(0); a.root.updateMatrixWorld(true);
+      // the palm (a little under the wrist) and the staff stood up there, its grip (0.97 m up the
+      // staff) in the hand, leaning a touch forward
+      const w = new THREE.Vector3().setFromMatrixPosition(wrist.matrixWorld);
+      const want = new THREE.Matrix4().compose(w.clone().add(new THREE.Vector3(0, -0.06, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.06, a.yaw, 0, 'YXZ')), new THREE.Vector3(1, 1, 1))
+        .multiply(new THREE.Matrix4().makeTranslation(0, -0.97, 0));
+      staff.matrixAutoUpdate = false;
+      staff.matrix.copy(wrist.matrixWorld).invert().multiply(want);
+      wrist.add(staff);
+      a.staff = staff;
+      // a glow on the crystal at its head (main flares it when the bells ring)
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+      const g2 = cv.getContext('2d'), gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(240,225,255,1)'); gr.addColorStop(0.3, 'rgba(170,120,255,0.55)'); gr.addColorStop(1, 'rgba(120,60,255,0)');
+      g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.25 }));
+      glow.position.set(0, 2.22, 0); glow.scale.setScalar(0.35);
+      staff.add(glow);
+      a.staffGlow = glow;
+    }).catch((e) => console.warn('villagers: a staff', e));
   }
 
   /** A villager's action for a clip, made the first time it's wanted (most of the fifty never are):
@@ -320,6 +428,7 @@ export class Villagers {
   // ------------------------------------------------------------------ the director's helpers
   /** Walk to (x, z) by the streets; returns a test for having got there. */
   go(a, x, z) {
+    if (a.keeperPost) { a.path = []; a.goal = Math.hypot(a.pos.x - x, a.pos.z - z) > 0.3 ? [x, z] : null; a.faceTo = null; a.stuck = 0; return () => !a.goal; }
     const from = this.nearestNode(a.pos.x, a.pos.z), to = this.nearestNode(x, z);
     a.path = from === to ? [] : this.route(from, to).slice();
     a.goal = [x, z]; a.faceTo = null; a.stuck = 0;
@@ -389,9 +498,9 @@ export class Villagers {
 
   // ------------------------------------------------------------------ routines
   /** Where a quest giver waits while they've work for you (main can move it: postAt). */
-  postOf(a) { return this.postAt?.[a.name] || GIVERS[a.name]?.post || this.shops?.[a.name] || null; }
+  postOf(a) { return a.keeperPost || this.postAt?.[a.name] || GIVERS[a.name]?.post || this.shops?.[a.name] || null; }
   /** Does this one stay at their post (they've something for you, or a shop to keep: main's shops)? */
-  stays(a) { return !!(((GIVERS[a.name] && this.quests?.business(a.name)) || this.shops?.[a.name]) && !a.garrison); }
+  stays(a) { return !!a.keeperPost || !!(((GIVERS[a.name] && this.quests?.business(a.name)) || this.shops?.[a.name]) && !a.garrison); }
 
   pickRoutine(a) {
     if (this.stays(a)) return this.run(this.keepPost(a), [a]);
@@ -542,7 +651,7 @@ export class Villagers {
     while (this.time < until && this.stays(a)) {
       const [px, pz] = this.postOf(a);
       if (Math.hypot(a.pos.x - px, a.pos.z - pz) > 1.5) { yield this.go(a, px, pz); a.faceTo = this.postOf(a)[2]; }
-      if (chance(0.12)) yield* this.line(a, pick([...SACRED_BARKS.any, ...a.tags.flatMap((t) => SACRED_BARKS[t] || [])]), 0, 2);
+      if (chance(0.12)) yield* this.line(a, pick(a.tags.includes('bellwright') ? BELLWRIGHT : [...SACRED_BARKS.any, ...a.tags.flatMap((t) => SACRED_BARKS[t] || [])]), 0, 2);
       yield rand(2, 4);
     }
   }

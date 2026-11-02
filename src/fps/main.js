@@ -63,6 +63,8 @@ import { GemFx } from './gemfx.js';
 import { Respawns } from './respawn.js';
 import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './craft.js';
 import { makeGem, GEMS } from './gems.js';
+import { makeCharm, hasAbility, CHARMS } from './charms.js';
+import { Chimes } from './belltower.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -169,13 +171,14 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let chimes = null;   // the bell tower's bells at noon and midnight (belltower.js)
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
 let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 let trade = null, gemFx = null, respawns = null;   // the merchants (trade.js), the gems' looks (gemfx.js), the world filling up again (respawn.js)
 // the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
 // no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
-const cheats = { noDamage: false, fly: false, god: false };
+const cheats = { noDamage: false, fly: false, god: false, doubleJump: false };
 let debugMenu = null, debugFrom = null, flyFrom = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -390,9 +393,24 @@ async function build() {
   player.onFall = (d) => hurtPlayer(d, null, 'fall');
   player.onJump = () => sfx.jump(underfoot(), inMail());
   player.onLand = (k) => sfx.land(underfoot(), inMail(), k);
+  // the Wingbell (charms.js): a bell rung in the air, and a ring of pale wind under your feet
+  player.onDoubleJump = () => {
+    sfx.wingbell?.();
+    const at = player.pos.clone();
+    magic.particles.burst(at, [new THREE.Color('#e8e0ff'), new THREE.Color('#b9a4ff'), new THREE.Color('#ffffff')], 26, { speed: 3.2, size: 0.035, grav: -0.6, drag: 3.2, life: 0.55 });
+  };
   sfx.stinger = (k) => music.stinger(k);   // (a quest done: quests.js, through audio.js)      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
+  // the bell tower on Bell Knoll rings noon and midnight; the Bellwright lifts his staff to it
+  if (ctx.belltower) chimes = new Chimes(ctx, ctx.belltower, { sfx, particles: magic.particles, onRing: (kind, near) => {
+    const orrin = villagers?.list.find((a) => a.keeperPost && a.tags.includes('bellwright'));
+    if (orrin) orrin.flare = 4;   // (his staff's crystal blazes while they ring)
+    if (orrin && near > 0.9 && !orrin.inside) {
+      villagers.play(orrin, 'torch'); orrin.gesture = 4;   // (his staff held up to the bells while they swing)
+      villagers.say(orrin, kind === 'noon' ? 'Noon. Ring, you old bronze. Ring.' : 'Midnight. Hold, below. Hold.', false, { now: true });
+    }
+  } });
   zombies = new Zombies(scene, physics, kit, sfx);
   respawns = new Respawns({ zombies });   // (notes how each is made, so it can be made again: respawn.js)
   await zombies.load(); await mark('zombies');
@@ -555,6 +573,13 @@ async function build() {
     onPortals: wakeAllPortals,
     portals: () => [ctx.portals.found.size, ctx.portals.list.length],
     onGear: gearDrop,
+    charms: () => [Object.keys(CHARMS).filter((id) => char.charms?.some((c) => c?.charm === id)).length, Object.keys(CHARMS).length],
+    onBells: () => { if (!chimes) return 'There is no bell tower.'; chimes.ring(hour >= 6 && hour < 18 ? 'noon' : 'midnight', sfx.ear, L.under); return 'The bells of Bell Knoll ring out over the land.'; },
+    onCharms: () => {
+      for (const id of Object.keys(CHARMS)) addToBag(char, makeCharm(id));
+      saveCharacter(char); bag.render();
+      return 'Every charm is in your pouch: see the Charms tab (I).';
+    },
     onLevel: shiftLevel,
     level: () => [char.level, MAX_LEVEL],
   });
@@ -567,6 +592,7 @@ async function build() {
   title.onMenu = menu;
   vm.on(onEvent);
   resize();
+  await ctx.belltower?.ready;   // (its bells in their arches before the shaders are made)
   await prepare(mark);
   respawns.adopt();   // (everything in the world now comes back when cut down)
   ready = true; run.step = 'loaded';
@@ -1403,7 +1429,8 @@ function light(dt, t) {
     // (an awake portal's light, out of doors only: within 30 m it ranks as if three times nearer, so
     // a lamp post doesn't crowd it out; below ground or indoors it never takes a torch's place)
     const seals = ctx.portals && L.under < 0.5 && indoor < 0.5 ? ctx.portals.lights : [];
-    const ranked = (seals.length ? [...flameList, ...seals] : flameList).map((f) => {
+    const extra = [...seals, ...(ctx.witchLights || [])];   // (and the Bellwright's witch-light: belltower.js)
+    const ranked = (extra.length ? [...flameList, ...extra] : flameList).map((f) => {
       const d2 = (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2;
       return [f, f.portal && d2 < 900 ? d2 / 9 : d2];
     })
@@ -1436,6 +1463,12 @@ function light(dt, t) {
       // (its own light by night, strong enough to pool on the ground about it; by day only a glow)
       l.intensity = (1.2 + 15 * night + 6 * s.flash) * (0.88 + 0.12 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake);
       l.distance = 10;
+      return;
+    }
+    if (f.witch) {   // a witch-light: its own cold colour, steady, the same by day and night (it's indoors)
+      l.color.setHex(f.color);
+      l.intensity = 6 * (0.92 + 0.08 * Math.sin(t * 1.7));
+      l.distance = 7.5;
       return;
     }
     l.color.setHex(0xff9a48);
@@ -1591,6 +1624,7 @@ function setCheat(k, on) {
     return on ? 'GOD MODE: nothing can hurt you, and everything dies at one blow' : 'God mode is off';
   }
   if (k === 'noDamage') return on ? 'Enemies can no longer hurt you' : 'Enemies can hurt you again';
+  if (k === 'doubleJump') return on ? 'Double jump: press jump again in the air' : (hasAbility(char, 'doubleJump') ? 'The cheat is off, but the Wingbell in your pouch still lets you double jump' : 'Double jump is off');
   if (k === 'fly') {
     setFly(on);
     return on ? (touch ? 'No-clip: the stick flies you where you look; the jump button rises' : 'No-clip: WASD flies you where you look; Space rises, C sinks, Shift is faster')
@@ -2256,6 +2290,7 @@ function tick(dt) {
   relock.classList.toggle('show', !touch && started && !paused && !introBusy && !windowOpen() && !document.pointerLockElement && !intro?.running);
   if (active && cheats.fly) player.fly(dt, inp);
   else if (active) {
+    player.canDoubleJump = cheats.doubleJump || hasAbility(char, 'doubleJump');
     player.update(dt, inp);
     for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
     if (inp.was('KeyQ')) drink('life');
@@ -2400,6 +2435,12 @@ function tick(dt) {
     if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
   }
   for (const f of ctx.animated) f(dt, t);
+  chimes?.update(dt, timeMode === 'cycle' && !holdHour ? hour : null, sfx.ear, L.under, 1 - day.day);
+  for (const a of villagers.list) if (a.staffGlow) {   // (the Bellwright's crystal: a faint glow, blazing while the bells ring)
+    a.flare = Math.max(0, (a.flare || 0) - dt);
+    const f = Math.min(1, a.flare / 1.5);
+    a.staffGlow.material.opacity = 0.25 + 0.75 * f; a.staffGlow.scale.setScalar(0.35 + 1.1 * f * (0.9 + 0.1 * Math.sin(t * 9)));
+  }
   // (in no-clip nothing sees, hears or wakes for you: as while a window is up)
   zombies.update(dt, player, acting, camera, H, 0.3 + 0.7 * day.day);
   slimes.update(dt, player, acting, camera, H);
@@ -2485,7 +2526,7 @@ build().then(() => {
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
-    cheats, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
+    cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

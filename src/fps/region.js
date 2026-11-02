@@ -9,6 +9,7 @@ import { detailedHouse } from './buildings.js';
 import { REGION, POOL, CLIFF, STREAM, CAVE_MOUTHS, terrainHeight, addPad, buildTerrain, streamAt, riverAt } from './terrain.js';
 import { buildWater } from './water.js';
 import { PORTALS, PORTAL_PAD } from './portals.js';
+import { buildBellTower, padBellTower, TOWER } from './belltower.js';
 
 function rng(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -17,7 +18,7 @@ function rng(seed) {
 export const ENTRANCE = [REGION.x0 + 6, 0];
 export const SPOTS = { // named places on the downs (for the place names on screen)
   farm: [438, 92, 48, 'Millhaven Farm'], mill: [520, 160, 26, 'The Millhaven Windmill'], hamlet: [560, 10, 70, 'Millhaven'],
-  falls: [POOL.x, POOL.z, 70, 'Brightwater Falls'],
+  falls: [POOL.x, POOL.z, 70, 'Brightwater Falls'], knoll: [668, -208, 40, 'Bell Knoll'],
 };
 
 export function buildRegion(ctx, M, hm) {
@@ -38,6 +39,7 @@ export function buildRegion(ctx, M, hm) {
   for (const h of homes) h.y = addPad(h.x, h.z, Math.max(h.w, h.d) * 0.75);
   // the portals out here stand on level ground (portals.js)
   for (const p of PORTALS) if (p.x >= REGION.x0) addPad(p.x, p.z, PORTAL_PAD);
+  padBellTower();   // (the bell tower's crown of Bell Knoll, levelled: belltower.js)
   const paths = [
     [[REGION.x0 - 2, 0], [330, 6], [370, 26], [404, 52], [430, 68]],
     [[430, 68], [470, 72], [520, 76], [556, 78], [560, 76]],
@@ -45,6 +47,8 @@ export function buildRegion(ctx, M, hm) {
     [[560, 76], [586, 52], [592, 30], [596, 8], [600, -10]],
     [[592, 30], [572, 4], [548, -34], [520, -62], [504, -84]],
     [[604, -10], [640, -24], [672, -34], [684, -36]],
+    // up the downs from the falls road to Bell Knoll, and round its flank to the tower's door
+    [[640, -24], [645, -62], [651, -104], [657, -142], [664, -172], [668, -188], [668, -201.6]],
   ];
   for (const p of PORTALS) if (p.spur) paths.push([[p.x, p.z], p.spur]);   // (a portal's way to the path)
   const downsMat = buildTerrain(ctx, lib, paths);
@@ -75,6 +79,8 @@ export function buildRegion(ctx, M, hm) {
 
   // ---------------------------------------------------------------- the windmill
   windmill(ctx, M, mill.x, mill.z, mill.y, hm);
+  // ---------------------------------------------------------------- the bell tower on Bell Knoll
+  ctx.belltower = buildBellTower(ctx, M);
 
   // ---------------------------------------------------------------- the hamlet
   homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0,
@@ -95,7 +101,7 @@ export function buildRegion(ctx, M, hm) {
   const rock = [cliffRock, cliffRock, cliffRock, mossRock];
   const granite = M('rock_05_overworld_granite_1_02', 3.2, { tint: 0xc4b8a8, tri: true });
   const moss = M('rock_06_overworld_mossy_rock_1_03', 2, { tri: true });
-  const clearOf = (x, z, pad) => !homes.some((h) => Math.hypot(x - h.x, z - h.z) < Math.max(h.w, h.d) + pad)
+  const clearOf = (x, z, pad) => Math.hypot(x - TOWER.x, z - TOWER.z) > 20 + pad && !homes.some((h) => Math.hypot(x - h.x, z - h.z) < Math.max(h.w, h.d) + pad)
     && Math.hypot(x - farm.x, z - farm.z) > 24 + pad && Math.hypot(x - barn.x, z - barn.z) > 20 + pad && Math.hypot(x - mill.x, z - mill.z) > 12 + pad
     && !fields.some((f) => Math.abs(x - f.x) < f.w / 2 + pad && Math.abs(z - f.z) < f.d / 2 + pad)
     && streamAt(x, z).d > 10 + pad * 0.5 && Math.hypot(x - POOL.x, z - POOL.z) > POOL.r + 8 && riverAt(x, z).d > 9 + pad * 0.5;
@@ -163,6 +169,7 @@ export function buildRegion(ctx, M, hm) {
     const y = H(x, z);
     if (x > CLIFF.x - 12 && x < CLIFF.x + 8) continue; // not on the cliff face
     if (riverAt(x, z).d < 6) continue;                  // nor in the river
+    if (Math.abs(x - TOWER.x) < 7.5 && Math.abs(z - TOWER.z) < 8.5) continue;   // nor in the bell tower
     const s = veg[(st.d < 14 && i % 3 === 0) ? veg.findIndex((v) => /reeds/.test(v.id)) : i % veg.length];
     bill.add(s.id, x, y, z, 0.6 + R() * 0.5, 0.85 + R() * 0.25);
   }

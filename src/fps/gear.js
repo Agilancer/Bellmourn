@@ -9,6 +9,7 @@
 // The character (equipment, bag, gold, potions, level) lives in localStorage under bm.char.
 import { levelStats, fitLevel } from './level.js';
 import { rollSockets, applyGems, gemValue, GEMS } from './gems.js';
+import { addCharm, fitCharms } from './charms.js';
 
 export const RARITY = [
   { id: 0, name: 'Common', color: '#e8e8e8', weight: 70, affixes: [0, 0], finish: 'worn', mul: 1 },
@@ -241,7 +242,8 @@ const STARTER = { onehand: 'arming_sword', twohand: 'greatsword', staff: 'gnarle
 
 /** The character you set out with; `bare`: Tessariel as he came down, with nothing at all. */
 export function newCharacter(bare = false) {
-  const c = fitLevel({ equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true });
+  const c = fitLevel({ equip: Object.fromEntries(SLOTS.map((s) => [s, null])), bag: Array(BAG_SIZE).fill(null), gold: 0, starter: true, charms: [] });
+  fitCharms(c);
   if (bare) return c;
   const g = (o) => makeGear({ ilvl: 1, rarity: 0, ...o });
   c.equip.weapon = g({ kind: 'onehand', model: STARTER.onehand });
@@ -265,6 +267,7 @@ export function fitCharacter(c) {
   c.bag = c.bag.map(unwand);
   if (!c.mats || typeof c.mats !== 'object') c.mats = {};   // (the crafter's pouch, and the plans known: craft.js)
   if (!Array.isArray(c.recipes)) c.recipes = [];
+  fitCharms(c);
   for (const it of [...Object.values(c.equip), ...c.bag]) {
     if (!it || it.type !== 'gear' || !ARM[it.kind] || modelsOf(it.kind).some((m) => m.id === it.model)) continue;
     const e = modelsOf(it.kind).find((m) => m.id === STARTER[it.kind]) || modelsOf(it.kind)[0];
@@ -286,6 +289,7 @@ export function loadCharacter() {
     if (c && c.equip && Array.isArray(c.bag)) {
       for (const s of SLOTS) if (!(s in c.equip)) c.equip[s] = null;
       while (c.bag.length < BAG_SIZE) c.bag.push(null);
+      fitCharms(c);
       return fitLevel(c);
     }
   } catch { /* a damaged save: start again */ }
@@ -295,6 +299,7 @@ export function saveCharacter(c) { try { localStorage.setItem('bm.char', JSON.st
 
 /** Put an item in the first free place in the bag (potions stack). False when it's full. */
 export function addToBag(c, it) {
+  if (it.type === 'charm') return addCharm(c, it);   // (charms go in their own pouch: charms.js)
   // (draughts stack, and like gems, and like plans)
   const same = it.type === 'potion' ? c.bag.find((b) => b && b.type === 'potion' && b.kind === it.kind)
     : it.type === 'gem' ? c.bag.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.grade === it.grade)

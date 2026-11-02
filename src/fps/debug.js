@@ -19,9 +19,10 @@ const TOGGLES = [
   ['noDamage', 'No Enemy Damage', 'Nothing an enemy does can hurt you'],
   ['fly', 'No-Clip / Inspect', 'WASD flies through anything (Space up, C down, Shift fast); unseen, touching nothing, hands away'],
   ['god', 'GOD MODE', 'No damage, and everything dies at one blow from anything, the lords too'],
+  ['doubleJump', 'Double Jump', "The Wingbell charm's gift without the charm: press jump again in the air"],
 ];
 // what the little line under the skull says while a cheat is on
-const TAGS = { god: 'GOD', fly: 'NO-CLIP', noDamage: 'NO DMG' };
+const TAGS = { god: 'GOD', fly: 'NO-CLIP', noDamage: 'NO DMG', doubleJump: '2X JUMP' };
 
 export class DebugMenu {
   /** o: { ui, cheats ({noDamage, fly, god}, shared with main.js), onOpen(), onUnlock(), onClose(how: 'cancel'
@@ -163,6 +164,9 @@ export class DebugMenu {
     portals.disabled = all > 0 && awake >= all;
     portals.onclick = () => this.act(this.o.onPortals?.());
     P.append(portals);
+    const bells = el('button', 'dbg-act', '<span class="dbg-name"><b>Ring the Bells</b><em>The four bells of Bell Knoll, now, as at noon and midnight: heard all over the land</em></span>');
+    bells.onclick = () => this.act(this.o.onBells?.());
+    P.append(bells);
 
     P.append(el('h3', null, 'Gear'));
     const gear = el('div', 'dbg-gear');
@@ -172,6 +176,11 @@ export class DebugMenu {
     peasant.onclick = () => this.act(this.o.onGear?.('peasant'));
     gear.append(god, peasant);
     P.append(gear);
+    const [cHave, cAll] = this.o.charms?.() || [0, 0];
+    const charms = el('button', 'dbg-act', `<span class="dbg-name"><b>Give All Charms</b><em>${cHave >= cAll ? `All ${cAll} charms are in your pouch` : `Every charm in the game, into your charm pouch (${cHave} of ${cAll} carried)`}</em></span>`);
+    charms.disabled = cAll > 0 && cHave >= cAll;
+    charms.onclick = () => this.act(this.o.onCharms?.());
+    P.append(charms);
 
     P.append(el('h3', null, 'Level'));
     const [lv, max] = this.o.level?.() || [1, 40];
