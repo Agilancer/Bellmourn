@@ -56,6 +56,7 @@ import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
+import { shoveArea, launchWave, stepWaves } from './shovewave.js';
 import { DebugMenu } from './debug.js';
 
 const touch = TOUCH;
@@ -954,10 +955,17 @@ function parried(by) {
 function shieldShove() {
   if (bashCool > 0 || !st.shield || guard.broken) return;
   const size = vm.shieldSize() || { w: 0.45, h: 0.6 };
-  const half = 0.35 + size.w * 1.3, reach = 1.3 + size.h * 1.4, push = 1.0 + size.w * size.h * 2.2;
+  const { half, reach, push } = shoveArea(size);
   bashCool = 0.9; guard.v = Math.max(0, guard.v - 8); guard.wait = 0.5;
-  vm.shoveGhost();   // (the push made visible: a ghost of the shield thrown out ahead)
   const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  // the push made visible: a ghost of the shield thrown from its face, out across the shove's box
+  // to its far end (on your line ahead), swelling to the box's width
+  const front = vm.shieldFront();
+  if (front) {
+    const start = fromView(front, 0.7), o = camera.position;
+    const end = new THREE.Vector3(o.x + fx * reach, start.y, o.z + fz * reach);
+    launchWave(scene, vm.ghostOf(), start, end, half * 2, vm.manifest.view_scale * start.distanceTo(o) / Math.max(0.1, -front.z));
+  }
   const hit = inFront(Math.hypot(reach, half), -1).filter(({ dx, dz, d }) => {
     const ahead = (dx * fx + dz * fz) * d, across = Math.abs(dx * fz - dz * fx) * d;
     return ahead > -0.2 && ahead <= reach && across <= half;
@@ -2238,6 +2246,7 @@ function tick(dt) {
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, { camera, height: H, sun, hemi, day });
   magic.update(dt, camera, H, player);
+  stepWaves(dt);   // (the shove's ghost shields in flight)
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
   ctx.portals.update(dt, { player, playing: started && !introBusy && !paused && !cheats.fly, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
