@@ -24,6 +24,8 @@
 // shadows and columns, and one set of points for their motes: seven draw calls for them all.
 import * as THREE from 'three';
 import { crisp } from './engine.js';
+import { WEBGPU, T, sharp, snoise } from './nodes.js';
+import { spriteGeometry, pointSprite, spriteMesh } from './spells.js';
 
 export const SEAL_R = 2.4;              // the dais's radius (m)
 export const SEAL_H = 0.6;              // its top: two steps up (the player steps 0.42)
@@ -107,9 +109,134 @@ const BLUE_GLSL = /* glsl */`
 // y a flash (1 .. 0, on waking and on every jump), z its own phase
 const VERT_DECL = 'attribute vec3 aSeal;\nvarying vec3 vSeal;\n';
 
+// ------------------------------------------------------------------ the same in TSL (WebGPU)
+// Each material below is made once (one of each for all nine seals), so each is its own graph.
+// The painted maps are crisp as crisp() makes them (SHARP_MAP); the materials' colours are white.
+const sealBlue = (c) => T.smoothstep(0.06, 0.24, c.b.sub(T.max(c.r, c.g).mul(0.92))).mul(T.smoothstep(0.18, 0.5, c.b));
+function sealDull(c, m) {
+  const { vec3, dot, mix } = T;
+  const l = vec3(dot(c, vec3(0.3, 0.59, 0.11)));
+  return mix(mix(c, l.mul(vec3(0.92, 0.94, 0.98)), 0.65), l.mul(vec3(0.7, 0.72, 0.78)).mul(0.6), m);
+}
+/** The stone dull as slate where it sleeps (`awake` 0), its paint where it's awake: as the GLSL
+ * after map_fragment. Returns the colour node and the paint (for the glow). */
+function sealPaint(map, awake) {
+  const { uv, vec4, mix } = T;
+  const tex = sharp(map, uv()), paint = tex.rgb, blue = sealBlue(paint);
+  return { color: vec4(mix(sealDull(paint, blue), paint, awake), tex.a), paint, blue };
+}
+
+function topNodeMaterial(map, normalMap, time) {
+  const { attribute, uv, texture, vec2, vec3, length, clamp, cos, sin, smoothstep, exp } = T;
+  const m = new THREE.MeshPhongNodeMaterial({ map, normalMap, specular: 0x24242c, shininess: 22, vertexColors: true });
+  if (normalMap) m.normalScale.set(0.9, 0.9);
+  const seal = attribute('aSeal', 'vec3'), sq = uv().sub(0.5);
+  const sr = length(sq).mul(2.0);                                       // 0 at the heart, 1 at the rim
+  const awake = clamp(seal.x.mul(1.3).sub(sr).div(0.25), 0.0, 1.0);    // (the heart wakes first)
+  const { color, paint, blue } = sealPaint(map, awake);
+  m.colorNode = color;
+  const t = time.add(seal.z.mul(7.0));
+  // the heart's light turning: the picture sampled again, swung round the middle (faster near it)
+  const sa = t.mul(sr.oneMinus().mul(0.5).add(0.22));
+  const rq = vec2(cos(sa).mul(sq.x).add(sin(sa).mul(sq.y)), sin(sa).negate().mul(sq.x).add(cos(sa).mul(sq.y)));
+  const sw = texture(map, rq.add(0.5)).rgb;
+  const core = smoothstep(0.4, 0.5, sr).oneMinus();
+  const swirl = sealBlue(sw).mul(core);
+  const breathe = sin(t.mul(1.3).sub(sr.mul(7.0))).mul(0.22).add(0.78);
+  const glow = paint.mul(blue).mul(breathe.mul(0.3).add(0.45)).mul(core.mul(-0.6).add(1.0)).add(sw.mul(swirl).mul(0.5).mul(breathe));
+  // asleep: now and then the faintest glimmer, to be noticed
+  const sleep = blue.mul(0.05).mul(sin(t.mul(0.7)).mul(0.5).add(0.5));
+  // a flash: a ring of light running out from the heart
+  const rd = sr.sub(seal.y.oneMinus().mul(1.15)).mul(7.0);
+  const ring = exp(rd.mul(rd).negate()).mul(seal.y);
+  m.emissiveNode = glow.mul(awake).add(vec3(sleep.mul(awake.oneMinus()))).add(vec3(0.35, 0.55, 1.0).mul(ring).mul(1.6));
+  return m;
+}
+
+function sideNodeMaterial(map, normalMap, time) {
+  const { attribute, uv, vec3, clamp, floor, fract, sin, step } = T;
+  const m = new THREE.MeshPhongNodeMaterial({ map, normalMap, specular: 0x1c1c22, shininess: 16 });
+  if (normalMap) m.normalScale.set(0.9, 0.9);
+  const seal = attribute('aSeal', 'vec3'), u = uv();
+  const awake = clamp(seal.x.mul(1.3).sub(1.0).div(0.25), 0.0, 1.0);
+  const { color, paint, blue } = sealPaint(map, awake);
+  m.colorNode = color;
+  // the gems of the frieze, twinkling one after another (and a faint blue in the frieze's stone,
+  // so the band isn't black at night: not on the footing)
+  const t = time.add(seal.z.mul(7.0));
+  const gem = floor(u.x.mul(2.0).add(0.5));
+  const tw = sin(t.mul(0.7).add(gem.mul(2.4))).mul(0.4).add(0.6).mul(fract(sin(gem.mul(12.9898).add(seal.z.mul(78.233))).mul(43758.5453)).mul(0.6).add(0.7));
+  const frieze = step(V_FRIEZE[0], u.y).mul(step(u.y, V_FRIEZE[1]));
+  m.emissiveNode = paint.mul(blue).mul(tw.mul(0.5).mul(awake).add(awake.oneMinus().mul(0.03)).add(seal.y.mul(1.2))).add(vec3(0.01, 0.015, 0.04).mul(awake).mul(frieze));
+  return m;
+}
+
+function columnNodeMaterial(time, fog) {
+  const { Fn, attribute, referenceAttribute, uniform, renderGroup, uv, varying, positionView, normalViewGeometry, cameraPosition, cameraProjectionMatrix, modelWorldMatrix,
+    vec2, vec3, vec4, abs, dot, normalize, length, smoothstep, clamp, select } = T;
+  const seal = attribute('aSeal', 'vec3');
+  const c = modelWorldMatrix.mul(vec4(referenceAttribute('instanceMatrix', 'mat4').element(3).xyz, 1.0)).xyz;
+  const vFace = varying(abs(dot(normalViewGeometry, normalize(positionView.negate()))));
+  const vDist = varying(length(positionView)), near = length(cameraPosition.xz.sub(c.xz)), vNear = varying(near);
+  const vSeal = varying(seal);
+  const uDay = uniform(1).setGroup(renderGroup);
+  const m = new THREE.NodeMaterial();
+  // (nothing to show: you stand in it, or the seal sleeps; out of the picture, no pixels drawn)
+  m.vertexNode = select(near.lessThan(0.7).or(seal.x.lessThanEqual(0.375).and(seal.y.lessThanEqual(0.0))), vec4(2.0, 2.0, 2.0, 1.0),
+    cameraProjectionMatrix.mul(vec4(positionView, 1.0)));
+  m.fragmentNode = Fn(() => {
+    const t = time.add(vSeal.z.mul(7.0)), q = uv(), v = q.y;
+    const streak = snoise(vec2(q.x.mul(22.0), v.mul(3.0).sub(t.mul(0.9)))).mul(snoise(vec2(q.x.mul(9.0).add(3.0), v.mul(1.5).sub(t.mul(0.5)))));
+    const a = v.oneMinus().mul(v.oneMinus()).mul(smoothstep(0.0, 0.1, v))
+      .mul(streak.mul(streak).mul(1.5).add(0.12)).mul(vFace.mul(vFace).mul(vFace))   // (rays, feathered at the sides: light, not a tube)
+      .mul(smoothstep(0.7, 2.6, vNear))                                                // (standing in it, it's not in your eyes)
+      .mul(smoothstep(fog.x, fog.y, vDist).oneMinus())
+      .mul(clamp(vSeal.x.mul(1.6).sub(0.6), 0.0, 1.0).mul(uDay.oneMinus().mul(0.1).add(0.35)).add(vSeal.y.mul(0.8)));
+    return vec4(vec3(0.32, 0.52, 1.0).mul(a).mul(0.8), 1.0);
+  })();
+  m.transparent = true; m.depthWrite = false; m.blending = THREE.AdditiveBlending; m.side = THREE.DoubleSide; m.fog = false;
+  m.uniforms = { uTime: time, uFog: fog, uDay };
+  return m;
+}
+
+function moteNodeMaterial(time, fog, px) {
+  const { Fn, attribute, varying, cameraViewMatrix, cameraProjectionMatrix, vec3, vec4, fract, sin, cos, max, clamp, smoothstep, length, select } = T;
+  const rnd = attribute('aRnd', 'vec4');
+  const life = fract(time.mul(rnd.y).add(rnd.x));
+  const ang = rnd.z.mul(6.2832).add(life.mul(rnd.w.mul(2.0).add(1.5)));
+  const rad = attribute('position', 'vec3').x.mul(life.mul(-0.45).add(1.0));
+  const p = attribute('aCenter', 'vec3').add(vec3(cos(ang).mul(rad), life.mul(rnd.w.mul(2.0).add(1.3)).add(0.1), sin(ang).mul(rad)));   // (3.4 m at most)
+  const mv = cameraViewMatrix.mul(vec4(p, 1.0)), d = mv.z.negate();
+  const size = clamp(rnd.w.mul(0.028).add(0.02).mul(px).div(max(d, 0.5)), 1.0, 7.0);
+  // (gone before they'd reach the eye: standing in the seal, they rise about you, not in your face)
+  const a = sin(life.mul(3.14159)).mul(attribute('aWake', 'float')).mul(smoothstep(fog.x, fog.y, d).oneMinus()).mul(smoothstep(1.8, 4.0, d));
+  const { at, coord } = pointSprite(cameraProjectionMatrix.mul(mv), size);
+  const vA = varying(a);
+  const m = new THREE.NodeMaterial();
+  m.vertexNode = select(a.lessThanEqual(0.0), vec4(2.0, 2.0, 2.0, 1.0), at);   // (asleep or gone: not drawn)
+  m.fragmentNode = Fn(() => {
+    const k = smoothstep(0.05, 0.5, length(coord.sub(0.5))).oneMinus().mul(vA);
+    return vec4(vec3(0.44, 0.69, 1.0).mul(k).mul(1.3), 1.0);
+  })();
+  m.transparent = true; m.depthWrite = false; m.blending = THREE.AdditiveBlending; m.fog = false;
+  return m;
+}
+
+function shadowNodeMaterial(fog) {
+  const { positionGeometry, positionView, varying, vec4, length, clamp, smoothstep } = T;
+  const vT = varying(clamp(length(positionGeometry.xz).sub(FOOT_R - 0.02).div(0.75), 0.0, 1.0)), vDist = varying(length(positionView));
+  const k = vT.oneMinus();
+  const m = new THREE.NodeMaterial();
+  m.fragmentNode = vec4(0.0, 0.0, 0.0, k.mul(k).mul(0.38).mul(smoothstep(fog.x.mul(0.5), fog.y.mul(0.5), vDist).oneMinus()));
+  m.transparent = true; m.depthWrite = false; m.fog = false;
+  m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -8;
+  return m;
+}
+
 /** The seal's top: the dull stone wakes from the heart out; awake, the blue glows, the heart's
  * light turns, and a ring of light runs out from the middle with each flash. */
 function topMaterial(map, normalMap, time) {
+  if (WEBGPU) return topNodeMaterial(map, normalMap, time);
   const m = new THREE.MeshPhongMaterial({ map, normalMap, specular: 0x24242c, shininess: 22, vertexColors: true });
   if (normalMap) m.normalScale.set(0.9, 0.9);
   m.onBeforeCompile = (sh) => {
@@ -148,6 +275,7 @@ function topMaterial(map, normalMap, time) {
 
 /** The seal's side: the gems of its frieze dull or glowing, twinkling one after another. */
 function sideMaterial(map, normalMap, time) {
+  if (WEBGPU) return sideNodeMaterial(map, normalMap, time);
   const m = new THREE.MeshPhongMaterial({ map, normalMap, specular: 0x1c1c22, shininess: 16 });
   if (normalMap) m.normalScale.set(0.9, 0.9);
   m.onBeforeCompile = (sh) => {
@@ -176,6 +304,7 @@ function sideMaterial(map, normalMap, time) {
 /** A soft column of blue over an awake seal, streaked and rising, fading out at its top, at its
  * edges, into the fog, and as you step into it. */
 function columnMaterial(time, fog) {
+  if (WEBGPU) return columnNodeMaterial(time, fog);
   return new THREE.ShaderMaterial({
     uniforms: { uTime: time, uFog: fog, uDay: { value: 1 } },
     vertexShader: /* glsl */`
@@ -217,6 +346,7 @@ function columnMaterial(time, fog) {
 
 /** Motes rising from the heart of an awake seal, turning as they go. */
 function moteMaterial(time, fog, px) {
+  if (WEBGPU) return moteNodeMaterial(time, fog, px);
   return new THREE.ShaderMaterial({
     uniforms: { uTime: time, uFog: fog, uPx: px },
     vertexShader: /* glsl */`
@@ -249,6 +379,7 @@ function moteMaterial(time, fog, px) {
 
 /** The darkening on the ground about its foot, where centuries of rain and shade have sat. */
 function shadowMaterial(fog) {
+  if (WEBGPU) return shadowNodeMaterial(fog);
   return new THREE.ShaderMaterial({
     uniforms: { uFog: fog },
     vertexShader: /* glsl */`
@@ -361,9 +492,11 @@ export class Portals {
   constructor(ctx) {
     this.ctx = ctx;
     const { lib, scene, physics } = ctx;
-    this.time = { value: 0 };
-    this.fog = { value: new THREE.Vector2(30, 300) };
-    this.px = { value: 600 };
+    // (WebGPU: uniforms shared by the seals' materials, set once a render)
+    const U = WEBGPU ? (v) => T.uniform(v).setGroup(T.renderGroup) : (v) => ({ value: v });
+    this.time = U(0);
+    this.fog = U(new THREE.Vector2(30, 300));
+    this.px = U(600);
     this.found = new Set();
     this.standing = null;      // the seal you stand on
     this.onWake = null;        // (main.js: the toast, the sound, the sparks)
@@ -429,7 +562,9 @@ export class Portals {
     this.column.renderOrder = 2;
     // the motes: their own points, every seal's in one set
     const N = n * MOTES, mp = new Float32Array(N * 3), mc = new Float32Array(N * 3), mr = new Float32Array(N * 4);
-    this.moteWake = new THREE.BufferAttribute(new Float32Array(N), 1);
+    // (WebGPU: a quad a mote, its attributes per instance: spells.js spriteGeometry)
+    const Attr = WEBGPU ? THREE.InstancedBufferAttribute : THREE.BufferAttribute;
+    this.moteWake = new Attr(new Float32Array(N), 1);
     this.moteWake.setUsage(THREE.DynamicDrawUsage);
     let s = 9001;
     const R = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
@@ -441,12 +576,12 @@ export class Portals {
         mr.set([R(), 0.12 + R() * 0.16, R(), R()], j * 4);
       }
     });
-    const mg = new THREE.BufferGeometry();
-    mg.setAttribute('position', new THREE.BufferAttribute(mp, 3));
-    mg.setAttribute('aCenter', new THREE.BufferAttribute(mc, 3));
-    mg.setAttribute('aRnd', new THREE.BufferAttribute(mr, 4));
+    const mg = WEBGPU ? spriteGeometry({}, N) : new THREE.BufferGeometry();
+    mg.setAttribute('position', new Attr(mp, 3));
+    mg.setAttribute('aCenter', new Attr(mc, 3));
+    mg.setAttribute('aRnd', new Attr(mr, 4));
     mg.setAttribute('aWake', this.moteWake);
-    this.motes = new THREE.Points(mg, moteMaterial(this.time, this.fog, this.px));
+    this.motes = (WEBGPU ? spriteMesh : (g, m) => new THREE.Points(g, m))(mg, moteMaterial(this.time, this.fog, this.px));
     this.motes.frustumCulled = false;
     this.motes.renderOrder = 2;
     scene.add(this.motes);

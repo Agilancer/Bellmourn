@@ -9,12 +9,8 @@
 // only the torches on its walls (and whatever you cast) light it. Everything is loaded,
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
-import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, Resolution, TEXELS, groundMist } from './engine.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
+import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
@@ -38,7 +34,7 @@ import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
 import { Loot, placeLevel } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion, RARITY } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
@@ -55,11 +51,13 @@ import { Intro } from './intro.js';
 import { Ambience } from './ambience.js';
 import { Quests, GIVERS } from './quests.js';
 import { SaveMenu, SLOT_COUNT, readSlot } from './saves.js';
-import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
+import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL, POINTS_PER_LEVEL } from './level.js';
 import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
+import { shoveArea, launchWave, stepWaves } from './shovewave.js';
+import { DebugMenu } from './debug.js';
 import { Trade, SHOPS, MERCHANT_OF, SHOP_POSTS, drawShopMark } from './trade.js';
 import { GemFx } from './gemfx.js';
 import { Respawns } from './respawn.js';
@@ -67,6 +65,12 @@ import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './c
 import { makeGem, GEMS } from './gems.js';
 
 const touch = TOUCH;
+// the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
+// build), WebGPU's its own (post.js)
+const POST = WEBGPU ? await import('./post.js') : await (async () => {
+  const [a, b, c, d, e] = await Promise.all(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'ShaderPass'].map((n) => import(`three/addons/postprocessing/${n}.js`)));
+  return { EffectComposer: a.EffectComposer, RenderPass: b.RenderPass, UnrealBloomPass: c.UnrealBloomPass, OutputPass: d.OutputPass, ShaderPass: e.ShaderPass };
+})();
 // mist lying on the graveyard's ground (in the fog shader, so made before anything is compiled)
 groundMist([GRAVEYARD.x0, GRAVEYARD.z0, GRAVEYARD.x1, GRAVEYARD.z1], { density: 0.055 });
 // the mouse captured for looking (a refusal, say from a window in the background, is no matter)
@@ -76,15 +80,26 @@ const HI = QUALITY === 'high';
 
 const canvas = document.getElementById('game');
 const ui = document.getElementById('ui');
-const renderer = makeRenderer(canvas, { touch });
+// (WebGPU: once the GPU's device is ours; where there's none to be had, the page goes back to WebGL
+// for the rest of the session: index.html)
+const renderer = await (async () => {
+  try { return await makeRenderer(canvas, { touch }); } catch (e) {
+    if (!WEBGPU) throw e;
+    console.warn('WebGPU would not start: drawing with WebGL', e);
+    try { sessionStorage.setItem('bm.nogpu', '1'); } catch { /* no storage */ }
+    location.reload();
+    return new Promise(() => {});
+  }
+})();
 const res = new Resolution({ touch });
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.2;
 renderer.shadowMap.enabled = HI;
 // a phone at high: plain PCF (a quarter the taps of soft), the sun's map redrawn every other
 // frame (see tick), and less of everything else below
-renderer.shadowMap.type = touch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-if (touch) renderer.shadowMap.autoUpdate = false;
+// (WebGPU has no soft PCF of its own: its PCF, softened by each light's radius)
+renderer.shadowMap.type = touch || WEBGPU ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+if (touch) renderer.shadowMap.autoUpdate = false;   // (WebGPU: each light's own, light() and tick())
 
 // the world camera: the rigs' 90 degree horizontal view at 16:10 (64 degrees vertical), which
 // stays the vertical view at any aspect ratio
@@ -92,6 +107,7 @@ const camera = new THREE.PerspectiveCamera(64, 1.6, 0.05, 1200);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xa9b7c4, 40, 280);
 scene.background = new THREE.Color(0x000000);
+if (WEBGPU) scene.fogNode = fogNode(scene.fog, MIST);   // (the graveyard's ground mist in it: engine.js groundMist)
 const BLACK = new THREE.Color(0x000000);
 
 const hemi = new THREE.HemisphereLight(0xc8d8ff, 0x3a3026, 1.0);
@@ -147,14 +163,20 @@ try { lastRun = localStorage.getItem(TRACE); localStorage.removeItem(TRACE); } c
 function trace() {
   const i = renderer.info;
   const s = `${run.step}, ${run.frames} frames drawn${started ? ' (playing)' : ''}, ${villagers?.list.length ?? 0} villagers in`
-    + `${run.bringing ? `, bringing ${run.bringing}` : ''}, ${i.memory.textures} textures, ${i.programs?.length ?? 0} shaders, ${(performance.now() / 1000).toFixed(1)}s`;
+    + `${run.bringing ? `, bringing ${run.bringing}` : ''}, ${i.memory.textures} textures, ${programCount(renderer)} shaders${WEBGPU ? ' (WebGPU)' : ''}, ${(performance.now() / 1000).toFixed(1)}s`;
   try { localStorage.setItem(TRACE, s); } catch { /* no storage */ }
 }
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
+let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 let trade = null, gemFx = null, respawns = null;   // the merchants (trade.js), the gems' looks (gemfx.js), the world filling up again (respawn.js)
+// the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
+// no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
+const cheats = { noDamage: false, fly: false, god: false };
+let debugMenu = null, debugFrom = null, flyFrom = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
 const PROGRESS = 'bm.progress';
@@ -180,10 +202,18 @@ let char = loadCharacter(), st = computeStats(char), bag = null, map = null;
 const guard = { v: 0, max: 0, broken: false, wait: 0 };
 
 // ------------------------------------------------------------------ post-processing
+// (WebGPU: post.js, the same steps in a node graph, the last of them done in one pass)
+const { composer, worldPass, vmPass, bloom, grade } = WEBGPU
+  ? POST.makeComposer(renderer, scene, camera, { samples: touch ? 2 : 4, bloom: HI || QUALITY === 'low', touch })
+  : glComposer();
+res.gpuTimer(renderer);   // (what the picture's size goes by, where the GPU can time itself)
+
+/** WebGL's composer (three's EffectComposer): the world, the arms over it, bloom, tone mapping, the grade. */
+function glComposer() {
+const { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass } = POST;
 const composer = new EffectComposer(renderer);
 composer.setPixelRatio(1);
 multisample(composer, renderer, touch ? 2 : 4);   // (the world's buffer: no jagged edges)
-res.gpuTimer(renderer);   // (what the picture's size goes by, where the GPU can time itself)
 const worldPass = new RenderPass(scene, camera);
 const vmPass = new RenderPass(new THREE.Scene(), new THREE.Camera());
 vmPass.clear = false; vmPass.clearDepth = true;
@@ -220,6 +250,8 @@ composer.addPass(vmPass);
 if (HI || QUALITY === 'low') composer.addPass(bloom);
 composer.addPass(new OutputPass());
 composer.addPass(grade);
+return { composer, worldPass, vmPass, bloom, grade };
+}
 
 // the picture's size (engine.js Resolution): the screen's own, eased down (to 0.6) when frames run
 // long and back up when there's time to spare
@@ -301,6 +333,7 @@ async function build() {
   // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
   props.onChange = (at) => {
     for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+    sunShadows?.invalidate();   // (and the sun's map of the still world, where it's kept: sunshadow.js)
   };
   // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
   props.onBreak = (p, at, dir) => {
@@ -324,7 +357,7 @@ async function build() {
   const indoors = ctx.zones.filter((z) => z.x0 > GRAVEYARD.x0 - 4 && z.x1 < GRAVEYARD.x1 + 4 && z.z0 > GRAVEYARD.z0 - 4 && z.z1 < GRAVEYARD.z1 + 4);
   // (the mist on the ground is in the fog shader: engine.js groundMist; these are the wisps drifting over it)
   mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
-    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.75, height: 0.45, density: 0.16 });
+    { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.45, height: 0.35, density: 0.16 });   // (low, so they meet the stones down in the ground mist)
   smoke = new Smoke(scene);
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
@@ -498,6 +531,33 @@ async function build() {
   map.portals = () => ctx.portals.woken();
   portalMenu = new PortalMenu({ ui, onPick: travel, onClose: () => setPortals(false) });
   ctx.portals.onWake = portalWoken;
+  // Velscour's Skull by the corner map: the word, then the Debug Menu (debug.js)
+  debugMenu = new DebugMenu({ ui, cheats,
+    onOpen: () => {
+      debugFrom = paused ? 'pause' : 'play';
+      if (paused) hud.showOverlay(null);
+      if (touch) hud.showTouch(false);
+      gameInput.release();
+      document.exitPointerLock?.();
+      sfx.chime?.(false);
+    },
+    onUnlock: () => sfx.lock?.(true),
+    // (the wrong word, or Cancel: back to where you were; the menu closed: back to the game, or with Esc
+    // on a computer to the pause screen, as the map and the bag, since Esc can't take the mouse back)
+    onClose: (how) => {
+      const from = debugFrom;
+      debugFrom = null;
+      if (how === 'cancel' && from === 'pause') hud.showOverlay('pause', touch);
+      else if (how === 'key' && !touch) pause();
+      else begin();
+    },
+    onToggle: setCheat,
+    onPortals: wakeAllPortals,
+    portals: () => [ctx.portals.found.size, ctx.portals.list.length],
+    onGear: gearDrop,
+    onLevel: shiftLevel,
+    level: () => [char.level, MAX_LEVEL],
+  });
   zombies.onDeath = onDeath;
   slimes.onDeath = onDeath;
   // (the save slots open over the title and the pause screen alike: in the title's layer)
@@ -518,7 +578,7 @@ async function build() {
  * nothing is (and nobody can go): what they make the first time (their shaders, their shadows) is
  * made now, in the loading, and not in your first fight. Everything is put back after. */
 async function rehearse() {
-  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const T0 = performance.now(), p0 = programCount(renderer);
   const was = { started, paused, introBusy, book: { ...book }, mana: player.mana, health: player.health, pos: player.pos.clone(), yaw: player.yaw, pitch: player.pitch };
   const at = new THREE.Vector3(2600, 0, 2600);
   started = true; paused = false; introBusy = true;   // (the hands work; nothing walks, nothing hurts you)
@@ -562,7 +622,7 @@ async function rehearse() {
   started = was.started; paused = was.paused; introBusy = was.introBusy;
   Object.assign(hud, quiet);
   hud.refresh(vm.equip, book);
-  console.info(`rehearsed in ${Math.round(performance.now() - T0)} ms: ${renderer.info.programs.length - p0} more programs`);
+  console.info(`rehearsed in ${Math.round(performance.now() - T0)} ms: ${programCount(renderer) - p0} more programs`);
 }
 
 /** Everything in before play, so nothing loads or is made on the GPU mid-game: the whole village and
@@ -570,7 +630,7 @@ async function rehearse() {
  * and the knight's), every gauntlet (not on a phone); then every picture refined and uploaded, every
  * shader compiled, and the world drawn once whole, with its shadows, so every buffer is on the GPU. */
 async function prepare(mark) {
-  const T0 = performance.now(), p0 = renderer.info.programs.length;
+  const T0 = performance.now(), p0 = programCount(renderer);
   const wait = (p, what) => Promise.resolve(p).catch((e) => console.warn(what, e));
   await Promise.all([wait(villagers.ready, 'the village'), wait(foes.swornReady, 'the Sworn'), wait(foes.ualReady, "the foes' clips"), wait(ctx.crater.armourReady, "the knight's armour")]);
   await mark('people');
@@ -599,10 +659,42 @@ async function prepare(mark) {
   const skel = skels.size;
   // the world's matrices only where something's shown, and its small pieces left out far off
   visibleMatrices(scene);
-  ctx.detail = new DetailCull(ctx.built, { touch, under: ctx.builtUnder });
+  // (WebGPU: the builders' meshes never move and their materials never change, but for the lit windows
+  // and lanterns: three needn't look them over again each frame; nodes.js settled)
+  if (WEBGPU && !/[?&]nostatic\b/.test(location.search)) {
+    const mutable = new Set([ctx.glass, ctx.lantern].filter(Boolean));
+    for (const m of [...(ctx.built || []), ...(ctx.builtUnder || [])]) {
+      // (and their matrices worked out once, not every frame: engine.js visibleMatrices)
+      if (m.matrixAutoUpdate) { m.updateMatrix(); m.matrixAutoUpdate = false; }
+      if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
+    }
+  }
+  // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
+  // frame; made before the shaders are compiled, which take it in)
+  if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
+    const { installSunShadows } = await import('./sunshadow.js');
+    sunShadows = installSunShadows(sun, { isStatic: (o) => o.static === true, staticSize: touch ? 2048 : 4096, dynSize: touch ? 1024 : 2048 });
+  }
+  // (WebGPU: the still world's pieces in render bundles by 40 m cells, which the GPU replays: cells.js;
+  // those are drawn whole, so only what's left is culled piece by piece far off)
+  if (WEBGPU && !/[?&]nocells/.test(location.search)) {
+    const { makeCells } = await import('./cells.js');
+    cells = makeCells(renderer, scene, [...(ctx.built || []), ...(ctx.builtUnder || [])].filter((m) => m.static));
+    // and the billboards (sprites.js: a mesh a kind of plant, its graph read only from the material and
+    // shared uniforms: settled), still too, in one bundle never culled
+    const G = bill.graph;
+    if (G) {
+      for (const n of [G.world, G.frag, G.castAt, G.mask]) if (n) settledGraph(n);
+      const boards = scene.children.filter((o) => o.isMesh && o.material?.positionNode === G.world);
+      for (const m of boards) { m.updateMatrix(); m.matrixAutoUpdate = false; m.static = true; }
+      cells.addGlobal(boards);
+    }
+  }
+  ctx.detail = new DetailCull(cells ? ctx.built.filter((m) => !m.parent?.isCell) : ctx.built, { touch, under: ctx.builtUnder });
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
   // smooth-edged leaves, hair and lashes
   const r1 = refineScene(scene), r2 = refineScene(vm.scene);
+  hideUnported(scene, vm.scene);   // (WebGPU: a GLSL shader left over is hidden, not thrown on)
   const tex = texturesOf(vm.scene, texturesOf(scene));
   await upload(renderer, tex, (k) => title.progress(Math.round(86 + 6 * k)));
   await mark('uploaded');
@@ -611,7 +703,7 @@ async function prepare(mark) {
   await warmWorld();
   scene.remove(lying);
   await mark('warm');
-  console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${renderer.info.programs.length - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
+  console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${programCount(renderer) - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
 }
 
 /** The world drawn once with everything in it shown and nothing culled, so every program it needs is
@@ -620,6 +712,7 @@ async function prepare(mark) {
  * buffer of the same kind as the composer's (the programs and buffers don't depend on its size, and
  * a phone isn't asked to draw the whole world at full size). Put back as it was. */
 async function warmWorld() {
+  if (WEBGPU) return warmWorldGPU();
   const small = new THREE.WebGLRenderTarget(256, 144, { type: THREE.HalfFloatType });
   const saved = [];
   scene.traverse((o) => { if (o.isLight) return; saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; });   // (lights stay as they are: their count is in every shader)
@@ -643,6 +736,33 @@ async function warmWorld() {
   renderer.shadowMap.autoUpdate = autoShadow; renderer.shadowMap.needsUpdate = true;
 }
 
+/** WebGPU's warm-up: drawn into a buffer made as the world's is (a pipeline belongs to its buffer's
+ * format and samples), with every light's shadow map drawn in the same frame, everything shown and
+ * nothing culled, so every pipeline and shadow pipeline is made now. */
+async function warmWorldGPU() {
+  const small = composer.warmTarget();
+  const saved = [];
+  scene.traverse((o) => { if (o.isLight) return; saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; });
+  const casters = [];
+  scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
+  for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
+  sunShadows?.invalidate(true);   // (the still world's sun map drawn whole, with everything in it)
+  cells?.all(true);
+  const was = renderer.getRenderTarget();
+  renderer.setRenderTarget(small);
+  try { renderer.render(scene, camera); } catch (e) {
+    if (/[?&]debugrender/.test(location.search)) await findBadDraw(renderer, scene, camera, small);
+    throw e;
+  }
+  renderer.render(vm.scene, vm.camera);
+  renderer.setRenderTarget(was);
+  await renderer.backend.device?.queue.onSubmittedWorkDone();
+  small.dispose();
+  for (const [o, v, fc] of saved) { o.visible = v; o.frustumCulled = fc; }
+  for (const [l, au] of casters) { l.shadow.autoUpdate = au; l.shadow.needsUpdate = true; }
+  cells?.all(false);
+}
+
 /** A small picture of an arm model for the bag, rendered from the model itself. */
 const iconRT = { rt: null, sc: null, cv: null };
 function renderIcon(obj) {
@@ -654,7 +774,7 @@ function renderIcon(obj) {
     iconRT.key = new THREE.DirectionalLight(0xffe8c8, 3.2); iconRT.sc.add(iconRT.key, iconRT.key.target);
     iconRT.cv = document.createElement('canvas'); iconRT.cv.width = iconRT.cv.height = S;
   }
-  const { rt, sc, cv } = iconRT, g = cv.getContext('2d'), buf = new Uint8Array(S * S * 4);
+  const { rt, sc } = iconRT, buf = new Uint8Array(S * S * 4);
   const tm = renderer.toneMapping;
   renderer.toneMapping = THREE.NoToneMapping;
   const holder = new THREE.Group();
@@ -679,15 +799,27 @@ function renderIcon(obj) {
   renderer.setClearColor(0x000000, 0);
   renderer.clear();
   renderer.render(sc, cam);
+  if (WEBGPU) {   // (WebGPU reads back only later; its rows come top first)
+    renderer.setRenderTarget(null);
+    renderer.toneMapping = tm;
+    sc.remove(holder);
+    return renderer.readRenderTargetPixelsAsync(rt, 0, 0, S, S).then((px) => iconPicture(px, S, false));
+  }
   renderer.readRenderTargetPixels(rt, 0, 0, S, S, buf);
   renderer.setRenderTarget(null);
   renderer.toneMapping = tm;
   sc.remove(holder);
+  return iconPicture(buf, S, true);
+}
+
+/** An icon's pixels (linear light, RGBA) as a data URL; `flip`: its rows bottom first (WebGL's). */
+function iconPicture(buf, S, flip) {
+  const cv = iconRT.cv, g = cv.getContext('2d');
   // (the target holds linear light: brought to sRGB for the page)
   const lut = iconRT.lut ||= Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)); });
   for (let i = 0; i < buf.length; i += 4) { buf[i] = lut[buf[i]]; buf[i + 1] = lut[buf[i + 1]]; buf[i + 2] = lut[buf[i + 2]]; }
   const img = g.createImageData(S, S);
-  for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+  for (let y = 0; y < S; y++) { const r = flip ? S - 1 - y : y; img.data.set(buf.subarray(r * S * 4, (r + 1) * S * 4), y * S * 4); }
   g.clearRect(0, 0, S, S);
   g.putImageData(img, 0, 0);
   return cv.toDataURL();
@@ -699,7 +831,7 @@ function itemIcon(it, again) {
   const key = it.model + '|' + (it.finish || '');
   if (icons.has(key)) return icons.get(key) || null;
   icons.set(key, '');
-  vm.modelScene(it.model, it.finish).then((obj) => { icons.set(key, renderIcon(obj)); again?.(); });
+  vm.modelScene(it.model, it.finish).then((obj) => renderIcon(obj)).then((url) => { icons.set(key, url); again?.(); });
   return null;
 }
 
@@ -868,11 +1000,13 @@ function spellDamage(def) {
 // ------------------------------------------------------------------ the shield and the staff
 // A shield raised just as the blow comes (a third of a second before it lands) turns it aside
 // whole: the Guard pays nothing, the one who swung reels, and your next blow, struck while it does,
-// lands nearly twice as hard. A swing with the shield up is a bash: a shove that knocks whatever's
-// in front of you back a stride and sets it reeling. A staff gathers its bolt while you hold the
+// lands nearly twice as hard. Raising the shield shoves: what's in front of it, across a width and
+// out to a reach that go by the shield's own size, is knocked back and set reeling, before the
+// shield settles to block. With the shield up the sword only stabs, round its edge (vm.stab).
+// A staff gathers its bolt while you hold the
 // button (the longer, the bigger and harder it flies), and with the left hand free it sweeps
 // round in front of you, knocking the dead back off you.
-let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1;
+let blockAt = -9, riposteUntil = 0, bashCool = 0, sweepCool = 0, staffCharge = -1, shoveAt = 0;
 /** Set something reeling for t seconds (and out of any blow it was in). */
 function reel(z, t) {
   if (z.dead) return;
@@ -906,17 +1040,32 @@ function parried(by) {
   hud.toast('Parried! Strike while it reels');
   answerBlow(by);
 }
-function shieldBash() {
+/** The shove as the shield comes up (its SHOVE frame): everything in a box in front of you, as
+ * wide as the shield and a stride or two deep (a bigger shield pushes wider and further, and a
+ * little harder), is knocked back and set reeling. */
+function shieldShove() {
   if (bashCool > 0 || !st.shield || guard.broken) return;
-  bashCool = 1.1; guard.v = Math.max(0, guard.v - 12); guard.wait = 0.6;
-  const hit = inFront(2.3, 0.45);
+  const size = vm.shieldSize() || { w: 0.45, h: 0.6 };
+  const { half, reach, push } = shoveArea(size);
+  bashCool = 0.9; guard.v = Math.max(0, guard.v - 8); guard.wait = 0.5;
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  // the push made visible: a ghost of the shield thrown from its face, out across the shove's box
+  // to its far end (on your line ahead), swelling to the box's width
+  const front = vm.shieldFront();
+  if (front) {
+    const start = fromView(front, 0.7), o = camera.position;
+    const end = new THREE.Vector3(o.x + fx * reach, start.y, o.z + fz * reach);
+    launchWave(scene, vm.ghostOf(), start, end, half * 2, vm.manifest.view_scale * start.distanceTo(o) / Math.max(0.1, -front.z));
+  }
+  const hit = inFront(Math.hypot(reach, half), -1).filter(({ dx, dz, d }) => {
+    const ahead = (dx * fx + dz * fz) * d, across = Math.abs(dx * fz - dz * fx) * d;
+    return ahead > -0.2 && ahead <= reach && across <= half;
+  });
   for (const { z, dx, dz } of hit) {
-    const b = z.bones.chest || z.bones.spine;
-    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()) }, { dmg: 6 + Math.random() * 5, dir: new THREE.Vector3(dx, 0.1, dz), kind: 'blunt' });
-    reel(z, 0.9); shove(z, dx, dz, 1.4);       // (after the blow's own flinch, so the reel holds)
+    reel(z, 0.7); shove(z, dx, dz, push);
   }
   if (hit.length) sfx.hit('blunt', true); else sfx.swing(true, true);
-  shake = Math.max(shake, hit.length ? 0.8 : 0.35);
+  shake = Math.max(shake, hit.length ? 0.8 : 0.5);   // (the shove's kick, landing or not)
   if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
 }
 function staffSweep() {
@@ -953,6 +1102,8 @@ function castSlot(slot) {
  * whatever gets through. If it kills you, you wake in the village. */
 function hurtPlayer(dmg, by = null, kind = 'melee') {
   if (introBusy) return;
+  // (the Debug Menu: GOD MODE and no-clip take no harm at all; with enemy damage off, only a fall hurts)
+  if (cheats.god || cheats.fly || (cheats.noDamage && kind !== 'fall')) return;
   // (a fall costs health and the climb back, never your life: it leaves you on your last legs)
   if (kind === 'fall') { shake = Math.max(shake, 1.4); sfx.impact?.(); player.health = Math.max(Math.min(player.health, 8), player.health - dmg); hud.toast('The fall all but breaks you'); return; }
   let d = dmg * (by?.champ?.dmg || 1);   // a quest's champion hits harder
@@ -1067,20 +1218,22 @@ function onEvent(kind, side, clip, info) {
     const dir = aimPoint().sub(from).normalize();
     magic.cast(p.def, from, dir, player, camera);
   } else if (kind === 'whoosh') sfx.swing(!!info?.heavy, BLUNT.test((ITEMS[vm.equip[side]] || ITEMS[vm.equip.R])?.id || ''));
-  else if (kind === 'hit' && info?.attack) melee(info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power);
+  else if (kind === 'hit' && info?.attack) melee(info.stab ? 3.2 : info.heavy ? 3.5 : 2.9, info.heavy, side, info.edge, info.power, info.stab);
 }
 
 // the weapons that crush rather than cut (no gash: a split in the flesh where they land)
 const BLUNT = /mace|hammer|club|morning_star|maul|tombstone|crook|staff|orb|crosier/;
 /** A swing landing: the nearest thing in reach across the blade's arc gets sparks or chips. */
-function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
+function melee(reach, heavy, side = 'R', sweep = null, power = 1, stab = false) {
   player.swingAt = zombies.time;            // (the Sworn see it coming)
   const o = camera.position;
   let best = null, flesh = null;
   // the rays fan out along the blade's sweep across the view (a chop's fan stands up, a
   // sweep's lies flat), a little either side of it
   const sx = sweep ? sweep[0] : 1, sy = sweep ? sweep[1] : 0;
-  for (const [a, b] of [[-0.35, 0], [-0.15, 0], [0, 0], [0.15, 0], [0.35, 0], [0, -0.1], [0, 0.1]]) {
+  // (a stab goes where you look: a narrow bundle of rays, a little further)
+  const fan = stab ? [[-0.05, 0], [0, 0], [0.05, 0], [0, -0.04], [0, 0.04]] : [[-0.35, 0], [-0.15, 0], [0, 0], [0.15, 0], [0.35, 0], [0, -0.1], [0, 0.1]];
+  for (const [a, b] of fan) {
     const d = new THREE.Vector3(a * sx - b * sy, -0.05 + a * sy + b * sx, -1)
       .applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ')).normalize();
     const hit = physics.ray([o.x, o.y, o.z], [d.x, d.y, d.z], reach);
@@ -1092,7 +1245,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1) {
     const it = ITEMS[vm.equip[side]] || ITEMS[vm.equip.R];
     // the edge's sweep across the view, as the blow travels on screen (fp_moves.json)
     const right = _v.set(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-    const sw = sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];
+    const sw = stab ? [0.15, 1] : sweep || [heavy ? 0.94 : 0.82, (heavy ? -0.34 : 0.57) * (side === 'L' ? -1 : 1)];   // (a stab: a short upright wound)
     const edge = right.clone().multiplyScalar(sw[0]).addScaledVector(up, sw[1]).normalize();
     const blunt = BLUNT.test(it?.id || '');
     // (a chop, slower than a cut, lands harder; struck while it reels from your parry, harder again)
@@ -1173,6 +1326,7 @@ let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0), WHITE = new THREE.Color(1, 1, 1), WISP = new THREE.Color(0xffe8b0);
+const _sp = new THREE.Vector3(), _cd = new THREE.Vector3();
 let day = dayState(hour);
 function light(dt, t) {
   if (timeMode === 'cycle' && !holdHour) hour = (hour + dt / 60) % 24; // an hour a minute
@@ -1194,7 +1348,7 @@ function light(dt, t) {
   const isDay = day.day > 0.02;
   sun.color.copy(isDay ? day.sunColor : MOON);
   sun.intensity = (isDay ? day.sunPower * day.day : 0.55) * surface * (HI ? 1 : L.out + 0.25 * indoor);
-  sun.shadow.autoUpdate = L.under < 0.95;   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here)
+  sun.shadow.autoUpdate = L.under < 0.95 && !(WEBGPU && touch);   // (deep below, the sun's shadow map isn't redrawn: it lights nothing down here; a phone's under WebGPU: every other frame, tick)
   const ld = day.lightDir;
   if (HI) { // keep the shadow map's texels fixed in the world as it follows you (no shimmer)
     _lx.crossVectors(UP, ld).normalize();
@@ -1205,7 +1359,17 @@ function light(dt, t) {
     _c.addScaledVector(_lx, Math.round(px / tx) * tx - px).addScaledVector(_ly, Math.round(py / tx) * tx - py);
     sun.target.position.copy(_c);
     sun.position.copy(_c).addScaledVector(ld, 300);
+    sunShadows?.update();   // (WebGPU: the moving things' map follows; the world's is kept: sunshadow.js)
   } else { sun.target.position.set(0, 0, 0); sun.position.copy(ld).multiplyScalar(300); }
+  if (WEBGPU) {   // the sky's light, for the haze's glow toward it and the god rays (nodes.js SKY, post.js)
+    SKY.dir.value.copy(ld);
+    SKY.color.value.copy(sun.color);
+    SKY.glow.value = (isDay ? 0.25 + 0.75 * day.day : 0.35) * surface;
+    _sp.copy(camera.position).addScaledVector(ld, 1000).project(camera);
+    const facing = camera.getWorldDirection(_cd).dot(ld);
+    composer.rays.uv.value.set(_sp.x * 0.5 + 0.5, _sp.y * 0.5 + 0.5);
+    composer.rays.on.value = THREE.MathUtils.clamp((facing - 0.05) / 0.35, 0, 1) * (isDay ? Math.min(1, day.day * 2) : 0.3) * L.out * surface;
+  }
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
   hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
@@ -1328,7 +1492,7 @@ function setMap(on) {
 
 /** Any of the game's windows up (the bag, the map, a giver's words or the log, the save slots, the
  * portals, a shop)? */
-const windowOpen = () => !!(bag?.open || map?.open || quests?.open || saves?.open || portalMenu?.open || trade?.open);
+const windowOpen = () => !!(bag?.open || map?.open || quests?.open || saves?.open || portalMenu?.open || trade?.open || debugMenu?.open);
 /** Every window shut and straight back to the game (never into the pause menu): the mouse taken up
  * again, or, where the browser wants a click for it first, a word on the screen to click. */
 function backToGame() {
@@ -1417,6 +1581,116 @@ function portalWoken(p) {
   saveProgress();
 }
 
+// ------------------------------------------------------------------ the Debug Menu's cheats (debug.js)
+/** A switch thrown in the Debug Menu (cheats[k] is already set): what it says, shown in the menu. */
+function setCheat(k, on) {
+  sfx.equip?.();
+  if (k === 'god') {
+    zombies.oneHit = slimes.oneHit = on;   // (zombies.js, foes.js, slimes.js: every blow, spell and burn kills)
+    if (on) { player.health = player.maxHealth; player.mana = player.maxMana; }
+    return on ? 'GOD MODE: nothing can hurt you, and everything dies at one blow' : 'God mode is off';
+  }
+  if (k === 'noDamage') return on ? 'Enemies can no longer hurt you' : 'Enemies can hurt you again';
+  if (k === 'fly') {
+    setFly(on);
+    return on ? (touch ? 'No-clip: the stick flies you where you look; the jump button rises' : 'No-clip: WASD flies you where you look; Space rises, C sinks, Shift is faster')
+      : 'No-clip is off: you stand where you were';
+  }
+  return '';
+}
+
+/** No-clip on: you fly (Player.fly), nothing sees or hears you (whatever hunted you loses you), you
+ * touch nothing and your hands are put away. Off: you're set down on whatever is under you. */
+function setFly(on) {
+  player.vel.set(0, 0, 0);
+  if (on) {
+    flyFrom = player.pos.clone();
+    zombies.forget();   // (and its kin: the slimes)
+    player.unseenUntil = Infinity;
+    vm.blocking = false; player.blocking = false; staffCharge = -1; shoveAt = 0;
+    pending.R = pending.L = null;
+    magic.endCharge(); magic.arcana.endChannels();
+    hud.prompt('');
+  } else {
+    land();
+    flyFrom = null;
+    player.unseenUntil = performance.now() + 1500;   // (a moment's grace, as through a portal)
+  }
+  hud.touch.classList.toggle('fly', on);
+}
+
+/** Down out of the air onto the floor below you (or up out of the hillside you flew into), with no fall. */
+function land() {
+  const p = player.pos;
+  const below = ctx.unders.some((u) => u.dg.contains?.(p)) || physics.belowGround?.some((inside) => inside(p));
+  const g = physics.groundAt(p.x, p.z);
+  if (!below && p.y < g) p.y = g;
+  const f = physics.floorAt(p.x, p.z, p.y, 0.32, 0.42);
+  if (Number.isFinite(f)) p.y = f;
+  player.vel.set(0, 0, 0);
+  player.onGround = true;
+  camera.position.set(p.x, p.y + EYE, p.z);
+}
+
+/** Every seal in the land woken at once (with a flash on each): travel from any to any. */
+function wakeAllPortals() {
+  const P = ctx.portals, had = P.found.size;
+  if (had >= P.list.length) return 'Every portal is already awake';
+  for (const p of P.list) if (!P.found.has(p.id)) { P.wake(p, true); p.flash = 1; }
+  P.write();
+  sfx.portalWake?.();
+  saveProgress();
+  return `All ${P.list.length} portals are awake: stand on any seal and ${touch ? 'tap' : 'press'} E to travel to any other`;
+}
+
+// every kind of thing there is to wear or carry: the arms, the shields, and each place armour goes
+const GEAR_KINDS = [{ kind: 'onehand' }, { kind: 'twohand' }, { kind: 'staff' }, { kind: 'shield_round' }, { kind: 'shield_kite' },
+  { slot: 'head' }, { slot: 'body' }, { slot: 'hands' }, { slot: 'legs' }, { slot: 'feet' }, { slot: 'ring' }];
+/** GEAR GOD (Epic, Legendary, Mythic) or GEAR PEASANT (Common, Uncommon, Rare): one of every kind at
+ * each of those rarities, at your level, and a fortune in gold, dropped about you in rings (gold
+ * nearest, then each rarity further out; kept this side of any wall). */
+function gearDrop(which) {
+  const tiers = which === 'god' ? [3, 4, 5] : [0, 1, 2];
+  const lv = char.level, p = player.pos;
+  let gold = 0;
+  const piles = Array.from({ length: 8 }, () => {
+    const amount = Math.round((300 + lv * 300) * (0.75 + Math.random() * 0.5));
+    gold += amount;
+    return { type: 'gold', amount };
+  });
+  const rings = [piles, ...tiers.map((r) => GEAR_KINDS.map((o) => makeGear({ ilvl: lv, rarity: r, ...o })))];
+  rings.forEach((ring, i) => {
+    const r = 1.7 + i, turn = i * 0.37;
+    ring.forEach((it, j) => {
+      const a = turn + j / ring.length * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+      const hit = physics.ray([p.x, p.y + 1.0, p.z], [dx, 0, dz], r + 0.6);
+      const d = hit ? Math.max(0.5, hit.t - 0.6) : r;
+      ctx.loot.spawn(it, p.x + dx * d, p.y + 1.3, p.z + dz * d, { pop: true });
+    });
+  });
+  sfx.coin?.();
+  const n = rings.length - 1, names = tiers.map((r) => RARITY[r].name);
+  return `${n * GEAR_KINDS.length} ${names[0]}, ${names[1]} and ${names[2]} pieces of every kind (item level ${lv}), and ${gold.toLocaleString()} gold, lie about you${cheats.fly ? '. Land to take them up' : ''}`;
+}
+
+/** A level more or less. Up: three more points to spend. Down: three fewer (if they're already spent,
+ * every point is handed back to spend again, as the free respec does). Life and mana filled. */
+function shiftLevel(d) {
+  fitLevel(char);
+  const to = Math.max(1, Math.min(MAX_LEVEL, char.level + d));
+  if (to === char.level) return '';
+  let back = false;
+  if (d > 0) char.points += POINTS_PER_LEVEL;
+  else if (char.points >= POINTS_PER_LEVEL) char.points -= POINTS_PER_LEVEL;
+  else { for (const k of Object.keys(char.attrs)) char.attrs[k] = 0; char.points = (to - 1) * POINTS_PER_LEVEL; back = true; }
+  char.level = to; char.xp = 0;
+  if (d > 0) sfx.levelUp?.(); else sfx.equip?.();
+  applyGear().then(() => { player.health = player.maxHealth; player.mana = player.maxMana; });
+  bag.render();
+  saveCharacter(char);
+  return `Level ${to}: ${char.points} point${char.points === 1 ? '' : 's'} to spend${back ? ' (your spent points were handed back)' : ''}`;
+}
+
 function pause() {
   if (introBusy) return;
   paused = true;
@@ -1461,7 +1735,7 @@ function menu(a) {
 
 /** Where things stand, beyond the character: kept as you play (Continue) and in each save. */
 function makeProgress() {
-  const p = player.pos;
+  const p = cheats.fly && flyFrom ? flyFrom : player.pos;   // (flying in no-clip: kept where you took off, not in mid-air)
   // (welcomed: the village has had its say at the edge of town, and gifts: what they've given so far)
   return { arrived: true, at: Date.now(), welcomed: progress?.welcomed !== false, gifts: progress?.gifts || [], quests: quests.save(), hour, book: { ...book }, arms: armsLying(),
     portals: ctx.portals.save(),
@@ -1494,6 +1768,7 @@ function applyProgress(pr) {
   const P = pr?.player;
   if (P && Number.isFinite(P.x)) { player.pos.set(P.x, P.y, P.z); player.yaw = P.yaw || 0; player.pitch = P.pitch || 0; } else player.pos.set(0, 0, 12);
   player.vel.set(0, 0, 0);
+  if (cheats.fly) flyFrom = player.pos.clone();   // (still flying: this is where you took off now)
   layArms(pr?.arms || []);
   zombies.forget();
   villagers.endGather();
@@ -1860,6 +2135,7 @@ function showUnder() {
   const cp = camera.position, atStairs = ctx.entrances.some(([x, z]) => Math.hypot(cp.x - x, cp.z - z) < 30);
   for (const m of ctx.builtUnder) m.visible = cp.y < physics.groundAt(cp.x, cp.z) + 0.5 || atStairs;   // (the crater's floor is below 0 but not under it)
   ctx.detail?.update(cp);   // (and the small pieces far off left out: engine.js DetailCull)
+  cells?.update();          // (a cell whose pieces were shown or hidden is recorded again: cells.js)
 }
 
 // ------------------------------------------------------------------ the sounds of the place
@@ -1958,6 +2234,9 @@ function tick(dt) {
     if (inp.was('Escape') || inp.was('Space')) intro.skip();
   }
   const active = started && !paused && !windowOpen() && !introBusy;
+  const acting = active && !cheats.fly;   // (no-clip: you fly, unseen, and touch nothing)
+  // Velscour's Skull by the corner map, over the pause screen too, but not over the other windows
+  debugMenu.showSkull(started && !introBusy && !lost && !windowOpen());
 
   // (from the pause menu the bag opens straight over the game, and closing it goes back to play)
   if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { if (paused && !saves.open) { paused = false; hud.showOverlay(null); } if (!paused) { quests.close(); setInventory(!bag.open); } }
@@ -1975,7 +2254,8 @@ function tick(dt) {
   }
   // the mouse not taken up again (the browser wanted a click for it): say so, and a click does it
   relock.classList.toggle('show', !touch && started && !paused && !introBusy && !windowOpen() && !document.pointerLockElement && !intro?.running);
-  if (active) {
+  if (active && cheats.fly) player.fly(dt, inp);
+  else if (active) {
     player.update(dt, inp);
     for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
     if (inp.was('KeyQ')) drink('life');
@@ -1985,7 +2265,7 @@ function tick(dt) {
     // queues it; the swish comes with each blow's own whoosh)
     const bolt = BOLTS[vm.equip.R];
     bashCool -= dt; sweepCool -= dt;
-    if (vm.blocking && inp.was('Mouse0')) shieldBash();                 // (a swing with the shield up: a bash)
+    if (vm.blocking) { if (inp.was('Mouse0')) vm.stab(); }               // (shield up: the sword only stabs, round its edge)
     else if (bolt) {
       // a staff: held, it gathers its bolt; let go, it flies (a tap, a plain bolt)
       if (inp.held('Mouse0') && !vm.busy('R') && staffCharge < 0 && player.mana >= bolt.mana) staffCharge = 0;
@@ -2002,12 +2282,17 @@ function tick(dt) {
           if (did && did !== 'queued') { player.mana -= cost; pending.R = { def: k > 1.05 ? { ...bolt, size: bolt.size * (1 + (k - 1) * 0.6), power: bolt.power * k, burst: Math.round(bolt.burst * k), dmgMul: k } : bolt, side: 'R' }; }
         }
       } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
-    } else if (inp.held('Mouse0')) vm.attackRight();
+    } else if (inp.was('Mouse0')) vm.attackRight();   // (a click for every blow: between a combo's blows the next waits cocked a moment)
     // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
     if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
     const wasBlocking = vm.blocking;
     vm.actLeft(inp.held('Mouse2'));
-    if (vm.blocking && !wasBlocking) blockAt = zombies.time;
+    if (vm.blocking && !wasBlocking) {   // raised: it shoves on its SHOVE frame, then blocks
+      blockAt = zombies.time;
+      const c = vm.clipInfo(vm.state.L?.name), i = c ? c.names.indexOf('SHOVE') : -1;
+      shoveAt = zombies.time + (i >= 0 ? c.starts[i] + 0.03 : 0.1);
+    }
+    if (shoveAt && zombies.time >= shoveAt) { shoveAt = 0; if (vm.blocking) shieldShove(); }
     for (const k of SPELL_KEYS) if (inp.was('Key' + k)) castSlot(k);   // (F, R, X, C, V)
     // footsteps on the bob's down-beats
     if (player.onGround && player.speed > 1 && Math.floor(player.bob / Math.PI) !== Math.floor(lastBob / Math.PI)) sfx.step(underfoot(), player.speed > 7.5, inMail());
@@ -2024,7 +2309,7 @@ function tick(dt) {
     camera.lookAt(0, 6, -60);
   }
 
-  vm.update(dt, active ? player.speed : 0);
+  vm.update(dt, acting ? player.speed : 0);
   camera.updateMatrixWorld();
   if (started && !introBusy) gemFx?.update(dt, camera, player);   // (after the hands have moved)
   // spells gathering in the hand before they leave it; a charged one holds there, growing,
@@ -2045,7 +2330,7 @@ function tick(dt) {
   // doors: the one you're looking at, and E to open or close it
   // and the chest, crate, barrel or sack you're looking at, to search with E
   // and the person in front of you, to speak with (and take work from)
-  const who = active ? villagers.aimed(camera) : null;
+  const who = acting ? villagers.aimed(camera) : null;
   if (who) {
     const mark = quests.markOf(who.name);
     hud.prompt(mark === '!' ? `E — ${who.call} has work for you` : mark === '?' ? `E — speak with ${who.call} (the work is done)` : `E — speak with ${who.call}`);
@@ -2061,16 +2346,16 @@ function tick(dt) {
       if (trades) setTrade(true, who);
       else if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; }
     }
-  } else if (active && ctx.portals.standing) {   // on an awake seal: the portals' window
+  } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
-  } else if (active && ctx.catacombs.prompt) {
+  } else if (acting && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
-  } else if (active && ctx.catacombs.bell?.prompt) {
+  } else if (acting && ctx.catacombs.bell?.prompt) {
     hud.prompt(ctx.catacombs.bell.prompt);
     if (inp.was('KeyE')) ctx.catacombs.bell.ring(zombies, sfx, hud);
-  } else if (active) {
+  } else if (acting) {
     const door = ctx.doors.aimed(camera), box = ctx.loot.aimed(camera);
     const boxFirst = box && (!door || box.x !== undefined && camera.position.distanceTo(_v.set(box.x, box.y, box.z)) < camera.position.distanceTo(door.center));
     if (boxFirst) {
@@ -2098,7 +2383,7 @@ function tick(dt) {
   player.blocking = vm.blocking;            // (the Sworn bash through a raised shield)
   ctx.doors.update(dt);
   ctx.props.update(dt);   // (searched chests' lids swinging open, broken things' pieces flying)
-  if (active) ctx.loot.update(dt, player);
+  if (active) ctx.loot.update(dt, player, !cheats.fly);
   ctx.trees3d.update(t);
   ctx.tufts.update(t);
   ctx.crater.update(dt, t, camera);
@@ -2115,33 +2400,38 @@ function tick(dt) {
     if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
   }
   for (const f of ctx.animated) f(dt, t);
-  zombies.update(dt, player, active, camera, H, 0.3 + 0.7 * day.day);
-  slimes.update(dt, player, active, camera, H);
-  ctx.catacombs.update(dt, player, zombies, active);   // the bridge, its ambush, the First Bell
+  // (in no-clip nothing sees, hears or wakes for you: as while a window is up)
+  zombies.update(dt, player, acting, camera, H, 0.3 + 0.7 * day.day);
+  slimes.update(dt, player, acting, camera, H);
+  ctx.catacombs.update(dt, player, zombies, acting);   // the bridge, its ambush, the First Bell
   foes.night = day.day < 0.35;          // (some of the Sworn carry a lantern after dark)
   foes.update(dt, player);
-  chatter.update(dt, player, active);
+  chatter.update(dt, player, acting);
   tickSpeech(dt);                       // (everyone's words, in turn: speech.js)
   for (const c of ctx.caves) if (c !== foes.cave) c.update(dt, player);   // (the Gloamhollow is the foes')
   ctx.keep.update(dt, t, player);
   hud.boss(foes.bossBar(player) || quests.bossBar(player));
-  if (active || started) quests.update(dt, player);
+  if (started && !cheats.fly) quests.update(dt, player);   // (a quest's things, taken up as you walk over them)
   respawns?.update(dt, player, started && !introBusy && !paused, camera);   // (the dead long enough, and out of sight: back)
   hud.xp(char.level, char.xp, char.level >= MAX_LEVEL ? 0 : xpToNext(char.level));
   if ((saveT -= dt) <= 0 && started && !introBusy) { saveT = 10; saveProgress(); }
   villagers.update(dt, player, hour, (p) => zombies.list.some((z) => !z.dead && !z.gone && z.standing && (z.aggro || z.kindName === 'knight' || z.kindName === 'sorcerer') && Math.abs(z.pos.x - p.x) < 14 && Math.abs(z.pos.z - p.z) < 14));
   ctx.water?.update(dt, t, { camera, height: H, sun, hemi, day });
   magic.update(dt, camera, H, player);
+  stepWaves(dt);   // (the shove's ghost shields in flight)
   flames.update(t, camera, H);
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
-  ctx.portals.update(dt, { player, playing: started && !introBusy && !paused, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
+  ctx.portals.update(dt, { player, playing: started && !introBusy && !paused && !cheats.fly, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
   light(dt, t);
   hud.update(player, book);
   hud.clockTime(hour);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
-  vmPass.enabled = started && !introBusy; // no arms behind the title screen, or in the opening
-  if (touch && HI) renderer.shadowMap.needsUpdate = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
+  vmPass.enabled = started && !introBusy && !cheats.fly; // no arms behind the title screen, in the opening, or in no-clip
+  if (touch && HI) {
+    const due = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
+    if (WEBGPU) { if (due && L.under < 0.95) sun.shadow.needsUpdate = true; } else renderer.shadowMap.needsUpdate = due;
+  }
   sounds(dt);
   res.timer.begin(); composer.render(dt); res.timer.end();
   if (++run.frames % 30 === 1) trace();
@@ -2158,12 +2448,14 @@ const relock = document.createElement('div');
 relock.className = 'relock'; relock.textContent = 'Click to take up the mouse again';
 ui.append(relock);
 // a phone can take the GPU back (short of memory, or the browser put away): start over on a tap
-canvas.addEventListener('webglcontextlost', () => {
+const onLost = () => {
   lost = true; ready = false;
   bag?.show(false); hud.showTouch(false);
   title.hide(true);
   hud.showOverlay('lost', touch);
-});
+};
+canvas.addEventListener('webglcontextlost', onLost);
+if (WEBGPU) renderer.onDeviceLost = (info) => { console.warn('the GPU device was lost', info?.message || info); onLost(); };
 canvas.addEventListener('mousedown', () => sfx.start());
 // the pause screen's menu (hud.onMenu), and a click elsewhere on it resumes
 hud.overlay.addEventListener('click', (e) => { if (e.target.closest('.menu')) return; if (lost) location.reload(); else if (hud.mode === 'pause') begin(); });
@@ -2189,10 +2481,11 @@ optTime.onchange = () => {
 resize();
 build().then(() => {
   title.ready(titleState);   // (the menu comes up once Bellmourn's logo is in)
-  window.bellmourn = { scene, camera, renderer, composer, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
+  window.bellmourn = { scene, camera, renderer, composer, res, webgpu: WEBGPU, sunShadows: () => sunShadows, cells: () => cells, player, vm, magic, physics, ctx, lib, bill, kit, zombies, foes, villagers, slimes, char: () => char, guard, bag, map, setInventory, setMap, hurtPlayer, applyGear, melee, equip, assign, castSlot, hud, begin, L,
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
-    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }) };
+    setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
+    cheats, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

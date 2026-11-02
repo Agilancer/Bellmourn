@@ -53,6 +53,22 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vect
 const GROUP = 48;        // metres: a prop's instances are drawn in groups this size (off-screen ones culled)
 const _a = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
 
+/** Turn every triangle of `g` the other way round (after a mirror has turned them inside out). */
+function flipWinding(g) {
+  if (g.index) {
+    const a = g.index.array;
+    for (let i = 0; i + 2 < a.length; i += 3) { const t = a[i + 1]; a[i + 1] = a[i + 2]; a[i + 2] = t; }
+    g.index.needsUpdate = true;
+    return;
+  }
+  for (const attr of Object.values(g.attributes)) {
+    for (let v = 0; v + 2 < attr.count; v += 3) for (let k = 0; k < attr.itemSize; k++) {
+      const t = attr.getComponent(v + 1, k); attr.setComponent(v + 1, k, attr.getComponent(v + 2, k)); attr.setComponent(v + 2, k, t);
+    }
+    attr.needsUpdate = true;
+  }
+}
+
 export class Props {
   constructor(scene, physics, lib = null) {
     this.scene = scene;
@@ -317,6 +333,10 @@ export class Props {
       src.updateWorldMatrix(true, false);
       geo.applyMatrix4(src.matrixWorld);
       geo.scale(1, 1, -1); // glTF stores the models z-mirrored: back to as built (front = +z)
+      // a mirror turns every face inside out: wind them back, or the two-sided material takes each
+      // face it shows for its back, turns its normal away, and lights it black (the graveyard's
+      // headstones and the slabs before them came out as black blocks)
+      flipWinding(geo);
       geo.computeBoundingBox();
       const bb = geo.boundingBox;
       this.boxes.set(id, bb);
