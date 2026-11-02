@@ -113,7 +113,9 @@ export function groundMist(box, { density = 0.07, falloff = 1.5, edge = 12 } = {
 			float ry = abs( rd.y ) < 1e-3 ? ( rd.y < 0.0 ? -1e-3 : 1e-3 ) : rd.y;
 			float a = ${density.toFixed(3)} * ( 0.45 + 1.1 * bmMistNoise( mq * 0.09 ) ) * ( 0.7 + 0.6 * bmMistNoise( mq * 0.31 + 7.0 ) );
 			float b = ${falloff.toFixed(2)};
-			float mist = a / b * exp( - max( cameraPosition.y, 0.0 ) * b ) * ( 1.0 - exp( - dist * ry * b ) ) / ry;
+			// (the exponents held in range: looking down a long way, exp() overflows, and at a phone's
+			// precision far sooner; an Inf or NaN here, smeared by the bloom, is a black box on screen)
+			float mist = a / b * exp( - clamp( cameraPosition.y, 0.0, 20.0 ) * b ) * ( 1.0 - exp( min( - dist * ry * b, 8.0 ) ) ) / ry;
 			gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor * 1.12, clamp( mist, 0.0, 0.8 ) * inside );
 		}
 	}
