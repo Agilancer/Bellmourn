@@ -5,9 +5,8 @@
 //  2. The sky over Bellmourn: the star comes down out of it, trailing green.
 //  3. One of Velscour's Sworn, come from the keep, walks out of the wood behind the town on his round.
 //     Cut: he's out in the meadow. The green light grows behind him; he stops, turns, looks up at it,
-//     cries out to his lord ("LORD VELSCOUR, WHAT HAVE I DONE TO ANGER YOU?!", aloud and in a bubble),
 //     flinches, and cowers under his shield.
-//  4. Behind the star as it dives at him: he turns and runs for the town, screaming, and it catches him.
+//  4. Behind the star as it dives at him: he turns and runs for the town; it catches him, and he screams.
 //  5. It strikes him. White.
 //  6. Out of the white: a crater, smoking, nothing left of him but armour thrown about, and his
 //     sword, shield and staff. Every soul in the village screams at once.
@@ -23,7 +22,6 @@ import * as THREE from 'three';
 import { loadHero } from './hero.js';
 import { Comet, Space } from './comet.js';
 import { CRATER, formCrater } from './crater.js';
-import { voice } from './voice.js';
 
 const ease = (x) => (x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -44,9 +42,9 @@ const CAPTIONS = [
 
 // ------------------------------------------------------------------ the knight's part
 // Out of the wood on his round (the formal walk, his shield carried at his side); then, cut, on into
-// the meadow, where he stops at the green light behind him, turns to it, looks up, cries out to his
-// lord, flinches, and cowers under his raised shield, backing off; then (seen from the star) turns
-// and runs for the town, screaming, and is caught a stride or two into the crater's ground.
+// the meadow, where he stops at the green light behind him, turns to it, looks up, flinches, and
+// cowers under his raised shield, backing off; then (seen from the star) turns and runs for the town,
+// and is caught a stride or two into the crater's ground, screaming.
 const WALK = 1.3;                              // m/s, on his round
 const RUN = 5.5;                               // m/s, flat out
 const OUT = { x: -104, z: CRATER.z - 0.1 };    // where he steps out of the trees
@@ -93,15 +91,10 @@ function knightAt(t) {
 // where the star finds him
 const CAUGHT = knightAt(T_HIT - 1e-3);
 const STRIKE = new THREE.Vector3(CAUGHT.x, 1.0, CAUGHT.z);
-// his last words: what he cries to his lord once he's turned and seen it (about 3 s said), then his
-// scream as it dives at him, till it strikes. Each aloud in a Sworn's voice through his helm (made
-// ahead, in prepare: the bubble's words are in capitals, the voice is given them in plain case and
-// broken up, gasped) and in a bubble over his head; the scream with men's yells under it.
-const KNIGHT_VOICE = { key: 'Sworn', kind: 'knight', sex: 'm', fear: true, pri: 3 };   // (terrified: voice.js)
-const CRIES = [
-  { at: T_LOOK + K.turned, until: T_LOOK + K.turned + 3.4, text: 'LORD VELSCOUR, WHAT HAVE I DONE TO ANGER YOU?!', say: 'Lord Velscour! What have I done... to anger you?!' },
-  { at: T_HIT - 1.9, until: T_HIT, text: 'AHHHHHHHHHH!', say: 'Aaaaaaaaaaaaaaaaaaaah!', yell: true },
-];
+// his scream as the star comes down on him (the Wilhelm scream: audio.js knightScream), begun this many
+// seconds before it strikes: the scream itself (about 0.8 s of its 1.1) is done as the white comes,
+// and the boom takes its tail
+const SCREAM_LEAD = 0.9;
 
 export class Intro {
   /** o: { ui, scene, camera, worldPass, renderer, render(), sfx, foes, ctx, light (a green PointLight
@@ -131,8 +124,7 @@ export class Intro {
     say('A knight rides out of Blackvigil…');
     this.knightVariant = await this.o.knight();
     await this.o.preload?.(say);
-    voice.prefetch(CRIES.map((c) => [null, c.say, KNIGHT_VOICE]), 0);   // (his cries, made now: before the village's lines)
-    await this.o.sfx?.loadCrowd?.();   // the village's gasp and scream at the strike
+    await this.o.sfx?.loadCrowd?.();   // the knight's scream, and the village's gasp and scream at the strike
     say('Lighting the sky…');
     await this.warm();
     return this;
@@ -249,7 +241,7 @@ export class Intro {
 
   start(touch = false) {
     const o = this.o;
-    this.running = true; this.t = 0; this.shot = null; this.struck = false; this.screamed = false; this.cried = null; this.kClip = null;
+    this.running = true; this.t = 0; this.shot = null; this.struck = false; this.screamed = false; this.cried = false; this.kClip = null;
     this.el.classList.remove('hidden');
     const sk = this.el.querySelector('.cskip');
     sk.textContent = touch ? 'Tap here to skip' : 'Esc — skip';
@@ -278,7 +270,6 @@ export class Intro {
 
   dropKnight() {
     if (!this.knight) return;
-    this.hushKnight();
     try { this.knight.remove(); } catch { this.knight.root.removeFromParent(); }
     for (const it of this.knight.items || []) it.g?.removeFromParent?.();
     this.knight = null;
@@ -329,7 +320,7 @@ export class Intro {
     const s = SHOTS.find(([a, b]) => t >= a && t < b) || SHOTS[SHOTS.length - 1];
     const u = (t - s[0]) / (s[1] - s[0]), name = s[2];
     if (name !== this.shot) this.cut(name);
-    if (!dry) { this.captions(t); this.cry(t, dt); }
+    if (!dry) this.captions(t);
     const comet = this.comet, roar = (k, near = 0) => { if (!dry) this.roar?.set(k, near); };
     let fade = 0, white = 0;
 
@@ -429,6 +420,7 @@ export class Intro {
       this.poseKnight(dt, t, dry);
       o.light.position.copy(p); o.light.intensity = 30 + 220 * k; o.light.distance = 90;
       roar(0.8 + 0.2 * u, u);
+      if (!this.cried && !dry && t >= T_HIT - SCREAM_LEAD) { this.cried = true; o.sfx.knightScream?.(); }   // (he screams)
     } else if (name === 'white') {
       if (!this.struck && !dry) this.strike();
       white = 1;
@@ -493,7 +485,6 @@ export class Intro {
   strike() {
     const o = this.o;
     this.struck = true;
-    this.hushKnight();
     this.roar.stop(0.05);
     o.sfx.impact();
     this.dropKnight();
@@ -512,39 +503,6 @@ export class Intro {
       new THREE.Vector3((Math.random() - 0.5) * 4, 3 + Math.random() * 5, (Math.random() - 0.5) * 4), { life: 6, size: 3, grow: 3.5, alpha: 0.55, shade: 0.3 });
   }
 
-  /** The knight's cries (CRIES): each said aloud as its time comes, and in a bubble over his head
-   * (drawn by the village's bubbles, from the opening's camera) till its time is up. */
-  cry(t, dt) {
-    const k = this.knight;
-    if (!k || this.struck) return;
-    const c = CRIES.find((x) => t >= x.at && t < x.until) || null;
-    if (c && c !== this.cried) {
-      this.cried = c;
-      this.cryLine?.cancel();   // (the scream cuts his words off, if they run on)
-      this.cryLine = voice.say(null, c.say, KNIGHT_VOICE);
-      if (c.yell) { this.o.sfx.scream(1, 0.15); this.o.sfx.scream(1, 0.15); }   // (two men's yells under it: one shrieking voice)
-      k.speaker = k.def?.title || 'Sworn of Velscour';
-      k.speechAt = (out) => { k.bones.head.getWorldPosition(out); out.y += 0.45; return out; };
-      k.talk = { text: c.text, pages: [c.text], pi: 0, t: 1, age: 0, toYou: false, state: 'talk' };
-      const b = this.o.villagers?.bubbles;
-      if (b) b.cinema = { who: k, camera: this.o.camera };
-    }
-    if (!k.talk) return;
-    if (!c) { this.hushKnight(); return; }
-    if (t > c.at + 1.2 && this.cryLine && !this.cryLine.started) { this.cryLine.cancel(); this.cryLine = null; }   // (too late to be his)
-    k.talk.age += dt;
-    k.talk.t = c.until - t;   // (the bubble fades out over its last moment)
-  }
-
-  /** His bubble down (the strike, a skip, the end), and a cry whose voice is too late let go (never
-   * heard over the white or the crater). */
-  hushKnight() {
-    if (this.cryLine && !this.cryLine.started) { this.cryLine.cancel(); this.cryLine = null; }
-    if (this.knight) this.knight.talk = null;
-    const b = this.o.villagers?.bubbles;
-    if (b) b.cinema = null;
-  }
-
   captions(t) {
     const c = CAPTIONS.find(([a, b]) => t >= a && t < b);
     const key = c ? c[2] : '';
@@ -559,7 +517,6 @@ export class Intro {
   /** Straight to the end (Esc or a tap). */
   skip() {
     if (!this.running) return;
-    this.cryLine?.cancel(); this.cryLine = null;
     if (!this.struck) this.strike();
     this.dropKnight();
     this.o.worldPass.scene = this.o.scene; this.o.worldPass.camera = this.o.camera;
