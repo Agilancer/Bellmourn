@@ -307,10 +307,17 @@ export class ViewModel {
   on(fn) { this.listeners.push(fn); }
   emit(...a) { for (const f of this.listeners) f(...a); }
 
+  /** How much the arms are shrunk toward the bottom centre: the rigs' REST_SCALE, but a two-hander
+   * (motion captured from the user's swing video, tools/templates/mocap2h.py) is drawn unshrunk, as
+   * the world camera sees it, from an eye raised above the shoulders. */
+  viewScale() {
+    return (this.twoHanded() && this.moves?.cat.views?.twohand) || this.manifest.view_scale;
+  }
+
   resize(aspect) {
     this.aspect = aspect;
     // the rigs' projection (tools/models/viewer.html), widened for any aspect ratio
-    const H = 240, S = this.manifest.view_scale, F = (H * 1.6 / 2) * S;
+    const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S;
     const CY = H - (H / 2) * S, near = 0.02, far = 20;
     const fy = 2 * F / H, fx = fy / aspect;
     this.camera.projectionMatrix.set(
@@ -487,7 +494,7 @@ export class ViewModel {
     return WALK[side][this.equip[side] ?? 'null'];
   }
 
-  twoHanded() { return !!(this.equip.R && ITEMS[this.equip.R]?.both); }
+  twoHanded() { return !!(this.equip?.R && ITEMS[this.equip.R]?.both); }
 
   /** What this hand is closed on, if anything shown: its own item's kind, or the two-hander's
    * (the support hand). */
@@ -811,8 +818,11 @@ export class ViewModel {
    * so nothing bends) by how far its grip is from the centre, so the hands ride wide. Two hands
    * on one grip slide together. */
   slide(dt = 1 / 60) {
+    if (this.manifest && this.viewScale() !== this.shownScale) this.resize(this.aspect ?? 1.6);   // (weapon changed)
     const fx = this.camera.projectionMatrix.elements[0];
-    const f = Math.min(2.2, Math.max(0.8, (this.moves?.cat.stretch ?? 1) * this.aspect / 1.6));
+    // (a two-hander drawn unshrunk keeps its hands where the capture put them: no spread)
+    const wide = this.viewScale() === this.manifest?.view_scale;
+    const f = wide ? Math.min(2.2, Math.max(0.8, (this.moves?.cat.stretch ?? 1) * this.aspect / 1.6)) : 1;
     const shift = {};
     for (const side of ['R', 'L']) {
       const arm = this.arms[side];

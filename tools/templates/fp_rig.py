@@ -160,7 +160,7 @@ def pose_frame(f):
 def shoulder(side, key):
     """The key's shoulder: the rig's, or turned with the torso by `twist` degrees (positive
     turns the chest to the left, bringing the right shoulder forward) about the spine."""
-    s = SHOULDER[side] + np.array([0.0, key.get("shrug", 0.0), 0.0])
+    s = SHOULDER[side] + np.array([0.0, key.get("shrug", 0.0), key.get("lean", 0.0)])   # (lean: forward)
     tw = key.get("twist")
     if not tw:
         return s
