@@ -145,12 +145,15 @@ export class Intro {
     const o = this.o, R = o.renderer, breathe = () => new Promise((r) => setTimeout(r, 0));
     // compiled as the game draws them: into its own picture, not straight to the screen (whose
     // shaders differ: they'd tone-map and convert colour themselves)
-    const compile = (sc, c) => {
+    // (WebGPU's compile goes on in pieces after it returns, and binds the buffer it began with again
+    // as each piece finishes: put back as it was once it's done, or every frame after draws into it)
+    const compile = async (sc, c) => {
       const was = R.getRenderTarget();
       R.setRenderTarget(o.compileTarget?.() ?? was);
       const p = R.compileAsync(sc, c);
       R.setRenderTarget(was);
-      return p;
+      await p;
+      R.setRenderTarget(was);
     };
     this.spawnKnight();
     // the knight as he comes apart: a cut piece is drawn without skinning (other shaders, other shadow
