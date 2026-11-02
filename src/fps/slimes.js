@@ -258,12 +258,15 @@ function shellKind() {
     const f = clamp(abs(dot(normalView, positionViewDirection)).oneMinus(), 0.0, 1.0).toVar();
     return f.mul(f).mul(f.mul(0.4).add(0.6));
   })();
+  // (made once and given to every shell: a node is its own cache key, so nodes made for each slime
+  // were a shader of their own for each)
+  const opacity = clamp(materialOpacity.add(fr.mul(fres)), 0.0, 0.97), emissive = materialEmissive.add(rim.mul(fr));
   class SlimeShellMaterial extends THREE.MeshStandardNodeMaterial {
     static get type() { return 'SlimeShellMaterial'; }
     constructor(parameters) {
       super(parameters);
-      this.opacityNode = clamp(materialOpacity.add(fr.mul(fres)), 0.0, 0.97);
-      this.emissiveNode = materialEmissive.add(rim.mul(fr));
+      this.opacityNode = opacity;
+      this.emissiveNode = emissive;
     }
     setupPosition(builder) {
       const out = super.setupPosition(builder);

@@ -24,6 +24,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Zombie, goreMaterial, goreShell, wrap, longLow } from './zombies.js';
+import { letGo } from './engine.js';
 import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
@@ -39,6 +40,10 @@ const ITEM_ROOT = 'templates/models/';
 const FPS = 30;
 
 // the variants (look: what their spells and glows are made of)
+// (the brain's timers run down each frame; and the states a body lies in, its own brain idle)
+const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT'];
+const LAID = new Set(['collapse', 'buried', 'rise', 'playdead', 'getup']);
+
 export const FOES = {
   knight_a: { kind: 'knight', title: 'Dread Knight', R: ['arming_sword', 'flanged_mace', 'morning_star'], L: ['thorned_kite', 'knights_kite'], finish: 'bloodforged' },
   knight_b: { kind: 'knight', title: 'Ashen Templar', R: ['falchion', 'war_hammer', 'arming_sword'], L: ['templar_kite', 'banded_kite'], finish: 'bright' },
@@ -330,6 +335,7 @@ class Foe extends Zombie {
       if (!m.name.includes(piece)) continue;
       if (tint) m.color.setRGB(...tint); else m.visible = false;
     }
+    this.syncShade();
   }
 
   /** Put an item model (already cloned) in a socket. */
@@ -341,11 +347,16 @@ class Foe extends Zombie {
     s.m.decompose(g.position, g.quaternion, g.scale);
     g.add(obj);
     bone.add(g);
-    obj.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.frustumCulled = false; } });
+    obj.traverse((c) => { if (c.isMesh) c.castShadow = true; });
     this.items.push({ g, bone: s.bone, socket: socketName });
   }
 
   get shield() { return this.items.find((i) => i.socket === 'shieldL'); }
+
+  castsShadow(on) {
+    super.castsShadow(on);
+    for (const it of this.items) it.g.traverse((c) => { if (c.isMesh) c.castShadow = on; });
+  }
 
   /** The clips swing the shield arm across the body (the shield goes through the chest as it
    * walks, and across it as the sword comes round). Unless it's blocking or bashing, the arm is
@@ -364,7 +375,8 @@ class Foe extends Zombie {
     this.cockW = (this.cockW ?? cock) + (cock - (this.cockW ?? cock)) * k2;
     if (this.carryW < 0.01) return;
     const P = this.foes.poses(this);
-    this.root.updateMatrixWorld(true);
+    // (each getWorldQuaternion below brings its own chain up from the world, the arm just turned
+    // included: the whole body's matrices were walked here three times over, every frame, for each)
     const model = this.root.children[0], qm = model.getWorldQuaternion(_q0);
     for (const part of ['up', 'fore']) {
       const bone = part === 'up' ? this.bones.upper_armL : this.bones.forearmL;
@@ -373,7 +385,6 @@ class Foe extends Zombie {
       const pq = bone.parent.getWorldQuaternion(_q1).invert();
       _q2.copy(qm).multiply(_q3).premultiply(pq);
       bone.quaternion.slerp(_q2, this.carryW);
-      bone.updateMatrixWorld(true);
     }
     if (P.cock && this.cockW > 0.01 && this.arm('R')) {        // the sword arm drawn back as the shield goes in
       for (const part of ['up', 'fore']) {
@@ -381,7 +392,6 @@ class Foe extends Zombie {
         const pq = bone.parent.getWorldQuaternion(_q1).invert();
         _q2.copy(qm).multiply(P.cock[part]).premultiply(pq);
         bone.quaternion.slerp(_q2, this.cockW);
-        bone.updateMatrixWorld(true);
       }
     }
   }
@@ -474,21 +484,21 @@ class Foe extends Zombie {
     if (this.def.boss) this.burn(dt, player);
     if (this.gone) return;
     if (this.dead && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
-    if (this.dead || this.mode === 'crawl' || ['collapse', 'buried', 'rise', 'playdead', 'getup'].includes(this.state)) {
+    if (this.dead || this.mode === 'crawl' || LAID.has(this.state)) {
       super.update(dt, player, active, far, mid);
       return;
     }
     const owner = this.owner;
     if (far && !this.aggro && this.goal === 'wander') return;   // out of the way: it waits
     // in the keep, one in a room you can't see into isn't drawn (unless it's after you)
-    if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) this.root.visible = false;
+    if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) { this.root.visible = false; this.seen = false; }
     this.mixAcc += dt;
-    if (!mid || ++this.frame % (far ? 6 : 3) === 0) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
+    if (this.animDue(far, mid)) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
     // (its afflictions run once a frame, in the horde's update)
     if (this.dead) return;
     this.bleed(dt);
     // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
-    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT']) this[k] = Math.max(0, (this[k] || 0) - dt);
+    for (const k of COOLS) this[k] = Math.max(0, (this[k] || 0) - dt);
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
@@ -1415,8 +1425,9 @@ export class Foes {
   /** An item let go of: it tumbles to the ground and lies there a while. */
   loose(g, v) {
     this.scene.attach(g);
+    g.userData.mover = true;
     this.lost.push({ g, v: v.clone(), spin: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), w: 6 + Math.random() * 6, rest: false, age: 0 });
-    if (this.lost.length > 40) { const o = this.lost.shift(); this.scene.remove(o.g); }
+    if (this.lost.length > 40) { const o = this.lost.shift(); this.scene.remove(o.g); letGo(o.g); }
   }
 
   // -------------------------------------------------------------- voices and sounds

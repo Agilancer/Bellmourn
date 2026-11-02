@@ -142,8 +142,68 @@ export function makeRenderer(canvas, { touch }) {
   renderer.setPixelRatio(1);   // (the size is set in device pixels: Resolution)
   ANISO = Math.min(touch ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
   THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
+  keepCompiled(renderer);
   return renderer;
 }
+
+/** What's compiled before play stays compiled. three lets a shader go when the last thing drawn with
+ * it is disposed (WebGL r170: its program; WebGPU r187: its node build, shader modules and pipeline),
+ * and a hex, a spell's flash, a cut-off limb, a body cleared away each have materials of their own,
+ * disposed when they're gone: the next was compiled again, mid-fight, though the warm-up and the
+ * rehearsal had made it. So nothing is let go until play begins (`keepCompiled.freeze()`, after the
+ * rehearsal); then what was made by then is kept for good, and of what's made later the first LATE are
+ * kept too (a kind first met in play), the rest let go as three would (a material that builds its own
+ * nodes, or a ShaderMaterial, whose cache keys never come round again, would otherwise pile up).
+ * WebGL: programs are pinned after each frame drawn (`keepCompiled.pin`); a ShaderMaterial's never
+ * (its key is its shader's place in three's cache, which goes with its last material: kept, it would
+ * never be used again). `keepCompiled.stats()` for the counts. */
+const LATE = 96;
+export function keepCompiled(renderer) {
+  let frozen = false, late = 0;
+  const lateOne = () => late < LATE && ++late;
+  if (WEBGPU) {
+    const P = renderer._pipelines, cache = renderer._nodes?.nodeBuilderCache;
+    if (!P || !cache) return;
+    const keptP = new Set(), keptG = new Set(), keptK = new Set();
+    const spare = (kept, x) => {
+      if (!frozen || kept.has(x)) return true;
+      if (lateOne()) { kept.add(x); return true; }
+      return false;
+    };
+    const relP = P._releasePipeline.bind(P), relG = P._releaseProgram.bind(P), del = cache.delete.bind(cache);
+    // (a pipeline kept keeps its shader programs: their ids are in its key, and it would never be found
+    // again with new ones; three lets the pipeline go first, then its programs)
+    P._releasePipeline = (p) => {
+      if (!spare(keptP, p)) { relP(p); return; }
+      for (const g of [p.vertexProgram, p.fragmentProgram, p.computeProgram]) if (g) keptG.add(g);
+    };
+    P._releaseProgram = (g) => { if (frozen && !keptG.has(g)) relG(g); };
+    cache.delete = (k) => (spare(keptK, k) ? false : del(k));
+    keepCompiled.freeze = () => {
+      if (frozen) return;
+      for (const p of P.caches.values()) keptP.add(p);
+      for (const m of Object.values(P.programs || {})) for (const g of m.values()) keptG.add(g);
+      for (const k of cache.keys()) keptK.add(k);
+      frozen = true;
+    };
+    keepCompiled.stats = () => ({ pipelines: P.caches.size, nodeBuilds: cache.size, kept: keptP.size, late, frozen });
+    return;
+  }
+  keepCompiled.pin = () => {
+    const list = renderer.info.programs;
+    if (!list) return;
+    for (const p of list) {
+      if (p.kept || p.type === 'ShaderMaterial' || p.type === 'RawShaderMaterial') continue;   // (r170: type is the material's type)
+      if (frozen && !lateOne()) continue;
+      p.kept = true; p.usedTimes += 1e9;
+    }
+  };
+  keepCompiled.freeze = () => { keepCompiled.pin(); frozen = true; };
+  keepCompiled.stats = () => ({ programs: renderer.info.programs?.length, late, frozen });
+}
+keepCompiled.pin = () => {};
+keepCompiled.freeze = () => {};
+keepCompiled.stats = () => ({});
 
 async function makeWebGPU(canvas, { touch }) {
   const renderer = new THREE.WebGPURenderer({ canvas, antialias: false, powerPreference: 'high-performance', trackTimestamp: true });
@@ -154,6 +214,7 @@ async function makeWebGPU(canvas, { touch }) {
   ANISO = Math.min(touch ? 4 : 16, renderer.getMaxAnisotropy());
   THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
   shadowNodesShared(renderer);
+  keepCompiled(renderer);
   // ?debugrender: a draw that throws names its object and material, once each
   if (/[?&]debugrender/.test(location.search)) {
     Error.stackTraceLimit = 60;
@@ -282,6 +343,79 @@ export function shareSkeletons(root) {
     else groups.push(s);
   });
   return groups.length;
+}
+
+// ------------------------------------------------------------------ shadows
+/** The layer of the bodies' shadow stand-ins (zombies.js makeShade): seen by every light's shadow
+ * camera (shadeLayers), never by a camera that draws the picture. */
+export const SHADE_LAYER = 5;
+
+/** Every shadow map sees the stand-ins. WebGPU (r187) tests a caster's layers against the light's
+ * shadow camera: each shadow-casting light under `root` gets the layer (call before the sun's maps are
+ * made: sunshadow.js copies its camera's layers). WebGL (r170) tests them against the view camera, so
+ * the view camera takes the layer while the maps are drawn, after its own list of what it draws is
+ * made (the stand-ins are never in the picture). */
+export function shadeLayers(root, renderer) {
+  root.traverse((l) => { if (l.isLight && l.castShadow && l.shadow?.camera) l.shadow.camera.layers.enable(SHADE_LAYER); });
+  if (WEBGPU || !renderer?.shadowMap || renderer.shadowMap._shade) return;
+  const sm = renderer.shadowMap, draw = sm.render;
+  sm._shade = true;
+  sm.render = function (lights, scene, camera) {
+    const was = camera.layers.mask;
+    camera.layers.enable(SHADE_LAYER);
+    try { draw.call(this, lights, scene, camera); } finally { camera.layers.mask = was; }
+  };
+}
+
+/** Let three forget what it kept for drawing these (WebGPU: each draw's render objects, their uniform
+ * buffers and their hold on the body, until the object itself is disposed; one with a shared material,
+ * never disposed, was kept for good). Call before taking a body's shared buffers off its geometry:
+ * a render object let go of later, by the geometry's own dispose, took the shared buffers with it. */
+export function letGo(root) {
+  root.traverse((o) => { if (o.isMesh || o.isSprite || o.isPoints || o.isLine) o.dispatchEvent({ type: 'dispose' }); });
+}
+
+/** Something that moves: a body (or anything on its bones: a sword, a shield, a stub), or what's
+ * marked so (a limb cut off, an arm dropped, a gib). */
+export function isMover(o) {
+  for (let p = o, k = 0; p && k < 6; p = p.parent, k++) if (p.isSkinnedMesh || p.isBone || p.userData.mover) return true;
+  return false;
+}
+
+let StillPointShadow = null;
+/** (Call before anything is compiled or drawn: a light's shadowNode is read once, when its light node
+ * is first set up.) The torches' shadow maps are kept (drawn again only when a torch moves to another flame, or a crate
+ * breaks), so nothing that moves is drawn into them: a body standing by a torch when its map was drawn
+ * left its shadow on the wall there after it had walked off, or died. WebGPU: their shadow nodes skip
+ * movers; WebGL: a mover's draws into them are emptied (onBeforeShadow, for those cameras only). */
+export function stillShadows(lights) {
+  lights = lights.filter((l) => l.castShadow && l.shadow);
+  if (!lights.length) return;
+  if (WEBGPU) {
+    if (!THREE.PointShadowNode) return;
+    StillPointShadow ||= class extends THREE.PointShadowNode {
+      getShadowRenderObjectFunction(renderer, shadow) {
+        const base = super.getShadowRenderObjectFunction(renderer, shadow);
+        if (this._base !== base) {
+          this._base = base;
+          this._still = (object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId) => {
+            if (!isMover(object)) base(object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId);
+          };
+        }
+        return this._still;
+      }
+    };
+    for (const l of lights) if (l.isPointLight && !l.shadow.shadowNode) l.shadow.shadowNode = new StillPointShadow(l, l.shadow);
+    return;
+  }
+  const cams = new Set(lights.map((l) => l.shadow.camera));
+  const P = THREE.Mesh.prototype;
+  P.onBeforeShadow = function (r, o, cam, shadowCamera, geometry) {
+    if (cams.has(shadowCamera) && isMover(this)) { this._still = geometry.drawRange.count; geometry.drawRange.count = 0; }
+  };
+  P.onAfterShadow = function (r, o, cam, shadowCamera, geometry) {
+    if (this._still !== undefined) { geometry.drawRange.count = this._still; this._still = undefined; }
+  };
 }
 
 /** The scene's world matrices worked out only where something can be drawn: a hidden subtree (a
