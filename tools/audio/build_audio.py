@@ -9,6 +9,7 @@
 #   Nature_Essentials_NOX_SOUND ... .rar -> Ambiance_*_Loop_*.wav
 #   SFX - SWORDS AND WHAT NOT.rar       -> SFX/**/*.ogg
 #   orthodox-church-bells-ringing-sound.zip -> orthodox-church-bells-ringing-sound.mp3 (the title's bells)
+#   VOXScrm_Wilhelm scream (ID 0477)_BigSoundBank.com.wav   the opening's knight, as the star takes him
 #
 # Out (all MP3, which every browser plays, iPhones included):
 #   music/   every track, loudness-matched by its kind (dark ambient is lifted, action brought down);
@@ -19,7 +20,7 @@ import aud, os, re, sys, glob, json
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SRC = ARGS[0] if ARGS else '.'
-ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx', 'crowd', 'bells'}
+ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else {'songs', 'music', 'amb', 'sfx', 'crowd', 'bells', 'wilhelm'}
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'assets', 'audio')
 
@@ -139,6 +140,16 @@ if 'bells' in ONLY:
     print('bells')
     b = find(r'orthodox-church-bells.*\.mp3$')
     if b: note('sfx/title_bells.mp3', b[0], write(aud.Sound(b[0]).limit(0.02, 16.02).fadeout(15.4, 0.6), os.path.join(OUT, 'sfx', 'title_bells.mp3'), 44100, 2, 160))
+
+# ------------------------------------------------------------------ the knight's scream, as the star takes him
+# VOXScrm_Wilhelm scream (ID 0477)_BigSoundBank.com.wav (BigSoundBank.com): the whole 1.1 s, mono (its two
+# channels are the same), its peak brought up to 0.9 (audio.js WILHELM_VOL sets how loud it plays)
+if 'wilhelm' in ONLY:
+    print('wilhelm')
+    w = find(r'wilhelm.*\.wav$')
+    if w:
+        s = aud.Sound(w[0]).cache()
+        note('sfx/wilhelm_scream.mp3', w[0], write(s.volume(0.9 / level(s)[1]), os.path.join(OUT, 'sfx', 'wilhelm_scream.mp3'), 44100, 1, 128))
 
 # (the earlier entries read before the file is opened to write: opening it empties it)
 REPORT = os.path.join(OUT, 'build_report.json')
