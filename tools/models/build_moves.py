@@ -145,7 +145,8 @@ def halfway(f0, f1):
     out = dict(f1)
     for side in ("R", "L"):
         a, b = f0.get(side), f1.get(side)
-        if not a or not b or "fing" in a or "fing" in b or "support" in a or "support" in b:
+        if (not a or not b or "fing" in a or "fing" in b or "support" in a or "support" in b
+                or "G3" in a or "G3" in b):   # (3D-keyed frames are dense: no halfway needed)
             continue
         m = moves.lerp_key(dict(a), dict(b), 0.5)
         if a.get("twist") or b.get("twist"):
