@@ -1,56 +1,71 @@
 // What a fight shows over the picture, and what it writes in the chat log.
 //
 // Over each foe once it's been hurt, a small red life bar (the pale trail behind it what the last
-// blow took), with marks for what ails it (burning, frozen, chilled, poisoned, shocked) and a skull
-// on a champion's; it fades a while after the last blow, drains away when it dies, and hides behind
-// walls. Every blow throws up its damage in chunky pixel digits (tools/ui/hud.px.js) coloured by
-// its kind (steel pale, a heavy blow gold, fire, frost, lightning, arcane, holy, poison, blood),
-// popping out and arcing away; what it did besides comes up in words over it: BURNING, FROZEN,
-// SEVERED, BEHEADED, CUT IN TWO, BLOCKED, SLAIN. Damage you take, and healing, rises off the life
-// orb. The chat log gets a line for each (several foes struck in one frame by one blast share a
-// line), afflictions taking hold and what they burned or poisoned away, limbs off, and deaths.
+// blow took); a champion's is longer and gold-edged, its name above it. It fades a while after the
+// last blow, drains away when the foe dies, and hides behind walls.
 //
-// The bodies report to it: Zombie.hit/harm/sever (zombies.js, the foes through them) and Slime.hit/
-// harm (slimes.js) call owner.feed.struck/harmed/severed; main.js tells it of deaths, blocks and your
-// own hurts. It draws on its own full-resolution canvas laid over the game, like the speech bubbles.
+// Numbers and words are set in Cinzel, the title's Roman capitals: the numbers heavy, lit from above
+// in their kind's colours (steel and heavy blows in the subtitle's gold, fire, frost, lightning,
+// arcane, holy, poison, blood) with a dark bevelled edge; the words (BURNING, FROZEN, BLOCKED...)
+// small and widely spaced, like VELSCOUR'S THRONE under the logo. Every foe has its own lanes, so
+// nothing lands on anything else: words rise from just over its bar, at most two stacked; numbers
+// burst from just under it and arc out to the sides. A heavy blow's number is bigger, a killing one
+// turns red and white; hits on one foe within 450 ms add into the number still up, which counts up;
+// burns and poisons tick in one small count a second. A limb off comes up where the cut was
+// (BEHEADED, SEVERED, CUT IN TWO), SLAIN where the bar was. Damage you take and healing rise off the
+// life bar. Nothing lands on the crosshair: numbers are pushed out of a box about it.
+//
+// The chat log gets a line for each blow (a foe struck again within 2 s: the same line, counting),
+// a blast's foes in one line, afflictions taking hold and what they burned or poisoned away, limbs
+// off and deaths. The bodies report here: Zombie.hit/harm/sever (zombies.js; the foes through them)
+// and Slime.hit/harm (slimes.js) call owner.feed.*; main.js tells it of deaths, blocks and your hurts.
+// It draws on its own full-resolution canvas laid over the game, like the speech bubbles.
 
 import * as THREE from 'three';
-import { uiArt } from './uiart.js';
 import { fmt } from './chatlog.js';
 
-// each kind of damage's colours: four tones light to dark, and the outline
-const R = (tones, edge) => ({ tones, edge });
+// each kind's colours: the fill lit from above (top, middle, bottom) and the bevelled edge
+const R = (top, mid, low, edge) => ({ top, mid, low, edge });
 export const RAMPS = {
-  phys: R(['#ffffff', '#f0e6d0', '#c8b898', '#8a7a60'], '#140c06'),
-  heavy: R(['#fff8d0', '#ffe080', '#f0b030', '#a86010'], '#240c00'),
-  fire: R(['#fff4b0', '#ffc040', '#ff6a1a', '#b82a08'], '#260600'),
-  frost: R(['#ffffff', '#c8f0ff', '#6ac0ff', '#2a68c8'], '#040e26'),
-  shock: R(['#ffffff', '#e8e0ff', '#b090ff', '#6a40d8'], '#0e0426'),
-  arcane: R(['#ffe8ff', '#f0a0ff', '#c050e0', '#702090'], '#18041e'),
-  holy: R(['#ffffff', '#fff2b0', '#ffd870', '#c09030'], '#241800'),
-  poison: R(['#f0ffc0', '#b8f060', '#6ac028', '#2e6a10'], '#061600'),
-  blood: R(['#ffd0d0', '#ff6070', '#c01828', '#6a0810'], '#180004'),
-  hurt: R(['#ffd8c8', '#ff7a5a', '#e02818', '#7a0808'], '#120000'),
-  heal: R(['#e8ffe8', '#90ff90', '#40c850', '#1a7a2a'], '#021806'),
-  grey: R(['#ffffff', '#d0d0d0', '#a0a0a0', '#606060'], '#0e0e0e'),
-  gold: R(['#fffbe0', '#ffe890', '#f8c040', '#b07010'], '#201000'),
+  phys: R('#fff8e4', '#f0dca8', '#c8a464', '#2a1a08'),
+  heavy: R('#fffbe0', '#ffd860', '#c88a20', '#2a1400'),
+  kill: R('#ffffff', '#ff9080', '#d02818', '#1e0202'),
+  fire: R('#fff4b0', '#ffb040', '#e8501a', '#2a0800'),
+  frost: R('#ffffff', '#b8ecff', '#4aa8f0', '#04102a'),
+  shock: R('#ffffff', '#e0d8ff', '#9a7aff', '#100430'),
+  arcane: R('#ffe8ff', '#f0a0ff', '#b448d8', '#1a0420'),
+  holy: R('#ffffff', '#fff0b0', '#e8c060', '#261a00'),
+  poison: R('#f4ffd0', '#b8f060', '#5aa820', '#081800'),
+  blood: R('#ffe0e0', '#ff6878', '#b81828', '#1a0004'),
+  gore: R('#ffd8c8', '#ff4a38', '#a81010', '#140202'),
+  hurt: R('#ffe0d0', '#ff7a5a', '#d02010', '#140000'),
+  heal: R('#eaffea', '#90ff90', '#38b048', '#021806'),
+  grey: R('#ffffff', '#d8d8d8', '#9a9a9a', '#101010'),
+  gold: R('#fffbe0', '#ffe080', '#d8a030', '#241400'),
+  name: R('#fff4d0', '#f0d080', '#c89a40', '#140a02'),
 };
 // a blow's kind -> its colours, and the word the log puts after the number
 const KIND = { blade: 'phys', blunt: 'phys', thorns: 'phys', bone: 'phys', fire: 'fire', burn: 'fire', frost: 'frost', lightning: 'shock',
   staff: 'arcane', arcane: 'arcane', void: 'arcane', wisp: 'holy', heal: 'holy', poison: 'poison', drain: 'blood', harm: 'arcane' };
 const WORD = { fire: 'fire', frost: 'frost', shock: 'lightning', arcane: 'arcane', holy: 'holy', poison: 'poison', blood: 'blood' };
-// afflictions: key, is it on, its word, its colours, the log's phrase, its mark, what it does over time
+// afflictions: key, is it on, its word, its colours, the log's phrase, what it does over time
 const AFF = [
-  { k: 'burn', on: (z) => z.burning > 0 || z.burnT > 0, tag: 'burning', ramp: 'fire', says: 'is set ablaze', mark: 'af_burn', dot: 'burned' },
-  { k: 'frozen', on: (z) => z.frozen > 0, tag: 'frozen', ramp: 'frost', says: 'is frozen solid', mark: 'af_frozen' },
-  { k: 'chill', on: (z) => !(z.frozen > 0) && (z.chilled > 0 || z.chillT > 0), tag: 'chilled', ramp: 'frost', says: 'is chilled to a crawl', mark: 'af_chill' },
-  { k: 'poison', on: (z) => z.poisoned > 0, tag: 'poisoned', ramp: 'poison', says: 'is poisoned', mark: 'af_poison', dot: 'poisoned' },
+  { k: 'burn', on: (z) => z.burning > 0 || z.burnT > 0, tag: 'Burning', ramp: 'fire', says: 'is set ablaze', dot: 'burned' },
+  { k: 'frozen', on: (z) => z.frozen > 0, tag: 'Frozen', ramp: 'frost', says: 'is frozen solid' },
+  { k: 'chill', on: (z) => !(z.frozen > 0) && (z.chilled > 0 || z.chillT > 0), tag: 'Chilled', ramp: 'frost', says: 'is chilled to a crawl' },
+  { k: 'poison', on: (z) => z.poisoned > 0, tag: 'Poisoned', ramp: 'poison', says: 'is poisoned', dot: 'poisoned' },
 ];
 const SIDE = { L: 'left', R: 'right' };
 const LIMB = { upper_arm: 'arm', forearm: 'forearm', hand: 'hand', thigh: 'leg', shin: 'leg', foot: 'foot' };
 const SIZE_WORD = { XS: 'Tiny ', S: 'Small ', M: '', L: 'Great ', XL: 'Huge ' };
 const BAR_SHOW = 7, BAR_FADE = 1.6, BAR_FAR = 46;   // s shown after the last blow, s to fade, metres
+const MERGE = 0.45;        // s: a hit on a foe whose number is still up adds into it
+const RUN = 2;             // s: the log's line for a foe keeps counting its hits
 const MAX_POPS = 90;
+const TOUCH = matchMedia('(pointer: coarse)').matches;
+const NUM_FONT = 'Cinzel, Georgia, serif', WORD_FONT = 'Cinzel, Georgia, serif';
+// (the canvas only draws in a web font once it's loaded: both weights asked for now, before any fight)
+try { document.fonts?.load('900 26px Cinzel'); document.fonts?.load('700 16px Cinzel'); } catch { /* no font loading API */ }
 
 /** What to call one of them in the log. */
 export function nameOf(z) {
@@ -62,15 +77,48 @@ export function nameOf(z) {
   if (v.length > 2) return v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return 'Zombie';
 }
+/** "the Rotting Zombie", but "Grumehollow the Rotten": a champion's or a lord's name takes no article. */
+export const theName = (z, html) => (z?.champ?.name || z?.def?.boss ? html : 'the ' + html);
+/** A number and its kind's word kept on one line. */
+const numWord = (n, css, word) => `<span class="c-nw">${fmt.num(n, css)}${word}</span>`;
+
+/** Text set once into its own canvas (device px): heavy numbers or spaced capitals, filled with the
+ * ramp lit from above, a dark bevelled edge and a soft shadow under it. */
+function setText(text, px, ramp, { weight = 900, spacing = 0 } = {}) {
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  const font = `${weight} ${px}px ${spacing ? WORD_FONT : NUM_FONT}`;
+  g.font = font;
+  if (spacing) g.letterSpacing = `${spacing}em`;
+  const edge = Math.max(2, Math.round(px * 0.11)), pad = edge + Math.ceil(px * 0.12);
+  const w = Math.ceil(g.measureText(text).width) + pad * 2, h = Math.ceil(px * 1.18) + pad * 2;
+  c.width = w; c.height = h;
+  g.font = font;
+  if (spacing) g.letterSpacing = `${spacing}em`;
+  g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const x = pad, y = h / 2 + px * 0.04;
+  g.shadowColor = 'rgba(0, 0, 0, .75)'; g.shadowBlur = Math.round(px * 0.18); g.shadowOffsetY = Math.round(px * 0.06);
+  g.lineWidth = edge * 2; g.strokeStyle = ramp.edge;
+  g.strokeText(text, x, y);
+  g.shadowColor = 'transparent';
+  const grad = g.createLinearGradient(0, y - px * 0.45, 0, y + px * 0.45);
+  grad.addColorStop(0, ramp.top); grad.addColorStop(0.45, ramp.mid); grad.addColorStop(1, ramp.low);
+  g.fillStyle = grad;
+  g.fillText(text, x, y);
+  // a hairline of light along the top of the letters (the subtitle's bevel)
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(255, 255, 255, .22)';
+  g.fillRect(0, 0, w, y - px * 0.28);
+  return c;
+}
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _d = new THREE.Vector3();
 
 export class CombatFx {
-  /** o: { camera, physics, chat, lists() -> [arrays of foes], orb() -> the life orb's element, time() } */
+  /** o: { camera, physics, chat, lists() -> [arrays of foes], bar() -> the life bar's element } */
   constructor(o) {
     this.o = o;
     this.state = new Map();      // foe -> what it shows (see st)
-    this.pops = [];              // numbers and words rising
+    this.pops = [];              // numbers and words
     this.batch = [];             // this frame's blows, for the log
     this.later = [];             // and what they did (limbs off), written after them
     this.now = 0;
@@ -87,15 +135,17 @@ export class CombatFx {
 
   st(z) {
     let s = this.state.get(z);
-    if (!s) this.state.set(z, (s = { seen: -99, frac: 1, trail: 1, trailHold: 0, max: 0, af: 0, dot: {}, dotAcc: 0, dotKind: 'fire', dotT: 0, occT: 0, occ: false, shock: -99, dead: -1 }));
+    if (!s) this.state.set(z, (s = { seen: -99, frac: 1, trail: 1, trailHold: 0, max: 0, af: 0, dot: {}, dotAcc: 0, dotKind: 'fire', dotT: 0, occT: 0, occ: false, dead: -1, tags: [], num: null, run: null }));
     return s;
   }
   maxOf(z, s) {
     const m = z.slime ? z.max : z.champ?.max || (z.kindName && z.kind?.hp) || 120;
     return Math.max(m || 1, s.max || 0);
   }
-  get scale() { return Math.max(2, Math.round(innerHeight / 340)); }
   get dpr() { return Math.min(2, window.devicePixelRatio || 1); }
+  /** A plain number's size in device px: 26 css px at 900 lines (larger screens a little more). */
+  get px() { return Math.round(Math.max(20, Math.min(34, innerHeight * 0.029)) * (TOUCH ? 0.8 : 1) * this.dpr); }
+  big(z) { return !!(z.champ || z.def?.boss); }
 
   // -------------------------------------------------------------- what the bodies report
   /** A blow landed (hp was `before`): h the hit (point, bone), o its options (dmg, kind, heavy). */
@@ -103,16 +153,14 @@ export class CombatFx {
     const s = this.st(z);
     if (!s.max) s.max = Math.max(before, 1);
     const amt = this.oneHit(z) ? before : Math.max(0, before - z.hp);
-    s.seen = this.now;
-    const at = this.pointOf(h, z);
+    s.seen = this.now; z.fxBarT = performance.now();   // (villagers.js: no speech bubble over its bar while it shows)
     if (amt < 0.5) {
-      if ((o.dmg || 0) > 0 && !z.dead && z.slime && (z.sp?.resist?.[o.kind] ?? 1) <= 0) this.word('immune', 'grey', at, z, 1.5);
+      if ((o.dmg || 0) > 0 && !z.dead && z.slime && (z.sp?.resist?.[o.kind] ?? 1) <= 0) this.word('Immune', 'grey', z);
       return;
     }
     const kind = KIND[o.kind] || 'phys';
-    const ramp = kind === 'phys' && o.heavy ? 'heavy' : kind;
-    this.number(amt, ramp, at, { big: !!o.heavy, crit: o.ripo });
-    if (kind === 'shock') { s.shock = this.now + 2; if (Math.random() < 0.6) this.word('shocked', 'shock', at, z, 1); }
+    this.number(z, amt, kind === 'phys' && o.heavy ? 'heavy' : kind, !!o.heavy);
+    if (kind === 'shock' && Math.random() < 0.5) this.word('Shocked', 'shock', z);
     this.batch.push({ z, amt, kind, heavy: !!o.heavy });
   }
 
@@ -134,45 +182,53 @@ export class CombatFx {
 
   severed(z, limb) {
     const head = limb === 'head', waist = limb === 'waist';
-    const at = (head ? this.headOf(z, _w) : z.bones?.[limb === 'waist' ? 'spine' : limb]?.getWorldPosition(_w) || this.headOf(z, _w)).clone();
-    this.word(head ? 'beheaded' : waist ? 'cut_in_two' : 'severed', 'blood', at, z, 1.6, 2);
-    const nm = fmt.foe(nameOf(z));
+    const bone = z.bones?.[waist ? 'spine' : limb];
+    const at = head ? this.headOf(z, new THREE.Vector3()).add(_d.set(0, -0.3, 0)) : bone ? bone.getWorldPosition(new THREE.Vector3()) : this.headOf(z, new THREE.Vector3());
+    const px = Math.round(this.px * 0.95);
+    this.push({ type: 'gore', img: setText(head ? 'Beheaded' : waist ? 'Cut in Two' : 'Severed', px, RAMPS.gore, { weight: 700, spacing: 0.16 }), t: 0, life: 1.1, at });
+    this.st(z).goreAt = this.now;
+    const nm = fmt.foe(nameOf(z)), the = theName(z, nm);
     const part = LIMB[limb.replace(/[LR]$/, '')], side = SIDE[limb.slice(-1)];
-    this.later.push(head ? `${fmt.you()} take the head off the ${nm}!` : waist ? `${fmt.you()} cut the ${nm} in two!`
-      : `${fmt.you()} sever the ${nm}'s ${side ? side + ' ' : ''}${part || 'limb'}!`);
+    this.later.push(head ? `${fmt.you()} take the head off ${the}!` : waist ? `${fmt.you()} cut ${the} in two!`
+      : `${fmt.you()} sever ${the}'s ${side ? side + ' ' : ''}${part || 'limb'}!`);
   }
 
   /** A foe's shield (or blade) turned your blow. */
-  blocked(z, h) {
-    this.word('blocked', 'grey', this.pointOf(h, z), z, 1.2);
+  blocked(z) {
+    this.word('Blocked', 'grey', z);
     this.st(z).seen = this.now;
     this.o.chat?.add('block', `${fmt.foe(nameOf(z))} turns your blow aside`);
   }
 
   /** You parried its blow (main.js). */
   parried(z) {
-    if (z) this.word('parried', 'gold', this.headOf(z, _w).clone(), z, 1.4);
-    this.o.chat?.add('block', `${fmt.you()} parry ${z ? `the ${fmt.foe(nameOf(z))}'s` : 'the'} blow!`);
+    if (z) { this.st(z).seen = this.now; this.word('Parried', 'gold', z); }
+    this.o.chat?.add('block', `${fmt.you()} parry ${z ? `${theName(z, fmt.foe(nameOf(z)))}'s` : 'the'} blow!`);
   }
 
   died(z) {
     const s = this.st(z);
     s.dead = this.now;
     this.endDots(z, s, true);
-    this.word('slain', 'gold', this.headOf(z, _w).clone().add(_d.set(0, 0.25, 0)), z, 1.6, 1);
+    // the number still up becomes the killing blow's: red and white, a size up
+    const p = s.num;
+    if (p && !p.done) { p.ramp = 'kill'; p.size = Math.max(p.size, Math.round(this.px * 1.35)); p.render = true; p.bump = this.now; p.t = Math.min(p.t, 0.12); p.life = 1.15; }
+    // SLAIN where the bar was (not when a limb's word already says it)
+    if (!(this.now - (s.goreAt ?? -9) < 0.3)) this.push({ type: 'slain', z, img: setText('Slain', Math.round(this.px * 0.8), RAMPS.gold, { weight: 700, spacing: 0.22 }), t: 0, life: 1.2, at: this.headOf(z, new THREE.Vector3()) });
     this.o.chat?.add('kill', `${fmt.foe(nameOf(z))} is slain`);
   }
 
   /** You were hurt: dmg what got through; by who (or null); kind 'melee'|'spell'|'fall'; blocked
    * what your shield stopped. */
   hurt(dmg, by, kind, blocked = 0) {
-    const chat = this.o.chat, nm = by ? fmt.foe(nameOf(by)) : null;
-    if (blocked >= 0.5 && nm) chat?.add('block', `${fmt.you()} block ${fmt.num(Math.round(blocked))} of the ${nm}'s ${kind === 'spell' ? 'spell' : 'blow'}`);
+    const chat = this.o.chat, nm = by ? fmt.foe(nameOf(by)) : null, the = by ? theName(by, nm) : '';
+    if (blocked >= 0.5 && nm) chat?.add('block', `${fmt.you()} block ${fmt.num(Math.round(blocked))} of ${the}'s ${kind === 'spell' ? 'spell' : 'blow'}`);
     if (dmg < 0.5) return;
     const n = Math.round(dmg);
-    this.orbNumber('-' + n, 'hurt', dmg >= 20);
+    this.barNumber('-' + n, 'hurt');
+    const The = the.startsWith('the ') ? 'The ' + the.slice(4) : the;
     if (kind === 'fall') chat?.add('hurt', `The fall hurts you for ${fmt.num(n, 'hurt')}`);
-    else if (nm) chat?.add('hurt', kind === 'spell' ? `The ${nm}'s spell strikes you for ${fmt.num(n, 'hurt')}` : `The ${nm} hits you for ${fmt.num(n, 'hurt')}`);
+    else if (nm) chat?.add('hurt', kind === 'spell' ? `${The}'s spell strikes you for ${fmt.num(n, 'hurt')}` : `${The} hits you for ${fmt.num(n, 'hurt')}`);
     else chat?.add('hurt', `You take ${fmt.num(n, 'hurt')} damage`);
   }
 
@@ -180,41 +236,49 @@ export class CombatFx {
   healed(n) { this.heal += n; }
 
   // -------------------------------------------------------------- pops
-  number(n, ramp, at, { big = false, crit = false } = {}) {
-    const txt = String(Math.max(1, Math.round(n))) + (crit ? '!' : '');
-    this.pop(this.strip(txt, RAMPS[ramp] || RAMPS.phys, this.scale + (big ? 1 : 0)), at, { arc: true, life: big ? 1.25 : 1.0, pop: big ? 1.9 : 1.6 });
+  /** A blow's number on foe z: added into the one still up (same colours, within MERGE s), or a new
+   * one bursting from under the bar, out to the side away from the last. */
+  number(z, n, ramp, heavy = false) {
+    const s = this.st(z), size = heavy ? Math.round(this.px * 1.3) : this.px, live = s.num;
+    if (live && !live.done && live.ramp === ramp && this.now - live.born < MERGE) {
+      live.value += n; live.size = Math.max(live.size, size); live.bump = this.now; live.t = Math.min(live.t, 0.12); live.born = this.now;
+      return;
+    }
+    if (live) live.done = true;   // (no more added into it)
+    const side = (s.side = -(s.side || (Math.random() < 0.5 ? 1 : -1)));
+    const p = { type: 'num', z, value: n, shown: 0, ramp, size, render: true, t: 0, born: this.now, life: heavy ? 1.1 : 0.9,
+      side, ox: side * 26, vx: side * (60 + Math.random() * 50), vy: -80, g: 420, at: this.headOf(z, new THREE.Vector3()) };
+    this.push(p);
+    s.num = p;
   }
-  /** A tag word over a foe (at most one of each kind per foe every `gap` s). */
-  word(tag, ramp, at, z, life = 1.3, up = 0) {
-    if (!uiArt.has('tag_' + tag)) return;
-    const s = z ? this.st(z) : null;
-    if (s) { s.words ||= {}; if (this.now - (s.words[tag] ?? -9) < 0.8) return; s.words[tag] = this.now; }
-    const img = uiArt.canvas('tag_' + tag, Math.max(3, this.scale + up), RAMPS[ramp]);
-    this.pop(img, at, { arc: false, life, pop: 1.4, rise: 34, lift: 44 + up * 12 });   // (clear of the life bar)
+  /** A word over foe z, in its lane: at most two, the newest at the bottom pushing the older up. */
+  word(text, ramp, z, life = 1.2) {
+    const s = this.st(z);
+    s.words ||= {};
+    if (this.now - (s.words[text] ?? -9) < 0.8) return;
+    s.words[text] = this.now;
+    s.tags = s.tags.filter((p) => !p.gone);
+    if (s.tags.length >= 2) { const old = s.tags.shift(); old.gone = true; }
+    const p = { type: 'tag', z, img: setText(text.toUpperCase(), Math.round(this.px * 0.58), RAMPS[ramp], { weight: 700, spacing: 0.22 }), t: 0, life, y: 0, at: this.headOf(z, new THREE.Vector3()) };
+    s.tags.push(p);
+    this.push(p);
   }
-  orbNumber(txt, ramp, big) {
-    const el = this.o.orb?.();
+  /** Your hurts and heals, off the life bar: hurts from its right end, heals from its left, each soon
+   * after the last a step higher. */
+  barNumber(txt, ramp) {
+    const el = this.o.bar?.();
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    this.pop(this.strip(txt, RAMPS[ramp], this.scale + (big ? 1 : 0)), null, { sx: r.left + r.width * (0.35 + Math.random() * 0.3), sy: r.top + r.height * 0.2, arc: false, life: 1.3, pop: 1.5, rise: 60 });
+    const r = el.getBoundingClientRect(), heal = txt[0] === '+';
+    const step = this.now - (this.barLast ?? -9) < 0.5 ? (this.barStep = (this.barStep || 0) + 1) % 4 : (this.barStep = 0);
+    this.barLast = this.now;
+    const p = TOUCH
+      ? { sx: heal ? r.left + 20 : r.right - 20, sy: r.bottom + 14 + step * 12, vy: 30 }
+      : { sx: heal ? r.left + 24 : r.right - 24, sy: r.top - 14 - step * 16, vy: -40 };
+    this.push({ type: 'screen', img: setText(txt, Math.round(this.px * 0.85), RAMPS[ramp]), t: 0, life: 1.0, ...p });
   }
-  /** A run of digits (and + - !) in one canvas, each 1 px of outline overlapping the next. */
-  strip(txt, ramp, scale) {
-    const names = [...txt].map((ch) => (ch === '+' ? 'd_plus' : ch === '-' ? 'd_minus' : ch === '!' ? 'd_bang' : 'd_' + ch));
-    const step = 8 * scale, w = (names.length - 1) * step + 9 * scale, h = 12 * scale;
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const g = c.getContext('2d');
-    names.forEach((n, i) => g.drawImage(uiArt.canvas(n, scale, ramp), i * step, 0));
-    return c;
-  }
-  pop(img, at, o) {
-    if (!img || img.width < 2) return;
+  push(p) {
     if (this.pops.length >= MAX_POPS) this.pops.shift();
-    const side = (this.side = -(this.side || 1));
-    this.pops.push({ img, at: at ? at.clone?.() || new THREE.Vector3(...at) : null, sx: o.sx, sy: o.sy, t: 0, life: o.life || 1, pop: o.pop || 1.5,
-      vx: o.arc ? side * (24 + Math.random() * 46) : (Math.random() - 0.5) * 10, vy: o.arc ? -(150 + Math.random() * 50) : -(o.rise || 30), g: o.arc ? 330 : 0,
-      lift: o.lift || 0, jy: (Math.random() - 0.5) * 10 });
+    this.pops.push(p);
   }
 
   // -------------------------------------------------------------- each frame
@@ -222,7 +286,7 @@ export class CombatFx {
     this.now += dt;
     this.flushLog();
     // healing in lumps of at least 5, every so often
-    if ((this.healT -= dt) <= 0) { if (this.heal >= 5) this.orbNumber('+' + Math.round(this.heal), 'heal', false); this.heal = 0; this.healT = 0.8; }
+    if ((this.healT -= dt) <= 0) { if (this.heal >= 5) this.barNumber('+' + Math.round(this.heal), 'heal'); this.heal = 0; this.healT = 0.8; }
     this.watch(dt);
     this.draw(dt);
   }
@@ -243,21 +307,22 @@ export class CombatFx {
         const fresh = bits & ~s.af, gone = s.af & ~bits;
         if (fresh) AFF.forEach((A, i) => {
           if (!(fresh & (1 << i))) return;
-          this.word(A.tag, A.ramp, this.headOf(z, _w).clone(), z, 1.4);
+          this.word(A.tag, A.ramp, z);
           this.o.chat?.add('ail', `${fmt.foe(nameOf(z))} ${A.says}`);
           s.seen = this.now;
         });
         if (gone) this.endDots(z, s, false, gone);
         s.af = bits;
-        // a spell's touch, every 0.3 s; the burn's and the poison's harm, every half second
+        // a spell's touch, every 0.3 s
         if (s.hAcc > 0 && ((s.hT = (s.hT || 0) + dt) >= 0.3 || z.dead)) {
-          this.number(s.hAcc, s.hKind, this.headOf(z, _w).clone().add(_d.set(0, -0.5, 0)), {});
+          this.number(z, s.hAcc, s.hKind);
           this.batch.push({ z, amt: s.hAcc, kind: s.hKind, heavy: false });
           s.hAcc = 0; s.hT = 0;
         }
-        // the burn's and the poison's harm, shown every half second
-        if (s.dotAcc > 0 && (s.dotT += dt) >= 0.55) {
-          if (s.dotAcc >= 0.5) this.pop(this.strip(String(Math.round(s.dotAcc)), RAMPS[s.dotKind], Math.max(2, this.scale - 1)), this.headOf(z, _w).clone().add(_d.set((Math.random() - 0.5) * 0.3, -0.25, 0)), { arc: false, life: 0.9, pop: 1.2, rise: 40 });
+        // the burn's and the poison's harm: one small count a second, on the far side of the bar
+        if (s.dotAcc > 0 && (s.dotT += dt) >= 1) {
+          if (s.dotAcc >= 0.5) this.push({ type: 'num', z, value: s.dotAcc, shown: s.dotAcc, ramp: s.dotKind, size: Math.round(this.px * 0.62), render: true, t: 0, born: this.now, life: 0.8, done: true,
+            side: 1, ox: 40, vx: 18, vy: -36, g: 0, at: this.headOf(z, new THREE.Vector3()) });
           s.dotAcc = 0; s.dotT = 0;
         }
       }
@@ -274,12 +339,13 @@ export class CombatFx {
     AFF.forEach((A, i) => {
       if (!A.dot || !(all || bits & (1 << i))) return;
       const t = s.dot[A.k];
-      if (t >= 1) this.o.chat?.add('ail', `${fmt.foe(nameOf(z))} was ${A.dot} for ${fmt.num(Math.round(t), A.ramp)}`);
+      if (t >= 1) this.o.chat?.add('ail', `${fmt.foe(nameOf(z))} was ${A.dot} for ${numWord(Math.round(t), A.ramp, '')}`);
       s.dot[A.k] = 0;
     });
   }
 
-  /** This frame's blows into the log: one line a blow, or one for a blast that took several. */
+  /** This frame's blows into the log: a foe struck again within RUN s keeps its line, counting; a
+   * blast's foes share one. */
   flushLog() {
     if (!this.batch.length && !this.later.length) return;
     const chat = this.o.chat, by = new Map(), later = this.later;
@@ -288,12 +354,20 @@ export class CombatFx {
     if (!chat) return;
     for (const list of by.values()) {
       const kind = list[0].kind, heavy = list.some((b) => b.heavy), word = WORD[kind] ? ` ${WORD[kind]}` : '', css = kind === 'phys' && heavy ? 'heavy' : kind;
-      // (one foe struck twice in a frame: added up)
       const per = new Map();
       for (const b of list) per.set(b.z, (per.get(b.z) || 0) + b.amt);
       if (per.size === 1) {
-        const [[z, n]] = per;
-        chat.add('hit', `${fmt.you()} ${heavy ? 'smite' : 'hit'} the ${fmt.foe(nameOf(z))} for ${fmt.num(Math.round(n), css)}${word}`);
+        const [[z, n]] = per, s = this.st(z), key = 'hit:' + (z.id ?? nameOf(z));
+        // (the same foe again, its line still the log's last: one line, counting)
+        let run = s.run;
+        if (!run || this.now - run.t > RUN || chat.tailKey?.() !== key) run = s.run = { hits: [] };
+        run.t = this.now; run.hits.push([Math.round(n), css]);
+        const nm = fmt.foe(nameOf(z));
+        if (run.hits.length === 1) chat.add('hit', `${fmt.you()} ${heavy ? 'smite' : 'hit'} ${theName(z, nm)} for ${numWord(Math.round(n), css, word)}`, { key });
+        else {
+          const total = run.hits.reduce((a, [v]) => a + v, 0), last = run.hits.slice(-4);
+          chat.add('hit', `${fmt.you()} hit ${theName(z, nm)} <b class="c-x">×${run.hits.length}</b> ${run.hits.length > 4 ? '… ' : ''}${last.map(([v, c]) => fmt.num(v, c)).join(' · ')} <i>(${total})</i>`, { key });
+        }
       } else {
         const total = [...per.values()].reduce((a, n) => a + n, 0);
         const each = [...per].map(([z, n]) => `${fmt.foe(nameOf(z))} ${fmt.num(Math.round(n), css)}`).join(' · ');
@@ -305,13 +379,7 @@ export class CombatFx {
 
   // -------------------------------------------------------------- where things are
   oneHit(z) { return !!(z.owner?.oneHit); }   // (GOD MODE: what it had left, not a million)
-  pointOf(h, z) {
-    const p = h?.point;
-    if (p?.isVector3) return p.clone();
-    if (Array.isArray(p)) return new THREE.Vector3(p[0], p[1], p[2]);
-    return this.headOf(z, new THREE.Vector3()).add(_d.set(0, -0.4, 0));
-  }
-  /** Just over its head. */
+  /** Just over its head: where its bar sits. */
   headOf(z, out) {
     if (z.slime) { (z.center ? z.center(out) : out.copy(z.pos)); out.y += (z.H || 0.5) * 0.6 + 0.3; return out; }
     const head = z.bones?.head;
@@ -320,53 +388,119 @@ export class CombatFx {
     out.copy(z.pos); out.y += (z.mode === 'crawl' || z.dead ? 0.8 : 1.95) * sz;
     return out;
   }
+  barK(dpr) { return Math.max(1, Math.round(2 * dpr)); }
+  /** Where a foe's lanes are on screen this frame (device px; null: behind you): the bar's bottom
+   * centre, and how tall the bar (and a champion's name) stands. */
+  anchor(z, W, H, dpr) {
+    const s = this.state.get(z);
+    if (s?.scr !== undefined && s.scrAt === this.frameNo) return s.scr;
+    const at = z.gone ? (s?.last || this.headOf(z, _w)) : this.headOf(z, _w);
+    if (s) s.last = (s.last || new THREE.Vector3()).copy(at);
+    _v.copy(at).project(this.o.camera);
+    const k = this.barK(dpr);
+    const scr = _v.z > 1 || _v.z < -1 ? null : { x: (_v.x * 0.5 + 0.5) * W, y: (-_v.y * 0.5 + 0.5) * H, top: 6 * k + (this.big(z) ? Math.round(this.px * 0.6) + 4 * k : 0) };
+    if (s) { s.scr = scr; s.scrAt = this.frameNo; }
+    return scr;
+  }
+  project(at, W, H) {
+    if (!at) return null;
+    _v.copy(at).project(this.o.camera);
+    return _v.z > 1 || _v.z < -1 ? null : { x: (_v.x * 0.5 + 0.5) * W, y: (-_v.y * 0.5 + 0.5) * H, top: 0 };
+  }
 
   // -------------------------------------------------------------- drawing
   draw(dt) {
     const c = this.canvas, g = this.g, dpr = this.dpr;
     const W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; this.drawn = true; }
-    const bars = this.hidden ? [] : this.barList(dt);
+    this.frameNo = (this.frameNo || 0) + 1;
+    const bars = this.hidden ? [] : this.barList(dt, W, H, dpr);
     if (!bars.length && (!this.pops.length || this.hidden)) {
       if (this.drawn) { g.clearRect(0, 0, W, H); this.drawn = false; }
       if (this.hidden) this.pops.length = 0;
       return;
     }
     g.clearRect(0, 0, W, H); this.drawn = true;
-    g.imageSmoothingEnabled = false;
-    const cam = this.o.camera;
     for (const b of bars) this.bar(g, b, dpr);
-    // the numbers and words
     for (let i = this.pops.length - 1; i >= 0; i--) {
       const p = this.pops[i];
       p.t += dt;
-      if (p.t >= p.life) { this.pops.splice(i, 1); continue; }
-      let x, y;
-      if (p.at) {
-        _v.copy(p.at).project(cam);
-        if (_v.z > 1 || _v.z < -1) continue;
-        x = (_v.x * 0.5 + 0.5) * W; y = (-_v.y * 0.5 + 0.5) * H;
-      } else { x = p.sx * dpr; y = p.sy * dpr; }
-      const t = p.t;
-      x += p.vx * t * dpr; y += (p.vy * t + 0.5 * p.g * t * t - p.lift + p.jy) * dpr;
-      const k = t < 0.09 ? p.pop - (p.pop - 1) * (t / 0.09) : 1;
-      const a = t > p.life * 0.68 ? Math.max(0, 1 - (t - p.life * 0.68) / (p.life * 0.32)) : 1;
-      const w = p.img.width * k * dpr, h = p.img.height * k * dpr;
-      g.globalAlpha = a;
-      g.drawImage(p.img, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h));
+      if (p.t >= p.life || p.gone) { this.pops.splice(i, 1); continue; }
+      this.drawPop(g, p, dt, W, H, dpr);
     }
     g.globalAlpha = 1;
   }
 
+  /** Keep a pop's box out of the crosshair's (pushed out sideways); on a phone, clear of the thumb
+   * buttons on the right and the screen's edges. Returns [x, y]. */
+  clear(x, y, w, h, W, H, dpr, push = true) {
+    const cx = W / 2, cy = H / 2, R = (TOUCH ? 20 : 28) * dpr;
+    if (push && Math.abs(x - cx) < R + w / 2 && Math.abs(y - cy) < R + h / 2) x = x < cx ? cx - R - w / 2 : cx + R + w / 2;
+    if (TOUCH) { x = Math.min(Math.max(x, w / 2 + 4), W * 0.6 - w / 2); y = Math.min(Math.max(y, 40 * dpr + h / 2), H - 90 * dpr - h / 2); }
+    return [x, y];
+  }
+
+  drawPop(g, p, dt, W, H, dpr) {
+    const t = p.t;
+    let x, y, k = 1, a = t > p.life - 0.22 ? Math.max(0, (p.life - t) / 0.22) : 1;
+    if (p.type === 'num') {
+      // counting up to what it's been given, set again as the whole number changes
+      p.shown += (p.value - p.shown) * Math.min(1, dt / 0.06);
+      if (Math.abs(p.value - p.shown) < 0.5) p.shown = p.value;
+      const v = Math.max(1, Math.round(p.shown));
+      if (p.render || v !== p.drawnV) { p.drawnV = v; p.render = false; p.img = setText(String(v), p.size, RAMPS[p.ramp]); }
+      const A = this.anchor(p.z, W, H, dpr) || this.project(p.at, W, H);
+      if (!A) return;
+      x = A.x + (p.ox + p.vx * t) * dpr;
+      y = A.y + (8 + p.vy * t + 0.5 * p.g * t * t) * dpr + p.img.height / 2;
+      const since = this.now - (p.bump ?? -9), pop = Math.min(t, since);
+      k = pop < 0.09 ? 1.35 - 0.35 * (pop / 0.09) : 1;
+      [x, y] = this.clear(x, y, p.img.width * k, p.img.height * k, W, H, dpr);
+    } else if (p.type === 'tag') {
+      const A = this.anchor(p.z, W, H, dpr) || this.project(p.at, W, H);
+      if (!A) return;
+      // its slot: the newest just over the bar, each older one stacked above it
+      const s = this.state.get(p.z), list = (s?.tags || []).filter((q) => !q.gone);
+      let slot = 0;
+      for (let i = list.indexOf(p) + 1; i < list.length; i++) slot += list[i].img.height;
+      p.y += (slot - p.y) * Math.min(1, dt * 18);
+      x = A.x;
+      y = A.y - A.top - 4 * dpr - p.y - Math.min(t, 1) * 12 * dpr - p.img.height / 2;
+      k = t < 0.08 ? 1.25 - 0.25 * (t / 0.08) : 1;
+      [x, y] = this.clear(x, y, p.img.width, p.img.height, W, H, dpr, false);
+    } else if (p.type === 'gore') {
+      const A = this.project(p.at, W, H);
+      if (!A) return;
+      x = A.x; y = A.y;
+      const R = (TOUCH ? 20 : 28) * dpr;   // (by the wound, but over the crosshair, never on it)
+      if (Math.abs(x - W / 2) < R + p.img.width / 2 && y > H / 2 - R - p.img.height / 2) y = H / 2 - R - p.img.height / 2;
+      k = t < 0.09 ? 1.8 - 0.8 * (t / 0.09) : 1;
+      if (t > 0.8) y -= ((t - 0.8) / 0.3) * 20 * dpr;
+      [x, y] = this.clear(x, y, p.img.width, p.img.height, W, H, dpr, false);
+    } else if (p.type === 'slain') {
+      const A = this.anchor(p.z, W, H, dpr) || this.project(p.at, W, H);
+      if (!A) return;
+      x = A.x; y = A.y - A.top / 2 - Math.max(0, t - 0.5) * 16 * dpr;
+      k = t < 0.09 ? 1.3 - 0.3 * (t / 0.09) : 1;
+      [x, y] = this.clear(x, y, p.img.width, p.img.height, W, H, dpr, false);
+    } else {   // off the life bar
+      x = p.sx * dpr; y = (p.sy + p.vy * (1 - (1 - Math.min(1, t / 0.8)) ** 2) * 0.8) * dpr;
+      k = t < 0.08 ? 1.3 - 0.3 * (t / 0.08) : 1;
+    }
+    const img = p.img, w = img.width * k, h = img.height * k;
+    g.globalAlpha = a;
+    g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h));
+  }
+
   /** The foes whose bars show this frame, nearest last (so it's drawn on top). */
-  barList(dt) {
-    const cam = this.o.camera, out = [];
-    cam.getWorldPosition(_w);
+  barList(dt, W, H, dpr) {
+    const out = [];
+    this.o.camera.getWorldPosition(_w);
     const eye = _w.clone();
     for (const [z, s] of this.state) {
       if (z.gone || z.state === 'buried') continue;
       const since = this.now - s.seen, deadFor = s.dead >= 0 ? this.now - s.dead : -1;
-      if (s.seen < 0 || since > BAR_SHOW + BAR_FADE || deadFor > 0.9) continue;
+      if (s.seen < 0 || since > BAR_SHOW + BAR_FADE || deadFor > 0.35) continue;
       const frac = z.dead ? 0 : Math.max(0, Math.min(1, z.hp / this.maxOf(z, s)));
       // the pale trail waits a moment, then follows the red down
       if (frac < s.frac) s.trailHold = 0.35;
@@ -383,25 +517,28 @@ export class CombatFx {
         s.occ = !!(hit && hit.t < dist - 0.7);
       }
       if (s.occ) continue;
-      const p = at.clone().project(cam);
-      if (p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) continue;
+      const A = this.anchor(z, W, H, dpr);
+      if (!A || A.x < -W * 0.1 || A.x > W * 1.1 || A.y < -H * 0.1 || A.y > H * 1.1) continue;
       let a = since > BAR_SHOW ? 1 - (since - BAR_SHOW) / BAR_FADE : 1;
-      if (deadFor >= 0) a *= Math.max(0, 1 - deadFor / 0.9);
-      out.push({ z, s, x: (p.x * 0.5 + 0.5), y: (-p.y * 0.5 + 0.5), dist, a, frac });
+      if (deadFor >= 0) a *= Math.max(0, 1 - deadFor / 0.35);
+      out.push({ z, s, A, dist, a, frac });
     }
     return out.sort((p, q) => q.dist - p.dist);
   }
 
   bar(g, b, dpr) {
-    const W = this.canvas.width, H = this.canvas.height;
-    const { z, s } = b;
-    const big = !!(z.champ || z.def?.boss);
-    const k = Math.max(1, Math.round((b.dist > 22 ? 1.5 : 2) * dpr));   // px per bar pixel
-    const inner = big ? 40 : 28, bw = (inner + 2) * k, bh = 6 * k;
-    const x0 = Math.round(b.x * W - bw / 2), y0 = Math.round(b.y * H - bh);
+    const { z, s, A } = b;
+    const big = this.big(z);
+    const k = this.barK(dpr) - (b.dist > 26 && !big && dpr >= 1 ? Math.min(1, this.barK(dpr) - 1) : 0);   // device px per bar pixel
+    const inner = big ? 56 : 28, bw = (inner + 2) * k, bh = 6 * k;
+    const x0 = Math.round(A.x - bw / 2), y0 = Math.round(A.y - bh);
     g.globalAlpha = b.a;
-    g.fillStyle = big ? '#c8a050' : '#07060a'; g.fillRect(x0 - (big ? k : 0), y0 - (big ? k : 0), bw + (big ? 2 * k : 0), bh + (big ? 2 * k : 0));
-    if (big) { g.fillStyle = '#07060a'; g.fillRect(x0, y0, bw, bh); }
+    if (big) {   // a champion's: a gold frame, its name above in the title's capitals
+      g.fillStyle = '#c8a050'; g.fillRect(x0 - k, y0 - k, bw + 2 * k, bh + 2 * k);
+      s.nameImg ||= setText(nameOf(z).toUpperCase(), Math.round(this.px * 0.5), RAMPS.name, { weight: 700, spacing: 0.14 });
+      g.drawImage(s.nameImg, Math.round(A.x - s.nameImg.width / 2), Math.round(y0 - 2 * k - s.nameImg.height));
+    }
+    g.fillStyle = '#07060a'; g.fillRect(x0, y0, bw, bh);
     const ix = x0 + k, iy = y0 + k, iw = inner * k;
     g.fillStyle = '#3a1012'; g.fillRect(ix, iy, iw, 4 * k);
     g.fillStyle = '#240608'; g.fillRect(ix, iy + 3 * k, iw, k);
@@ -413,19 +550,6 @@ export class CombatFx {
       g.fillStyle = '#b81c1c'; g.fillRect(ix, iy + 2 * k, fw, k);
       g.fillStyle = '#6a0a0a'; g.fillRect(ix, iy + 3 * k, fw, k);
     }
-    // a champion's skull on the left, what ails it on the right
-    const ik = Math.max(1, k - (k > 2 ? 1 : 0));
-    if (big && uiArt.has('af_champ')) { const sk = uiArt.canvas('af_champ', ik); g.drawImage(sk, x0 - sk.width - k, y0 + bh / 2 - sk.height / 2); }
-    let ax = x0 + bw + k;
-    const marks = [];
-    AFF.forEach((A, i) => { if (s.af & (1 << i)) marks.push(A.mark); });
-    if (s.shock > this.now) marks.push('af_shock');
-    for (const m of marks) {
-      const ic = uiArt.canvas(m, ik);
-      g.drawImage(ic, ax, Math.round(y0 + bh / 2 - ic.height / 2));
-      ax += ic.width;
-    }
     g.globalAlpha = 1;
   }
 }
-

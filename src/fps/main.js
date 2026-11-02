@@ -516,7 +516,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
-  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html) => chat.add(cat, html),
+  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
     // stops for them; closing the window hushes them)
     speak: (name, text) => {
@@ -564,7 +564,7 @@ async function build() {
   });
   zombies.onDeath = onDeath;
   slimes.onDeath = onDeath;
-  fx = new CombatFx({ camera, physics, chat, lists: () => [zombies.list, slimes.list], orb: () => hud.lifeOrb || hud.hp });
+  fx = new CombatFx({ camera, physics, chat, lists: () => [zombies.list, slimes.list], bar: () => hud.hp });
   // (the save slots open over the title and the pause screen alike: in the title's layer)
   saves = new SaveMenu({ ui: title.modal, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
     onClose: () => { title.refresh(); if (paused || !started) return; if (!touch) lockPointer(); } });
@@ -1845,7 +1845,10 @@ function itemCol(it) {
 /** Something taken up off the ground (loot.js), into the log. */
 function logTake(it, what) {
   if (it?.type === 'gold') chat.add('gold', `${fmt.you()} pick up ${fmt.gold(it.amount)}`);
-  else chat.add('loot', `${fmt.you()} pick up ${fmt.item(what.replace(/^(the|a|an) /, ''), itemCol(it))}`);
+  else {
+    const rare = it?.type === 'gear' && it.rarity >= 2, notable = rare || (it?.type === 'gear' && it.rarity >= 1) || it?.type === 'recipe' || (it?.type === 'gem' && it.grade >= 3);
+    chat.add('loot', `${fmt.you()} pick up ${fmt.item(what.replace(/^(the|a|an) /, ''), itemCol(it))}`, { notable, big: rare });
+  }
 }
 /** Enter: the mouse given to the chat log (so its gear, grip and scrolling can be used), or back. */
 function setChatFocus(on) {
@@ -1873,7 +1876,7 @@ function gainXp(n, from = '') {
   const up = grantXp(char, got);
   if (got >= 0.5) chat.add('xp', `+${fmt.num(Math.round(got), 'xp')} experience${from ? ` · ${esc(from)}` : ''}`);
   if (up) {
-    chat.add('level', `${fmt.you()} reach ${fmt.num('level ' + char.level, 'level')}! ${char.points} point${char.points === 1 ? '' : 's'} to spend`);
+    chat.add('level', `${fmt.you()} reach ${fmt.num('level ' + char.level, 'level')}! ${char.points} point${char.points === 1 ? '' : 's'} to spend`, { big: true });
     sfx.levelUp();
     hud.announce(`Level ${char.level}`, `${char.points} point${char.points === 1 ? '' : 's'} to spend · Tab, then your character`);
     applyGear().then(() => { player.health = player.maxHealth; player.mana = player.maxMana; });
@@ -1904,7 +1907,7 @@ function reward({ xp = 0, gold = 0, items = [], title = '' }) {
   for (const it of items) if (!addToBag(char, it)) { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
   hud.announce('Quest complete', title);
   if (gold) chat.add('gold', `${fmt.gold(gold)} for ${fmt.q(title)}`);
-  for (const it of items) chat.add('loot', `Reward: ${fmt.item(it.count > 1 ? `${it.count} × ${it.name}` : it.name, itemCol(it))}`);
+  for (const it of items) chat.add('loot', `Reward: ${fmt.item(it.count > 1 ? `${it.count} × ${it.name}` : it.name, itemCol(it))}`, { notable: true, big: it.type === 'gear' && it.rarity >= 2 });
   hud.toast(`${xp} experience${gold ? `, ${gold} gold` : ''}${items.length ? ` · ${items.map((i) => i.name).join(', ')}` : ''}`, null);   // (the log has its own lines for each)
   gainXp(xp, title);
   saveCharacter(char);
@@ -2032,7 +2035,7 @@ async function startOver() {
 function setCinema(on) {
   hud.hud.classList.toggle('hidden', on);
   chat.show(!on);
-  if (fx) fx.hidden = on;
+  if (fx) fx.cinema = on;
   villagers.bubbles.hidden = on;
   if (touch) { hud.showTouch(!on); gameInput.release(); }
   if (!on) hud.refresh(vm.equip, book);
@@ -2280,7 +2283,7 @@ function tick(dt) {
   debugMenu.showSkull(started && !introBusy && !lost && !windowOpen());
 
   // (from the pause menu the bag opens straight over the game, and closing it goes back to play)
-  if (started && !introBusy && (inp.was('Tab') || inp.was('KeyI'))) { if (paused && !saves.open) { paused = false; hud.showOverlay(null); } if (!paused) { quests.close(); setInventory(!bag.open); } }
+  if (started && !introBusy && !chat.focused && (inp.was('Tab') || inp.was('KeyI'))) { if (paused && !saves.open) { paused = false; hud.showOverlay(null); } if (!paused) { quests.close(); setInventory(!bag.open); } }
   if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
   if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); if (portalMenu.open) setPortals(false); quests.showLog(!quests.open); }
   if (started && !paused && !introBusy && inp.was('KeyT')) quests.toggleTracker();
@@ -2470,8 +2473,11 @@ function tick(dt) {
   hud.clockTime(hour);
   if (started && player.health > lastHealth + 0.01 && lastHealth > 0) fx.healed(player.health - lastHealth);
   lastHealth = player.health;
+  const win = windowOpen() && !chat.focused;   // (a window open: the log and the fight's marks out of its way)
+  chat.root.classList.toggle('under', win);
+  fx.hidden = !!fx.cinema || win;
   fx.update(dt);
-  chat.update();
+  chat.update(dt);
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started && !introBusy && !cheats.fly; // no arms behind the title screen, in the opening, or in no-clip

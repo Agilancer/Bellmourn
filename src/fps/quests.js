@@ -198,7 +198,7 @@ export class Quests {
 
   // -------------------------------------------------------------- state
   /** A line in the chat log (main.js). */
-  say(kind, html) { this.o.log?.(kind, html); }
+  say(kind, html, o) { this.o.log?.(kind, html, o); }
   get(id) { return this.state[id]; }
   status(id) { return this.state[id]?.s || (this.available(id) ? 'available' : 'locked'); }
   available(id) {
@@ -263,7 +263,7 @@ export class Quests {
     this.o.onReward({ xp: q.reward.xp, gold: q.reward.gold || 0, items: [...items, ...potions], title: q.title });
     this.o.sfx?.quest(true);
     this.o.toast(`Quest done: ${q.title}`);
-    this.say('quest', `Quest complete: ${qn(q.title)}`);
+    this.say('quest', `Quest complete: ${qn(q.title)}`, { big: true });
     this.refresh();
   }
 
