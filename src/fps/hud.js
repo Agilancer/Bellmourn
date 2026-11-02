@@ -1,6 +1,13 @@
-// The HUD and menus, in HTML over the canvas: health and mana, the shield's Guard, the two spell
-// slots (F and R), the crosshair, place names, the start/pause screen, and the rotate-to-landscape
-// screen for phones. (The inventory and spellbook are bag.js.)
+// The HUD and menus, in HTML over the canvas: life and mana in their orbs, the shield's Guard, the
+// spell slots, the crosshair, place names, the start/pause screen, and the rotate-to-landscape
+// screen for phones. (The inventory and spellbook are bag.js; the chat log chatlog.js.)
+//
+// The orbs: pixel liquid sloshing in a glass globe, drawn a pixel at a time on a 61x78 canvas (shown
+// at twice that, pixelated) under the bronze cradle from the HUD's pixel art (tools/ui/hud.px.js,
+// uiart.js): its surface waves, it swirls and catches the light like a sphere, bubbles rise in it,
+// the glass shines over it, and the life throbs when it runs low. The spell slots between them wear
+// the art's bronze frames, with the Guard, what's in your hands and the experience bar.
+import { uiArt } from './uiart.js';
 
 // 12x12 pixel-art spell icons: one character per pixel
 
@@ -81,6 +88,81 @@ export function iconURL(id, scale = 4) {
   return c.toDataURL();
 }
 
+// ------------------------------------------------------------------ the orbs
+const OX = 30, OY = 40, OR = 22.6;        // the liquid's circle in the cradle (orb_life in hud.px.js)
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const LIFE = ['#140103', '#340508', '#5c0a0e', '#8a1216', '#bc2219', '#ea4a2c', '#ff9a72'];
+const MANA = ['#02031a', '#050e38', '#0a1c62', '#132f94', '#2452c8', '#4c8cff', '#a8d4ff'];
+const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+
+class Orb {
+  constructor(canvas, ramp, frame) {
+    this.c = canvas; this.g = canvas.getContext('2d');
+    this.img = this.g.createImageData(canvas.width, canvas.height);
+    this.ramp = ramp.map(rgb); this.frame = frame;
+    this.bubbles = Array.from({ length: 7 }, () => this.bubble({}, true));
+    this.t = Math.random() * 10; this.acc = 1;
+  }
+  bubble(b, any = false) {
+    b.x = OX + (Math.random() - 0.5) * 30; b.y = any ? OY + (Math.random() - 0.2) * 40 : OY + 20 + Math.random() * 3;
+    b.v = 3 + Math.random() * 6; b.w = Math.random() * 6;
+    return b;
+  }
+  /** frac 0-1 full; throb: 0-1 how hard the low-life pulse beats. */
+  draw(frac, dt, throb = 0) {
+    this.t += dt;
+    if ((this.acc += dt) < 1 / 30 && Math.abs(frac - (this.lastF ?? -1)) < 0.004) return;   // (thirty frames a second is plenty)
+    this.acc = 0; this.lastF = frac;
+    const W = this.c.width, d = this.img.data, R = this.ramp, n = R.length, t = this.t;
+    d.fill(0);
+    const top = OY + OR - Math.max(0, Math.min(1, frac)) * OR * 2;
+    const pulse = throb * Math.pow(Math.max(0, Math.sin(t * 7)), 3) * 0.22;
+    for (const b of this.bubbles) {   // bubbles rise, wobbling, and burst at the top
+      b.y -= b.v * dt; b.x += Math.sin(t * 3 + b.w) * dt * 2;
+      if (b.y < top + 1 || frac < 0.04) this.bubble(b);
+    }
+    for (let y = Math.floor(OY - OR); y <= OY + OR; y++) {
+      for (let x = Math.floor(OX - OR); x <= OX + OR; x++) {
+        const dx = x - OX, dy = y - OY;
+        if (dx * dx + dy * dy > OR * OR) continue;
+        const nx = dx / OR, ny = dy / OR, nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+        const lam = Math.max(0, -0.45 * nx - 0.55 * ny + 0.72 * nz);
+        const surf = top + Math.sin(x * 0.42 + t * 2.3) * 0.9 + Math.sin(x * 0.17 - t * 1.4) * 0.8;
+        const i = (y * W + x) * 4, dith = (BAYER[(y & 3) * 4 + (x & 3)] / 16 - 0.5) / n;
+        let c, a = 255;
+        if (y < surf) {   // the empty glass: dark, a breath of the colour deep in it
+          const v = 0.02 + lam * 0.1 + dith;
+          c = R[Math.max(0, Math.min(1, Math.floor(v * n)))];
+          a = 228;
+        } else {
+          const swirl = Math.sin(x * 0.38 + t * 1.1 + Math.sin(y * 0.27 - t * 0.8) * 1.6) + Math.sin((x - y) * 0.21 + t * 1.7);
+          let v = 0.12 + lam * 0.62 + swirl * 0.08 - (1 - nz) * 0.22 + pulse + dith;
+          if (y - surf < 1.3) v += 0.3;   // the surface catches the light
+          c = R[Math.max(0, Math.min(n - 1, Math.floor(v * n)))];
+        }
+        d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = a;
+      }
+    }
+    // the bubbles, the glass's shine (a crescent at the top-left, a glint) over everything
+    const put = (x, y, k, rgbA) => {
+      x = Math.round(x); y = Math.round(y);
+      const dx = x - OX, dy = y - OY;
+      if (dx * dx + dy * dy > OR * OR) return;
+      const i = (y * W + x) * 4;
+      for (let j = 0; j < 3; j++) d[i + j] = d[i + j] + (rgbA[j] - d[i + j]) * k;
+      d[i + 3] = Math.max(d[i + 3], 255 * k);
+    };
+    for (const b of this.bubbles) if (b.y > top + 1) put(b.x, b.y, 0.75, R[n - 1]);
+    for (let y = OY - 21; y < OY; y++) for (let x = OX - 21; x < OX; x++) {
+      const e = Math.hypot(x - (OX - 4), y - (OY - 6));
+      if (e > 13.2 && e < 15.4 && x - OX + (y - OY) < -12) put(x, y, 0.32, [255, 255, 255]);
+    }
+    put(OX - 12, OY - 10, 0.8, [255, 255, 255]); put(OX - 11, OY - 11, 0.8, [255, 255, 255]); put(OX - 13, OY - 8, 0.45, [255, 255, 255]);
+    this.g.putImageData(this.img, 0, 0);
+    if (uiArt.has(this.frame)) this.g.drawImage(uiArt.canvas(this.frame, 1), 0, 0);
+  }
+}
+
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -102,11 +184,14 @@ export class Hud {
     r.innerHTML = '';
     this.hud = el('div', 'hud');
     this.hud.append(el('div', 'crosshair'));
-    const bars = el('div', 'bars');
-    this.hp = el('div', 'bar hp', '<i></i><span></span>');
-    this.mp = el('div', 'bar mp', '<i></i><span></span>');
+    // the dock along the bottom: the life orb, the slots (with the Guard, your hands and the
+    // experience bar), the mana orb
+    const dock = this.dock = el('div', 'dock');
+    this.hp = this.lifeOrb = el('div', 'orb life', '<canvas width="61" height="78"></canvas><span class="ov"></span>');
+    this.mp = el('div', 'orb mana', '<canvas width="61" height="78"></canvas><span class="ov"></span>');
+    this.orbs = [new Orb(this.hp.querySelector('canvas'), LIFE, 'orb_life'), new Orb(this.mp.querySelector('canvas'), MANA, 'orb_mana')];
     this.gd = el('div', 'bar gd off', '<i></i><span></span><em>GUARD</em>');
-    bars.append(this.hp, this.mp, this.gd);
+    const mid = el('div', 'dock-mid');
     this.slots = el('div', 'slots');
     this.slotEl = {};
     for (const k of SPELL_KEYS) {
@@ -126,7 +211,9 @@ export class Hud {
     // the hour of the day, 24-hour, under the corner map
     this.clock = el('div', 'clock', '12:00');
     this.lastClock = '';
-    this.hud.append(bars, this.slots, this.hands, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.xpEl, this.banner, this.clock);
+    mid.append(this.gd, this.hands, this.slots, this.xpEl);
+    dock.append(this.hp, mid, this.mp);
+    this.hud.append(dock, this.zoneEl, this.toastEl, this.promptEl, this.bossEl, this.banner, this.clock);
     r.append(this.hud);
 
     // ---- pause (the title screen, its settings and how to play are title.js's)
@@ -198,11 +285,18 @@ export class Hud {
   }
 
   update(player, book) {
-    const hp = player.health / player.maxHealth, mp = player.mana / player.maxMana;
-    this.hp.querySelector('i').style.width = (hp * 100).toFixed(1) + '%';
-    this.mp.querySelector('i').style.width = (mp * 100).toFixed(1) + '%';
-    this.hp.querySelector('span').textContent = Math.round(player.health);
-    this.mp.querySelector('span').textContent = Math.round(player.mana);
+    const hp = Math.max(0, player.health / player.maxHealth), mp = Math.max(0, player.mana / player.maxMana);
+    const now = performance.now() / 1000, dt = Math.min(0.1, now - (this.orbT || now));
+    this.orbT = now;
+    if (!this.hud.classList.contains('hidden')) {
+      this.orbs[0].draw(hp, dt, hp < 0.3 ? 1 - hp / 0.3 : 0);
+      this.orbs[1].draw(mp, dt);
+    }
+    const hv = `<b>${Math.max(0, Math.round(player.health))}</b><small>/${Math.round(player.maxHealth)}</small>`;
+    const mv = `<b>${Math.max(0, Math.round(player.mana))}</b><small>/${Math.round(player.maxMana)}</small>`;
+    if (hv !== this.hv) { this.hv = hv; this.hp.querySelector('.ov').innerHTML = hv; }
+    if (mv !== this.mv) { this.mv = mv; this.mp.querySelector('.ov').innerHTML = mv; }
+    this.hp.classList.toggle('low', hp < 0.3);
     for (const k of SPELL_KEYS) {
       const s = this.o.spells[book[k]];
       this.slotEl[k].classList.toggle('low', !!s && player.mana < s.mana);
@@ -218,6 +312,7 @@ export class Hud {
   zone(name) {
     if (!name || name === this.lastZone) return;
     this.lastZone = name;
+    this.onZone?.(name);   // (the chat log, main.js)
     this.zoneEl.textContent = name;
     this.zoneEl.classList.remove('show');
     void this.zoneEl.offsetWidth; // restart the fade

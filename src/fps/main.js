@@ -26,15 +26,17 @@ import { ViewModel, ITEMS } from './viewmodel.js';
 import { SPELLS, BOLTS, Magic, Flames } from './spells.js';
 import { Sky, Shafts, Mist, Smoke, dayState } from './effects.js';
 import { Hud, SPELL_KEYS } from './hud.js';
+import { ChatLog, fmt, esc } from './chatlog.js';     // the chat log in the corner
+import { CombatFx, nameOf } from './combatfx.js';      // life bars over foes, damage numbers
 import { voice } from './voice.js';
-import { speak, hush, hushAll, tickSpeech, speaking } from './speech.js';
+import { speak, hush, hushAll, tickSpeech, speaking, speechLog } from './speech.js';
 import { Chatter } from './chatter.js';
 import { Doors } from './doors.js';
 import { Scatter3D, isVegetation } from './scatter3d.js';
 import { Trees3D } from './trees3d.js';
 import { Cutouts } from './cutout.js';
 import { Loot, placeLevel } from './loot.js';
-import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion, RARITY } from './gear.js';
+import { useManifest, loadCharacter, saveCharacter, computeStats, fitCharacter, newCharacter, addToBag, slotFor, makeGear, makePotion, RARITY, itemColor } from './gear.js';
 import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
@@ -172,6 +174,7 @@ let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, 
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
 let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
+let chat = null, fx = null;   // the chat log (chatlog.js) and what fights show over the picture (combatfx.js)
 let trade = null, gemFx = null, respawns = null;   // the merchants (trade.js), the gems' looks (gemfx.js), the world filling up again (respawn.js)
 // the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
 // no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
@@ -376,7 +379,7 @@ async function build() {
   Object.assign(ctx.loot.hooks, {
     models: lootModel,
     zone: (p) => ({ under: p.y < terrainHeight(p.x, p.z) - 3 }),
-    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`); autoEquip(it); saveCharacter(char); bag.render(); if (it?.unique) { try { localStorage.setItem('bm.taken.' + it.unique, '1'); } catch { /* no storage */ } } },
+    onTake: (it, what) => { sfx.equip(); hud.toast(`You take up ${what}`, null); logTake(it, what); autoEquip(it); saveCharacter(char); bag.render(); if (it?.unique) { try { localStorage.setItem('bm.taken.' + it.unique, '1'); } catch { /* no storage */ } } },
     full: () => hud.toast('Your bag is full'),
     find: () => (st.magicFind || 0) / 100,                    // (gems: better things found)
     extra: (name, lv) => containerDrops(name, lv),             // (materials, gems and plans: craft.js)
@@ -494,9 +497,10 @@ async function build() {
     spells: SPELLS, spellIcons: hud.spellIcons, book: () => book, onAssign: assign, onClose: () => setInventory(false),
   });
   // the merchants (trade.js): they keep their shops (villagers stay at them) and wear a coin over their heads
-  trade = new Trade({ ui, char: () => char, icon: (it, again) => bag.iconOf(it, again), toast: (t) => hud.toast(t), sfx,
+  trade = new Trade({ ui, char: () => char, icon: (it, again) => bag.iconOf(it, again), toast: (t) => hud.toast(t, 'trade'), sfx,
     onChange: () => applyGear(), onTrade: () => { saveCharacter(char); bag.render(); },
     onMade: (it, how) => {
+      chat.add('trade', `${how ? esc(how) + ': ' : 'Made: '}${fmt.item(it.name, itemCol(it))}`);
       if (how) { hud.announce(how, it.name); magic.particles.burst(player.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), [new THREE.Color('#fff2b0'), new THREE.Color('#ffb040')], 40, { speed: 2, size: 0.04, grav: -1, life: 1.2 }); }
       if (!addToBag(char, it)) { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
       saveCharacter(char);
@@ -512,7 +516,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
-  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t), onReward: reward,
+  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html) => chat.add(cat, html),
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
     // stops for them; closing the window hushes them)
     speak: (name, text) => {
@@ -560,6 +564,7 @@ async function build() {
   });
   zombies.onDeath = onDeath;
   slimes.onDeath = onDeath;
+  fx = new CombatFx({ camera, physics, chat, lists: () => [zombies.list, slimes.list], orb: () => hud.lifeOrb || hud.hp });
   // (the save slots open over the title and the pause screen alike: in the title's layer)
   saves = new SaveMenu({ ui: title.modal, snapshot, restore, canSave: () => started && !introBusy, toast: (t) => hud.toast(t),
     onClose: () => { title.refresh(); if (paused || !started) return; if (!touch) lockPointer(); } });
@@ -571,6 +576,7 @@ async function build() {
   respawns.adopt();   // (everything in the world now comes back when cut down)
   ready = true; run.step = 'loaded';
   await rehearse();
+  zombies.feed = fx; slimes.feed = fx; fx.live = true;   // (only now: the rehearsal's blows out past the edge aren't written down)
   ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
 }
 
@@ -956,7 +962,7 @@ function drinkAt(i) {
   if (it.kind === 'life') player.healing += 45; else player.mana = Math.min(player.maxMana, player.mana + 50);
   if (--it.count <= 0) char.bag[i] = null;
   sfx.cast?.('heal');
-  hud.toast(it.kind === 'life' ? 'You drink a healing draught' : 'You drink a mana draught');
+  hud.toast(it.kind === 'life' ? 'You drink a healing draught' : 'You drink a mana draught', 'heal');
   saveCharacter(char);
 }
 
@@ -1037,7 +1043,8 @@ function parried(by) {
   sfx.play('sword_blocked', { vol: 0.8, delay: 0.03 });
   shake = Math.max(shake, 0.5);
   magic.particles.burst(fromView(vm.castPoint('L'), 0.6), [new THREE.Color('#ffffff'), new THREE.Color('#fff0b0'), new THREE.Color('#ffc040')], 34, { speed: 6, size: 0.035, grav: 7, life: 0.5 });
-  hud.toast('Parried! Strike while it reels');
+  hud.toast('Parried! Strike while it reels', null);
+  fx?.parried(by);
   answerBlow(by);
 }
 /** The shove as the shield comes up (its SHOVE frame): everything in a box in front of you, as
@@ -1105,8 +1112,9 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
   // (the Debug Menu: GOD MODE and no-clip take no harm at all; with enemy damage off, only a fall hurts)
   if (cheats.god || cheats.fly || (cheats.noDamage && kind !== 'fall')) return;
   // (a fall costs health and the climb back, never your life: it leaves you on your last legs)
-  if (kind === 'fall') { shake = Math.max(shake, 1.4); sfx.impact?.(); player.health = Math.max(Math.min(player.health, 8), player.health - dmg); hud.toast('The fall all but breaks you'); return; }
+  if (kind === 'fall') { shake = Math.max(shake, 1.4); sfx.impact?.(); const was = player.health; player.health = Math.max(Math.min(player.health, 8), player.health - dmg); hud.toast('The fall all but breaks you', null); fx?.hurt(was - player.health, null, 'fall'); return; }
   let d = dmg * (by?.champ?.dmg || 1);   // a quest's champion hits harder
+  let stopped = 0;                       // (what the shield took, for the log)
   const sh = st.shield;
   let front = true;
   if (by?.pos) {
@@ -1116,11 +1124,12 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
   if (vm.blocking && sh && !guard.broken && front && kind === 'melee' && by && !by.dead && zombies.time - blockAt < 0.33) { parried(by); return; }   // (raised just in time)
   if (vm.blocking && sh && !guard.broken && guard.v > 0 && front && (kind !== 'spell' || st.enchants.ward)) {
     const stop = d * sh.block;
+    stopped = stop;
     guard.v -= stop;
     guard.wait = 0.7;
     d -= stop;
     if (guard.v <= 0) {           // what the Guard couldn't pay for comes through
-      d += -guard.v; guard.v = 0; guard.broken = true;
+      d += -guard.v; stopped += guard.v; guard.v = 0; guard.broken = true;
       hud.toast('Your guard is broken!'); hud.flashGuard();
       shake = Math.max(shake, 1.2);
     }
@@ -1137,11 +1146,13 @@ function hurtPlayer(dmg, by = null, kind = 'melee') {
   if (kind === 'spell' && st.spellWard) d *= 1 - st.spellWard / 100;   // (voidstones in armour)
   d *= 1 - armorCut(st.armor);
   player.health -= d;
+  fx?.hurt(d, by, kind, stopped);
   if (player.health <= 0) {
     player.health = player.maxHealth;
     player.pos.set(0, 0, 12); player.vel.set(0, 0, 0);
     zombies.forget();
-    hud.toast('Torn apart by the dead... you wake in the village');
+    hud.toast('Torn apart by the dead... you wake in the village', null);
+    chat?.add('hurt', `${fmt.you()} are torn apart${by ? ` by the ${fmt.foe(nameOf(by))}` : ''}... and wake in the village`);
     music.stinger('fell');
   }
 }
@@ -1252,7 +1263,7 @@ function melee(reach, heavy, side = 'R', sweep = null, power = 1, stab = false) 
     const ripo = zombies.time < riposteUntil;
     if (ripo) { riposteUntil = 0; heavy = true; hud.toast('Riposte!'); }
     const dmg = stats.meleeDamage(heavy, side) * power * (ripo ? 1.8 : 1);
-    flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
+    flesh.z.hit(flesh, { dmg, dir: flesh.d, heavy, ripo, kind: blunt ? 'blunt' : 'blade', edge: blunt ? null : edge, push: (heavy ? 0.8 : 0.45) * (blunt ? 1.4 : 1) * power });
     sfx.hit(blunt ? 'blunt' : 'flesh', heavy);
     // a treasure's (and the gems') powers: the dead set burning, chilled to a crawl, poisoned, lightning loosed
     gemPowers(flesh.z, flesh.point, flesh.bone, dmg, true);
@@ -1492,10 +1503,11 @@ function setMap(on) {
 
 /** Any of the game's windows up (the bag, the map, a giver's words or the log, the save slots, the
  * portals, a shop)? */
-const windowOpen = () => !!(bag?.open || map?.open || quests?.open || saves?.open || portalMenu?.open || trade?.open || debugMenu?.open);
+const windowOpen = () => !!(bag?.open || map?.open || quests?.open || saves?.open || portalMenu?.open || trade?.open || debugMenu?.open || chat?.focused);
 /** Every window shut and straight back to the game (never into the pause menu): the mouse taken up
  * again, or, where the browser wants a click for it first, a word on the screen to click. */
 function backToGame() {
+  chat.focus(false);
   bag.show(false); map.show(false); portalMenu.close(); trade.close();
   if (quests.open) quests.close();
   if (paused) { paused = false; hud.showOverlay(null); }
@@ -1569,6 +1581,7 @@ function travel(to) {
   sfx.portalJump?.();
   zombies.forget();   // (and its kin: the slimes)
   player.unseenUntil = performance.now() + 1500;   // (while the blue clears, nothing has seen you come)
+  chat.add('world', `${fmt.you()} step through to ${fmt.q(to.name)}`);
   saveProgress();
 }
 
@@ -1577,6 +1590,7 @@ function portalWoken(p) {
   sfx.portalWake?.();
   sealBurst(p, 110, { speed: 2.2, size: 0.05, grav: -1.6, life: 2.2, drag: 1.2 });
   hud.announce('Portal Awakened', p.name);
+  chat.add('world', `Portal awakened: ${fmt.q(p.name)}`);
   if (ctx.portals.found.size === 1) hud.toast(touch ? 'Stand on a portal and tap E to travel' : 'Stand on a portal and press E to travel');
   saveProgress();
 }
@@ -1700,6 +1714,7 @@ function pause() {
 }
 
 document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement && chat?.focused) chat.focus(false);   // (a click on the world: back to it)
   if (!document.pointerLockElement && started && !windowOpen() && !introBusy) pause();
 });
 
@@ -1821,6 +1836,24 @@ function layArms(ids = ['vigilsword', 'vigilshield', 'vigilstaff']) {
 }
 const armsLying = () => (ctx?.loot.list || []).filter((it) => /^vigil/.test(it.item.unique || '')).map((it) => it.item.unique);
 
+/** An item's colour in the log (its rarity's; gold, draughts and the rest their own). */
+function itemCol(it) {
+  if (!it) return '';
+  if (it.type === 'gear' || it.type === 'gem' || it.type === 'recipe') return itemColor(it);
+  return it.type === 'potion' ? (it.kind === 'life' ? '#ff7a6a' : '#7aa8ff') : it.type === 'mat' ? '#d8c8a0' : '';
+}
+/** Something taken up off the ground (loot.js), into the log. */
+function logTake(it, what) {
+  if (it?.type === 'gold') chat.add('gold', `${fmt.you()} pick up ${fmt.gold(it.amount)}`);
+  else chat.add('loot', `${fmt.you()} pick up ${fmt.item(what.replace(/^(the|a|an) /, ''), itemCol(it))}`);
+}
+/** Enter: the mouse given to the chat log (so its gear, grip and scrolling can be used), or back. */
+function setChatFocus(on) {
+  chat.focus(on);
+  if (on) document.exitPointerLock?.();
+  else if (started && !paused && !windowOpen()) lockPointer();
+}
+
 /** Gear taken up goes straight on if its hand or place is free. */
 function autoEquip(it) {
   if (it?.type !== 'gear') return;
@@ -1835,9 +1868,12 @@ function autoEquip(it) {
 
 /** Experience: from what you kill and the work you do. A level brings a peal, a banner, a column of
  * gold about you, full life and mana, and points to spend. */
-function gainXp(n) {
-  const up = grantXp(char, n * (1 + (st.xpPct || 0) / 100));
+function gainXp(n, from = '') {
+  const got = n * (1 + (st.xpPct || 0) / 100);
+  const up = grantXp(char, got);
+  if (got >= 0.5) chat.add('xp', `+${fmt.num(Math.round(got), 'xp')} experience${from ? ` · ${esc(from)}` : ''}`);
   if (up) {
+    chat.add('level', `${fmt.you()} reach ${fmt.num('level ' + char.level, 'level')}! ${char.points} point${char.points === 1 ? '' : 's'} to spend`);
     sfx.levelUp();
     hud.announce(`Level ${char.level}`, `${char.points} point${char.points === 1 ? '' : 's'} to spend · Tab, then your character`);
     applyGear().then(() => { player.health = player.maxHealth; player.mana = player.maxMana; });
@@ -1851,7 +1887,8 @@ function gainXp(n) {
 /** Every death in the world: experience, the quests' counts, and a champion's hoard. */
 function onDeath(z) {
   if (introBusy) return;
-  gainXp(xpFor(z));
+  if (zombies.feed) fx?.died(z);
+  gainXp(xpFor(z), nameOf(z));
   quests?.onKill(z);
   if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
   // materials, now and then a gem or a plan (craft.js); a great one's reagent and its plans
@@ -1866,8 +1903,10 @@ function reward({ xp = 0, gold = 0, items = [], title = '' }) {
   if (gold) { char.gold += gold; sfx.coin(); }
   for (const it of items) if (!addToBag(char, it)) { const d = ctx.loot.spawn(it, player.pos.x, player.pos.y + 1, player.pos.z, { pop: true }); d.age = -1.5; }
   hud.announce('Quest complete', title);
-  hud.toast(`${xp} experience${gold ? `, ${gold} gold` : ''}${items.length ? ` · ${items.map((i) => i.name).join(', ')}` : ''}`);
-  gainXp(xp);
+  if (gold) chat.add('gold', `${fmt.gold(gold)} for ${fmt.q(title)}`);
+  for (const it of items) chat.add('loot', `Reward: ${fmt.item(it.count > 1 ? `${it.count} × ${it.name}` : it.name, itemCol(it))}`);
+  hud.toast(`${xp} experience${gold ? `, ${gold} gold` : ''}${items.length ? ` · ${items.map((i) => i.name).join(', ')}` : ''}`, null);   // (the log has its own lines for each)
+  gainXp(xp, title);
   saveCharacter(char);
   bag.render();
 }
@@ -1992,6 +2031,8 @@ async function startOver() {
 /** The opening hides the HUD and the marks over heads; the game has them back after. */
 function setCinema(on) {
   hud.hud.classList.toggle('hidden', on);
+  chat.show(!on);
+  if (fx) fx.hidden = on;
   villagers.bubbles.hidden = on;
   if (touch) { hud.showTouch(!on); gameInput.release(); }
   if (!on) hud.refresh(vm.equip, book);
@@ -2210,7 +2251,7 @@ function sounds(dt) {
 
 // ------------------------------------------------------------------ the loop
 const clock = new THREE.Clock();
-let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0, saveT = 10;
+let t = 0, lastBob = 0, shadowFrame = 0, mapT = 0, saveT = 10, lastHealth = 0;
 const QUICK = { Digit1: 'onehand', Digit2: 'twohand', Digit3: 'staff', Digit4: 'shield_round', Digit5: 'shield_kite' };
 
 let lastFrame = performance.now(), lastWork = 0;
@@ -2243,6 +2284,8 @@ function tick(dt) {
   if (started && !paused && !introBusy && inp.was('KeyM')) { quests.close(); setMap(!map.open); }
   if (started && !paused && !introBusy && inp.was('KeyL')) { if (bag.open) setInventory(false); if (map.open) setMap(false); if (portalMenu.open) setPortals(false); quests.showLog(!quests.open); }
   if (started && !paused && !introBusy && inp.was('KeyT')) quests.toggleTracker();
+  // Enter: the mouse to the chat log (scroll, resize, its gear), and back
+  if (started && !paused && !introBusy && !touch && inp.was('Enter') && (chat.focused || !windowOpen())) setChatFocus(!chat.focused);
   if (started && !introBusy && portalMenu.open && inp.was('KeyE')) setPortals(false);   // (E again: off, and back to it)
   if (started && !introBusy && trade.open && inp.was('KeyE')) setTrade(false);
   // Esc shuts whatever window is up and goes straight back to the game (the pause menu is for Esc in
@@ -2425,6 +2468,10 @@ function tick(dt) {
   light(dt, t);
   hud.update(player, book);
   hud.clockTime(hour);
+  if (started && player.health > lastHealth + 0.01 && lastHealth > 0) fx.healed(player.health - lastHealth);
+  lastHealth = player.health;
+  fx.update(dt);
+  chat.update();
   if (started && ((mapT += dt) > 0.1 || map.open)) { mapT = 0; map.update(player); }   // the corner map ten times a second
 
   vmPass.enabled = started && !introBusy && !cheats.fly; // no arms behind the title screen, in the opening, or in no-clip
@@ -2440,6 +2487,21 @@ function tick(dt) {
 
 // ------------------------------------------------------------------ go
 hud = new Hud(ui, { spells: SPELLS, items: ITEMS });
+chat = new ChatLog(ui, { clock: () => hud.lastClock, touch });
+// every word on the screen goes in the log too (as a notice), unless its caller writes its own line
+// (cat null) or names its kind; and each new place you come into
+{
+  const toast = hud.toast.bind(hud);
+  hud.toast = (text, cat = 'sys') => { toast(text); if (cat && text) chat.add(cat, esc(text)); };
+  hud.onZone = (name) => { if (started && !introBusy) chat.add('world', `${fmt.you()} enter ${fmt.q(name)}`); };
+}
+// everything said aloud (speech.js): the townsfolk and quest givers, and the dead's and the Sworn's taunts
+speechLog.on = (L) => {
+  if (!started) return;   // (not the town's talk behind the title screen)
+  const who = L.who, foe = !!(who.owner === zombies || who.slime || who.def || who.champ);
+  const name = foe ? nameOf(who) : who.call || who.name || 'Someone';
+  chat.add(foe ? 'taunt' : 'talk', `${fmt.who(name)}: ${esc(L.full)}`);
+};
 try { Object.assign(book, JSON.parse(localStorage.getItem('bm.book') || '{}')); } catch { /* first visit */ }
 // (the title screen is up already, and shows how the loading goes: title.js)
 if (lastRun) title.lastRun(lastRun);
