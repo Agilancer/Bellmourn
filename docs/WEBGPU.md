@@ -110,6 +110,17 @@ if (WEBGPU) { /* TSL */ } else { /* the GLSL, untouched */ }
 - The r187 source is the reference: `node_modules`-style copy in a session scratchpad, or
   https://cdn.jsdelivr.net/npm/three@0.187.0/src/ (TSL exports: `src/nodes/TSL.js`).
 
+## Memory
+
+- three draws its own depth material in shadow passes, given each textured material's alpha through a
+  node that names that one material: a node build per material per kind of shadow (6,600 builds for 163
+  shaders). engine.js `shadowNodesShared` gives opaque casters no colour node and alpha-cut ones one
+  shared graph: 640 builds, 164 pipelines.
+- The JS heap is still ~1.2 GB under WebGPU (WebGL: ~270 MB), most of it three's node-build data kept
+  after builds; finding what holds it needs a heap snapshot with retainers. Watch it before WebGPU goes
+  to phones. `?nocoi` (index.html) keeps the page from reloading itself, so a heap profile can see the
+  whole load.
+
 ## Traps found on the way
 
 - WebGPU's clip depth is 0..1; three rebuilds each camera's projection for it (`updateProjectionMatrix`).

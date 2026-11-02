@@ -12,7 +12,7 @@
 //  - Two renderers (index.html picks one before anything loads): WebGPU (three r187, its shaders in
 //    TSL: nodes.js) where the browser has it, else WebGL (three r170, the GLSL below).
 import * as THREE from 'three';
-import { TEXELS, WEBGPU, crispColor } from './nodes.js';
+import { TEXELS, WEBGPU, crispColor, shared, T } from './nodes.js';
 
 export { TEXELS, WEBGPU };
 const store = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -151,6 +151,7 @@ async function makeWebGPU(canvas, { touch }) {
   renderer.setClearColor(0x000000, 0);   // (a pass without a background of its own clears to nothing: the arms)
   ANISO = Math.min(touch ? 4 : 16, renderer.getMaxAnisotropy());
   THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
+  shadowNodesShared(renderer);
   // ?debugrender: a draw that throws names its object and material, once each
   if (/[?&]debugrender/.test(location.search)) {
     Error.stackTraceLimit = 60;
@@ -162,6 +163,34 @@ async function makeWebGPU(canvas, { touch }) {
     };
   }
   return renderer;
+}
+
+/** In a shadow pass three draws its own depth material, given the object's map alpha through a node
+ * that names that one material (reference('map', material)): a node build, kept, for every textured
+ * material and kind of shadow (6,600 of them for 163 shaders; most of the WebGPU heap). Here an opaque
+ * caster gets no colour node at all (its alpha is never looked at), and an alpha-cut one (leaves, hair)
+ * one graph for all: its own colour node's alpha where it has one (a shared graph), else its map's,
+ * through a texture that follows the material (nodes.js shared). */
+function shadowNodesShared(renderer) {
+  const base = renderer._getShadowNodes?.bind(renderer);
+  if (!base) return;
+  const byColor = new WeakMap(), byMap = new Map();
+  renderer._getShadowNodes = (material) => {
+    if (material.castShadowNode?.isNode || material.maskShadowNode?.isNode || material.maskNode?.isNode) return base(material);
+    const positionNode = material.castShadowPositionNode?.isNode ? material.castShadowPositionNode : material.positionNode?.isNode ? material.positionNode : null;
+    const depthNode = material.depthNode?.isNode ? material.depthNode : null;
+    if (!(material.alphaTest > 0 || material.alphaHash)) return { colorNode: null, depthNode, positionNode };
+    let colorNode = null;
+    if (material.colorNode?.isNode) {
+      colorNode = byColor.get(material.colorNode);
+      if (!colorNode) byColor.set(material.colorNode, colorNode = T.vec4(T.vec3(0), material.colorNode.a));
+    } else if (material.map?.isTexture) {
+      const m = material.map, k = `${m.colorSpace}|${m.channel}`;
+      colorNode = byMap.get(k);
+      if (!colorNode) byMap.set(k, colorNode = T.vec4(T.vec3(0), shared((mat) => mat.map, m).sample(T.uv(m.channel)).a));
+    } else return base(material);
+    return { colorNode, depthNode, positionNode };
+  };
 }
 
 /** The composer's buffers: the one the world is drawn into is multisampled (EffectComposer draws its
