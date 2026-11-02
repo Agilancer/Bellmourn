@@ -318,7 +318,9 @@ export class ViewModel {
     this.aspect = aspect;
     // the rigs' projection (tools/models/viewer.html), widened for any aspect ratio
     const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S;
-    const CY = H - (H / 2) * S, near = 0.02, far = 20;
+    // (a two-hander's arms swing past the eye: anything nearer than 10 cm is cut away, so a passing
+    // sleeve flicks by instead of filling the screen with its inside)
+    const CY = H - (H / 2) * S, near = S === this.manifest.view_scale ? 0.02 : 0.10, far = 20;
     const fy = 2 * F / H, fx = fy / aspect;
     this.camera.projectionMatrix.set(
       fx, 0, 0, 0,

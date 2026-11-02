@@ -1025,33 +1025,25 @@
     0.628571,
     0.657143,
     0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714
+    0.714286
    ],
    "events": {
-    "duration": 0.914286,
+    "duration": 0.742857,
     "hit": [
-     0.4
+     0.314286
     ],
     "whoosh": [
-     0.2
+     0.142857
     ],
-    "enter": 0.2,
-    "link": 0.628571,
+    "enter": 0.142857,
+    "link": 0.457143,
     "edge": [
-     -0.495,
-     -0.869
+     -0.35,
+     -0.937
     ]
    },
    "names": [
     "GUARD",
-    "GUARD >",
-    "GUARD >",
     "GUARD >",
     "GUARD >",
     "GUARD >",
@@ -1062,11 +1054,7 @@
     "WIND R >",
     "WIND R >",
     "WIND R >",
-    "WIND R >",
     "CUT 1 HIT",
-    "CUT 1 HIT >",
-    "CUT 1 HIT >",
-    "CUT 1 HIT >",
     "CUT 1 HIT >",
     "CUT 1 HIT >",
     "CUT 1 HIT >",
@@ -1121,30 +1109,25 @@
     0.685714,
     0.714286,
     0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714
+    0.771429
    ],
    "events": {
-    "duration": 0.914286,
+    "duration": 0.8,
     "hit": [
-     0.4
+     0.342857
     ],
     "whoosh": [
-     0.2
+     0.171429
     ],
-    "enter": 0.2,
-    "link": 0.628571,
+    "enter": 0.171429,
+    "link": 0.514286,
     "edge": [
-     0.503,
-     -0.864
+     0.405,
+     -0.914
     ]
    },
    "names": [
     "GUARD",
-    "GUARD >",
     "GUARD >",
     "GUARD >",
     "GUARD >",
@@ -1156,10 +1139,7 @@
     "WIND L >",
     "WIND L >",
     "WIND L >",
-    "WIND L >",
     "CUT 2 HIT",
-    "CUT 2 HIT >",
-    "CUT 2 HIT >",
     "CUT 2 HIT >",
     "CUT 2 HIT >",
     "CUT 2 HIT >",
@@ -1220,24 +1200,21 @@
     0.828571,
     0.857143,
     0.885714,
-    0.914286,
-    0.942857,
-    0.971429,
-    1.0
+    0.914286
    ],
    "events": {
-    "duration": 1.028571,
+    "duration": 0.942857,
     "hit": [
-     0.542857
+     0.457143
     ],
     "whoosh": [
-     0.314286
+     0.142857
     ],
-    "enter": 0.314286,
-    "link": 0.771429,
+    "enter": 0.142857,
+    "link": 0.657143,
     "edge": [
-     -0.281,
-     -0.96
+     -0.403,
+     0.915
     ]
    },
    "names": [
@@ -1245,14 +1222,9 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "RE-LIFT",
-    "RE-LIFT >",
-    "RE-LIFT >",
-    "RE-LIFT >",
-    "RE-LIFT >",
-    "RE-LIFT >",
-    "RE-LIFT >",
+    "GUARD >",
     "OVERHEAD",
+    "OVERHEAD >",
     "OVERHEAD >",
     "OVERHEAD >",
     "OVERHEAD >",
@@ -1260,14 +1232,16 @@
     "FALL >",
     "FALL >",
     "FALL >",
+    "FALL 2",
+    "FALL 2 >",
     "CHOP HIT",
     "CHOP HIT >",
     "CHOP HIT",
-    "CHOP HIT >",
     "CHOP HIT >",
     "CHOP HIT >",
     "CHOP HIT >",
     "DRIVE",
+    "DRIVE >",
     "DRIVE >",
     "DRIVE >",
     "DRIVE >",
@@ -1333,21 +1307,22 @@
     1.142857,
     1.171429,
     1.2,
-    1.228571
+    1.228571,
+    1.257143
    ],
    "events": {
-    "duration": 1.257143,
+    "duration": 1.285714,
     "hit": [
-     0.571429
+     0.628571
     ],
     "whoosh": [
-     0.228571
+     0.257143
     ],
-    "enter": 0.228571,
-    "link": 0.885714,
+    "enter": 0.257143,
+    "link": 0.942857,
     "edge": [
-     -0.219,
-     -0.976
+     -0.003,
+     1.0
     ]
    },
    "names": [
@@ -1359,13 +1334,15 @@
     "LIFT >",
     "LIFT >",
     "LIFT >",
+    "LIFT >",
     "COCK",
     "COCK >",
     "COCK >",
     "COCK >",
     "COCK >",
-    "COCK >",
     "COME OVER",
+    "COME OVER >",
+    "COME OVER >",
     "COME OVER >",
     "FALL",
     "FALL >",
@@ -1387,7 +1364,6 @@
     "DIP >",
     "DIP >",
     "RECOVER",
-    "RECOVER >",
     "RECOVER >",
     "RECOVER >",
     "RECOVER >",
@@ -1428,29 +1404,21 @@
     0.485714,
     0.514286,
     0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8
+    0.571429
    ],
    "events": {
-    "duration": 0.828571,
+    "duration": 0.6,
     "hit": [
-     0.4
+     0.314286
     ],
     "whoosh": [
      0.142857
     ],
     "enter": 0.142857,
-    "link": 0.628571,
+    "link": 0.457143,
     "edge": [
-     0.957,
-     0.29
+     0.996,
+     0.085
     ]
    },
    "names": [
@@ -1461,10 +1429,7 @@
     "GUARD >",
     "CHAMBER",
     "CHAMBER >",
-    "CHAMBER >",
-    "CHAMBER >",
     "THRUST",
-    "THRUST >",
     "THRUST >",
     "THRUST >",
     "THRUST >",
@@ -1472,12 +1437,7 @@
     "HIT >",
     "HIT >",
     "HIT >",
-    "HIT >",
-    "HIT >",
-    "HIT >",
     "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
     "RECOVER >",
     "RECOVER >",
     "RECOVER >",
@@ -1532,32 +1492,25 @@
     0.942857,
     0.971429,
     1.0,
-    1.028571,
-    1.057143,
-    1.085714,
-    1.114286,
-    1.142857,
-    1.171429
+    1.028571
    ],
    "events": {
-    "duration": 1.2,
+    "duration": 1.057143,
     "hit": [
-     0.514286
+     0.457143
     ],
     "whoosh": [
-     0.257143
+     0.2
     ],
-    "enter": 0.257143,
-    "link": 0.828571,
+    "enter": 0.2,
+    "link": 0.714286,
     "edge": [
-     0.999,
-     0.052
+     0.992,
+     0.126
     ]
    },
    "names": [
     "GUARD",
-    "GUARD >",
-    "GUARD >",
     "GUARD >",
     "GUARD >",
     "GUARD >",
@@ -1581,16 +1534,13 @@
     "THROUGH >",
     "THROUGH >",
     "THROUGH >",
-    "FOLLOW",
-    "FOLLOW >",
     "FINISH",
     "FINISH >",
     "FINISH >",
     "FINISH >",
     "FINISH >",
+    "FINISH >",
     "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
     "RECOVER >",
     "RECOVER >",
     "RECOVER >",
@@ -1641,35 +1591,21 @@
     0.8,
     0.828571,
     0.857143,
-    0.885714,
-    0.914286,
-    0.942857,
-    0.971429,
-    1.0,
-    1.028571,
-    1.057143,
-    1.085714,
-    1.114286,
-    1.142857,
-    1.171429,
-    1.2,
-    1.228571,
-    1.257143,
-    1.285714
+    0.885714
    ],
    "events": {
-    "duration": 1.314286,
+    "duration": 0.914286,
     "hit": [
-     0.514286
+     0.4
     ],
     "whoosh": [
-     0.257143
+     0.142857
     ],
-    "enter": 0.257143,
-    "link": 0.828571,
+    "enter": 0.142857,
+    "link": 0.657143,
     "edge": [
      -0.997,
-     0.071
+     0.077
     ]
    },
    "names": [
@@ -1678,11 +1614,8 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "DROP",
-    "DROP >",
-    "DROP >",
-    "DROP >",
     "LOW R",
+    "LOW R >",
     "LOW R >",
     "LOW R >",
     "LOW R >",
@@ -1690,14 +1623,11 @@
     "RISE >",
     "RISE >",
     "RISE >",
-    "RISE >",
     "HIT",
     "HIT >",
     "HIT >",
     "HIT >",
-    "HIT >",
     "THROUGH",
-    "THROUGH >",
     "THROUGH >",
     "THROUGH >",
     "THROUGH >",
@@ -1708,16 +1638,8 @@
     "HIGH >",
     "HIGH >",
     "HIGH >",
-    "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
+    "HIGH >",
+    "HIGH >",
     "GUARD"
    ],
    "sides": "LR",

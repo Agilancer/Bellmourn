@@ -121,6 +121,18 @@ def pose(arm):
                     c = -c
                 t = math.atan2(np.dot(np.cross(ix, c), iy), np.dot(ix, c)) * arm["flat"]
                 iz = norm(iz * math.cos(t) + np.cross(iy, iz) * math.sin(t))
+        if arm.get("edge") is not None:
+            # turn the blade in the fist so an edge leads the cut: toward the way the blade is
+            # travelling (`edge`, rig space), by `edge_w` (0 at rest, 1 in a full swing). The
+            # nearer of the two edges leads, so the blade never spins a half turn.
+            e = np.asarray(arm["edge"], float)
+            e = e - iy * np.dot(e, iy)
+            if np.linalg.norm(e) > 1e-6:
+                e = norm(e)
+                if np.dot(e, iz) < 0:
+                    e = -e
+                t = math.atan2(np.dot(np.cross(iz, e), iy), np.dot(iz, e)) * float(arm.get("edge_w", 1.0))
+                iz = norm(iz * math.cos(t) + np.cross(iy, iz) * math.sin(t))
     out["item"] = mat(arm["G"], np.cross(iy, iz), iy, iz)
     return out
 
