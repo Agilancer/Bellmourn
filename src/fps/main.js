@@ -9,7 +9,7 @@
 // only the torches on its walls (and whatever you cast) light it. Everything is loaded,
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
-import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
+import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, shadeLayers, stillShadows, keepCompiled, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
 import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
@@ -41,7 +41,7 @@ import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
 import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
-import { Zombies } from './zombies.js';
+import { Zombies, pieceSample } from './zombies.js';
 import { Foes } from './foes.js';
 import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
@@ -610,6 +610,7 @@ async function build() {
   await rehearse();
   zombies.feed = fx; slimes.feed = fx; fx.live = true;   // (only now: the rehearsal's blows out past the edge aren't written down)
   ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
+  keepCompiled.freeze();   // (what's compiled by now stays compiled: engine.js)
 }
 
 /** Every spell cast once and one of the dead cut to pieces, out past the edge of the world where
@@ -686,8 +687,23 @@ async function prepare(mark) {
   arms.forEach((o, i) => { if (o) { o.position.set(i * 0.6, -50, 0); lying.add(o); } });
   // (and what else can lie about now: a gem, a plan, a pouch of materials: their shaders made now)
   (await Promise.all([lootModel(makeGem('ruby', 3)), lootModel(makeRecipe('helm')), lootModel(makeMat('iron'))])).forEach((o, i) => { o.position.set(i * 0.6, -52, 0); lying.add(o); });
-  const limbs = new Set();
-  scene.traverse((o) => { if (o.isSkinnedMesh) for (const m of [o.material].flat()) if (!limbs.has(m)) { limbs.add(m); const p = new THREE.Mesh(o.geometry, o.material); p.position.set(0, -60, 0); p.castShadow = true; lying.add(p); } });
+  // every weapon and shield the foes carry, in each of its finishes, as one carries it (a finish no
+  // foe out yet carried was compiled the first time one came into view: a hitch mid-fight)
+  Object.values(foes.items).forEach((it, i) => {
+    const o = it.clone();
+    o.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.frustumCulled = false; } });
+    o.position.set(i * 0.6, -54, 0); lying.add(o);
+  });
+  // (for each kind of body, a cut-off piece's stand-in: zombies.js pieceSample)
+  const kinds = new Set();
+  scene.traverse((o) => {
+    if (!o.isSkinnedMesh || o.userData.shade || !o.geometry.attributes.bindPos) return;
+    const key = [o.material].flat().map((m) => `${m.type}|${m.name}|${m.map?.uuid}|${m.side}`).join();
+    if (kinds.has(key)) return;
+    kinds.add(key);
+    const p = pieceSample(o); p.position.set(0, -60, 0); lying.add(p);
+  });
+  lying.add(ctx.loot.samples());   // (and the glow and beam a thing lying about is shown with)
   scene.add(lying);
   // the villagers cast shadows only near you (the dead see to their own); every body has one
   // skeleton and culls itself (engine.js, from the bodies' constructors)
@@ -707,6 +723,10 @@ async function prepare(mark) {
       if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
     }
   }
+  // every light's shadow camera sees the bodies' one-draw shadow stand-ins (zombies.js makeShade),
+  // and the torches' kept maps keep nothing that moves (engine.js stillShadows)
+  shadeLayers(scene, renderer);
+  stillShadows(torchPool);
   // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
   // frame; made before the shaders are compiled, which take it in)
   if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
@@ -2309,10 +2329,58 @@ function frame() {
   lastWork = performance.now() - now;
 }
 
-/** One frame of the game: input, the player, hands, magic, light, then the picture. */
+/** One frame of the game: input, the player, hands, magic, light, then the picture. Whatever throws
+ * in a frame is said once (bmFaults) and the frame goes on: the picture is still drawn and the keys
+ * still let go of (a key left 'just pressed' fired again every frame after). */
 function tick(dt) {
   t += dt;
   if (!ready) return;
+  try { step(dt); } catch (e) { fault('the game', e); }
+  try {
+    sounds(dt);
+    // (WebGPU: the renderer's and the scenes' state as a frame begins, for unstick to put back)
+    if (WEBGPU) { const U = THREE.RendererUtils; U.saveRendererState(renderer, held.r); U.saveSceneState(scene, held.s); U.saveSceneState(vm.scene, held.v); }
+    res.timer.begin(); composer.render(dt); res.timer.end(); keepCompiled.pin(); pictureFaults = 0;
+  } catch (e) { fault('the picture', e); unstick(); }
+  if (++run.frames % 30 === 1) trace();
+  gameInput.endFrame();
+}
+
+const faults = (window.bmFaults = new Map());
+let pictureFaults = 0;   // (frames in a row whose picture threw)
+const held = { r: {}, s: {}, v: {} };
+/** A frame that threw mid-pass left three's state as that pass had it (a shadow's material over the
+ * scene, its draw filter, its target): the next frame would save it as the state to go back to. */
+function unstick() {
+  try {
+    // WebGPU: the renderer's and the scenes' state put back as they were when the frame began, as
+    // three's own utilities save it (a pass that threw left its own: a shadow's material over the
+    // scene, no background, its clear colour, its target, its draw filter, its MRT)
+    if (WEBGPU && held.r.clearColor) {
+      const U = THREE.RendererUtils;
+      U.restoreRendererState(renderer, held.r); U.restoreSceneState(scene, held.s); U.restoreSceneState(vm.scene, held.v);
+    }
+    scene.overrideMaterial = null; vm.scene.overrideMaterial = null;
+    scene.matrixWorldAutoUpdate = true; vm.scene.matrixWorldAutoUpdate = true;   // (a shadow pass holds them off while it draws)
+    renderer.autoClear = true;
+    renderer.setRenderObjectFunction?.(null); renderer.setRenderTarget(null);
+    // (WebGPU: how deep in nested renders it is, and the material being drawn, are left where the throw
+    // was: every later frame would be drawn at the wrong depth, with every draw made again, and kept)
+    if ('_callDepth' in renderer) renderer._callDepth = -1;
+    if ('_currentSourceMaterial' in renderer) renderer._currentSourceMaterial = null;
+  } catch { /* as it is */ }
+  // (WebGL leaves its render state pushed on a throw: a picture that throws frame after frame is given
+  // up, as when the GPU is lost, rather than piling them up)
+  if (++pictureFaults > 300) onLost();
+}
+function fault(where, e) {
+  const key = where + ': ' + (e?.message || e);
+  if (!faults.has(key)) console.error(where + ' threw (the game goes on):', e);
+  faults.set(key, (faults.get(key) || 0) + 1);
+}
+
+/** The game's part of a frame: everything but the sound and the picture. */
+function step(dt) {
   const inp = gameInput;
   if (intro?.running) {   // the opening has the camera: Esc (or a click or tap) skips it
     intro.update(dt);
@@ -2345,7 +2413,7 @@ function tick(dt) {
   else if (active) {
     player.canDoubleJump = cheats.doubleJump || hasAbility(char, 'doubleJump');
     player.update(dt, inp);
-    for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
+    for (const code in QUICK) if (inp.was(code)) equip(QUICK[code]);
     if (inp.was('KeyQ')) drink('life');
     if (inp.was('KeyZ')) drink('mana');
     // right hand
@@ -2537,10 +2605,6 @@ function tick(dt) {
     const due = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
     if (WEBGPU) { if (due && L.under < 0.95) sun.shadow.needsUpdate = true; } else renderer.shadowMap.needsUpdate = due;
   }
-  sounds(dt);
-  res.timer.begin(); composer.render(dt); res.timer.end();
-  if (++run.frames % 30 === 1) trace();
-  inp.endFrame();
 }
 
 // ------------------------------------------------------------------ go
@@ -2605,7 +2669,7 @@ build().then(() => {
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
-    cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
+    compiled: () => keepCompiled.stats(), cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;
