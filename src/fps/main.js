@@ -1446,7 +1446,7 @@ function setFly(on) {
     flyFrom = player.pos.clone();
     zombies.forget();   // (and its kin: the slimes)
     player.unseenUntil = Infinity;
-    vm.blocking = false; player.blocking = false; staffCharge = -1;
+    vm.blocking = false; player.blocking = false; staffCharge = -1; shoveAt = 0;
     pending.R = pending.L = null;
     magic.endCharge(); magic.arcana.endChannels();
     hud.prompt('');
