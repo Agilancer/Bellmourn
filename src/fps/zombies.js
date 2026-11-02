@@ -1417,7 +1417,7 @@ export class Zombie {
         const dir = _t.set(dx, player.pos.y + 1.5 - ey, dz);
         const len = dir.length();
         dir.divideScalar(len);
-        const hit = owner.physics.ray([this.pos.x, ey, this.pos.z], [dir.x, dir.y, dir.z], len);
+        const hit = owner.physics.ray([this.pos.x, ey, this.pos.z], [dir.x, dir.y, dir.z], len, true);   // (through a window too)
         this.canSee = !hit || hit.t > len - 0.4;
       }
     }
@@ -1502,7 +1502,7 @@ export class Zombie {
       this.grabT -= dt; this.grabTick -= dt;
       const turn = 3 * dt, want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
       this.yaw += Math.max(-turn, Math.min(turn, wrap(want - this.yaw)));
-      if (dist < 1.6 && active) {
+      if (dist < 1.6 && active && !phys.between(this.pos, player.pos)) {
         player.heldT = 0.2;
         if (this.grabTick <= 0) { this.grabTick = 0.5; owner.onPlayerHit?.(3, this); }
       }
@@ -1523,7 +1523,7 @@ export class Zombie {
       if (!this.fired && a.time * FPS >= (this.hitAt?.[this.cur] ?? HIT_AT[this.cur])) {
         this.fired = true;
         const reach = crawl ? 2.0 : 1.9;
-        if (active && dist < reach && facingErr < 1.2 && Math.abs(player.pos.y - this.pos.y) < 1.2) owner.onPlayerHit?.(ATTACK_DMG[this.cur], this);
+        if (active && dist < reach && facingErr < 1.2 && Math.abs(player.pos.y - this.pos.y) < 1.2 && !phys.between(this.pos, player.pos, crawl ? 0.4 : 1.1)) owner.onPlayerHit?.(ATTACK_DMG[this.cur], this);
       }
       if (this.done()) { this.state = 'move'; this.cool = 0.35 + Math.random() * 0.4; }
     } else if (this.state === 'jump') {
@@ -1624,6 +1624,9 @@ export class Zombie {
       if (this.wander && this.wander.distanceTo(this.pos) > 0.6) { target = _v.copy(this.wander); speed = crawl ? CRAWL.wander : kind.walk * 0.85; }
     }
     if (!crawl && this.has('head') === false) speed = Math.min(speed, kind.walk * 1.1);
+    // where the straight way is shut (shut in a house, a wall between), the way round it: nav.js (out
+    // by the door, opening it; round to the gate; down the stair). Not where the corridors' flow leads.
+    if (target && !routed && phys.nav) target = phys.nav.steer(this, target, { r: crawl ? 0.35 : 0.3, h: crawl ? 0.6 : 1.6, step: crawl ? 0.45 : 0.55 });
     speed *= this.pace * this.slow;
     if (this.stagger > 0) speed = 0;
     let want = this.yaw;
@@ -1640,27 +1643,29 @@ export class Zombie {
     const moves = crawl ? (this.arm('R') || this.has('head') ? ['crawl_attack'] : [])
       : [this.arm('R') && 'attack1', this.arm('L') && 'attack2', (this.arm('L') || this.arm('R') || this.has('head')) && 'attack3'].filter(Boolean);
     this.grabCool -= dt;
-    if (chasing && !crawl && this.style === 'grabber' && this.grabCool < 0 && dist < 1.3 && facingErr < 0.5 && this.arm('L') && this.arm('R') && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+    // (nothing swings, grabs or pounces at you through a wall or a window)
+    const blocked = chasing && dist < 5 && phys.between(this.pos, player.pos, crawl ? 0.4 : 1.1);
+    if (chasing && !blocked && !crawl && this.style === 'grabber' && this.grabCool < 0 && dist < 1.3 && facingErr < 0.5 && this.arm('L') && this.arm('R') && Math.abs(player.pos.y - this.pos.y) < 1.2) {
       // it takes hold of you: you can barely move, and it tears at you till you strike it off
       this.state = 'grab'; this.grabT = 1.8; this.grabCool = 7 + Math.random() * 5; this.grabTick = 0;
       this.play('attack1', 0.1); owner.sound('groan', this.pos, true);
       owner.onGrab?.(this);
       return;
     }
-    if (chasing && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+    if (chasing && !blocked && dist < reach && facingErr < 0.6 && !this.cool && moves.length && Math.abs(player.pos.y - this.pos.y) < 1.2) {
       this.state = 'attack';
       const mv = moves[Math.floor(Math.random() * moves.length)];
       this.swapBlow(mv);
       this.play(mv, 0.12);
       return;
     }
-    if (chasing && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < (this.style === 'pouncer' ? 4.6 : 3.4) && facingErr < 0.3 && moves.includes('attack3')) {
+    if (chasing && !blocked && !crawl && kind.run && this.feet && this.lungeCool < 0 && dist > 1.9 && dist < (this.style === 'pouncer' ? 4.6 : 3.4) && facingErr < 0.3 && moves.includes('attack3')) {
       this.state = 'attack'; this.lungeT = 0.42; this.lungeCool = 4 + Math.random() * 4;
       this.play('attack3', 0.08);
       owner.sound('groan', this.pos, true);
       return;
     }
-    if (speed > 0 && !(chasing && dist < reach * 0.8)) {
+    if (speed > 0 && !(chasing && !blocked && dist < reach * 0.8)) {
       const f = this.forward(_f);
       // feel ahead: walk round what's in the way (a grave, a crate, a pillar), the nearest clear way
       // to where it's going; only a long low wall, with no way round in sight, is jumped
@@ -2323,7 +2328,9 @@ export class Zombies {
         const d = Math.hypot(dx, dz);
         if (d >= min || d < 1e-4) continue;
         const push = (min - d) * 0.5 / d;
-        a.pos.x -= dx * push; a.pos.z -= dz * push; b.pos.x += dx * push; b.pos.z += dz * push;
+        // (slid apart, so the crowd never shoves one through a wall or into a tomb)
+        this.physics.slide(a.pos, -dx * push, -dz * push, a.mode === 'crawl' ? 0.35 : 0.3, a.mode === 'crawl' ? 0.6 : 1.6, 0.45);
+        this.physics.slide(b.pos, dx * push, dz * push, b.mode === 'crawl' ? 0.35 : 0.3, b.mode === 'crawl' ? 0.6 : 1.6, 0.45);
       }
     }
     // the graveyard keeps its dead: more claw their way out as you cut them down

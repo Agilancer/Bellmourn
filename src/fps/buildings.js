@@ -187,7 +187,7 @@ export function detailedHouse(ctx, h, M, mats) {
       const v0 = V * 0.18, yb = top + rise * (1 - (V * 0.62) / V) - 0.1; // where the dormer's front meets the roof
       const dw = 1.7, dh = 1.6;
       F.box([u - dw / 2, yb - 0.6, v0], [u + dw / 2, yb + dh, V * 0.62], upperMat, { solid: false });
-      F.box([u - 0.45, yb + 0.25, V * 0.62 - 0.02], [u + 0.45, yb + 1.25, V * 0.62 + 0.01], mats.glass, { solid: false });
+      atticWindow(F, mats, u - 0.45, u + 0.45, yb + 0.25, yb + 1.25, V * 0.62);
       for (const du of [-0.5, 0.5]) F.beam([u + du, yb + 0.2, V * 0.62 + 0.04], [u + du, yb + 1.3, V * 0.62 + 0.04], 0.1, 0.1, trim);
       F.beam([u - 0.55, yb + 0.2, V * 0.62 + 0.05], [u + 0.55, yb + 0.2, V * 0.62 + 0.05], 0.1, 0.12, trim);
       F.beam([u - 0.55, yb + 1.3, V * 0.62 + 0.05], [u + 0.55, yb + 1.3, V * 0.62 + 0.05], 0.1, 0.12, trim);
@@ -211,7 +211,7 @@ export function detailedHouse(ctx, h, M, mats) {
     }
     // a gable-end window up in the front
     const gv = V + 0.03;
-    F.box([-0.5, top + 0.6, gv - 0.02], [0.5, top + 1.7, gv + 0.01], mats.glass, { solid: false });
+    atticWindow(F, mats, -0.5, 0.5, top + 0.6, top + 1.7, gv - 0.02);
     for (const du of [-0.55, 0.55]) F.beam([du, top + 0.55, gv + 0.04], [du, top + 1.75, gv + 0.04], 0.1, 0.1, trim);
     F.beam([-0.6, top + 0.55, gv + 0.05], [0.6, top + 0.55, gv + 0.05], 0.1, 0.12, trim);
     F.beam([-0.6, top + 1.75, gv + 0.05], [0.6, top + 1.75, gv + 0.05], 0.1, 0.12, trim);
@@ -312,6 +312,11 @@ function face(F, alongU, a0, a1, at, n, y0, y1, ops, timber, trim, shutter, mats
     // glass in the middle of the wall, a cross of glazing bars, a frame and a sill
     F.quad(mats.glass, alongU ? P(s0, o.y0, 0) : P(s1, o.y0, 0), alongU ? P(s1, o.y0, 0) : P(s0, o.y0, 0),
       alongU ? P(s1, o.y1, 0) : P(s0, o.y1, 0), alongU ? P(s0, o.y1, 0) : P(s1, o.y1, 0), [[0, 0], [1, 0], [1, 1], [0, 1]]);
+    // (downstairs the pane is solid too: nothing leaps, climbs or is thrown through it; sight goes through)
+    if (ground) {
+      const a = F.p(...P(s0, o.y0, 0)), c = F.p(...P(s1, o.y1, 0));
+      F.b.physics.add([Math.min(a[0], c[0]) - 0.03, a[1], Math.min(a[2], c[2]) - 0.03], [Math.max(a[0], c[0]) + 0.03, c[1], Math.max(a[2], c[2]) + 0.03], 'glass').see = true;
+    }
     const gm = (o.y0 + o.y1) / 2;
     F.beam(P(o.at, o.y0, 0.02), P(o.at, o.y1, 0.02), 0.05, 0.05, trim);
     F.beam(P(s0, gm, 0.02), P(s1, gm, 0.02), 0.05, 0.05, trim);
@@ -337,6 +342,44 @@ function face(F, alongU, a0, a1, at, n, y0, y1, ops, timber, trim, shutter, mats
       void x; void z;
     }
   }
+}
+
+/** A window up in the roof (a dormer's, a gable's), where no room is built behind it: a clear
+ * leaded pane over the dark of the attic, u0..u1 by y0..y1 on the face at depth v (frame coords). */
+function atticWindow(F, mats, u0, u1, y0, y1, v) {
+  const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  F.quad(mats.attic, [u0, y0, v], [u1, y0, v], [u1, y1, v], [u0, y1, v], uv);
+  F.quad(mats.glass, [u0, y0, v + 0.025], [u1, y0, v + 0.025], [u1, y1, v + 0.025], [u0, y1, v + 0.025], uv);
+}
+
+/** Leaded lights: diamond quarries of clear, faintly green and uneven glass in dark lead cames, a
+ * window's whole height and width (UV 0..1). The map's alpha is the glass (mostly clear) and the lead
+ * (solid). */
+export function leadedGlass() {
+  const S = 512, AX = 6, AY = 5, dx = S / AX, dy = S / AY;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const diamond = (x, y) => { g.beginPath(); g.moveTo(x, y - dy / 2); g.lineTo(x + dx / 2, y); g.lineTo(x, y + dy / 2); g.lineTo(x - dx / 2, y); g.closePath(); };
+  for (let j = -1; j <= AY + 1; j++) for (let i = -1; i <= AX + 1; i++) for (const o of [0, 0.5]) {
+    const x = (i + o) * dx, y = (j + o) * dy;
+    // each quarry its own tint and clarity (old crown glass: never quite even)
+    const a = 0.05 + rnd() * 0.07, gr = 118 + rnd() * 26 | 0, bl = 112 + rnd() * 26 | 0, rd = 96 + rnd() * 20 | 0;
+    diamond(x, y); g.fillStyle = `rgba(${rd},${gr},${bl},${a.toFixed(3)})`; g.fill();
+    // a soft streak of sheen across it
+    const sh = g.createLinearGradient(x - dx / 2, y - dy / 2, x + dx / 2, y + dy / 2);
+    sh.addColorStop(0.25 + rnd() * 0.2, 'rgba(255,255,255,0)'); sh.addColorStop(0.55, `rgba(240,250,255,${(0.03 + rnd() * 0.05).toFixed(3)})`); sh.addColorStop(0.8, 'rgba(255,255,255,0)');
+    diamond(x, y); g.fillStyle = sh; g.fill();
+  }
+  // the lead: the lattice, and a came round the edge
+  g.strokeStyle = 'rgba(26,25,24,1)'; g.lineWidth = 6; g.lineJoin = 'round';
+  for (let j = -1; j <= AY + 1; j++) for (let i = -1; i <= AX + 1; i++) { diamond(i * dx, j * dy); g.stroke(); }
+  g.lineWidth = 14; g.strokeRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return t;
 }
 
 /** A lamp post: a timber post on a stone foot, an iron arm and a glazed lantern that burns. */
@@ -407,15 +450,19 @@ export function cart(ctx, x, z, rot, mats) {
 
 /** Shared materials for the houses (some from the library's unused textures). */
 export function houseMaterials(lib, M) {
-  const glass = new THREE.MeshPhongMaterial({ color: 0x1c2430, specular: 0x9aaabb, shininess: 90, emissive: 0xffa040,
-    emissiveIntensity: 0, side: THREE.DoubleSide, transparent: false });
-  glass.userData = { tileU: 1, tileV: 1, noCast: true };
+  // the windows' glass: clear leaded panes you see the rooms through (the sun comes in through them);
+  // unlit, its brightness set with the day's (main.js), and drawn after the world (post.js WorldPass.late)
+  const glass = new THREE.MeshBasicMaterial({ color: 0xffffff, map: leadedGlass(), side: THREE.DoubleSide, transparent: true, depthWrite: false });
+  glass.userData = { tileU: 1, tileV: 1, noCast: true, renderOrder: 50 };
+  // the dark of an attic behind a window up in the roof
+  const attic = new THREE.MeshLambertMaterial({ color: 0x0d0b09, side: THREE.DoubleSide });
+  attic.userData = { tileU: 1, tileV: 1, noCast: true };
   const lantern = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.6, 0.8) });
   lantern.userData = { tileU: 1, tileV: 1, noCast: true };
   const pick = (re) => lib.take((s) => re.test(s.id));
   const planks = lib.ofKind('plank'), P = (i, tile = 1.2) => M(planks.length ? planks[i % planks.length] : 'ship_05_red_mahogany', tile);
   return {
-    glass, lantern,
+    glass, attic, lantern,
     timber: M('ship_01_tarblack_oak', 1.6), trim: M('ship_10_black_walnut_rift_seam', 1.2), iron: M('met_02_riveted_black_iron', 1),
     plinth: M('castle_keep_mossline_foundation_stone', 1.6), quoin: M('castle_keep_pale_keep_limestone', 1.2),
     chimney: M('town_wall_town_brick', 2.2), pot: M('castle_roof_terracotta', 0.8), ridge: M('castle_slate', 1.2),

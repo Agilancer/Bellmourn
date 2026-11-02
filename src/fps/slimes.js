@@ -808,7 +808,7 @@ class Slime {
     const sight = (this.sp.sight || 11) * (this.aggro ? 2.2 : 1) * (this.move === 'cling' ? 1.1 : 1);
     if (d < sight && Math.abs(dy) < (this.move === 'cling' ? 9 : 4.5)) {
       const len = Math.hypot(dx, dy, dz) || 1;
-      const h = o.physics.ray([c.x, c.y + 0.05, c.z], [dx / len, dy / len, dz / len], len);
+      const h = o.physics.ray([c.x, c.y + 0.05, c.z], [dx / len, dy / len, dz / len], len, true);
       this.canSee = !h || h.t > len - 0.6;
     }
     if (this.canSee) {
@@ -817,6 +817,15 @@ class Slime {
     } else if (this.aggro && o.time - this.lastT > 7) this.aggro = false;
     // out in the world it won't follow you far from where it lives
     if (this.aggro && !this.cave && Math.hypot(this.pos.x - this.home.x, this.pos.z - this.home.z) > 48) { this.aggro = false; this.lastT = -99; }
+  }
+
+  /** The way to g along the ground: straight at it, or (the straight way shut: shut in a house, a wall
+   * between) round by nav.js, out by the door. (Not on a wall or a ceiling, nor where the corridors'
+   * flow leads it.) */
+  way(g) {
+    const nav = this.owner.physics.nav;
+    if (!g || !nav || this.n.y < 0.8 || (this.aggro && this.dg)) return g;
+    return nav.steer(this, g, { r: clamp(this.R * 0.7, 0.15, 0.6), h: Math.max(0.3, this.H), step: 0.42 });
   }
 
   /** Where it means to go: you, where it last had you, or somewhere about its home. */
@@ -896,17 +905,17 @@ class Slime {
     const goal = this.goalPoint();
     const dx = goal.x - this.pos.x, dz = goal.z - this.pos.z, d = Math.hypot(dx, dz);
     const reach = SIZES[this.size].hop;
-    if (this.aggro && this.canSee && this.atkCool <= 0 && d < reach * 1.9 + 0.6 && Math.abs(P.y - this.pos.y) < 2.5) {
+    if (this.aggro && this.canSee && this.atkCool <= 0 && d < reach * 1.9 + 0.6 && Math.abs(P.y - this.pos.y) < 2.5 && !this.owner.physics.between(this.pos, P, 0.3)) {
       // the pounce: at where you'll be, high, coming down on you
       _b.set(P.x + player.vel.x * 0.25, P.y + 0.6, P.z + player.vel.z * 0.25);
       return this.aimAt(_b, Math.max(this.pos.y, P.y) + 1.2 + this.R * 0.8, true);
     }
-    const dir = _c;
+    const dir = _c, w = this.way(goal), wx = w.x - this.pos.x, wz = w.z - this.pos.z, wd = Math.hypot(wx, wz);
     if (!(this.aggro && this.dg && this.owner.zombies?.flowDir(this.pos, dir, this.dg))) {
-      if (d > 0.4) dir.set(dx / d, 0, dz / d); else rnd(dir).setY(0).normalize();
+      if (wd > 0.4) dir.set(wx / wd, 0, wz / wd); else rnd(dir).setY(0).normalize();
     }
     if (!this.aggro || Math.random() < 0.5) { const a = (Math.random() - 0.5) * 0.7, c = Math.cos(a), s = Math.sin(a); dir.set(dir.x * c - dir.z * s, 0, dir.x * s + dir.z * c); }
-    const len = clamp(this.aggro ? reach : reach * 0.6, 0.5, Math.max(0.6, d));
+    const len = clamp(this.aggro ? reach : reach * 0.6, 0.5, Math.max(0.6, Math.min(d, wd)));
     for (let i = 0; i < 3; i++) {
       const l = len * (1 - i * 0.3);
       const x = this.pos.x + dir.x * l, z = this.pos.z + dir.z * l;
@@ -1149,7 +1158,7 @@ class Slime {
       this.crawl(dt, this.head, 1 + 5.5 * k);
       this.leanTo.set(0, 0.32); this.sqTo = 0.78; this.stretch += (1.55 - this.stretch) * Math.min(1, dt * 14);
       if (this.t > 0.24) {
-        if (d < reach + 0.4 && level) { this.strike(player); if (this.big) this.engulf(player); }
+        if (d < reach + 0.4 && level && !this.owner.physics.between(this.pos, player.pos, 0.3)) { this.strike(player); if (this.big) this.engulf(player); }
         this.state = 'recoil'; this.t = 0; this.atkCool = 1 + this.mass * 0.4;
       }
       return;
@@ -1167,7 +1176,7 @@ class Slime {
       player.heldT = Math.max(player.heldT, 0.3);
       if ((this.engulfT -= dt) <= 0) { this.engulfT = 0.8; this.strike(player, 0.3); this.hitCool = 0; }
     }
-    const goal = this.goalPoint();
+    const goal = this.way(this.goalPoint());
     const dir = _c;
     let speed;
     if (this.aggro) {
@@ -1722,7 +1731,10 @@ export class Slimes {
         const d = Math.hypot(dx, dz);
         if (d >= min || d < 1e-4) continue;
         const push = (min - d) * 0.5 / d, wa = b.mass / (a.mass + b.mass), wb = 1 - wa;
-        a.pos.x -= dx * push * wa * 2; a.pos.z -= dz * push * wa * 2; b.pos.x += dx * push * wb * 2; b.pos.z += dz * push * wb * 2;
+        // (slid apart: never shoved through a wall)
+        const ph = this.physics;
+        ph.slide(a.pos, -dx * push * wa * 2, -dz * push * wa * 2, clamp(a.R * 0.7, 0.15, 0.7), Math.max(0.3, a.H), 0.42);
+        ph.slide(b.pos, dx * push * wb * 2, dz * push * wb * 2, clamp(b.R * 0.7, 0.15, 0.7), Math.max(0.3, b.H), 0.42);
       }
       if (a.R >= 0.45 && !(a.big && a.move === 'ooze' && a.aggro)) {
         const P = player.pos, dx = P.x - a.pos.x, dz = P.z - a.pos.z, min = a.R * 0.8 + 0.3;

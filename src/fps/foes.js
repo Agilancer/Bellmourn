@@ -602,6 +602,9 @@ class Foe extends Zombie {
   go(dt, target, speed, { face = null, back = false, side = 0 } = {}) {
     const phys = this.owner.physics, K = this.kind, lean = this.def.body ? 0.75 : 0;
     speed *= this.pace * this.slow;
+    // where the straight way is shut (it's in a house and you're out, a wall between), the way round
+    // it: nav.js (out by the door, opening it; down the stair)
+    if (target && !face && !back && !side && phys.nav) target = phys.nav.steer(this, target, { r: this.r, h: 1.6, step: 0.45 });
     const look = face || target;
     if (look) {
       if (this.avoidT > 0) this.avoidT -= dt;
@@ -689,7 +692,7 @@ class Foe extends Zombie {
       this.fired = this.hitI >= at.length;
       const reach = this.kind.reach + (this.cur === 'attack3' && this.kindName === 'ghast' ? 0.4 : 0.2);
       this.foes.sound('swing', this.pos, this.kindName);
-      if (active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3) {
+      if (active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3 && !this.owner.physics.between(this.pos, player.pos)) {
         this.owner.onPlayerHit?.(this.kind.dmg[this.cur] ?? 10, this);
         if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === 'attack1')) {   // knocked back
           const f = this.forward();
@@ -1398,7 +1401,12 @@ export class Foes {
       if (fl === -Infinity || Math.abs(fl - f.pos.y) > 2) continue;
       const blocked = [...phys.near(x - 0.4, z - 0.4, x + 0.4, z + 0.4)].some((b) => b.min[1] < fl + 1.7 && b.max[1] > fl + 0.45 && x > b.min[0] - 0.35 && x < b.max[0] + 0.35 && z > b.min[2] - 0.35 && z < b.max[2] + 0.35);
       if (blocked) continue;
+      // (only where it can see you from: not inside a house you're outside of, not behind a wall)
+      const ex = player.pos.x - x, ey = player.pos.y + 1.4 - (fl + 1.5), ez = player.pos.z - z, el = Math.hypot(ex, ey, ez) || 1;
+      const sight = phys.ray([x, fl + 1.5, z], [ex / el, ey / el, ez / el], el, true);
+      if (sight && sight.t < el - 0.5) continue;
       f.pos.set(x, fl, z);
+      phys.nav?.forget(f);
       break;
     }
     f.yaw = Math.atan2(player.pos.x - f.pos.x, player.pos.z - f.pos.z);

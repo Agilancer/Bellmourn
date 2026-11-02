@@ -520,6 +520,9 @@ export class Builder {
         mesh.receiveShadow = true;
         // feathered overlays blend over the ground (and over each other, the higher laid last)
         if (mat.userData.feather) mesh.renderOrder = -1000 + layerOf(g);
+        // (a see-through material may ask to be drawn late: the windows' glass, after the ground and the
+        // mist seen through it; every builder mesh stands at the origin, so distance can't sort them)
+        if (mat.userData.renderOrder) mesh.renderOrder = mat.userData.renderOrder;
         scene.add(mesh);
         meshes.push(mesh);
       }
