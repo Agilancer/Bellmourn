@@ -218,6 +218,7 @@ export class Hud {
   zone(name) {
     if (!name || name === this.lastZone) return;
     this.lastZone = name;
+    this.onZone?.(name);   // (the chat log, main.js)
     this.zoneEl.textContent = name;
     this.zoneEl.classList.remove('show');
     void this.zoneEl.offsetWidth; // restart the fade

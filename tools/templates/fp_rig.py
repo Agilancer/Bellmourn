@@ -253,6 +253,7 @@ def _pose_arm(side, key):
     return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)),
                 weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"),
+                edge=key.get("edge"), edge_w=key.get("edge_w", 1.0),
                 face=norm(key["face"]) if "face" in key else None)
 
 
