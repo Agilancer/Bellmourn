@@ -61,6 +61,7 @@ import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
 import { Portals, PortalMenu, keepPortalsClear, SEAL_H, PORTALS } from './portals.js';
 import { shoveArea, launchWave, stepWaves } from './shovewave.js';
+import { Board } from './board.js';   // (Shield Boarding: jump and hold Space)
 import { DebugMenu } from './debug.js';
 import { Trade, SHOPS, MERCHANT_OF, SHOP_POSTS, drawShopMark } from './trade.js';
 import { GemFx } from './gemfx.js';
@@ -179,6 +180,7 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let board = null, fovKick = 0;   // (the shield ridden: board.js; and how far its speed has widened the view)
 let chimes = null;   // the bell tower's bells at noon and midnight (belltower.js)
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
 let liveTorches = null;  // (WebGPU: the torches' maps of what moves, engine.js liveShadows)
@@ -433,6 +435,11 @@ async function build() {
   sfx.stinger = (k) => music.stinger(k);   // (a quest done: quests.js, through audio.js)      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
+  // Shield Boarding (board.js): jump and keep Space held, and the shield is under your feet
+  board = new Board({ scene, camera, vm, sfx, particles: magic.particles, surface: boardGround,
+    model: (id, finish) => vm.modelScene(id, finish), hooks: { onRam: boardRam, onCrash: boardCrash, onFirst: boardTip } });
+  player.board = board;
+  board.setShield(char.equip.offhand, char.equip.weapon?.kind !== 'twohand');
   // the bell tower on Bell Knoll rings noon and midnight; the Bellwright lifts his staff to it
   if (ctx.belltower) chimes = new Chimes(ctx, ctx.belltower, { sfx, particles: magic.particles, onRing: (kind, near) => {
     const orrin = villagers?.list.find((a) => a.keeperPost && a.tags.includes('bellwright'));
@@ -994,6 +1001,7 @@ function applyGear(first = false) {
     const held = vm.equip.R;   // (what was in the hand: a blade drawn, or put away, is heard)
     st = computeStats(char);
     const w = char.equip.weapon, o = char.equip.offhand;
+    board?.setShield(o, w?.kind !== 'twohand');   // (what's ridden: a two-hander's shield too, though it gives nothing)
     if (w) vm.setArm(w.kind, w.model, w.name, w.finish);
     if (o) vm.setArm(o.kind, o.model, o.name, o.finish);
     vm.equip.R = w ? w.kind : null;
@@ -1010,6 +1018,7 @@ function applyGear(first = false) {
     guard.v = first ? guard.max : Math.min(guard.v, guard.max);
     const g = char.equip.hands?.model || 'bare';
     if (vm.gauntlet !== g) await vm.load(g); else await vm.applyEquip();
+    if (board?.off && vm.equip.L) vm.stowLeft(true);   // (it's being ridden: the hand stays empty)
     if (!first) {
       const edged = (k) => k && k !== 'staff' && !BLUNT.test(char.equip.weapon?.model || char.equip.weapon?.kind || '');
       if (vm.equip.R !== held && vm.equip.R && edged(vm.equip.R)) sfx.unsheath();
@@ -1159,6 +1168,48 @@ function shieldShove() {
   if (hit.length) sfx.hit('blunt', true); else sfx.swing(true, true);
   shake = Math.max(shake, hit.length ? 0.8 : 0.5);   // (the shove's kick, landing or not)
   if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
+}
+// ------------------------------------------------------------------ Shield Boarding (board.js)
+/** What the shield rides on: the old snow lying high on the Sorrowhorn, or what the feet would tread. */
+function boardGround() {
+  const s = underfoot(), p = player.pos;
+  if (s === 'dirt' && p.y > 392 && board.n.y > 0.8 && physics.mountain?.covers(p.x, p.z)) return 'snow';
+  return s;
+}
+/** Ridden into fast: each foe in the way knocked flying and set reeling, hurt by how fast you came
+ * (at twenty metres a second, as hard as a blow of your weapon). Returns how many were struck. */
+function boardRam(pl, speed) {
+  const v = pl.vel, hs = Math.hypot(v.x, v.z) || 1, ux = v.x / hs, uz = v.z / hs;
+  const w = char.equip.weapon, roll = w?.dmg ? w.dmg[0] + Math.random() * (w.dmg[1] - w.dmg[0]) : 14;
+  let n = 0;
+  for (const z of zombies.list.concat(slimes.list)) {
+    if (z.dead || z.gone || z.state === 'buried' || z.state === 'playdead') continue;
+    const dx = z.pos.x - pl.pos.x, dz = z.pos.z - pl.pos.z, d = Math.hypot(dx, dz) || 1e-3;
+    if (d > 1.15 || Math.abs(z.pos.y - pl.pos.y) > 1.4 || (dx * ux + dz * uz) / d < 0.2) continue;
+    if (z.rammedAt && zombies.time - z.rammedAt < 0.8) continue;   // (once, not every frame you're in it)
+    z.rammedAt = zombies.time;
+    const b = z.bones?.chest || z.bones?.spine;
+    const dmg = roll * Math.min(1.6, (speed - 4) / 16) * (1 + (st.dmgPct || 0) / 100);
+    if (b) z.hit({ bone: b, point: b.getWorldPosition(new THREE.Vector3()), z }, { dmg, dir: new THREE.Vector3(ux, 0.35, uz), kind: 'blunt', heavy: speed > 16, push: 0.4 + speed * 0.04 });
+    reel(z, 0.9); shove(z, ux, uz, 0.8 + speed * 0.08);
+    n++;
+  }
+  if (n) { sfx.hit('blunt', speed > 16); shake = Math.max(shake, 0.4 + Math.min(0.8, speed / 30)); }
+  return n;
+}
+/** Head-on into a wall at speed: thrown off, and it hurts a little. */
+function boardCrash(speed) {
+  shake = Math.max(shake, 1.3);
+  sfx.clang(false); sfx.impact?.();
+  hurtPlayer((speed - 11) * 1.2 + 3, null, 'crash');
+  hud.toast('Thrown from your shield!', null);
+}
+/** The first few times you get on: how it's ridden. */
+function boardTip() {
+  let n = 0;
+  try { n = +localStorage.getItem('bm.boardTips') || 0; localStorage.setItem('bm.boardTips', String(n + 1)); } catch { /* private window */ }
+  if (n < 3) hud.toast(touch ? 'Shield boarding! Keep the jump button held to ride; tap it again to hop, let go to step off'
+    : 'Shield boarding! Keep Space held to ride · tap it again to hop · let go to step off', null);
 }
 function staffSweep() {
   if (sweepCool > 0 || vm.busy('R')) return;
@@ -1972,8 +2023,6 @@ function autoEquip(it) {
   if (i < 0) return;
   const slot = slotFor(char.equip, it);
   if (char.equip[slot]) return;
-  if (slot === 'offhand' && char.equip.weapon?.kind === 'twohand') return;
-  if (slot === 'weapon' && it.kind === 'twohand' && char.equip.offhand) return;
   bag.equipFromBag(i, slot);
 }
 
@@ -2468,8 +2517,12 @@ function step(dt) {
     camera.lookAt(0, 6, -60);
   }
 
-  vm.update(dt, acting ? player.speed : 0);
+  vm.update(dt, acting && !player.riding ? player.speed : 0);   // (on the shield the arms don't walk)
   camera.updateMatrixWorld();
+  if (board && started && !introBusy) {   // the shield ridden: under your feet, its spray and scrape (board.js)
+    board.draw(dt, player);
+    if (board.kick !== fovKick) { camera.fov += board.kick - fovKick; fovKick = board.kick; camera.updateProjectionMatrix(); }   // (speed widens the view)
+  }
   if (started && !introBusy) gemFx?.update(dt, camera, player);   // (after the hands have moved)
   // spells gathering in the hand before they leave it; a charged one holds there, growing,
   // until it's ready, then the cast plays on and lets it go
@@ -2676,7 +2729,7 @@ build().then(() => {
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
-    compiled: () => keepCompiled.stats(), liveTorches: () => liveTorches, cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
+    board: () => board, compiled: () => keepCompiled.stats(), liveTorches: () => liveTorches, cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

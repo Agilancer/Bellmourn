@@ -6,7 +6,7 @@
 // Drag a gem onto anything with an empty socket to set it there (or pick it from the gem's card);
 // double-click a plan to learn it. The spellbook is the second tab; the third is the materials
 // pouch and the plans you know (craft.js).
-import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats } from './gear.js';
+import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats, isTwoHanded } from './gear.js';
 import { GEMS, GRADES, gemName, gemBonus, gemPlace, freeSocket } from './gems.js';
 import { MATS, MAT_TIER, MAT_TIER_COLOR, RECIPES, PLAN_TIER, PLAN_COLOR, known, knows, check, learn, fitCraft } from './craft.js';
 import { ATTRS, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
@@ -243,10 +243,8 @@ export class Bag {
     const old = c.equip[to];
     c.equip[to] = it;
     c.bag[idx] = old || null;
-    // a two-hander takes both hands: the off-hand goes back in the bag (and a shield taken up
-    // puts a two-hander away)
-    if (to === 'weapon' && it.kind === 'twohand' && c.equip.offhand) this.stow('offhand');
-    if (to === 'offhand' && c.equip.weapon?.kind === 'twohand') this.stow('weapon');
+    // (a two-hander takes both hands, but a shield can still be carried with it: it gives nothing
+    // then, and is only ridden (Shield Boarding: board.js); gear.js computeStats leaves it out)
     this.sel = { where: 'equip', slot: to };
     this.changed();
     return true;
@@ -411,6 +409,7 @@ export class Bag {
       if (it) d.append(this.cellFor(it)); else d.append(el('span', 'lbl', SLOT_NAMES[s]));
       // a two-hander's shadow in the off-hand
       if (s === 'offhand' && !it && c.equip.weapon?.kind === 'twohand') { d.classList.add('ghosted'); d.append(this.cellFor(c.equip.weapon)); }
+      if (s === 'offhand' && it && isTwoHanded(c.equip.weapon)) d.classList.add('boardonly');   // (carried only to ride)
       this.wire(d, it ? { where: 'equip', slot: s } : null, () => this.unequip(s));
       doll.append(d);
     }
@@ -661,6 +660,10 @@ export function tooltip(it, opts = {}) {
       if (look) h += `<div class="tt-look">${esc(worn ? GEMS[look.gem].lookWorn : it.slot === 'hands' ? GEMS[look.gem].lookHands : GEMS[look.gem].look)}</div>`;
     }
     if (it.forged) h += `<div class="tt-forged">Forged at Hammerfall from the plans for ${esc(it.forged)}</div>`;
+    if (/shield/.test(it.kind || '')) {   // (Shield Boarding: board.js)
+      const ridden = opts.char && opts.char.equip.offhand === it && isTwoHanded(opts.char.equip.weapon);
+      h += `<div class="tt-ride">${ridden ? 'Carried with a two-hander: it gives nothing, and is only ridden' : 'Jump and hold Space to ride it'}</div>`;
+    }
     if (it.lore) h += `<div class="tt-sep"></div><div class="tt-lore">${esc(it.lore)}</div>`;
     h += `<div class="tt-price">${it.unique ? '<span class="tt-uniq">Unique</span> · ' : ''}Worth ${itemValue(it)} gold</div>`;
   } else if (it.type === 'gem') {

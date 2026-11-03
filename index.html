@@ -318,6 +318,9 @@
   .eslot, .bslot { position: relative; border: 1px solid #4a3620; background: rgba(0, 0, 0, .55); cursor: pointer; touch-action: none; }
   .eslot .lbl { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: 9px; color: #6d5a40; text-transform: uppercase; pointer-events: none; }
   .eslot.ghosted .icell { opacity: .3; filter: grayscale(1); }
+  .eslot.boardonly .icell { opacity: .55; filter: grayscale(.7); }   /* (a shield carried with a two-hander: only ridden) */
+  .eslot.boardonly::after { content: 'ride'; position: absolute; top: 2px; right: 3px; font-size: 9px; color: #9ad0ff; text-transform: uppercase; pointer-events: none; }
+  .tt-ride { color: #9ad0ff; font-size: 11px; margin-top: 4px; }
   .bagrid { display: grid; grid-template-columns: repeat(10, 44px); grid-auto-rows: 44px; gap: 3px; }
   .bslot.sel, .eslot.sel { outline: 2px solid #ffe2a0; }
   .icell { position: absolute; inset: 2px; display: grid; place-items: center; pointer-events: none; }

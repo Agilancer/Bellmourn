@@ -62,7 +62,7 @@ const SETTINGS = `
   <p class="t-note">Graphics, renderer and texels restart the game to take hold.</p>
   <div class="t-dbtns"><button class="t-btn" data-close><span>Done</span></button></div>`;
 
-const KEYS = [['W A S D', 'move'], ['Mouse', 'look'], ['Shift', 'run'], ['Space', 'jump'],
+const KEYS = [['W A S D', 'move'], ['Mouse', 'look'], ['Shift', 'run'], ['Space', 'jump'], ['Space (held)', 'jump and hold it: ride your shield'],
   ['Left click', 'right hand: swing, shoot'], ['Right click', 'left hand: block, swing, shoot'],
   ['F R X C V', 'cast the spells set to those keys'], ['Q &nbsp; Z', 'drink healing, mana'],
   ['E', 'open doors, search chests, speak'], ['1 – 5', 'quick-equip arms'],
