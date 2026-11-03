@@ -116,6 +116,7 @@ function triplanar(m, tile) {
         if (tw.x > 0.01) triC += sharpTexelGrad(map, tp.zy, tdx.zy, tdy.zy) * tw.x;
         if (tw.y > 0.01) triC += sharpTexelGrad(map, tp.xz + 0.37, tdx.xz, tdy.xz) * tw.y;
         if (tw.z > 0.01) triC += sharpTexelGrad(map, tp.xy + 0.71, tdx.xy, tdy.xy) * tw.z;
+        vec4 sampledDiffuseColor = triC;   // (as map_fragment names it: glowCracks reads it)
         diffuseColor *= triC;
       #endif`);
   };
