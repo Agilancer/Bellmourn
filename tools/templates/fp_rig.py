@@ -239,6 +239,42 @@ def _pose_arm(side, key):
             d = norm(f * math.cos(r) + up * math.sin(r))
     if not held:
         a = norm(a - d * np.dot(a, d))
+    kn = key.get("knuckle")
+    if kn is not None and not held:
+        # the fist turns about the handle (a wrist roll: fist and blade turn together, the blade
+        # never spins in the grip) so its knuckles, and the blade's edges in line with them, face
+        # `knuckle`; by `knuckle_w`. The wrist goes round the handle and the elbow follows.
+        # Either edge will do (the blade has two), so the fist turns the shorter way.
+        kv = np.asarray(kn, float)
+        kv = kv - d * np.dot(kv, d)
+        if np.linalg.norm(kv) > 1e-6:
+            if np.dot(kv, a) < 0:
+                kv = -kv
+            wk = float(key.get("knuckle_w", 1.0))
+            a = norm(a * (1 - wk) + norm(kv) * wk)
+            a = norm(a - d * np.dot(a, d))
+            w = g - a * HAND
+            # out of reach once rolled: the grip slides straight toward the eye (the camera is
+            # the origin), so every point of the sword stays where it was on screen
+            for t in (0.97, 0.94, 0.91, 0.88, 0.85, 0.82):
+                if np.linalg.norm(w - s) <= UPPER + FORE - 1e-3:
+                    break
+                g = np.asarray(key["G3"], float) * t
+                w = g - a * HAND
+            if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:
+                w = s + norm(w - s) * (UPPER + FORE - 1e-3)
+                g = w + a * HAND
+            e = solve_elbow(s, w, pole)
+    if key.get("tip_axis") and not held and key.get("weapon") in PROXY:
+        # the hit of a slash: wherever the fists ended up, the blade's tip is put on the
+        # crosshair's line (the camera's axis), the fist square to it as ever
+        L = PROXY[key["weapon"]]["tip"]
+        for _ in range(2):
+            ahead = g[2] + math.sqrt(max(L * L - g[0] ** 2 - g[1] ** 2, 0.01))
+            d = norm(np.array([0.0, 0.0, ahead]) - g)
+            a = norm(a - d * np.dot(a, d))
+            w = g - a * HAND
+        e = solve_elbow(s, w, pole)
     h = d  # the axis the fist closes around
     if held:
         h = np.cross(norm(np.cross(w - s, pole)), a)
