@@ -43,7 +43,8 @@ import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, ri
 import { SPOTS } from './region.js';
 import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
 import { Zombies, pieceSample } from './zombies.js';
-import { Foes } from './foes.js';
+import { Foes, REAVERS, REAVERS_PHONE } from './foes.js';
+import { populateReavers, populateMountainDead } from './reavers.js';
 import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
 import { CALLER, GATHER_CALLS, GATHER_AGAIN, GATHER_CHATTER, GATHER_LEAD, GATHER_LAG, GATHER_SIGHT, GATHER_TALK, GATHER_AWAY, gatherLines } from './lines/opening.js';
@@ -468,6 +469,7 @@ async function build() {
   ctx.say = (who, line) => hud.announce(who, line);
   ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
+  populateMountainDead(zombies, ctx.mountain, { touch });   // (the Hollow Tower's and the Pilgrims' Barrow's dead)
   zombies.populateWild([
     { x: POOL.x - 14, z: POOL.z + 18, r: 10, n: few(3), haunt: 'water' },                       // the falls' pool
     ...[3, 6, 8, 10].map((i) => ({ x: STREAM[i][0], z: STREAM[i][1], r: 7, n: few(2), haunt: 'water' })),   // down the stream
@@ -526,6 +528,8 @@ async function build() {
   foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
   foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
   foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => foes.populateMountain(ctx.mountain)).catch((e) => console.warn('the goat men', e));
+  // the Sorrowhorn's Red Scythe and bandits (reavers.js), made after the keep's Sworn (the library read once between them)
+  foes.reaversReady = (touch ? foes.beastsReady : foes.swornReady).then(() => foes.loadSworn(touch ? REAVERS_PHONE : REAVERS)).then(() => populateReavers(foes, ctx.mountain, { touch })).catch((e) => console.warn('the reavers', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => [...zombies.list, ...slimes.list].map((z) => z.ray(p, d, far)).filter(Boolean);

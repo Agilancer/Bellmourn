@@ -47,6 +47,9 @@ export const GIVERS = {
   Maud: { call: 'Elder Maud', post: [0, 0, 0] },
   Jory: { call: 'Jory the Herdsman', post: [0, 0, 0] },
   Tamsin: { call: 'Tamsin', post: [0, 0, 0] },
+  // the Mountain Wardens, in Greywatch Keep's court and at Cairnwatch's foot (holds.js)
+  Halvard: { call: 'Captain Halvard', post: [0, 0, 0] },
+  Edda: { call: 'Edda of Cairnwatch', post: [0, 0, 0] },
 };
 
 // ---------------------------------------------------------------------- the quests
@@ -217,6 +220,46 @@ QUESTS.push(
     done: "That's it. I'd know it anywhere. Listen.",
     objectives: [{ type: 'fetch', item: 'herdhorn', name: 'The old herding horn', at: 'summit', label: 'The old herding horn' }], map: 'summit', reward: { xp: 3200, gold: 260 } },
 );
+// the Mountain Wardens': the Red Scythe on the road and in the Wardens' own old keep, the Crowstep
+// bandits and the tithe they took, the dead at the Hollow Tower, the axes the reavers throw
+QUESTS.push(
+  { id: 'gw_scythes', giver: 'Halvard', title: 'Red on the Road', lvl: 10,
+    text: "Men in red leather, throwing axes from the rocks and singing while they do it. The Red Scythe. They came over the high passes in spring and they bleed this road white. Kill a dozen of them, anywhere, and I'll know it can be walked.",
+    brief: 'Slay twelve of the Red Scythe anywhere on the Sorrowhorn.', wait: 'Twelve. Watch the rocks above the road.',
+    done: "Twelve. You did in a week what we couldn't do in a season. Sit and eat, then I'll tell you about their witch.",
+    objectives: [{ type: 'kill', where: 'scythe', count: 12, label: 'Red Scythe slain' }], map: 'redfold', reward: { xp: 2600, gold: 200, potions: [['life', 3]] } },
+  { id: 'gw_kindler', giver: 'Halvard', title: 'The Kindler', lvl: 11, after: ['gw_scythes'],
+    text: "Their fire-callers answer to one woman. Ysolde, the Kindler. She burned the pilgrims' waystation with the pilgrims inside, and she keeps her fire at the Red Fold, up where the cliff is cut back. Put it out.",
+    brief: "Slay Ysolde the Kindler in the Red Fold, the Red Scythe's war camp.", wait: "The Red Fold. You'll see the smoke from the road.",
+    done: 'Her fire is out. The pilgrims can be buried now. I will see to it myself.',
+    objectives: [{ type: 'slay', who: 'ysolde', label: 'Ysolde the Kindler slain' }], map: 'redfold', reward: { xp: 3400, gold: 300 } },
+  { id: 'gw_hold', giver: 'Halvard', title: 'Scythe Hold', lvl: 12, after: ['gw_kindler'],
+    text: 'Hask Redhand took our upper keep in the first week. He hung my brother from its wall and calls it Scythe Hold now. He stands a head over any man here and throws an axe like a glance. I am asking you to kill him.',
+    brief: 'Slay Hask Redhand, Warlord of the Red Scythe, in Scythe Hold.', wait: 'Up the road past the Still Water. He wants to be found.',
+    done: 'Then the keep is ours again. Tomorrow I go up and cut my brother down.',
+    objectives: [{ type: 'slay', who: 'hask', label: 'Hask Redhand slain' }], map: 'scythehold', reward: { xp: 5200, gold: 520, potions: [['life', 4], ['mana', 4]] } },
+  { id: 'gw_crowstep', giver: 'Halvard', title: 'The Crowstep Tithe', lvl: 9,
+    text: "The Crowstep lot were here before the Red Scythe, and they grow fat on what the Scythe leaves. They took the old watchtower above the road, and our tithe chest with it. Clear them out, Old Corrick too, and bring the chest back.",
+    brief: "Kill the bandits holding Crowstep Tower, Old Corrick with them, and bring the Wardens' tithe chest back to Captain Halvard.", wait: 'Up the path off the road, past the first bend.',
+    done: 'Still locked. Corrick never could pick a lock. It goes down to Bellmourn with the next patrol.',
+    objectives: [{ type: 'kill', where: 'crowstep', count: 'all', label: 'The Crowstep bandits killed' }, { type: 'fetch', item: 'tithe', name: "The Wardens' tithe chest", at: 'crowstep', label: 'The tithe chest' }],
+    map: 'crowstep', reward: { xp: 2200, gold: 260 } },
+  { id: 'cw_hollow', giver: 'Edda', title: 'The Last Watch', lvl: 11,
+    text: 'See the broken tower on the shoulder? The old watch buried their own round it, and since the autumn they walk again. My grandmother is up there. Lay them down.',
+    brief: 'Lay down the dead walking round the Hollow Tower.', wait: "They don't go far from the tower. They never did.",
+    done: "Thank you. They say the last captain's chest is still at the top. Nobody has climbed it since the stair fell.",
+    objectives: [{ type: 'kill', where: 'hollow', count: 'all', label: 'The old watch laid down' }], map: 'hollowtower', reward: { xp: 3000, gold: 220 } },
+  { id: 'cw_bandits', giver: 'Edda', title: 'Eyes on the Road', lvl: 9,
+    text: "From up here I see every bandit behind every rock on the road. I can't reach them; you can. Eight of them. Mind the ones above the road: they let you pass, then come down behind you.",
+    brief: 'Kill eight crag bandits anywhere on the Sorrowhorn.', wait: 'Eight. Look up when the road narrows.',
+    done: 'Eight. I watched you take the last two. Next time, look up sooner.',
+    objectives: [{ type: 'kill', where: 'bandits', count: 8, label: 'Crag bandits killed' }], map: 'cairnwatch', reward: { xp: 2000, gold: 170 } },
+  { id: 'cw_axes', giver: 'Edda', title: 'Thrown Iron', lvl: 10, after: ['cw_bandits'],
+    text: "The Red Scythe's throwing axes are better iron than ours, and they leave them in the road like litter. Bring me five off the reavers who throw them. The smith at Greywatch will make arrowheads of them.",
+    brief: 'Take five throwing axes from the Red Scythe and bring them to Edda.', wait: 'Five. Take them from their belts, not your back.',
+    done: "Five. Arrowheads for a month. There's a kind of justice in it.",
+    objectives: [{ type: 'drop', item: 'scytheaxe', name: 'Red Scythe throwing axes', count: 5, from: 'scythe', label: 'Throwing axes' }], map: 'cairnwatch', reward: { xp: 2300, gold: 210, potions: [['life', 3]] } },
+);
 const BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
 
 // the champions: one of the dead grown huge, in its place below ground
@@ -249,6 +292,7 @@ function places(ctx) {
       gorehoof: { x: ctx.mountain.camps[3].x, z: ctx.mountain.camps[3].z, r: 18, name: "Gorehoof's Shelf" },
       glimmer: { ...m(cave('The Glimmerdeep')), r: 0, name: 'The Glimmerdeep' },
       summit: { x: ctx.mountain.summitSite.x, z: ctx.mountain.summitSite.z, r: 20, name: 'The summit of the Sorrowhorn' },
+      ...Object.fromEntries((ctx.mountain.holds || []).map((h) => [h.id, { x: h.x, z: h.z, r: h.r0, name: h.name }])),
     } : {}),
   };
 }
@@ -268,6 +312,8 @@ const ITEM_LOOK = {
   ramhorn: { color: 0xd8c8a8, glow: [1.0, 0.9, 0.7], shape: 'shard' },
   snowbloom: { color: 0xf0f8ff, glow: [0.7, 0.9, 1.4], shape: 'flower' },
   herdhorn: { color: 0xc8a878, glow: [1.2, 1.0, 0.6], shape: 'shard' },
+  tithe: { color: 0x6a4a2a, glow: [1.2, 1.0, 0.5], shape: 'box' },
+  scytheaxe: { color: 0x8a2a20, glow: [1.3, 0.5, 0.3], shape: 'shard' },
 };
 function itemModel(kind) {
   const L = ITEM_LOOK[kind], g = new THREE.Group();
@@ -409,6 +455,9 @@ export class Quests {
       case 'goats': return /^goat_/.test(z.variant || '');
       case 'gorehoof': { const g = c.mountain?.camps?.[3]; return /^goat_/.test(z.variant || '') && !!g && Math.hypot(z.home.x - g.x, z.home.z - g.z) < 22; }
       case 'glimmer': return nm === 'The Glimmerdeep';
+      case 'scythe': return z.def?.faction === 'scythe';
+      case 'bandits': return z.def?.faction === 'bandit';
+      case 'crowstep': case 'hollow': case 'redfold': case 'scythehold': return z.band === where;
       default: return false;
     }
   }
