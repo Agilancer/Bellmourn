@@ -35,8 +35,8 @@ function bake(foes, v, clip, frac, weapon, shield) {
     for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos, i); o.applyBoneTransform(i, _v); _v.applyMatrix4(o.matrixWorld); out.set([_v.x, _v.y, _v.z], i * 3); }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(out, 3));
-    if (src.index) geo.setIndex(src.index.clone());
-    parts.push(geo.toNonIndexed());
+    geo.setIndex(src.index ? src.index.clone() : [...Array(pos.count).keys()]);
+    parts.push(geo);
   });
   // what it holds, where the foes would hold it
   for (const [sock, id] of [['gripR', weapon], ['shieldL', shield]]) {
@@ -48,7 +48,7 @@ function bake(foes, v, clip, frac, weapon, shield) {
     const holder = new THREE.Group(); s.m.decompose(holder.position, holder.quaternion, holder.scale);
     const obj = it.clone(); if (sock === 'shieldL') obj.position.z = foes.lift(v, id, it);
     holder.add(obj); bone.add(holder); scene.updateMatrixWorld(true);
-    obj.traverse((m) => { if (!m.isMesh) return; const geo = m.geometry.clone(); geo.applyMatrix4(m.matrixWorld); for (const k of Object.keys(geo.attributes)) if (k !== 'position') geo.deleteAttribute(k); parts.push(geo.index ? geo.toNonIndexed() : geo); });
+    obj.traverse((m) => { if (!m.isMesh) return; const geo = m.geometry.clone(); geo.applyMatrix4(m.matrixWorld); for (const k of Object.keys(geo.attributes)) if (k !== 'position') geo.deleteAttribute(k); if (!geo.index) geo.setIndex([...Array(geo.attributes.position.count).keys()]); parts.push(geo); });
   }
   mixer.stopAllAction();
   for (const p of parts) for (const k of Object.keys(p.attributes)) if (k !== 'position') p.deleteAttribute(k);
@@ -78,7 +78,7 @@ function plinthGeo() {
 export function raiseStatues(ctx, foes, M, { touch = false } = {}) {
   const spots = [...(ctx.temple?.statues || []), ...(ctx.details?.statues || [])].filter((_, i) => !touch || i % 2 === 0);
   if (!spots.length) return 0;
-  const stone = M('castle_keep_ivory_chapel_marble', 1.2, { tint: 0xb4aea4, tri: true }), plinthM = M('castle_basalt', 1.2, { tint: 0x6a6460, tri: true });
+  const stone = M('castle_keep_ivory_chapel_marble', 1.2, { tint: 0xece6dc, tri: true }), plinthM = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0xaaa49a, tri: true });   // (pale marble on pale stone: they read against the dark)
   const made = new Map(), plinth = plinthGeo(), PH = 1.47, group = new THREE.Group();
   let n = 0;
   spots.forEach((s, i) => {

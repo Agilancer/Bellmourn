@@ -1506,7 +1506,7 @@ function light(dt, t) {
   const k = Math.min(1, dt * 2.5);
   L.out += ((z.kind === 'out' ? 1 : 0) - L.out) * k;
   L.under += ((z.kind === 'under' ? 1 : 0) - L.under) * k;
-  L.inCathedral += ((z.name.startsWith('Cathedral') ? 1 : 0) - L.inCathedral) * k;
+  L.inCathedral += ((z.name.startsWith('Cathedral') || z.name === 'The Temple of Velscour' || z.name === 'The Crypt of the Oath' ? 1 : 0) - L.inCathedral) * k;   // (the temple and its crypt lit as the cathedral is: their shapes read)
   L.open += ((z.open ? 1 : 0) - L.open) * k * 0.5; // the downs: see a long way
   L.fog += ((z.fog || 46) - L.fog) * k * 0.6;        // a great space below: see across it
   L.amb += ((z.amb || 0) - L.amb) * k * 0.6;         // (and a faint cold glow in the gulf)

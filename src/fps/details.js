@@ -93,6 +93,8 @@ function ruin(b, M, ctx, x, z, k, row = false) {
       o.cylinder([px - Math.sin(a) * 0.6 * d, 0.45, pz + Math.cos(a) * 0.6 * d], [px + Math.sin(a) * 0.6 * d, 0.45, pz - Math.cos(a) * 0.6 * d], 0.44, 12, marble);
     }
     o.box([R * 0.2 - 0.8, 0.2, -R * 0.3 - 0.8], [R * 0.2 + 0.8, 0.75, -R * 0.3 + 0.8], marble);   // (a capital, upside down in the grass)
+    for (let i = 0; i < 9; i++) { const a = i * 0.7 + k, r = (row ? 2 : R) * (0.6 + (i % 3) * 0.3), s = 0.22 + (i % 4) * 0.1;   // (rubble where they broke)
+      o.blob([Math.cos(a) * r, s * 0.4, Math.sin(a) * r], [s * 1.4, s * 0.7, s], marble, { detail: 0, jitter: 0.35, seed: 1600 + k * 13 + i }); }
   }, { solid: false });
   for (const [px, pz] of spots) { const c = Math.cos(rot), s = Math.sin(rot), wx = x + px * c + pz * s, wz = z - px * s + pz * c; ctx.physics.add([wx - 0.55, y, wz - 0.55], [wx + 0.55, y + 2.5, wz + 0.55], 'pillar'); }
 }
@@ -146,8 +148,8 @@ export function layDetails(ctx, M) {
     tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 330 + rnd() * 260; return [Math.cos(a) * r, Math.sin(a) * r]; }, 12, (x, z, n) => {
       if (!S.covers(x, z) || S.slopeAt(x, z) > 0.5) return; outcrop(b, M, x, S.heightAt(x, z), z, 3 + rnd() * 3, n + 40); stats.outcrops++; });
     // groves of broadleaf round the mountain's feet: on its lowest, gentlest ground
-    tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 312 + rnd() * 200; return [Math.cos(a) * r, Math.sin(a) * r]; }, 18, (x, z, n) => {
-      if (!S.covers(x, z) || S.heightAt(x, z) > 75 || S.slopeAt(x, z) > 0.35) return; grove(ctx, M, x, z, 6 + (n % 5), n); stats.groves++; });
+    tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 312 + rnd() * 240; return [Math.cos(a) * r, Math.sin(a) * r]; }, 18, (x, z, n) => {
+      if (!S.covers(x, z) || S.heightAt(x, z) > 120 || S.slopeAt(x, z) > 0.55) return; grove(ctx, M, x, z, 6 + (n % 5), n); stats.groves++; });
   }
   // the old ruins: in Darkwood clearings, on the downs, one in the foothills
   const ruinSpots = [[-150, -205, true], [205, -95, false], [520, 175, false], [420, -200, true], [-120, 200, false]];

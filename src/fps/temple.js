@@ -41,7 +41,7 @@ function facet(b, M, mat, ax, az, bx, bz, y0, y1, t, physics) {
 export function buildTemple(ctx, M) {
   const { b, physics } = ctx, g = terrainHeight(0, 240), F = g + UP;
   const stone = M('castle_keep_rough_battlement_block', 2.4, { tint: 0x5a5250 }), dark = M('castle_basalt', 1.2, { tint: 0x3a3434 });
-  const floorM = M('cathedral_graveyard_nave_flagstone', 1.8, { tint: 0x7a6e6a }), roof = M('castle_roof_black', 1.6, { tint: 0x504a50 }), gold = M('gold_01_beaten_antique_gold', 1);
+  const floorM = M('cathedral_graveyard_nave_flagstone', 1.8, { tint: 0x7a6e6a }), roof = M('castle_roof_black', 1.6, { tint: 0x7a7480 }), gold = M('gold_01_beaten_antique_gold', 1);
   const crypt = M('castle_basalt', 1.4, { tint: 0x6a6460 }), bone = M('castle_keep_ivory_chapel_marble', 0.6, { tint: 0xb8a888 });
   const T = { ...TEMPLE, g, floor: F, statues: [], knights: [], dead: [], flames: [] };
   const flame = (x, y, z, s = 0.4) => { ctx.scatter?.place('brazier', x, y, z, 1.3); ctx.flames.push([x, y + 1.1, z, s, 1]); };
@@ -67,8 +67,13 @@ export function buildTemple(ctx, M) {
   for (const s of [-1, 1]) b.box([s > 0 ? HX : -HX - 0.3, F, HZ0], [s > 0 ? HX + 0.3 : -HX, F + 1.0, HZ1], dark);   // (its parapet: open toward the door)
   b.box([-HX - 0.3, F, HZ1], [HX + 0.3, F + 1.0, HZ1 + 0.3], dark);
   // the grand stair up the podium's front, braziers at its head, statues at its foot
-  b.stairs(0, Z0 - 12, g, UP, 9, '+z', stone, { step: 0.25, run: 0.5 });
-  for (const s of [-1, 1]) { b.box([s * 4.5 - (s > 0 ? 0 : 1), g, Z0 - 12], [s * 4.5 + (s > 0 ? 1 : 0), g + 1.0, Z0], dark); flame(s * 4, F, Z0 + 2.2, 0.45); T.statues.push({ x: s * 7, z: Z0 - 10.5, y: g, yaw: Math.PI, kind: 'knight', plinth: true }); }
+  const pale = M('castle_keep_pale_keep_limestone', 1.4, { tint: 0x9a948c });
+  b.stairs(0, Z0 - 12, g, UP, 9, '+z', pale, { step: 0.25, run: 0.5 });
+  for (const s of [-1, 1]) {   // (flame-bowls on pylons at the stair's foot)
+    b.box([s * 6.2 - 0.5, g, Z0 - 13.2], [s * 6.2 + 0.5, g + 3.4, Z0 - 12.2], pale);
+    flame(s * 6.2, g + 3.4, Z0 - 12.7, 0.5);
+  }
+  for (const s of [-1, 1]) { b.box([s * 4.5 - (s > 0 ? 0 : 1), g, Z0 - 12], [s * 4.5 + (s > 0 ? 1 : 0), g + 1.0, Z0], pale); flame(s * 4, F, Z0 + 2.2, 0.45); T.statues.push({ x: s * 7, z: Z0 - 10.5, y: g, yaw: Math.PI, kind: 'knight', plinth: true }); }
   // the towers at its front corners, octagonal, roofed black, and the back corners' lower ones
   for (const [cx, cz, top] of [[X0, Z0 + 2, F + 22], [X1, Z0 + 2, F + 22], [X0, Z1, F + 8], [X1, Z1, F + 8]]) {
     b.ring(cx, cz, 3.4, g - 1, top, 8, stone);
@@ -87,6 +92,10 @@ export function buildTemple(ctx, M) {
   b.box([-3.1, F, NZ0 - 0.9], [-2.6, F + 7, NZ0 - 0.5], dark, { solid: false }); b.box([2.6, F, NZ0 - 0.9], [3.1, F + 7, NZ0 - 0.5], dark, { solid: false });
   b.box([-3.1, F + 6.5, NZ0 - 0.9], [3.1, F + 7.2, NZ0 - 0.5], dark, { solid: false });
   for (const s of [-1, 1]) b.place(0, 0, 0, 0, 1, (o) => o.beam([s * 3.4, F + 13.2, NZ0 - 0.75], [0, F + 8.2, NZ0 - 0.75], 0.5, 0.25, gold), { solid: false });
+  for (const s of [-1, 1]) {   // (the portal: deep jambs either side of the door, a pointed arch over it)
+    b.box([s > 0 ? 2.65 : -4.15, F, NZ0 - 2.6], [s > 0 ? 4.15 : -2.65, F + 7.4, NZ0 - 0.6], stone);
+    b.place(0, 0, 0, 0, 1, (o) => { o.beam([s * 3.4, F + 7.4, NZ0 - 1.6], [0, F + 10.4, NZ0 - 1.6], 0.9, 1.9, stone); o.beam([s * 2.7, F + 7.0, NZ0 - 2.65], [0, F + 9.6, NZ0 - 2.65], 0.18, 0.2, gold); }, { solid: false });
+  }
   for (const s of [-1, 1]) b.place(s * 7, F + 11, NZ0 - 0.7, Math.PI, 1, (o) => {
     o.box([-1.2, -6.2, -0.04], [1.2, 0, 0.04], M('cloth_04_aged_cream_linen', 0.6, { tint: 0x6a0e0c }));
     o.beam([-0.7, -1.6, -0.08], [0, -4.4, -0.08], 0.22, 0.03, gold); o.beam([0.7, -1.6, -0.08], [0, -4.4, -0.08], 0.22, 0.03, gold);
@@ -94,7 +103,8 @@ export function buildTemple(ctx, M) {
   // the apse: half an octagon behind the nave, its roof a cone
   { const R = 12, cz = NZ1, v = [[NW, cz], ...[22.5, 67.5, 112.5, 157.5].map((a) => [Math.cos(a * Math.PI / 180) * R, cz + Math.sin(a * Math.PI / 180) * R]), [-NW, cz]];
     for (let i = 0; i + 1 < v.length; i++) facet(b, M, stone, v[i][0], v[i][1], v[i + 1][0], v[i + 1][1], F, F + 14, 1.2, physics);
-    b.cone(0, cz, R + 1, F + 14, 7, 8, roof); }
+    b.cone(0, cz, R + 1, F + 14, 7, 8, roof);
+    b.box([-R - 0.8, F + 13.8, cz - 0.8], [R + 0.8, F + 14.3, cz + R + 0.8], dark, { solid: false }); }   // (its ceiling: the cone is drawn for the outside only)
   // inside: two rows of columns, the aisles' statues between them, braziers at the columns' feet
   for (let z = NZ0 + 6; z < HZ0; z += 6) for (const s of [-1, 1]) {
     const x = s * 7.2;
@@ -104,6 +114,11 @@ export function buildTemple(ctx, M) {
     if (z < HZ0 - 4) T.statues.push({ x: s * 10, z: z + 3, y: F, yaw: s > 0 ? -Math.PI / 2 : Math.PI / 2, kind: 'knight', plinth: true });
   }
   flame(-7.2, F + 0.6, NZ0 + 2.4); flame(7.2, F + 0.6, NZ0 + 2.4);
+  { const run = M('cathedral_graveyard_nave_flagstone', 1.4, { tint: 0xc4b8ac });     // (a pale runner from the door to the dais: the way to the altar)
+    b.box([-1.7, F, NZ0 - 0.4], [1.7, F + 0.03, HZ0 - 0.4], run, { solid: false });
+    b.box([-1.7, F, HZ1 + 0.4], [1.7, F + 0.03, NZ1 - 1], run, { solid: false });
+    for (const s of [-1, 1]) b.box([s > 0 ? HX + 0.4 : -1.7 - 0.4, F, HZ0 - 0.4], [s > 0 ? 1.7 + 0.4 + 2 : -HX - 0.4, F + 0.03, HZ1 + 0.4], run, { solid: false }); }
+  for (const z of [NZ0 + 10, NZ0 + 22]) for (const s of [-1, 1]) flame(s * 4.6, F, z, 0.36);   // (down the nave, the way to the altar lit)
   // the apse: a dais of three steps, the altar, the great gilded V, braziers either side
   for (let k = 0; k < 3; k++) b.box([-7 + k, F + k * 0.25, NZ1 - 1 + k * 0.8], [7 - k, F + (k + 1) * 0.25, NZ1 + 9 - k * 0.5], dark);
   b.box([-1.8, F + 0.75, NZ1 + 3.4], [1.8, F + 1.9, NZ1 + 5.2], dark);
@@ -129,6 +144,7 @@ export function buildTemple(ctx, M) {
     for (let t = 0; t < 3; t++) b.box([s > 0 ? x - 0.5 : x, C0 + 0.4 + t * 1.25, z - 0.85], [s > 0 ? x : x + 0.5, C0 + 0.48 + t * 1.25, z + 0.85], crypt, { solid: false });
     if ((z | 0) % 3 === 0) ctx.scatter?.place('skull_pile', x - s * 0.3, C0 + 1.73, z, 0.6);
   }
+  for (const [x, z] of [[-11, 230], [11, 236], [-11, 246], [11, 252], [-6, 268], [6, 268]]) ctx.scatter?.place('bone_pile', x, C0, z, 1);
   // sarcophagi down the galleries (where some of the dead lie waiting), the tomb on its dais
   for (const [x, z] of [[-9, 226], [9, 232], [-9, 240], [9, 248], [-9, 254], [9, 224]]) ctx.scatter?.place(z % 2 ? 'sealed_sarcophagus' : 'broken_sarcophagus', x, C0, z, 1.1, 0);
   b.box([-4.5, C0, Z1 - 9], [4.5, C0 + 0.5, Z1 - 3], dark);
