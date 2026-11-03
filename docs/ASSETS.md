@@ -99,7 +99,7 @@ goes live as soon as Bellmourn2's Pages build finishes, without a Bellmourn PR.
 | | Bellmourn tracked | Bellmourn published | Bellmourn2 tracked |
 |---|---|---|---|
 | Before (e0d6222) | 1,057.2 MiB | 925.1 MiB | 0.9 MiB |
-| After | 374.7 MiB | 242.6 MiB | 683.4 MiB |
+| After | 374.7 MiB | 242.7 MiB | 683.4 MiB |
 
 Measure with `git ls-tree -r -l origin/main` (sum the sizes; skip paths with a part starting with
 `_` for the published figure).
