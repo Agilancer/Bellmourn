@@ -68,7 +68,7 @@ export class Axes {
     // turning end over end: about the axis across its flight
     const spin = new THREE.Vector3(v.z, 0, -v.x).normalize();
     F.scene.add(g);
-    this.list.push({ g, v, spin, w: 15 + Math.random() * 5, life: 4, by: f, dmg: f.kind.dmg.throw ?? 12, stuck: 0, whir: 0 });
+    this.list.push({ g, v, spin, w: 15 + Math.random() * 5, life: 4, by: f, dmg: f.kind.dmg.throw ?? 12, stuck: 0, whir: 0, flown: 0 });
     F.sound('swing', from, 'knight');
     return true;
   }
@@ -98,8 +98,10 @@ export class Axes {
         this.drop(a);
         continue;
       }
-      const hit = ph.ray([p.x, p.y, p.z], [d.x, d.y, d.z], step);
-      const fl = zb.floorY(p.x, p.z, p.y + 0.4);
+      // (clear of the thrower and whatever he stood beside before it can hit anything but you)
+      a.flown += step;
+      const hit = a.flown > 1.2 ? ph.ray([p.x, p.y, p.z], [d.x, d.y, d.z], step) : null;
+      const fl = a.flown > 1.2 ? zb.floorY(p.x, p.z, p.y + 0.4) : -Infinity;
       if (hit || p.y + d.y * step < fl + 0.05) {                               // it bites in where it lands
         if (hit) p.addScaledVector(d, Math.max(0, hit.t - 0.1)); else p.y = fl + 0.12;
         a.stuck = 8; zb.sfx?.clang?.(false);

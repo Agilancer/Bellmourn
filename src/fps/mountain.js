@@ -185,7 +185,7 @@ const HOLDS = [
   [0.902, 'cairnwatch', 'Cairnwatch', 'tower', 'out', 'wardens'],
 ];
 // small bands up short side paths off the road: [how far along, name, who]
-const LEDGES = [
+const SIDE_LEDGES = [
   [0.062, 'The Seep', 'slimes'], [0.132, "Brigands' Nook", 'bandit'], [0.385, 'Thornback Ledge', 'goats'],
   [0.455, 'The Red Lookout', 'scythe'], [0.575, "The Pilgrims' Barrow", 'dead'], [0.708, 'Kettle Rock', 'bandit'],
   [0.778, 'The Scorched Ledge', 'scythe'],
@@ -265,7 +265,7 @@ function planHolds(S) {
     S.holds.push(site); S.shelves.push(site);
     if (site.path) S.trails.push(site.path);
   }
-  for (const [want, name, folk] of LEDGES) {
+  for (const [want, name, folk] of SIDE_LEDGES) {
     const site = place(want, 6.5, 12, 'in', { id: name, name, kind: 'ledge', folk });
     if (!site) { console.warn('the Sorrowhorn: no room for', name); continue; }
     S.ledges.push(site); S.shelves.push(site);
