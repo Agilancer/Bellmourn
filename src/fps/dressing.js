@@ -326,6 +326,42 @@ export function dressWorld(ctx, M, json) {
   return meshes;
 }
 
+// ------------------------------------------------------------------ the horizon
+/** Far ridges all round, so the world doesn't end in grey: two bands of hills two kilometres and more
+ * off, kept centred on you (too far for you to close on them), drawn first and never written to the
+ * depth (so everything in the world stands in front of them), coloured a shade into the haze (the
+ * nearer band darker), and gone below ground. */
+export class Horizon {
+  constructor(scene) {
+    this.rings = [[2050, 0.8, 140, 11], [2280, 0.9, 210, 23]].map(([R, k, h, seed]) => {
+      const N = 192, P = [], I = [];
+      let s = seed; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      const amp = Array.from({ length: 7 }, () => rnd()), ph = Array.from({ length: 7 }, () => rnd() * 6.28);
+      for (let i = 0; i <= N; i++) {
+        const a = i / N * Math.PI * 2;
+        let y = 0;
+        for (let o = 0; o < 7; o++) y += Math.abs(Math.sin(a * (2 + o * 3) + ph[o])) * amp[o] / (1 + o * 0.7);   // (ridged: sharp crests)
+        y = h * (0.25 + 0.75 * Math.min(1, y / 2.2));
+        P.push(Math.cos(a) * R, -120, Math.sin(a) * R, Math.cos(a) * R, y, Math.sin(a) * R);
+        if (i < N) { const b = i * 2; I.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x8090a0, fog: false, depthWrite: false, side: THREE.DoubleSide }));
+      m.renderOrder = -9; m.frustumCulled = false; m.userData.k = k;
+      scene.add(m);
+      return m;
+    });
+    this.c = new THREE.Color();
+  }
+  update(camera, fog, under) {
+    for (const m of this.rings) {
+      m.visible = under < 0.5;
+      m.position.set(camera.position.x, 0, camera.position.z);
+      m.material.color.copy(fog).multiplyScalar(m.userData.k).lerp(this.c.setRGB(0.32, 0.38, 0.48), 0.12);
+    }
+  }
+}
+
 // ------------------------------------------------------------------ particles
 /** Snow off the horn (high on the Sorrowhorn), motes in the caves' torchlight, embers off the camp
  * fires: three small clouds of glowing points kept about you, each only where it belongs. */
@@ -336,10 +372,17 @@ export class Motes {
     this.snow = make(touch ? 240 : 600, 0.14);
     this.dust = make(touch ? 60 : 120, 0.05);
     this.embers = make(touch ? 50 : 110, 0.07);
+    this.spores = make(touch ? 70 : 150, 0.05);
     this.fires = [];
   }
-  update(dt, t, camera, under, day) {
+  update(dt, t, camera, under, day, wood = 0) {
     const cp = camera.position, S = this.ctx.mountain;
+    // spores: under the Darkwood's canopy, hanging and turning in the still air, catching what light gets in
+    this.run(this.spores, !under && wood > 0.4, (f, i, init) => {
+      if (init || Math.hypot(f.x - cp.x, f.z - cp.z) > 14 || Math.abs(f.y - cp.y) > 5) { const a = Math.random() * 6.28, r = 2 + Math.random() * 12; f.x = cp.x + Math.cos(a) * r; f.z = cp.z + Math.sin(a) * r; f.y = cp.y - 1.2 + Math.random() * 4; }
+      f.x += Math.sin(t * 0.21 + f.ph) * 0.1 * dt; f.y += (Math.sin(t * 0.33 + f.ph * 3) * 0.05 - 0.015) * dt; f.z += Math.cos(t * 0.17 + f.ph) * 0.1 * dt;
+      return (0.16 + 0.1 * Math.sin(t * 0.9 + f.ph)) * Math.min(1, wood * 1.5) * (0.4 + 0.6 * day);
+    }, [0.85, 1.0, 0.75]);
     // snow: above 380 m out of doors, blown across the horn
     this.run(this.snow, !under && cp.y > 370, (f, i, init) => {
       if (init || Math.hypot(f.x - cp.x, f.z - cp.z) > 26 || f.y < cp.y - 6) { const a = Math.random() * 6.28, r = Math.random() * 24; f.x = cp.x + Math.cos(a) * r; f.z = cp.z + Math.sin(a) * r; f.y = cp.y + 3 + Math.random() * 9; }

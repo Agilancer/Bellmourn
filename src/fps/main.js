@@ -71,7 +71,7 @@ import { makeCharm, hasAbility, CHARMS } from './charms.js';
 import { Chimes } from './belltower.js';
 import { buildUndershrine } from './undershrine.js';
 import { buildMountain, buildMountainCaves, buildMountainVillage, mountainPortals } from './mountain.js';
-import { loadDressing, dressWorld, Motes } from './dressing.js';
+import { loadDressing, dressWorld, Motes, Horizon } from './dressing.js';
 import { setMountain } from './terrain.js';
 
 const touch = TOUCH;
@@ -397,6 +397,7 @@ async function build() {
   ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
   ctx.motes = new Motes(scene, ctx, touch);   // (snow off the horn, motes in the caves, embers off the fires)
+  ctx.horizon = new Horizon(scene);           // (far ridges all round: the world doesn't end in grey)
   ctx.motes.fires = ctx.fires || [];
 
   const manifest = await (await fetch(asset('templates/models/manifest.json'))).json();
@@ -1418,7 +1419,8 @@ function zoneAt(p) {
   return { name: 'Bellmourn', kind: 'out' };
 }
 
-const L = { out: 1, under: 0, inCathedral: 0, open: 0, fog: 46, amb: 0 }; // smoothed zone weights (and how far you see underground)
+const L = { out: 1, under: 0, inCathedral: 0, open: 0, fog: 46, amb: 0, wood: 0 };
+const WOOD_FOG = new THREE.Color(), WOOD_TINT = new THREE.Color(0.62, 0.78, 0.64); // smoothed zone weights (and how far you see underground)
 // the Glimmerstone's light: a witch-light that goes with you below ground (off, it's far under the world)
 const GLIMMER = Object.assign([0, -9999, 0, 0.3, true], { color: 0x9ad8ff, witch: true, follow: true, range: 9, power: 2.6 });
 let billLights = null;
@@ -1440,6 +1442,7 @@ function light(dt, t) {
   L.open += ((z.open ? 1 : 0) - L.open) * k * 0.5; // the downs: see a long way
   L.fog += ((z.fog || 46) - L.fog) * k * 0.6;        // a great space below: see across it
   L.amb += ((z.amb || 0) - L.amb) * k * 0.6;         // (and a faint cold glow in the gulf)
+  L.wood += ((z.name === 'The Darkwood' ? 1 : 0) - L.wood) * k * 0.4;   // (under the Darkwood's canopy: the air closes in)
   const indoor = Math.max(0, 1 - L.out - L.under);
   const surface = 1 - L.under; // underground nothing but torches and spells
 
@@ -1471,14 +1474,16 @@ function light(dt, t) {
   }
   hemi.color.copy(day.zenith).lerp(WHITE, 0.55);
   hemi.groundColor.copy(day.horizon).multiplyScalar(0.3);
-  hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15;
+  hemi.intensity = day.ambient * (L.out + (0.55 + 0.45 * L.inCathedral) * indoor) * surface * 1.15 * (1 - 0.28 * L.wood);
   if (L.amb > 0.002 && L.under > 0.5) {   // below: the gulf's glow, from its stream and its fungus
     hemi.color.setRGB(0.47, 0.58, 0.6); hemi.groundColor.setRGB(0.1, 0.14, 0.15);
     hemi.intensity += L.amb * L.under;
   }
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
+  if (L.wood > 0.01) scene.fog.color.lerp(WOOD_FOG.copy(day.fog).multiply(WOOD_TINT), 0.5 * L.wood);   // (green-grey under the canopy)
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + L.fog * L.under;   // (a phone draws less of the distance)
+  if (L.wood > 0.01) { scene.fog.far *= 1 - 0.42 * L.wood; scene.fog.near *= 1 - 0.6 * L.wood; }   // (the Darkwood: you don't see far between its trunks)
   // high on the Sorrowhorn the air is clear and the land shows a long way off (and the camera draws it)
   { const alt = Math.max(0, camera.position.y - 30) * (1 - L.under);
     if (alt > 0) scene.fog.far += Math.min(touch ? 900 : 2300, alt * (isDay ? 7 : 2.4));
@@ -2545,7 +2550,8 @@ function step(dt) {
   ctx.tufts.update(t);
   ctx.crater.update(dt, t, camera);
   ctx.fireflies.update(dt, t, camera, 1 - day.day, L.under > 0.5 || camera.position.y < physics.groundAt(camera.position.x, camera.position.z) - 1);
-  ctx.motes?.update(dt, t, camera, L.under > 0.5, day.day);
+  ctx.motes?.update(dt, t, camera, L.under > 0.5, day.day, L.wood);
+  ctx.horizon?.update(camera, scene.fog.color, L.under);
   // the crater's glow (the opening has the light while it runs)
   if (!intro?.running) {
     const fl = 0.8 + 0.2 * Math.sin(t * 7.1) * Math.sin(t * 3.3);

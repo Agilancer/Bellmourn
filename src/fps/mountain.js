@@ -422,7 +422,7 @@ export class Sorrowhorn {
 // pale alpine granite above; old snow lying on the level ground near the top, and on the crags' ledges. Rock wraps the cliffs by world
 // position (no stretching), the granite and basalt sampled twice at two scales so no long face
 // shows a repeat. Tints are the palette swaps (one rock texture becomes several stones).
-const LAYERS = [['ground_grass_05', 0xb8d0a0], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
+const LAYERS = [['ground_grass_05', 0xb2c09a], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
   ['rock_08_mountain_alpine_granite_3_01', 0xd4d8e0], ['ground_snow_06', 0xe6e8ee], ['cliff_07_coarse_gravel_11_01', 0xc4c0ba], ['ground_grass_05', 0xd8d49c]];
 const BANDS = { meadow: 140, granite: 215, basalt: 340, snow: 400 };
 
