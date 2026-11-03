@@ -305,7 +305,11 @@ export class Gulf {
   }
 
   idx(x, z) { const i = Math.floor((x - this.X0) / this.G), k = Math.floor((z - this.Z0) / this.G); return i < 0 || k < 0 || i >= this.nx || k >= this.nz ? -1 : k * this.nx + i; }
-  floorAt(x, z) { const j = this.idx(x, z); return j < 0 || Number.isNaN(this.fl[j]) ? null : this.fl[j]; }
+  floorAt(x, z) { const j = this.idx(x, z); return j < 0 || Number.isNaN(this.fl[j]) ? null : this.plain[j] ? this.walk(x, z) : this.fl[j]; }
+  /** The gulf's own floor as it's drawn: its height (floorY, smooth, not stepped by the half-metre
+   * grid) lifted by the roughening its surface is drawn with (sdf: a quarter of the noise on a floor),
+   * so feet (yours, the dead's) stand on the rock you see rather than sink into it. */
+  walk(x, z) { const f = floorY(x, z); return f + fbm3(x, f, z) * 0.25; }
   /** Which part of the gulf (x, z) is in: 'gulf' (the fissure), 'near', 'far', 'over', or null. */
   partAt(x, z) { const j = this.idx(x, z); return j < 0 || this.tag[j] < 0 ? null : this.F[this.tag[j]].tag; }
 
@@ -481,10 +485,14 @@ export class Gulf {
     this.boxes = n;
     // the plain floor: asked of directly (physics.dynamic), the cell under the foot
     const self = this;
-    phys.dynamic.push({ x0: X0, z0: Z0, x1: X0 + nx * G, z1: Z0 + nz * G, floorAt(x, z, y) {
+    // (a rise steeper than a step, up the scree or a rockfall's heap, is climbed a step at a time: it
+    // used to answer nothing there, and with nothing else under the gulf you fell out of the world)
+    phys.dynamic.push({ x0: X0, z0: Z0, x1: X0 + nx * G, z1: Z0 + nz * G, floorAt(x, z, y, r, step = 0.42) {
       const j = self.idx(x, z);
       if (j < 0 || !self.plain[j]) return -Infinity;
-      return fl[j] <= y + 0.6 ? fl[j] : -Infinity;
+      const f = self.walk(x, z);
+      if (f <= y + step) return f;
+      return f <= y + 4 ? y + step : -Infinity;
     } });
   }
 
