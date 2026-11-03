@@ -41,7 +41,7 @@ Everything lives in `tools/voice/`:
 | File | What |
 |---|---|
 | `script.mjs` | reads the lines from the game's own data and writes `lines.json`: `[{ voice, text, key, how }]` (`how`: an optional delivery note, e.g. "Calling out loudly down into a deep crater") |
-| `voices.json` | each speaker's voice, described in words: sex, age, timbre, accent, pace, temperament. One fixed description per speaker, so a voice stays itself from line to line |
+| `voices.json` | each speaker's voice, described in words: sex, age, timbre, accent, pace, temperament. One fixed description per speaker, so a voice stays itself from line to line. A new speaker's comes from their VOICE paragraph in [STORY.md](STORY.md), the story bible (who everyone is and how they talk) |
 | `say.json` | respellings for invented names, fed to the model only (the bubble keeps the real spelling): Velscour, Bellmourn, Tessariel, Odile, Isolde... |
 | `record.py` | records every line in `lines.json` that isn't recorded yet, as `<out>/<voice>/<key>.mp3` |
 | `gentle.py` | keeps recording gentle on the PC: 2 CPU threads at idle priority |
