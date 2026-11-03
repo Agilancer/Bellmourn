@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
-import { WEBGPU, T } from './nodes.js';
+import { WEBGPU, T, keyed, settled } from './nodes.js';
 
 const ROOT = 'templates/models/';
 const _p = new THREE.Vector3(), _a = new THREE.Vector3(), _d = new THREE.Vector3(), _h = new THREE.Vector3();
@@ -182,6 +182,30 @@ function fleshKind() {
     }
   };
   return Flesh;
+}
+
+/** The arm models (gauntlets and bare arms) are open at the elbow and drawn two-sided, so a forearm
+ * brought up by the eye (a two-hander's windups and follow-throughs) showed the inside of its sleeve
+ * lit and painted like the outside. Their back faces, the inside, are drawn near black, as in shadow:
+ * the lit colour times INSIDE, the same in both renderers (before any fog: the arms' scene has none).
+ * Held items keep both faces lit. */
+const INSIDE = 0.06;
+let insideOut = null;
+function darkInside(m) {
+  if (WEBGPU) {
+    const { vec4, output, frontFacing, select } = T;
+    insideOut ||= settled(vec4(output.rgb.mul(select(frontFacing, 1.0, INSIDE)), output.a));
+    m.outputNode = insideOut;
+    return m.isNodeMaterial ? m : keyed(m, 'arm-inside');
+  }
+  const own = m.onBeforeCompile, key = Object.hasOwn(m, 'customProgramCacheKey') ? m.customProgramCacheKey() : '';
+  m.onBeforeCompile = (sh, r) => {
+    own.call(m, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>',
+      `if ( ! gl_FrontFacing ) outgoingLight *= ${INSIDE.toFixed(3)};\n#include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => key + '|bm-inside';
+  return m;
 }
 
 /** The move set: catalog + each side's clips (smoothed once), fetched on first use. */
@@ -449,7 +473,7 @@ export class ViewModel {
     const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide,
       specular: item ? 0x6a625a : 0x1c1a18, shininess: item ? 48 : 16 });
     if (m.map && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.map, item ? 1.0 : 1.3);
-    return crisp(out);
+    return crisp(item ? out : darkInside(out));
   }
 
   /** Bare skin (the bare arms, tools/models/hands/build_hands.py): its bumps from its own height map
@@ -461,7 +485,7 @@ export class ViewModel {
     if (m.aoMap && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.aoMap, 0.9);
     const shine = m.metalnessMap || m.roughnessMap;
     if (shine) out.specularMap = shine;
-    if (WEBGPU) return crisp(out);   // (its light is its kind's own: fleshKind)
+    if (WEBGPU) return crisp(darkInside(out));   // (its light is its kind's own: fleshKind)
     out.onBeforeCompile = (sh) => {
       // (and the sky's and the ground's light on it mostly greyed: the world's warm fill made skin clay)
       sh.fragmentShader = sh.fragmentShader.replace('#include <lights_phong_pars_fragment>', THREE.ShaderChunk.lights_phong_pars_fragment.replace(
@@ -473,7 +497,7 @@ export class ViewModel {
         .replace('#include <opaque_fragment>', 'outgoingLight = mix( outgoingLight, vec3( dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ), 0.25 * ( 1.0 - smoothstep( 0.08, 0.3, dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ) ) );\n#include <opaque_fragment>');
     };
     out.customProgramCacheKey = () => 'bm-flesh';
-    return crisp(out);
+    return crisp(darkInside(out));
   }
 
   /** Put the equipped items in the hands and start the matching walk loops. */
