@@ -30,7 +30,8 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
 import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
-import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
+import { asset } from './store.js';
+import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -42,7 +43,7 @@ const FPS = 30;
 
 // the variants (look: what their spells and glows are made of)
 // (the brain's timers run down each frame; and the states a body lies in, its own brain idle)
-const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT'];
+const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool'];
 const LAID = new Set(['collapse', 'buried', 'rise', 'playdead', 'getup']);
 
 export const FOES = {
@@ -87,6 +88,36 @@ export const FOES = {
     scale: 1.4, R: ['coffin_hammer', 'war_hammer'], L: ['knights_kite'] },
   sworn_archmage: { kind: 'knight', title: 'Magister Morcant, the Violet Hand', body: { villager: 'villager_m04', armor: 'runebound', sex: 'm', helm: false, casts: 'sorcerer_b' }, finish: ['ancient'], stats: 'archmage',
     caster: true, spell: 'arcane', boss: true, scale: 1.6, glow: 0x9a4cff, glow2: 0x50ff60, R: ['reliquary_blade'], L: ['skull_staff'], Lsock: 'gripL' },
+  // the Sorrowhorn's reavers, the Red Scythe (reavers.js): villagers in red boiled leather (the
+  // `scythe` set: tools/armor/sets.py), sworn to no one. On the knights' clips like the Sworn, but
+  // their eyes are a man's. A reaver swings a two-hander, or an axe in each fist, and throws axes
+  // that turn over and over as they come (`thrower`); their fire-callers go bareheaded with a staff
+  // and a hatchet, and burn you. Their warlord is a head taller than the rest, with the great scythe.
+  scythe_m: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+    R: ['scythe', 'great_axe', 'dane_axe', 'headsman', 'bloodletter', 'claymore', 'warmaul'] },
+  scythe_f: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_f05', armor: 'scythe', sex: 'f', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+    R: ['scythe', 'great_axe', 'flamberge', 'bloodletter', 'dane_axe'] },
+  scythe_axes: { kind: 'knight', title: 'Red Scythe Axeman', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_axes', thrower: true,
+    R: ['bearded_axe', 'butchers_axe'], L: ['bearded_axe', 'butchers_axe'], Lsock: 'gripL' },
+  scythe_mage_m: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_m06', armor: 'scythe', sex: 'm', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
+    caster: true, spell: 'fire', R: ['bearded_axe', 'bone_cleaver'], L: ['brazier_staff', 'gnarled_staff', 'iron_crook'], Lsock: 'gripL' },
+  scythe_mage_f: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
+    caster: true, spell: 'fire', R: ['bearded_axe', 'fang_blade'], L: ['brazier_staff', 'serpent_staff'], Lsock: 'gripL' },
+  scythe_warlord: { kind: 'knight', title: 'Hask Redhand, Warlord of the Red Scythe', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged'], stats: 'warlord', thrower: true,
+    boss: true, scale: 1.3, R: ['scythe'] },
+  scythe_pyre: { kind: 'knight', title: 'Ysolde the Kindler, Fire-Mother of the Red Scythe', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged'], stats: 'pyre',
+    caster: true, spell: 'fire', scale: 1.15, R: ['fang_blade'], L: ['brazier_staff'], Lsock: 'gripL' },
+  // the crag bandits (reavers.js): hill folk gone bad, in their own clothes (no set: `armor` null),
+  // each in a palette of his own (`palette`: their cloth recoloured, reavers.js BANDIT_PALETTES), with
+  // whatever they could steal: a blade or an axe and a round shield, or a two-hander
+  bandit_m: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_m02', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true,
+    R: ['bearded_axe', 'falchion', 'nail_club', 'grave_messer', 'scimitar', 'flanged_mace'], L: ['hide_targe', 'spiked_buckler', 'ironbound'] },
+  bandit_m2: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_m07', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true, thrower: true,
+    R: ['great_axe', 'ogre_club', 'dane_axe', 'glaive'] },
+  bandit_f: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_f03', armor: null, sex: 'f', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true,
+    R: ['scimitar', 'fang_blade', 'gaolers_hook', 'wolfjaw_sickle', 'bearded_axe'], L: ['hide_targe', 'spiked_buckler'] },
+  bandit_chief: { kind: 'knight', title: 'Old Corrick, the Crowstep Captain', faction: 'bandit', body: { villager: 'villager_m07', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['ancient'], stats: 'bandit_chief', palette: true,
+    scale: 1.12, R: ['headsman'] },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
@@ -109,7 +140,10 @@ export const BEASTS = {
     },
   },
 };
-export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body);
+export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body && !FOES[v].faction);
+// the Sorrowhorn's (reavers.js): a phone makes one body of each
+export const REAVERS = Object.keys(FOES).filter((v) => FOES[v].faction);
+export const REAVERS_PHONE = ['scythe_m', 'scythe_mage_m', 'bandit_m'];
 
 // how each kind stands up to you: hp, damage taken (armour), limb toughness, speeds, senses
 const KIND = {
@@ -153,6 +187,23 @@ export const STATS = {
     dmg: { attack1: 15, attack2: 19, attack3: 24, leap: 21 }, cool: [0.45, 1.0] },
   goat_ram: { hp: 470, armor: 0.78, limb: 2.2, walk: 2.2, run: 5.2, turn: 4.4, sight: 26, hear: 1.5, reach: 2.2, flinch: 0.1, tier: 5, heft: 3.2, swing: 1.08,
     dmg: { attack1: 19, attack2: 25, attack3: 30, leap: 26 }, cool: [0.5, 1.1] },
+  // the Red Scythe: lighter armour than the Sworn's plate, quicker and wilder (shorter waits between
+  // blows), the two-handers hitting hard; the axemen quicker still
+  scythe: { hp: 225, armor: 0.74, limb: 1.5, walk: 1.8, run: 4.7, turn: 5.2, sight: 28, hear: 1.3, tier: 4, heft: 1.7, swing: 1.12, gait: GAIT, reach: 2.35,
+    dmg: { attack1: 17, attack2: 21, attack3: 16, attack4: 24, lunge: 19, leap: 23, punch1: 5, punch2: 7, throw: 13 }, cool: [0.2, 0.7] },
+  scythe_axes: { hp: 205, armor: 0.76, limb: 1.45, walk: 1.9, run: 4.9, turn: 5.6, sight: 28, hear: 1.3, tier: 4, heft: 1.5, swing: 1.3, gait: GAIT,
+    dmg: { attack1: 12, attack2: 14, attack3: 12, attack4: 16, lunge: 14, leap: 18, punch1: 5, punch2: 7, throw: 12 }, cool: [0.1, 0.5] },
+  scythe_mage: { hp: 150, armor: 0.85, limb: 1.3, walk: 1.7, run: 4.3, turn: 4.8, sight: 32, hear: 1.3, reach: 2.0, flinch: 0.45, tier: 4, heft: 1.2, swing: 1.2, gait: GAIT,
+    dmg: { attack1: 11, attack2: 13, attack3: 10, attack4: 14, lunge: 12, leap: 15, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
+  warlord: { hp: 980, armor: 0.6, limb: 3.6, walk: 1.7, run: 4.6, turn: 4.6, sight: 32, hear: 1.4, reach: 2.8, flinch: 0.08, tier: 6, heft: 4.2, swing: 1.08, gait: GAIT,
+    dmg: { attack1: 26, attack2: 30, attack3: 24, attack4: 34, lunge: 26, leap: 30, heavy: 22, punch1: 9, punch2: 12, throw: 18 }, cool: [0.35, 0.9] },
+  pyre: { hp: 620, armor: 0.75, limb: 2.4, walk: 1.6, run: 4.2, turn: 4.8, sight: 34, hear: 1.4, reach: 2.1, flinch: 0.15, tier: 5, heft: 2.4, swing: 1.15, gait: GAIT,
+    dmg: { attack1: 15, attack2: 18, attack3: 14, attack4: 20, lunge: 16, leap: 19, punch1: 6, punch2: 8 }, cool: [0.45, 1.0] },
+  // the bandits: cloth and a little leather, not much of a fight one at a time
+  bandit: { hp: 150, armor: 0.92, limb: 1.1, walk: 1.6, run: 4.4, turn: 4.6, sight: 24, hear: 1.2, tier: 3, heft: 1.2, swing: 1.1, gait: GAIT,
+    dmg: { attack1: 11, attack2: 13, attack3: 10, attack4: 15, bash: 5, lunge: 12, leap: 14, punch1: 4, punch2: 6, throw: 10 }, cool: [0.45, 1.1] },
+  bandit_chief: { hp: 560, armor: 0.8, limb: 2.2, walk: 1.6, run: 4.3, turn: 4.4, sight: 28, hear: 1.3, reach: 2.6, flinch: 0.15, tier: 5, heft: 2.6, swing: 1.06, gait: GAIT,
+    dmg: { attack1: 21, attack2: 25, attack3: 19, attack4: 28, lunge: 21, leap: 24, punch1: 7, punch2: 9 }, cool: [0.45, 1.0] },
   lord: { hp: 1150, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
     dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, leap: 32, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
@@ -173,6 +224,7 @@ const SPELL = { // bolt colour, its glow, damage
   arcane: { core: 0xe6b8ff, glow: 0x9a4cff, dmg: 10, speed: 14 },
   blood: { core: 0xffb0a0, glow: 0xff2a1a, dmg: 12, speed: 13 },
   venom: { core: 0xd8ffc0, glow: 0x5cff3a, dmg: 9, speed: 12 },
+  fire: { core: 0xffe2a0, glow: 0xff5a10, dmg: 13, speed: 15 },   // (the Red Scythe's fire-callers)
 };
 
 const _gA = new THREE.Color(), _gB = new THREE.Color();
@@ -304,7 +356,7 @@ class Foe extends Zombie {
     this.postYaw = o.yaw ?? this.yaw;
     if (o.start === 'ambush') { this.state = 'ambush'; this.play('idle', 0); }
     // the Sworn's eyes burn: a glint at each (through the helm's slits, or bare on an adept)
-    if (this.def.body && meta.eyes?.length) {
+    if (this.def.body && meta.eyes?.length && this.def.body.eyes !== null) {
       const head = this.bones.head, inv = this.skel.boneInverses[this.skel.bones.indexOf(head)];
       this.eyes = meta.eyes.map((e) => {
         const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
@@ -315,7 +367,8 @@ class Foe extends Zombie {
         return g;
       });
     }
-    if (this.def.body && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
+    if (this.def.body?.armor === 'fiend' && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
+    if (this.def.palette) this.recolour(o.palette ?? Math.floor(Math.random() * BANDIT_PALETTES.length));
     if (this.ual && this.state === 'move') { this.play('idle', 0); this.mixer.update(Math.random() * 2); }   // (at ease, now it knows it can be)
     // a lord of the Sworn burns: his armour glows from within (brightest where it's gilded)
     if (this.def.glow) {
@@ -376,6 +429,18 @@ class Foe extends Zombie {
     for (const m of [this.mesh.material].flat()) for (const [piece, tint] of Object.entries(FITTINGS[this.fitting])) {
       if (!m.name.includes(piece)) continue;
       if (tint) m.color.setRGB(...tint); else m.visible = false;
+    }
+    this.syncShade();
+  }
+
+  /** A bandit's own colours: each piece of cloth or leather he has on recoloured from palette i
+   * (reavers.js BANDIT_PALETTES), by its material's name, so no two of a band are dressed alike. */
+  recolour(i) {
+    const P = BANDIT_PALETTES[i % BANDIT_PALETTES.length];
+    for (const m of [this.mesh.material].flat()) {
+      if (!/^V_/.test(m.name) || /Skin|Eye|Hair|Lashes|Head/.test(m.name)) continue;
+      let h = 0; for (const c of m.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+      m.color.setRGB(...P[h % P.length]);
     }
     this.syncShade();
   }
@@ -449,6 +514,7 @@ class Foe extends Zombie {
 
   // -------------------------------------------------------------- being hit
   hit(h, opts) {
+    if (this.lurk) spring(this.foes, this.lurk, this.owner.player || { pos: this.pos });
     // (GOD MODE, the Debug Menu: no shield or parry turns a blow)
     if (!this.dead && !this.owner.oneHit && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
       const f = this.forward(_t);
@@ -515,6 +581,12 @@ class Foe extends Zombie {
 
   /** What it can see and hear of you (its own cry when it first has you). */
   sense(player, active) {
+    if (this.lurk) {        // an ambush: blind and deaf to you till you walk into it (reavers.js spring)
+      const A = this.lurk;
+      this.dist = Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z); this.canSee = false;
+      if (active && Math.hypot(player.pos.x - A.x, player.pos.z - A.z) < A.r && Math.abs(player.pos.y - A.y) < 5) spring(this.foes, A, player);
+      if (this.lurk) return;
+    }
     const was = this.aggro;
     const groan = this.owner.sound;
     this.owner.sound = (k, p, loud) => { if (k !== 'groan') groan.call(this.owner, k, p, loud); };
@@ -743,8 +815,9 @@ class Foe extends Zombie {
       this.hitI = (this.hitI || 0) + 1;
       this.fired = this.hitI >= at.length;
       const reach = this.kind.reach + (this.cur === 'attack3' && this.kindName === 'ghast' ? 0.4 : 0.2);
-      this.foes.sound('swing', this.pos, this.kindName);
-      if (active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3) {
+      if (this.cur === 'throw') this.foes.axes.toss(this, player);       // (the axe out of the fist: reavers.js)
+      else this.foes.sound('swing', this.pos, this.kindName);
+      if (this.cur !== 'throw' && active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3) {
         this.owner.onPlayerHit?.(this.kind.dmg[this.cur] ?? 10, this);
         if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === (this.def.ram || 'attack1'))) {   // knocked back
           const f = this.forward();
@@ -803,7 +876,7 @@ class Foe extends Zombie {
   /** Out of the room it keeps, you're none of its business: back to its post, facing the way in.
    * Their lord can still call Velscour's fire down on you if he can see you. */
   keepPost(dt, player, active, dist) {
-    if (this.def.boss && active && this.canSee && !this.bigCool && dist < 24) { this.invoke(player); return; }
+    if (this.def.boss && this.def.faction !== 'scythe' && active && this.canSee && !this.bigCool && dist < 24) { this.invoke(player); return; }
     const away = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z) > 0.7;
     if (away) this.go(dt, this.home, this.kind.walk);
     else this.go(dt, null, 0, { face: _v.set(this.pos.x + Math.sin(this.postYaw) * 4, this.pos.y, this.pos.z + Math.cos(this.postYaw) * 4) });
@@ -862,7 +935,7 @@ class Foe extends Zombie {
     const K = this.kind, now = this.owner.time;
     if (this.def.boss) {
       if (!this.enraged && this.hp < K.hp * 0.5) this.enrage();
-      if (this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }
+      if (this.def.faction !== 'scythe' && this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }   // (Velscour's fire is his lord's alone)
     }
     const shield = this.shield && this.arm('L'), armed = this.arm('R') && this.has('handR');
     const guard = shield || (this.ual && armed);      // (on the library's clips they parry with the blade when the shield's gone)
@@ -878,6 +951,17 @@ class Foe extends Zombie {
       if (this.ual && this.actions.punch1 && (this.arm('L') || this.arm('R'))) {      // bare-handed: a jab, a cross
         this.strike(this.arm('L') ? 'punch1' : 'punch2');
         this.comboQ = this.arm('L') && this.arm('R') ? ['punch2'] : null;
+        return;
+      }
+    }
+    // a thrown axe: from six to twenty strides off, with a clear line to you (from up a slope too:
+    // they needn't be on your level to see you, as they must to come at you)
+    if (this.def.thrower && this.feet && armed && this.actions.throw && dist > 5.5 && dist < 21 && !this.throwCool && this.foes.axes.clear(this, player)) {
+      const want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+      if (Math.abs(wrap(want - this.yaw)) < 0.6) {
+        this.throwCool = (this.def.boss ? 3.5 : 5.5) + Math.random() * 5;
+        this.hits.throw ??= Math.round(this.actions.throw.getClip().duration * FPS * 0.42);
+        this.strike('throw');
         return;
       }
     }
@@ -1269,6 +1353,7 @@ export class Foes {
     this.loader = new GLTFLoader();
     this.texLoader = new THREE.TextureLoader();
     this.bolts = new Bolts(this);
+    this.axes = new Axes(this);       // (the Red Scythe's thrown axes)
     this.hexes = [];
     this.lost = [];       // dropped weapons and shields
     this.flashes = [];
@@ -1336,6 +1421,10 @@ export class Foes {
       const crew = Array.from({ length: 3 + (i > 0) + (i > 2) }, (_, k) => (k === 0 && i > 0 && this.gltf.goat_b ? 'goat_b' : 'goat_a'));
       for (const f of this.band(crew, c.x + 2.5, c.z + 2.5, { zone: 'mountain', area: { x: c.x, z: c.z, r: 14 } })) { f.yaw = Math.random() * 6.28; n++; }
     });
+    for (const L of m.ledges || []) {          // (and a few on Thornback Ledge, up its side path: mountain.js LEDGES)
+      if (L.folk !== 'goats') continue;
+      for (const f of this.band(['goat_a', 'goat_a', this.gltf.goat_b ? 'goat_b' : 'goat_a'], L.x, L.z, { zone: 'mountain', area: { x: L.x, z: L.z, r: L.r0 - 1 } })) { f.yaw = Math.random() * 6.28; f.band = L.id; n++; }
+    }
     console.info(`foes: ${n} goat men on the Sorrowhorn`);
     return n;
   }
@@ -1380,15 +1469,19 @@ export class Foes {
     const knight = this.gltf.knight_a || (await this.load(['knight_a']), this.gltf.knight_a);
     // the animation library (ual.js), read once
     if (ual && !this.ual) this.ual = await loadUal(this.loader);
-    const files = new Map(), bodies = new Map();
+    const files = this._files ||= new Map(), bodies = this._bodies ||= new Map(), clips = this._clips ||= new Map();
     const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(asset(url))); return files.get(url); };
     const body = (b) => {
-      const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}`;
+      const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}|${b.eyes === null ? 'plain' : 'burn'}`;
       if (!bodies.has(key)) bodies.set(key, (async () => {
-        const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`)]);
+        const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), b.armor ? file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`) : null]);
         if (b.casts && !this.gltf[b.casts]) await this.load([b.casts]);
-        return swornBody(knight, { scene: cloneSkinned(villager.scene) }, { scene: cloneSkinned(armor.scene) },
-          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null, ual: ual ? this.ual : null, legacy });
+        // (the clips are the villager's skeleton's: the second body on the same one takes the first's)
+        const ck = `${b.villager}|${b.casts || ''}|${ual}|${legacy}`, made = clips.get(ck);
+        const g = await swornBody(knight, { scene: cloneSkinned(villager.scene) }, armor ? { scene: cloneSkinned(armor.scene) } : null,
+          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null, ual: ual ? this.ual : null, legacy, eyes: b.eyes === null ? null : undefined, clips: made ? await made : null });
+        if (!made) clips.set(ck, Promise.resolve(g.clips));
+        return g;
       })());
       return bodies.get(key);
     };
@@ -1411,7 +1504,7 @@ export class Foes {
   /** The weapons and shields the variants carry, in each of their finishes. */
   async loadItems(variants) {
     const ids = new Set();
-    for (const v of variants) for (const s of ['R', 'L']) for (const id of FOES[v][s] || []) for (const f of [FOES[v].finish || ''].flat()) ids.add(`${id}|${f}`);
+    for (const v of variants) for (const s of ['R', 'L', 'T']) for (const id of (s === 'T' ? (FOES[v].thrower ? THROWN : []) : FOES[v][s]) || []) for (const f of [FOES[v].finish || ''].flat()) ids.add(`${id}|${f}`);
     const all = Object.values(this.manifest.items).flat();
     await Promise.all([...ids].map(async (key) => {
       const [id, finish] = key.split('|');
@@ -1605,6 +1698,7 @@ export class Foes {
   // -------------------------------------------------------------- each frame
   update(dt, player) {
     this.bolts.update(dt, player);
+    this.axes.update(dt, player);
     const g = this.zombies.gore;
     for (const h of this.hexes) {
       h.t += dt;

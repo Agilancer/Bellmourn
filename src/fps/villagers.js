@@ -93,6 +93,12 @@ const ROSTER = [
   { m: 'villager_f02', name: 'Maud', call: 'Elder Maud', tags: ['old', 'learned', 'hillfolk'], keeper: 'hornMaud', hair: [0.9, 0.9, 0.92], pale: 0.85 },
   { m: 'villager_m09', name: 'Jory', call: 'Jory the Herdsman', tags: ['worker', 'hillfolk'], keeper: 'hornJory', hair: [0.32, 0.22, 0.14] },
   { m: 'villager_f06', name: 'Tamsin', call: 'Tamsin', tags: ['healer', 'hillfolk'], keeper: 'hornTamsin', hair: [0.55, 0.3, 0.16] },
+  // the Mountain Wardens, who keep the Pilgrims' Road (holds.js): their captain in Greywatch Keep's court
+  // and two of the watch on its gate, and Edda at Cairnwatch's foot, all in the Warden's Leathers
+  { m: 'villager_m10', name: 'Halvard', call: 'Captain Halvard', tags: ['guard', 'warden'], keeper: 'gwHalvard', armor: 'hunter', helm: false, hair: [0.4, 0.36, 0.32] },
+  { m: 'villager_f07', name: 'Edda', call: 'Edda of Cairnwatch', tags: ['guard', 'warden', 'hunter'], keeper: 'cwEdda', armor: 'hunter', helm: false },
+  { m: 'villager_m01', name: 'Corwin', tags: ['guard', 'warden'], keeper: 'gwWardenA', armor: 'hunter' },
+  { m: 'villager_f01', name: 'Ilse', tags: ['guard', 'warden'], keeper: 'gwWardenB', armor: 'hunter' },
 ];
 // what the Bellwright says to himself and to you, between his work
 const BELLWRIGHT = ['Noon and midnight. Never late. Not once in nineteen years.', 'The bronze remembers every hand that rang it.',

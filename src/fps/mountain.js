@@ -25,6 +25,7 @@ import { makeGear, makePotion } from './gear.js';
 import { makeCharm } from './charms.js';
 import { detailedHouse, houseMaterials } from './buildings.js';
 import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, settled } from './nodes.js';
+import { buildHolds } from './holds.js';
 
 export const MOUNT = { x: -1000, z: -1000, R: 860, peak: 480, name: 'The Sorrowhorn' };
 export const GATE = { bearing: 225 * Math.PI / 180, r0: 300, r1: 305.5, h: 9, name: 'The Broken Stair' };
@@ -168,6 +169,139 @@ function ledgeClimb(ctx, rock, moss, cx, cz, y0, y1, r, a0, seed, { step = 0.46,
   return out;
 }
 
+
+// ------------------------------------------------------------------ the war on the mountain
+// (laid out here, before the ground is cut, so their pads, causeways and paths are cut with it; holds.js
+// builds them, reavers.js peoples them)
+// Keeps and towers: [how far along the road, id, name, kind, where, whose]. `out`: on a bastion out over
+// the drop, a causeway from the road to its gate; `shelf`: cut into the slope beside the road; `in`: up
+// a side path, on a pad cut in the slope above.
+const HOLDS = [
+  [0.215, 'greywatch', 'Greywatch Keep', 'keep', 'out', 'wardens'],
+  [0.305, 'crowstep', 'Crowstep Tower', 'tower', 'in', 'bandit'],
+  [0.505, 'redfold', 'The Red Fold', 'camp', 'shelf', 'scythe'],
+  [0.665, 'scythehold', 'Scythe Hold', 'keep', 'out', 'scythe'],
+  [0.815, 'hollowtower', 'The Hollow Tower', 'tower', 'in', 'dead'],
+  [0.902, 'cairnwatch', 'Cairnwatch', 'tower', 'out', 'wardens'],
+];
+// small bands up short side paths off the road: [how far along, name, who]
+const LEDGES = [
+  [0.062, 'The Seep', 'slimes'], [0.132, "Brigands' Nook", 'bandit'], [0.385, 'Thornback Ledge', 'goats'],
+  [0.455, 'The Red Lookout', 'scythe'], [0.575, "The Pilgrims' Barrow", 'dead'], [0.708, 'Kettle Rock', 'bandit'],
+  [0.778, 'The Scorched Ledge', 'scythe'],
+];
+// ambushes: where they wait above the road, behind rocks, for you to come by: [how far along, who]
+const AMBUSHES = [[0.172, 'bandit'], [0.338, 'bandit'], [0.472, 'scythe'], [0.548, 'scythe'], [0.722, 'scythe'], [0.925, 'scythe']];
+// where the road's outer edge breaks off sheer: [how far along, how far either way]
+const BRINKS = [[0.185, 0.014], [0.462, 0.01], [0.56, 0.016], [0.69, 0.012], [0.785, 0.012], [0.948, 0.01]];
+
+/** Lay out the war on the mountain (see HOLDS): each site's pad (a shelf the carve flattens, `neck` its
+ * causeway to the road), its side path (a trail), the ambushes' hiding places, and the road's sheer
+ * stretches (`S.brinks`, road segment indices). Needs the road's index (indexRoad) and not the ground. */
+function planHolds(S) {
+  const R = S.road, N = R.length;
+  const inward = (i) => { const [x, z] = R[i], dx = MOUNT.x - x, dz = MOUNT.z - z, L = Math.hypot(dx, dz); return [dx / L, dz / L]; };
+  const taken = (x, z, r) => S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < r + (c.r1 || 10) + 8)
+    || S.trails.some((t) => t.pts.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + 4));
+  // a side path from the road up to a pad: clear of the road but where it leaves it, and of every other pad
+  const sidePath = (site, i) => {
+    const [x, z, y] = R[i], [ux, uz] = inward(i);
+    const a = { x: x + ux * (ROAD_W + 0.4), z: z + uz * (ROAD_W + 0.4), y: y - 0.1 };
+    const dx = site.x - a.x, dz = site.z - a.z, L = Math.hypot(dx, dz);
+    const b = { x: site.x - dx / L * (site.r0 - 1.5), z: site.z - dz / L * (site.r0 - 1.5), y: site.y };
+    const pts = zigzag(a, b, 0.3, Math.min(13, L * 0.3));
+    for (let k = 3; k < pts.length - 2; k++) {
+      const r = S.roadAt(pts[k][0], pts[k][1]);
+      if (r && r.d < ROAD_W + 4) return null;
+      if (S.shelves.some((c) => c !== site && Math.hypot(pts[k][0] - c.x, pts[k][1] - c.z) < (c.r1 || 10) + 3)) return null;
+    }
+    return { name: `The way up to ${site.name.replace(/^The /, 'the ')}`, w: 1.3, pts, side: true, to: site.id };
+  };
+  const place = (want, r0, r1, side, meta) => {
+    const i0 = Math.floor(N * want);
+    for (let di = 0; di < 30; di++) for (const sg of di ? [1, -1] : [1]) {
+      const i = i0 + di * sg * 3;
+      if (i < 6 || i > N - 6) continue;
+      const [x, z, y] = R[i], [ux, uz] = inward(i);
+      let c = null;
+      // (a keep or a camp goes off the road along the world axis nearest the way in or out, so its gate,
+      // square to that axis as holds.js builds it, looks straight down its causeway)
+      const fx = Math.abs(ux) > Math.abs(uz) ? Math.sign(ux) : 0, fz = fx ? 0 : Math.sign(uz);
+      if (side === 'out') {
+        const off = r0 + ROAD_W + 3.5;
+        c = { x: x - fx * off, z: z - fz * off, y: y + 0.05 };
+        if (natural(c.x, c.z) > c.y - 5) continue;                      // (only where the ground falls away under it)
+        if ((S.roadAt(c.x, c.z)?.d ?? 99) < off - 1.5) continue;         // (nor where the road bends back toward it)
+        const far = S.roadAt(x - fx * (off + r1 + 12), z - fz * (off + r1 + 12));
+        if (far && far.d < off + r1) continue;                           // (no road below it)
+        c.neck = [x - fx * (ROAD_W - 0.6), z - fz * (ROAD_W - 0.6), y - 0.12, 3.4];
+      } else if (side === 'shelf') {
+        const off = r0 + 8;
+        c = { x: x + fx * off, z: z + fz * off, y: y + 0.9 };
+        if ((S.roadAt(c.x, c.z)?.d ?? 99) < off - 1.5) continue;
+        c.neck = [x + fx * (ROAD_W - 0.6), z + fz * (ROAD_W - 0.6), y - 0.12, 3.4];
+        const rr = S.roadAt(x + fx * (off + r1 + 6), z + fz * (off + r1 + 6));
+        if (rr && rr.d < 10) continue;
+      } else {
+        for (let off = 30; off < 92 && !c; off += 4) {
+          const px = x + ux * off, pz = z + uz * off, h = natural(px, pz), rr = S.roadAt(px, pz);
+          if (h - y < 7 || h - y > 42 || (rr && rr.d < r1 + 14)) continue;
+          c = { x: px, z: pz, y: h - 1.2 };
+        }
+        if (!c) continue;
+      }
+      if (taken(c.x, c.z, r1)) continue;
+      const site = { ...c, r0, r1, road: i, ux, uz, fixed: true, side, ...meta };
+      if (side === 'in') { const path = sidePath(site, i); if (!path) continue; site.path = path; }
+      return site;
+    }
+    return null;
+  };
+  S.holds = []; S.ledges = []; S.ambushes = []; S.brinks = new Set();
+  for (const [want, id, name, kind, side, folk] of HOLDS) {
+    const r0 = kind === 'keep' ? 18 : kind === 'camp' ? 15 : 10, r1 = r0 + (side === 'out' ? 5 : 7);
+    const site = place(want, r0, r1, side, { id, name, kind, folk });
+    if (!site) { console.warn('the Sorrowhorn: no room for', name); continue; }
+    S.holds.push(site); S.shelves.push(site);
+    if (site.path) S.trails.push(site.path);
+  }
+  for (const [want, name, folk] of LEDGES) {
+    const site = place(want, 6.5, 12, 'in', { id: name, name, kind: 'ledge', folk });
+    if (!site) { console.warn('the Sorrowhorn: no room for', name); continue; }
+    S.ledges.push(site); S.shelves.push(site);
+    S.trails.push(site.path);
+  }
+  // the ambushes: three or four places 8 to 14 m up the slope from the road, each a hiding place behind a rock
+  for (const [want, folk] of AMBUSHES) {
+    const i0 = Math.floor(N * want);
+    for (let di = 0; di < 20; di++) {
+      const i = i0 + (di % 2 ? 1 : -1) * Math.ceil(di / 2) * 3, [x, z, y] = R[i], [ux, uz] = inward(i);
+      const [x2, z2] = R[Math.min(N - 1, i + 2)], tl = Math.hypot(x2 - x, z2 - z) || 1, tx = (x2 - x) / tl, tz = (z2 - z) / tl;
+      const spots = [];
+      for (const along of [-7, -2.5, 2.5, 7]) for (const off of [9, 11.5, 14]) {
+        const px = x + ux * off + tx * along, pz = z + uz * off + tz * along, h = natural(px, pz), rr = S.roadAt(px, pz);
+        if (h - y < 2.5 || h - y > 12 || (rr && rr.d < 7) || taken(px, pz, 1)) continue;
+        spots.push([px, pz]); break;
+      }
+      if (spots.length < 3) continue;
+      S.ambushes.push({ road: i, x, z, y, folk, spots, r: 11, ux, uz, name: folk === 'scythe' ? 'A Red Scythe ambush' : 'A bandit ambush' });
+      break;
+    }
+  }
+  // the sheer stretches: where the ground already falls hard away outside the road, and nothing's there
+  for (const [want, w] of BRINKS) {
+    for (let i = Math.floor(N * (want - w)); i <= Math.floor(N * (want + w)); i++) {
+      if (i < 4 || i >= N - 4) continue;
+      const [x, z, y] = R[i], [ux, uz] = inward(i);
+      if (natural(x - ux * 18, z - uz * 18) > y - 7) continue;
+      if (S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < (c.r1 || 10) + 14)) continue;
+      const far = S.roadAt(x - ux * 40, z - uz * 40);
+      if (far && far.d < 32) continue;
+      S.brinks.add(i);
+    }
+  }
+}
+
 // ------------------------------------------------------------------ the heightfield
 export class Sorrowhorn {
   constructor() {
@@ -191,13 +325,15 @@ export class Sorrowhorn {
       this.summitSite = { ...best, y: best.y - 1.5, name: 'The Horn', r0: 5.5, r1: 11, fixed: true, ux: 0, uz: 0 }; }
     this.shelves = [...this.camps, ...this.caveSites, this.fallsSite, this.villageSite, this.summitSite];
     this.trails = this.makeTrails();
+    this.indexRoad();
+    planHolds(this);   // (the keeps, towers, camps and ledges, their paths, the ambushes and the sheer drops)
     this.meshes = []; this.patches = [];
     this.h = new Float32Array(NX * NZ);
     this.carve();
   }
 
-  /** The grid's heights: the mountain, with the road's bench cut into it. */
-  carve() {
+  /** The road's index (which segments pass near each 32 m cell), for roadAt. */
+  indexRoad() {
     const R = this.road, cell = 32, buckets = new Map(), key = (i, k) => i * 100003 + k;
     for (let s = 0; s + 1 < R.length; s++) {
       const [ax, az] = R[s], [bx, bz] = R[s + 1];
@@ -207,6 +343,11 @@ export class Sorrowhorn {
       }
     }
     this.buckets = buckets; this.cell = cell;
+  }
+
+  /** The grid's heights: the mountain, with the road's bench cut into it. */
+  carve() {
+    const cell = this.cell, key = (i, k) => i * 100003 + k;
     // the trails' own index, as the road's
     const tb = new Map(), tsegs = [];
     for (const t of this.trails) for (let s = 0; s + 1 < t.pts.length; s++) {
@@ -231,9 +372,21 @@ export class Sorrowhorn {
         const span = Math.min(18, Math.max(3, Math.abs(h - r.y) * 0.9));
         const w = 1 - smooth(ROAD_W, ROAD_W + span, r.d);
         h += (r.y - 0.15 - h) * w;
+        // a sheer stretch: the outer edge breaks off in a face a dozen metres down, a steep slope under it
+        if (this.brinks.has(r.i) && r.d > ROAD_W + 0.3) {
+          const [ax, az] = this.road[r.i];
+          if ((x - ax) * (ax - MOUNT.x) + (z - az) * (az - MOUNT.z) > 0) {
+            const e = r.d - ROAD_W - 0.3, cut = r.y - 0.15 - 12.5 * smooth(0, 2.6, e) - 0.6 * e;
+            if (cut < h) h += (cut - h) * (1 - smooth(14, 30, e));
+          }
+        }
       }
       for (const c of this.shelves) {
         const d = Math.hypot(x - c.x, z - c.z);
+        if (c.neck) {        // (a causeway from the road to its gate, rising or falling evenly)
+          const [nx, nz, ny, nw] = c.neck, ex = c.x - nx, ez = c.z - nz, t = Math.max(0, Math.min(1, ((x - nx) * ex + (z - nz) * ez) / (ex * ex + ez * ez))), dn = Math.hypot(x - nx - ex * t, z - nz - ez * t);
+          if (dn < nw + 5) h += (ny + (c.y - ny) * t - h) * (1 - smooth(nw, nw + 5, dn));
+        }
         if (d < c.r1) h += (c.y - h) * (1 - smooth(c.r0, c.r1, d));
         if (c.bowl) {          // (a pool's bowl, toward the shelf's back wall)
           const [br, depth, inset] = c.bowl, e = Math.hypot(x - c.x - c.ux * inset, z - c.z - c.uz * inset);
@@ -255,7 +408,7 @@ export class Sorrowhorn {
       const [ax, az, ay] = this.road[s], [bx, bz, by] = this.road[s + 1], dx = bx - ax, dz = bz - az;
       const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
       const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
-      if (!best || d < best.d) best = { d, y: ay + (by - ay) * t, s: (s + t) / (this.road.length - 1) };
+      if (!best || d < best.d) best = { d, y: ay + (by - ay) * t, s: (s + t) / (this.road.length - 1), i: s };
     }
     return best;
   }
@@ -893,6 +1046,12 @@ export function mountainPortals(S) {
   if (F) { const ox = -F.ux, oz = -F.uz, sx = -oz, sz = ox; out.push({ id: 'sorrowfall', name: 'Sorrowfall', where: 'Beside the Still Water', land: 'The Sorrowhorn', x: F.x + ox * 6.5 - sx * 5.5, z: F.z + oz * 6.5 - sz * 5.5, look: [F.x + F.ux * 11, F.z + F.uz * 11] }); }
   const V = S.villageSite;
   if (V) { const at2 = (f, s) => [V.x + V.ux * f - V.uz * s, V.z + V.uz * f + V.ux * s], [x, z] = at2(-8, -6); out.push({ id: 'hornhollow', name: 'Hornhollow', where: 'On the green', land: 'The Sorrowhorn', x, z, look: at2(2, 0) }); }
+  // the Wardens': in Greywatch's court, and at Cairnwatch's foot
+  for (const h of S.holds || []) {
+    if (h.folk !== 'wardens' || !h.frame) continue;
+    const F = h.frame, [x, z] = h.kind === 'keep' ? F.at(-6, 5) : F.at(0, 7.5);
+    out.push({ id: h.id, name: h.name, where: h.kind === 'keep' ? 'In the court' : 'At the tower\'s foot', land: 'The Sorrowhorn', x, z, look: h.kind === 'keep' ? F.at(0, 11) : [F.x, F.z] });
+  }
   return out;
 }
 
@@ -1132,11 +1291,11 @@ export function buildMountain(ctx, M) {
     S.shrineBell = { x: shx, y: vy + 2.05, z: shz };
     // its people: Maud at the shrine, Jory by the well, Tamsin at her door
     const post = (f, s, lf, ls) => { const [x, z] = at2(f, s), [tx2, tz2] = at2(lf, ls); return [x, z, Math.atan2(tx2 - x, tz2 - z)]; };
-    S.givers = {
+    S.givers = Object.assign(S.givers || {}, {      // (the Wardens' are in already: holds.js)
       Maud: { key: 'hornMaud', post: post(14.5, 3.2, 0, 0), floor: vy },
       Jory: { key: 'hornJory', post: post(3, -3, -10, -2), floor: vy },
       Tamsin: { key: 'hornTamsin', post: post(6.5, 8.5, 0, 0), floor: vy },
-    };
+    });
   }
 
   // ---- the summit: a little platform at the top of the horn, the great cairn the pilgrims build
@@ -1167,12 +1326,18 @@ export function buildMountain(ctx, M) {
     }
     // the Eyrie: a spire of rock off the platform's edge, its ledges, its hoard
     // (its foot at the platform's edge, its ledges starting from the platform's level)
+    // (its foot on the summit's shoulder, and its root carried on down to the lowest ground under it,
+    // with a skirt of fallen rock where it meets the slope: it grows out of the mountain, not off it)
     const ea = Math.atan2(T.z - S.villageSite.z, T.x - S.villageSite.x) + 0.9, ex = T.x + Math.cos(ea) * 9.5, ez = T.z + Math.sin(ea) * 9.5, ey0 = Math.max(S.heightAt(ex, ez), ty), eh = 11;
-    b.place(ex, ey0 - 1, ez, 0.3, 1, (o) => {
-      o.cylinder([0, 0, 0], [0.25, eh + 1, -0.2], 2.35, 9, rock, { r1: 1.45 });
-      for (let i = 0; i < 5; i++) o.blob([Math.sin(i * 2.4) * 1.2, 1.5 + i * 2.2, Math.cos(i * 2.4) * 1.1], [1.0, 1.6, 0.9], rock, { detail: 2, jitter: 0.2, seed: 760 + i });   // (its shoulders and buttresses)
+    let gmin = ey0; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; for (const r of [1.5, 2.6, 3.6]) gmin = Math.min(gmin, S.heightAt(ex + Math.cos(a) * r, ez + Math.sin(a) * r)); }
+    const root = gmin - 2.5;
+    b.place(ex, root, ez, 0.3, 1, (o) => {
+      o.cylinder([0, 0, 0], [0, ey0 - 1 - root, 0], 3.6, 9, rock, { r1: 2.35 });
+      o.cylinder([0, ey0 - 1 - root, 0], [0.25, ey0 - 1 - root + eh + 1, -0.2], 2.35, 9, rock, { r1: 1.45 });
+      for (let i = 0; i < 5; i++) o.blob([Math.sin(i * 2.4) * 1.2, ey0 - 1 - root + 1.5 + i * 2.2, Math.cos(i * 2.4) * 1.1], [1.0, 1.6, 0.9], rock, { detail: 2, jitter: 0.2, seed: 760 + i });   // (its shoulders and buttresses)
+      for (let i = 0; i < 7; i++) { const a = i / 7 * TAU; o.blob([Math.cos(a) * 3.3, 1.2 + (i % 3) * 0.6, Math.sin(a) * 3.3], [1.6, 1.4, 1.4], moss, { detail: 2, jitter: 0.25, seed: 820 + i }); }   // (its skirt)
     }, { solid: false });
-    physics.add([ex - 1.5, ey0 - 1, ez - 1.5], [ex + 1.5, ey0 + eh, ez + 1.5], 'rock');
+    physics.add([ex - 1.5, root, ez - 1.5], [ex + 1.5, ey0 + eh, ez + 1.5], 'rock');
     const steps = ledgeClimb(ctx, rock, moss, ex, ez, ey0 + 1.0, ey0 + eh - 0.5, 2.9, ea + Math.PI, 800, { step: 0.62 });
     const top = ey0 + eh;
     b.place(ex, top - 0.3, ez, 0, 1, (o) => {
@@ -1236,11 +1401,16 @@ export function buildMountain(ctx, M) {
     S.dressing = { trees, rocks };
   }
 
+  // ---- the war on the mountain: the keeps and towers, the Red Scythe's war camp, the bands' ledges,
+  // the ambushes' rocks, the side paths' signposts, the crags (holds.js; reavers.js peoples them)
+  buildHolds(ctx, S, M, { ledgeClimb });
+
   /** Where a quest's thing waits (quests.js deepest): the shrine bell in Gorehoof's camp, the old horn
    * at the summit cairn's foot. [x, y, z] or null. */
   S.fetchSpot = (place) => {
     if (place === 'gorehoof') { const c = S.camps[3]; return [c.x + 2.5, c.y + 0.4, c.z - 1.5]; }
     if (place === 'summit' && S.summit) return [S.summit.x - 1.6, S.summit.y + 0.4, S.summit.z + 1.2];
+    if (place === 'crowstep') { const h = S.hold?.('crowstep'); if (h?.frame) { const [x, z] = h.frame.at(5.5, -4.8); return [x, S.heightAt(x, z) + 0.5, z]; } }
     return null;
   };
 
@@ -1289,6 +1459,8 @@ export function buildMountain(ctx, M) {
     if (ro < GATE.r1 + 30 && Math.abs(bearingOf(p.x, p.z) - GATE.bearing) < 0.2) return GATE.name;
     for (const v of views) if (Math.hypot(p.x - v.x, p.z - v.z) < 12) return v.name;
     for (const c of camps) if (Math.hypot(p.x - c.x, p.z - c.z) < 16) return c.name;
+    for (const h of S.holds || []) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r1 + 2) return h.name;
+    for (const h of S.ledges || []) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r1) return h.name;
     if (S.falls && Math.hypot(p.x - S.falls.pool.x, p.z - S.falls.pool.z) < 16) return 'Sorrowfall';
     const d = Math.hypot(p.x - MOUNT.x, p.z - MOUNT.z);
     if (d > MOUNT.R) return 'The Foothills of the Sorrowhorn';

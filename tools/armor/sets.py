@@ -429,6 +429,70 @@ def hunter(b):
     return out + gauntlet_vees(b, vees=vees)
 
 
+# ------------------------------------------------------------------ the Red Scythe's leathers (scythe)
+# Not Velscour's: the Red Scythe are mountain reavers, so no V and no sigil. Their mark is a scythe.
+
+SCYTHE = dict(red=tint("creased_leather_dark", (124, 24, 20)), red2=tint("pebbled_leather_dark", (84, 18, 16)),
+              studs=tint("studded_leather_dark", (112, 22, 18)), strips=tint("creased_leather_dark", (66, 14, 13)),
+              black="pebbled_leather_dark", iron=tint("hammered_steel_dark", (58, 52, 50)), rim="riveted_bands_iron",
+              spike="scratched_steel_dark", bone=tint("scratched_steel_light", (226, 214, 190)),
+              wool=tint("lib:cloth_01_coarse_sail_canvas", (70, 14, 14)),
+              slit=tint("lib:cloth_02_stitched_charcoal", (14, 12, 12)))
+
+scythe_gauntlet = gdress({"sleeve": SCYTHE["wool"], "elbow": SCYTHE["red2"],
+                          "studded bracer": SCYTHE["studs"], "bracer spike back": SCYTHE["spike"],
+                          "bracer spike outer": SCYTHE["spike"], "* knuckle spike": SCYTHE["spike"],
+                          "knuckle pad": SCYTHE["black"], "glove": SCYTHE["red2"]}, SCYTHE["red2"])
+
+
+def scythe_mark(fit, t_of, w, mat, a0=0.0, size=1.0, name="scythe"):
+    """The Red Scythe's mark on a cuirass-like fit: a haft slanting across the breast (or the back,
+    `a0` = pi) and a long curved blade off its top, laid on the surface (`t_of`: a 0..1 fraction of
+    the fit's height to a height)."""
+    on = lambda f, a, off: O.on(fit, t_of(f), a0 + a * size, off)[0]
+    haft = [on(0.95 - 0.85 * u, -0.3 + 0.6 * u, 0.016) for u in np.linspace(0, 1, 10)]
+    blade = [on(0.95 + 0.1 * math.sin(math.pi * u * 0.8) - 0.42 * u * u, -0.3 + 0.95 * u, 0.018) for u in np.linspace(0, 1, 14)]
+    return [O.tube(f"{name} haft", haft, 0.011, 0.01, SCYTHE["iron"], w),
+            O.tube(f"{name} blade", blade, 0.024, 0.003, mat, w)]
+
+
+def scythe(b):
+    """Red boiled leather in lames and straps, blackened iron at the joints, crimson pteruges to the
+    knee, one great spiked pauldron, the scythe on the breast and the back, and a red-lacquered
+    great helm banded in red leather."""
+    M = SCYTHE
+    knee = float(b.head("LowerLeg.L")[2])
+    out = K.cuirass(b, M["studs"], rim=M["iron"], ridge=0.006, point=0.03, gap=0.02, box=3)
+    fit, w = out[0]["fit"], out[0]["w"]
+    t_of = lambda f: b.waist + (b.neck - 0.065 - b.waist) * f
+    out.append(K.plaque("cuirass", *chest(b, fit, 0.55), (0, 0, 1), 0.3, M["black"], M["iron"], name="breast plate"))
+    out += scythe_mark(fit, t_of, w, M["bone"], name="scythe on the breast")
+    out += scythe_mark(fit, t_of, w, M["bone"], a0=math.pi, size=1.2, name="scythe on the back")
+    for s in (1, -1):        # (straps over the shoulders and down under the arms)
+        a_, _ = chest(b, fit, 1.0, 0.5 * s)
+        b_, _ = chest(b, fit, 0.1, 1.15 * s)
+        out.append(O.strap("cuirass", a_, b_, (0, -1, 0), 0.04, M["black"], name=f"strap {s}"))
+    out += G.coat(b, M["strips"], knee + 0.02, gap=0.03, flare=0.06, top=b.waist + 0.0, strips=14,
+                  split_at=b.waist - 0.03, hard=0.06, name="pteruges", solid=0.004, jag=0.02)
+    out += G.belt(b, M["black"], gap=0.045, h=0.07,
+                  buckle=lambda nm, p, d, up: K.rondel(nm, p, d, up, 0.07, M["iron"], M["red2"]))
+    # the left shoulder: a great lamed pauldron of red leather on iron, spiked; the right a smaller one
+    pa = K.pauldron(b, "L", M["red2"], lames=4, rim=M["iron"], gap=0.05, reach=0.09, box=3, lame_rims=True)
+    pa += O.spikes(pa[0]["fit"], [(-0.04, 0.0), (0.0, 0.6), (0.0, -0.6), (0.04, 0.3)], 0.1, 0.017, M["spike"],
+                   pa[0]["w"], off=0.06, tilt=-0.35, name="pauldron spike")
+    pr = K.pauldron(b, "R", M["red2"], lames=3, rim=M["iron"], gap=0.04, box=3, lame_rims=True)
+    out += pa + pr
+    for s in "LR":
+        out += K.rerebrace(b, s, M["studs"], box=3, rim=M["iron"])
+        po = K.poleyn(b, s, M["iron"], wing=False, gap=0.03, rim=M["rim"])
+        out += po + O.spikes(po[0]["fit"], [(-0.03, 0.0)], 0.05, 0.012, M["spike"], po[0]["w"],
+                             off=0.05, tilt=-0.3, name=f"knee spike {s}")
+        out += K.greave(b, s, M["black"], t0=0.2, rim=M["iron"], gap=0.024, ridge=0.006, box=3)
+    h = GH.great_helm(b, M["iron"], M["red2"], M["slit"], rivets=M["spike"], breaths="slots",
+                      top=0.006, taper=0.08, brow_shade=0.012)
+    return out + h
+
+
 # ------------------------------------------------------------------ Bone-Ward Harness
 
 BONEW = dict(hide=tint("creased_leather_dark", (54, 38, 30)), hide2=tint("creased_leather_mid", (62, 42, 30)),
@@ -615,6 +679,13 @@ SETS = {
                    description="A ranger's layered leather sworn to Lord Velscour: a tooled cuirass "
                                "with his copper V, lamed spaulders with V rondels, verdigris bronze "
                                "edges, a green mantle and cloak, and a slotted great helm."),
+    "scythe": dict(name="Red Scythe Leathers", gauntlet="brawler",
+                   under=dict(body=SCYTHE["wool"], legs=SCYTHE["black"], feet=SCYTHE["black"]),
+                   build=scythe, gauntlet_dress=scythe_gauntlet,
+                   description="The mountain reavers' war harness: red boiled leather in lames and straps, "
+                               "blackened iron at the joints, crimson pteruges to the knee, one great spiked "
+                               "pauldron, a bone-white scythe on the breast and back, and a red-lacquered great "
+                               "helm with iron crest boards. Not sworn to Velscour."),
     "boneward": dict(name="Bone-Ward Harness", gauntlet="boneward",
                      under=dict(body=BONEW["hide2"], feet=BONEW["hide"]),
                      build=boneward, gauntlet_dress=boneward_gauntlet,
