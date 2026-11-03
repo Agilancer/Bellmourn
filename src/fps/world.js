@@ -210,7 +210,7 @@ export function buildWorld(ctx) {
   // where the player may go: the village and forest, the trail, the downs
   for (const r of restore) r();
   craterOfferings(ctx);   // candles, wreaths and flowers the village has left by the crater
-  ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
+  ctx.inBounds = (x, z) => Math.hypot(x, z) < WORLD_R - 4 || !!ctx.mountain?.covers(x, z) || (x > 100 && x < REGION.x0 + 10 && Math.abs(z) < 5.5)
     || (x >= REGION.x0 + 4 && x <= REGION.x1 - 4 && Math.abs(z) <= REGION.z1 - 6);
   return { houses };
 }
@@ -753,7 +753,7 @@ function forestRing(ctx, R, houses) {
     const sc = 0.8 + R() * 0.6;
     // Blackvigil Keep's ground stays open: what would grow there is drawn for and not planted,
     // so the rest of the forest stands as it always has
-    const open = keepClear(x, z);
+    const open = keepClear(x, z) || !!ctx.mountain?.keepsClear(x, z);   // (and the Pilgrims' Track to the Broken Stair, and the mountain's own ground)
     if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
       const s3 = 0.9 + R() * 0.5;
       if (!open) ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, s3);

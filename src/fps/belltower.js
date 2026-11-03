@@ -191,7 +191,6 @@ export function buildBellTower(ctx, M) {
   props.add('bookshelf', X + IN - 0.35, F, Z + 1.1, -Math.PI / 2);
   props.add('bed', X + 3.4, F, Z + 2.9, 0);   // (his cot along the east wall, clear of the doorway)
   props.add('candelabrum', X + 3.2, F, Z - 0.1);   // (before the east lancet: his reading light, in front of him)
-  props.add('chest_rustic_carved', X + 2.0, F, Z + 3.45, 0);
   // his witch-light: a violet orb in an iron tripod, cold where a fire would be warm (it lights the
   // hall and him by its own colour: main's light pool takes ctx.witchLights)
   const wl = [-2.75, -2.9];

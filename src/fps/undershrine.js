@@ -75,13 +75,13 @@ export function buildUndershrine(ctx) {
   const sprite = (id, x, y, z, sc = 1, rot = null) => { if (lib.spr.has(id)) { ctx.scatter.place(id, x, y, z, sc, rot); lib.usedSprites?.add(id); } };
   const burner = (x, y, z, sc = 1, size = 0.42) => { sprite('catacombs_incense_brazier', x, y, z, sc); const s = lib.sprite('catacombs_incense_brazier'); flames.push([x, y + (s ? s.height_m * sc * 0.92 : 1) + 0.15, z, size, 1]); };
   const torch = (x, y, z, nx, nz) => props.add('wall_torch', x + nx * 0.02, y, z + nz * 0.02, Math.atan2(nx, nz));
-  const witch = (x, y, z, color) => (ctx.witchLights ||= []).push(Object.assign([x, y, z, 0.3, true], { color, witch: true }));
+  const witch = (x, y, z, color, range = 7.5, power = 6) => (ctx.witchLights ||= []).push(Object.assign([x, y, z, 0.3, true], { color, witch: true, range, power }));
   const below = [];          // what counts as under the land here (physics.belowGround)
 
   // ======================================================== the founders' shaft
   // A round shaft 4 m across under the hall's hatch, a stair of 103 treads spiralling down its wall
   // round a stone newel, from the hall's floor to the Founders' Pit's level, coming out north.
-  const sh = SHAFT, wallM = M(STONE.founders.wall, 2.4, { tint: 0xb8b0a4 }), treadM = M('castle_keep_pale_keep_limestone', 1.2), newelM = M('castle_ashlar', 1.6);
+  const sh = SHAFT, wallM = M('castle_ashlar', 2.2, { tint: 0xc0b8ac, tri: true }), treadM = M('castle_keep_charcoal_guardstone', 1.1, { tri: true }), newelM = M('castle_ashlar', 1.4, { tri: true });
   const N = Math.ceil((F - Y.A) / 0.25), h = (F - Y.A) / N, sweep = sh.turns * Math.PI * 2, dA = sweep / N, A0 = Math.PI / 2;
   const at = (a, r, y) => [sh.x + Math.cos(a) * r, y, sh.z + Math.sin(a) * r];
   for (let i = 0; i < N; i++) {
@@ -91,7 +91,7 @@ export function buildUndershrine(ctx) {
     const r0 = sh.newel, r1 = sh.r - 0.04;
     // the tread's top, its riser (the edge you step down off), its underside and its outer end
     const t0 = corner(a0, r0, top), t1 = corner(a0, r1, top), t2 = corner(a1, r1, top), t3 = corner(a1, r0, top);
-    const u0 = corner(a0, r0, top - 0.3), u1 = corner(a0, r1, top - 0.3), u2 = corner(a1, r1, top - 0.3), u3 = corner(a1, r0, top - 0.3);
+    const u0 = corner(a0, r0, top - 0.55), u1 = corner(a0, r1, top - 0.55), u2 = corner(a1, r1, top - 0.55), u3 = corner(a1, r0, top - 0.55);
     tris.push([t0, t2, t1], [t0, t3, t2], [u0, u1, u2], [u0, u2, u3], [t0, t1, u1], [t0, u1, u0], [t1, t2, u2], [t1, u2, u1]);
     b.mesh(treadM, P, U, tris, 0.9);
   }
@@ -147,7 +147,7 @@ export function buildUndershrine(ctx) {
       b.lathe(PIT.x, PIT.z, [[KR[0] + 0.02, Y.A + 0.02], [0, Y.A + 0.02]], 28, M('catacombs_grave_gravel', 2));   // (slag and sand in the pit)
       // the mould: the clay cope of a bell three times the tenor's size, split and fallen open, its
       // core still standing inside
-      const clay = M('catacombs_burial_terracotta', 1.4, { tint: 0x9a7a62 });
+      const clay = M('myth_06_volcanic_shrine_1_01', 1.6, { tint: 0xb08a6a, tri: true });
       b.lathe(PIT.x, PIT.z, [[0, Y.A + 5.2], [1.1, Y.A + 5.0], [1.7, Y.A + 4.2], [1.9, Y.A + 2.6], [2.3, Y.A + 1.0], [2.7, Y.A + 0.05], [0, Y.A + 0.05]], 18, clay);
       for (const a of [0.4, 2.6]) b.place(PIT.x + Math.cos(a) * 3.2, Y.A + 0.6, PIT.z + Math.sin(a) * 3.2, a, 1, (o) => o.blob([0, 0, 0], [1.4, 0.5, 1.0], clay, { seed: 31 + a * 10, jitter: 0.25 }), { solid: true });
       physics.add([PIT.x - 2.1, Y.A, PIT.z - 2.1], [PIT.x + 2.1, Y.A + 5.2, PIT.z + 2.1], 'prop');
@@ -168,7 +168,19 @@ export function buildUndershrine(ctx) {
   // hall, the floor cracked with fire
   const furn = mason.room({ name: 'The Great Furnace', dg: 'founders', poly: ring(FURNACE.x, FURNACE.z, FURNACE.r, 12, 15 * DEG), y: Y.A, wallH: 5.5, roof: { kind: 'dome', rise: 3.5 }, mats: ST.furnace, torches: 0 });
   mason.passage({ name: 'The Great Furnace', dg: 'founders', pts: [[PIT.x + PIT.r, PIT.z, Y.A], [FURNACE.x - FURNACE.r, FURNACE.z, Y.A]], w: 3, spring: 3.2, from: pit, to: furn, mats: ST.furnace, ribs: 3, torches: 0 });
-  for (const a of [40, 140, 220, 320]) { const r = FURNACE.r - 1.1; burner(FURNACE.x + Math.cos(a * DEG) * r, Y.A, FURNACE.z + Math.sin(a * DEG) * r, 1, 0.45); }
+  { const brick = M('castle_keep_crimson_armory_brick', 1.2, { tri: true }), iron = M('castle_iron', 1), fx = FURNACE.x + FURNACE.r - 2.2;
+    b.box([fx - 1.2, Y.A, FURNACE.z - 2.4], [fx + 2.2, Y.A + 3.6, FURNACE.z + 2.4], brick);            // the firebox, built into the wall
+    b.box([fx - 1.25, Y.A + 3.6, FURNACE.z - 2.6], [fx + 2.2, Y.A + 4.0, FURNACE.z + 2.6], iron, { solid: false });
+    b.cylinder([fx + 0.6, Y.A + 4.0, FURNACE.z], [fx + 0.6, Y.A + 9.0, FURNACE.z], 0.9, 10, brick, { r1: 0.7 });   // its flue, up into the dome
+    const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), new THREE.MeshBasicMaterial({ color: 0xff7a28 }));
+    mouth.position.set(fx - 0.9, Y.A + 1.2, FURNACE.z); mouth.rotation.y = -Math.PI / 2;
+    ctx.scene.add(mouth);
+    for (const s of [-1, 1]) b.box([fx - 1.25, Y.A + 0.3, FURNACE.z + s * 1.1 - 0.02], [fx - 0.9, Y.A + 2.1, FURNACE.z + s * 1.15], brick, { solid: false });   // (the mouth's reveal)
+    for (let k = -4; k <= 4; k++) b.box([fx - 1.3, Y.A + 0.4, FURNACE.z + k * 0.24 - 0.03], [fx - 1.24, Y.A + 2.0, FURNACE.z + k * 0.24 + 0.03], iron, { solid: false });
+    flames.push([fx - 1.6, Y.A + 1.0, FURNACE.z, 0.6, 1]);
+    b.lathe(FURNACE.x - 1.5, FURNACE.z + 1.5, [[0.9, Y.A], [1.1, Y.A + 0.9], [1.0, Y.A + 1.1], [0, Y.A + 1.1]], 12, iron);   // the crucible
+    physics.add([FURNACE.x - 2.6, Y.A, FURNACE.z + 0.4], [FURNACE.x - 0.4, Y.A + 1.1, FURNACE.z + 2.6], 'prop'); }
+  for (const a of [130, 230]) { const r = FURNACE.r - 1.1; burner(FURNACE.x + Math.cos(a * DEG) * r, Y.A, FURNACE.z + Math.sin(a * DEG) * r, 1, 0.45); }
   // light: torches at the shaft's foot, braziers round the pit
   for (const a of [45, 135, 225, 315]) { const r = PIT.r - 1.6; burner(PIT.x + Math.cos(a * DEG) * r, Y.A, PIT.z + Math.sin(a * DEG) * r, 1, 0.42); }
 
@@ -181,11 +193,14 @@ export function buildUndershrine(ctx) {
   mason.openInto(cloister, slag, [PIT.x, -261, Y.B]);
   slag.to = cloister;
   // the arcade: twelve pillars round an ambulatory, and the dry basin in the court with his sigil
-  for (let i = 0; i < 12; i++) {
-    const side = Math.floor(i / 3), k = i % 3, t = -5 + k * 5;
-    const [px, pz] = [[t, -6.5], [6.5, t], [-t, 6.5], [-6.5, -t]][side];
-    props.add('pillar_gothic', CLOISTER.x + px, Y.B, CLOISTER.z + pz, 0, 1.6);
-  }
+  // (four at the corners and a pair on each side, the four ways in and across left open)
+  { const colM = M('castle_keep_charcoal_guardstone', 1.6, { tri: true }), capM = M('met_04_tarnished_bronze', 0.8);
+    for (const [px, pz] of [[-6.5, -6.5], [6.5, -6.5], [6.5, 6.5], [-6.5, 6.5], [-2.6, -6.5], [2.6, -6.5], [-2.6, 6.5], [2.6, 6.5], [-6.5, -2.6], [-6.5, 2.6], [6.5, -2.6], [6.5, 2.6]]) {
+      const x = CLOISTER.x + px, z = CLOISTER.z + pz;
+      b.cylinder([x, Y.B, z], [x, Y.B + 7, z], 0.42, 10, colM);
+      b.cylinder([x, Y.B, z], [x, Y.B + 0.5, z], 0.6, 10, capM); b.cylinder([x, Y.B + 6.4, z], [x, Y.B + 7, z], 0.62, 10, capM, { r1: 0.42 });
+      physics.add([x - 0.45, Y.B, z - 0.45], [x + 0.45, Y.B + 7, z + 0.45], 'wall');
+    } }
   mason.feature(cloister, [CLOISTER.x - 3.6, CLOISTER.z - 3.6, CLOISTER.x + 3.6, CLOISTER.z + 3.6], (x, z) => { const d = Math.max(Math.abs(x - CLOISTER.x), Math.abs(z - CLOISTER.z)); return d >= 3 && d <= 3.6 ? Y.B + 0.5 : null; },
     () => {
       const st = M('castle_keep_charcoal_guardstone', 1.4);
@@ -196,12 +211,20 @@ export function buildUndershrine(ctx) {
   // the Scriptorium (branch: the adepts' grimoire): their reading room, shelves and lecterns
   const scr = mason.room({ name: 'The Scriptorium', dg: 'cloister', poly: chamfered(641, CLOISTER.z, 12, 10, 2.5), y: Y.B, wallH: 4.6, roof: { kind: 'dome', rise: 2.4, spine: [[637, CLOISTER.z], [645, CLOISTER.z]] }, mats: ST.scriptorium, torches: 4 });
   mason.passage({ name: 'The Scriptorium', dg: 'cloister', pts: [[CLOISTER.x - 11, CLOISTER.z, Y.B], [647, CLOISTER.z, Y.B]], w: 2.6, spring: 3, from: cloister, to: scr, mats: ST.vigil, ribs: 3, torches: 0 });
-  for (const dx of [-4.2, -1.4, 1.4]) { props.add('bookshelf', 641 + dx, Y.B, CLOISTER.z - 4.6, 0); props.add('bookshelf', 641 + dx, Y.B, CLOISTER.z + 4.6, Math.PI); }
-  props.add('candelabrum', 641 - 4.8, Y.B, CLOISTER.z);
+  for (const dx of [-2.8, 0, 2.8]) { props.add('bookshelf', 641 + dx, Y.B, CLOISTER.z - 4.6, 0); props.add('bookshelf', 641 + dx, Y.B, CLOISTER.z + 4.6, Math.PI); }
+  props.add('table', 642, Y.B, CLOISTER.z - 1.6, 0); props.add('table', 642, Y.B, CLOISTER.z + 1.6, 0);
+  props.add('candelabrum', 643.6, Y.B, CLOISTER.z - 2.4); props.add('candelabrum', 643.6, Y.B, CLOISTER.z + 2.4);
+  props.add('pulpit', 637.2, Y.B, CLOISTER.z, Math.PI / 2); props.add('candelabrum', 637.4, Y.B, CLOISTER.z - 1.4);
   // the Oath Hall (sub-boss: Ser Hollin Vane, the Knight-Warden): a long hall of the Vigil's banners
-  const oath = mason.room({ name: 'The Oath Hall', dg: 'cloister', poly: chamfered(OATH.x, OATH.z, 18, 10, 3), y: Y.B, wallH: 6, roof: { kind: 'dome', rise: 3, spine: [[OATH.x - 5, OATH.z], [OATH.x + 5, OATH.z]] }, mats: ST.vigil, torches: 0 });
+  const apseO = Array.from({ length: 7 }, (_, i) => { const t = Math.PI + (i + 1) * Math.PI / 8; return [OATH.x + Math.cos(t) * 5, OATH.z - 3 + Math.sin(t) * 5]; });
+  const oath = mason.room({ name: 'The Oath Hall', dg: 'cloister', poly: [[OATH.x - 5, OATH.z + 5], [OATH.x + 5, OATH.z + 5], [OATH.x + 5, OATH.z - 3], ...apseO.reverse(), [OATH.x - 5, OATH.z - 3]], y: Y.B, wallH: 7,
+    roof: { kind: 'dome', rise: 4, spine: [[OATH.x, OATH.z + 2], [OATH.x, OATH.z - 3]] }, mats: ST.vigil, torches: 0 });
+  mason.feature(oath, [OATH.x - 3.2, OATH.z - 8.2, OATH.x + 3.2, OATH.z - 4.6], (x, z) => (Math.hypot(x - OATH.x, z - OATH.z + 3) < 4.8 && z < OATH.z - 4.6 ? Y.B + 0.5 : null),
+    () => { b.box([OATH.x - 3.4, Y.B, OATH.z - 7.6], [OATH.x + 3.4, Y.B + 0.5, OATH.z - 4.6], M('castle_keep_charcoal_guardstone', 1.4), { solid: false }); });
+  sigils.push([OATH.x, Y.B + 0.53, OATH.z - 6.4, 2.6, 0x8a3a3a]);
   mason.passage({ name: 'The Oath Hall', dg: 'cloister', pts: [[CLOISTER.x, CLOISTER.z - 12, Y.B], [OATH.x, OATH.z + 5, Y.B]], w: 3.2, spring: 3.4, from: cloister, to: oath, mats: ST.vigil, ribs: 3, torches: 0 });
-  for (const dx of [-6, -2, 2, 6]) { burner(OATH.x + dx, Y.B, OATH.z - 3.8, 0.9, 0.38); }
+  for (const dx of [-3.4, 3.4]) burner(OATH.x + dx, Y.B, OATH.z - 4.0, 1.1, 0.45);
+  for (const dx of [-4.2, 4.2]) burner(OATH.x + dx, Y.B, OATH.z + 3.6, 0.9, 0.38);
   // ---- the Bronze Gate east, and the stair down to stage III
   const p3 = mason.passage({ name: 'The Seep Stair', dg: 'cloister', pts: [[CLOISTER.x + 11, CLOISTER.z, Y.B], [682, CLOISTER.z, Y.B], [690, CLOISTER.z, Y.B - 4], [693, CLOISTER.z, Y.B - 4], [701, CLOISTER.z, Y.C], [703, CLOISTER.z, Y.C]],
     w: 4, spring: 4.2, from: cloister, mats: ST.vigil, ribs: 3.5, torches: 5 });
@@ -218,15 +241,17 @@ export function buildUndershrine(ctx) {
   for (const [x, z] of [[-7, -5], [7, -5], [-7, 5], [7, 5]]) burner(OSSUARY.x + x, Y.C, OSSUARY.z + z, 0.9, 0.38);
   // the Bone Chapel (branch: the weird thing): the adepts built a chapel of their dead, and in it
   // a thing of bone that still turns, slowly, by itself
-  const chapel = mason.room({ name: 'The Bone Chapel', dg: 'ossuary', poly: ring(CHAPEL.x, CHAPEL.z, CHAPEL.r, 10, 18 * DEG), y: Y.C, wallH: 4.8, roof: { kind: 'dome', rise: 3.2 }, mats: ST.ossuary, torches: 0 });
+  const chapel = mason.room({ name: 'The Bone Chapel', dg: 'ossuary', poly: ring(CHAPEL.x, CHAPEL.z, CHAPEL.r, 10, 0), y: Y.C, wallH: 4.8, roof: { kind: 'dome', rise: 3.2 },
+    mats: { ...ST.ossuary, wall: has('catacombs_wall_funerary_chapel') ? 'catacombs_wall_funerary_chapel' : ST.ossuary.wall }, torches: 0 });
   mason.passage({ name: 'The Bone Chapel', dg: 'ossuary', pts: [[OSSUARY.x, OSSUARY.z - 8, Y.C], [CHAPEL.x, CHAPEL.z + CHAPEL.r - 0.05, Y.C]], w: 2.6, spring: 3, from: oss, to: chapel, mats: ST.ossuary, ribs: 2.5, torches: 0 });
   const bone = M('castle_keep_ivory_chapel_marble', 0.5, { tint: 0xc8bc9c });
   const wheel = new THREE.Group();   // the orrery of bones: rings of ribs round a skull, turning
-  { const boneMat = new THREE.MeshPhongMaterial({ color: 0xd8ccae, specular: 0x302a20, shininess: 14 });
+  { const bt = lib.material('castle_keep_ivory_chapel_marble', { tile: 0.4 });
+    const boneMat = new THREE.MeshPhongMaterial({ map: bt.map || null, color: 0xe8dcc4, specular: 0x302a20, shininess: 14, emissive: 0x1a1810, emissiveMap: bt.map || null });
     for (let r = 0; r < 3; r++) {
       const ringG = new THREE.Group();
       for (let k = 0; k < 14; k++) {
-        const a = (k / 14) * Math.PI * 2, rib = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.9, 5), boneMat);
+        const a = (k / 14) * Math.PI * 2, rib = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.6, 5), boneMat);
         rib.position.set(Math.cos(a) * (1.2 + r * 0.55), 0, Math.sin(a) * (1.2 + r * 0.55)); rib.rotation.z = Math.PI / 2; rib.rotation.y = -a;
         ringG.add(rib);
       }
@@ -234,17 +259,19 @@ export function buildUndershrine(ctx) {
       wheel.add(ringG);
     }
     const skull = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), boneMat); skull.scale.set(1, 1.15, 1.2); wheel.add(skull);
-    wheel.position.set(CHAPEL.x, Y.C + 2.6, CHAPEL.z);
+    wheel.position.set(CHAPEL.x, Y.C + 2.9, CHAPEL.z);
     ctx.scene.add(wheel);
-    (ctx.animated ||= []).push((dt, t) => { wheel.rotation.y = t * 0.12; wheel.children.forEach((c, i) => { if (i < 3) c.rotation.y = t * (0.2 + i * 0.13) * (i % 2 ? -1 : 1); }); wheel.position.y = Y.C + 2.6 + Math.sin(t * 0.7) * 0.08; });
+    (ctx.animated ||= []).push((dt, t) => { wheel.rotation.y = t * 0.12; wheel.children.forEach((c, i) => { if (i < 3) c.rotation.y = t * (0.2 + i * 0.13) * (i % 2 ? -1 : 1); }); wheel.position.y = Y.C + 2.9 + Math.sin(t * 0.7) * 0.08; });
     witch(CHAPEL.x, Y.C + 2.6, CHAPEL.z, 0x9affb0);
   }
-  b.place(CHAPEL.x, Y.C, CHAPEL.z, 0, 1, (o) => { o.cylinder([0, 0, 0], [0, 0.95, 0], 0.9, 8, bone); }, { solid: true });
+  b.place(CHAPEL.x, Y.C, CHAPEL.z, 0, 1, (o) => { o.cylinder([0, 0, 0], [0, 0.95, 0], 0.9, 8, M('castle_keep_ivory_chapel_marble', 0.8, { tint: 0x9a9080, tri: true })); }, { solid: true });
+  burner(CHAPEL.x - 3.6, Y.C, CHAPEL.z + 1.8, 0.8, 0.32); burner(CHAPEL.x + 3.6, Y.C, CHAPEL.z + 1.8, 0.8, 0.32);
   for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; sprite('catacombs_skull_pile', CHAPEL.x + Math.cos(a) * (CHAPEL.r - 0.9), Y.C, CHAPEL.z + Math.sin(a) * (CHAPEL.r - 0.9), 0.8); }
   // the Murrain Pit (sub-boss: Mother Murrain): a round sump where the plague dead were tipped
   const mur = mason.room({ name: 'The Murrain Pit', dg: 'ossuary', poly: ring(MURRAIN.x, MURRAIN.z, MURRAIN.r, 12, 15 * DEG), y: Y.C, wallH: 5, roof: { kind: 'dome', rise: 3 }, mats: ST.murrain, torches: 0 });
   mason.passage({ name: 'The Murrain Pit', dg: 'ossuary', pts: [[OSSUARY.x, OSSUARY.z + 8, Y.C], [MURRAIN.x, MURRAIN.z - MURRAIN.r + 0.05, Y.C]], w: 3, spring: 3.2, from: oss, to: mur, mats: ST.murrain, ribs: 2.5, torches: 0 });
   witch(MURRAIN.x, Y.C + 1.2, MURRAIN.z, 0x7aff60);
+  for (const a of [60, 180, 300]) burner(MURRAIN.x + Math.cos(a * DEG) * 4.6, Y.C, MURRAIN.z + Math.sin(a * DEG) * 4.6, 0.9, 0.4);
   for (const a of [0, 120, 240]) sprite('catacombs_skull_pile', MURRAIN.x + Math.cos(a * DEG) * 4.5, Y.C, MURRAIN.z + Math.sin(a * DEG) * 4.5, 1.1);
   // ---- the Silver Gate, and the Processional: the grand stair east under the cliff, braziers at
   // its landings
@@ -274,15 +301,20 @@ export function buildUndershrine(ctx) {
   // eight pillars on a ring (cover from his bolts), braziers between them, his sigil on the floor
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * Math.PI * 2 + Math.PI / 8, r = 14.5, x = ARENA.x + Math.cos(a) * r, z = ARENA.z + Math.sin(a) * r;
-    if (Math.hypot(x - STATUE.x, z - STATUE.z) < 9.5) continue;   // (none on the dais)
-    b.cylinder([x, Y.D, z], [x, Y.D + 11, z], 0.85, 10, M('catacombs_black_basalt', 2));
-    b.cylinder([x, Y.D, z], [x, Y.D + 0.6, z], 1.1, 10, M('met_04_tarnished_bronze', 1));
-    physics.add([x - 0.8, Y.D, z - 0.8], [x + 0.8, Y.D + 11, z + 0.8], 'wall');
+    if (Math.hypot(x - STATUE.x, z - STATUE.z) > 9.5) {   // (none on the dais)
+      b.cylinder([x, Y.D, z], [x, Y.D + 11, z], 0.85, 10, M('catacombs_black_basalt', 2));
+      b.cylinder([x, Y.D, z], [x, Y.D + 0.6, z], 1.1, 10, M('met_04_tarnished_bronze', 1));
+      physics.add([x - 0.8, Y.D, z - 0.8], [x + 0.8, Y.D + 11, z + 0.8], 'wall');
+    }
     const a2 = a + Math.PI / 8, r2 = ARENA.r - 2.2;
+    if (Math.abs(Math.cos(a2) + 1) < 0.08) continue;   // (none in the way in, on the west)
     burner(ARENA.x + Math.cos(a2) * r2, Y.D, ARENA.z + Math.sin(a2) * r2, 1.3, 0.5);
     witch(ARENA.x + Math.cos(a2) * r2, Y.D + 2.2, ARENA.z + Math.sin(a2) * r2, k % 2 ? 0x8a50ff : 0x60ff70);
   }
   sigils.push([ARENA.x - 6, Y.D + 0.03, ARENA.z, 10, 0x7a3aaa]);
+  for (const s of [-1, 1]) { burner(STATUE.x - 8.2, Y.D, STATUE.z + s * 3.2, 1.4, 0.55); witch(STATUE.x - 7.6, Y.D + 3, STATUE.z + s * 2.2, s < 0 ? 0x9a60ff : 0x60ff80, 16, 12); }
+  witch(STATUE.x - 10, Y.D + 12, STATUE.z, 0xc8b0ff, 26, 16);   // (high in front of him, as if the dome let the moon in)
+  for (let k = 0; k < 4; k++) { const a = Math.PI * 0.75 + k * Math.PI / 6; witch(ARENA.x + Math.cos(a) * (ARENA.r - 3), Y.D + 10, ARENA.z + Math.sin(a) * (ARENA.r - 3), k % 2 ? 0x8a50ff : 0x50ff70, 22, 10); }
   for (const s of [[KNEEL.x - 4, KNEEL.z - 5.5], [KNEEL.x + 4, KNEEL.z - 5.5], [KNEEL.x - 4, KNEEL.z + 5.5], [KNEEL.x + 4, KNEEL.z + 5.5]]) burner(s[0], Y.D, s[1], 1, 0.42);
 
   // ======================================================== the gates
@@ -326,7 +358,8 @@ export function buildUndershrine(ctx) {
       where: (p) => mason.spaceAt(p.x, p.z)?.name || name,
       roomList: rooms.map((r) => { const xs = r.poly.map((q) => q[0]), zs = r.poly.map((q) => q[1]); return { x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs), z1: Math.max(...zs), kind: r.name, y: r.y, poly: r.poly }; }),
       fogAt: (p) => (/Shrine of Velscour|Founders' Pit|Cloister/.test(mason.spaceAt(p.x, p.z)?.name || '') ? 90 : 55),
-      ambAt: () => 0.12,
+      ambAt: (p) => ({ 'The Shrine of Velscour': 0.55, "The Founders' Pit": 0.3, 'The Great Furnace': 0.35, 'The Cloister of the Vigil': 0.3, 'The Oath Hall': 0.28, 'The Scriptorium': 0.22,
+        'The Drowned Ossuary': 0.25, 'The Murrain Pit': 0.32, 'The Bone Chapel': 0.25, 'The Hall of Kneeling': 0.3, 'The Processional': 0.2 }[mason.spaceAt(p.x, p.z)?.name] ?? 0.14),
     };
   };
   const dgs = { founders: place("The Founders' Pit", 'founders', Y.A), cloister: place('The Cloister of the Vigil', 'cloister', Y.B), ossuary: place('The Drowned Ossuary', 'ossuary', Y.C), shrine: place('The Shrine of Velscour', 'shrine', Y.D) };
@@ -432,8 +465,8 @@ export class Undershrine {
     const have = (this.named ||= {})[who];
     if (have && !have.dead && !have.gone) return have;
     if (who === 'hollin' && foes.gltf.sworn_hollin) {
-      const f = foes.spawn('sworn_hollin', OATH.x + 5, OATH.z, { y: Y.B, zone: 'dungeon', dg: this.dgs.cloister });
-      f.dg = this.dgs.cloister; f.slay = 'hollin'; f.postYaw = -Math.PI / 2;
+      const f = foes.spawn('sworn_hollin', OATH.x, OATH.z - 5.6, { y: Y.B + 0.5, zone: 'dungeon', dg: this.dgs.cloister });
+      f.dg = this.dgs.cloister; f.slay = 'hollin'; f.postYaw = 0;
       return (this.named[who] = f);
     }
     if (who === 'morcant' && foes.gltf.sworn_archmage) {
@@ -532,7 +565,8 @@ export class Undershrine {
     this.statueMade = true;
     import('three/addons/utils/SkeletonUtils.js').then(({ clone }) => {
       const body = clone(src.scene);
-      const stone = new THREE.MeshPhongMaterial({ color: 0x3a3640, specular: 0x5a5060, shininess: 18, emissive: 0x120818 });
+      const st = this.ctx.lib.material('catacombs_black_basalt', { tile: 2 });
+      const stone = new THREE.MeshPhongMaterial({ map: st.map || null, color: 0x8a8494, specular: 0x3a3440, shininess: 12, emissive: 0x2a2434, emissiveMap: st.map || null });
       body.traverse((o) => { if (o.isMesh) { o.material = stone; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
       // his pose: the sword grounded before him, hands on its pommel (from the library's idle, held)
       const clips = src.animations || [], clip = clips.find((c) => /idle_sword|guard|idle/.test(c.name));
@@ -568,7 +602,8 @@ class BossMage {
     const f = this.f, foes = this.s.foes, Z = this.s.Z;
     if (!f || f.gone) return;
     this.t += dt;
-    if (f.dead) { for (const m of this.mirrors) if (!m.dead) m.hit?.('chest', { dmg: 9999, dir: new THREE.Vector3(0, 0, 1) }); return; }
+    if (f.dead) { for (const m of this.mirrors) if (!m.gone) m.remove(); this.mirrors.length = 0; return; }   // (his illusions go with him)
+    for (const m of this.mirrors) if (!m.dead && !m.gone) m.root.visible = Math.sin(this.t * 23 + m.pos.x) > -0.75;   // (the illusions won't hold still)
     const inArena = Math.hypot(player.pos.x - ARENA.x, player.pos.z - ARENA.z) < ARENA.r && Math.abs(player.pos.y - Y.D) < 6;
     if (inArena && !this.engaged) { this.engaged = true; this.shout(0); if (foes) foes.boss = f; }
     if (!this.engaged) return;
@@ -616,6 +651,7 @@ class BossMage {
     this.mirrors = [-1, 1].map((s) => {
       const m = foes.spawn('sworn_archmage', f.pos.x + s * 4, f.pos.z + s * 2, { y: f.pos.y, zone: 'dungeon', dg: this.s.dgs.shrine });
       m.dg = this.s.dgs.shrine; m.mirror = true; m.hp = 1; m.noLoot = true; m.xp = 0;
+
       return m;
     });
   }

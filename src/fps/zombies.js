@@ -817,8 +817,10 @@ function ualClips(gltf) {
 
 /** A UAL body ready for the brain: bones renamed, and the clips it asks for made from the library's.
  * Every body keeps the takes (userData.takes): each of the dead draws its own walk, idle and blows
- * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. */
-function adaptUAL(gltf, C, own = null) {
+ * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. A beast (`pick`:
+ * its own clips by name for idle, walk, run, blows [three], death, jump, crawl, and `extra` moves
+ * under names of their own) keeps each move to what it's given, and has no takes. */
+function adaptUAL(gltf, C, own = null, pick = null) {
   nameByBytes(gltf);
   shareTextures(gltf.scene);
   gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
@@ -843,25 +845,31 @@ function adaptUAL(gltf, C, own = null) {
     }
     return k;
   };
-  const idle = takes('Zombie_Idle_Loop'), scratch = takes('Zombie_Scratch');
+  const P = (n) => [n || []].flat().map((k) => C[k]).filter(Boolean), got = (n) => (pick ? P(pick[n])[0] : null);
+  const idle = pick ? P(pick.idle) : takes('Zombie_Idle_Loop'), scratch = takes('Zombie_Scratch');
   // a variant walks and strikes its own way; the rest draw from the shared takes
   const ownWalk = own && C['Zombie_Walk_Fwd_Loop_' + own], ownBlow = own && C['Zombie_Scratch_' + own];
-  const walk = ownWalk ? [ownWalk] : takes('Zombie_Walk_Fwd_Loop');
-  const blows = (ownBlow ? [ownBlow, ownBlow, C.Melee_Hook] : [...scratch, C.Melee_Hook, C.OverhandThrow]).filter(Boolean);
-  const knock = C.Hit_Knockback, last = knock ? Math.round(knock.duration * FPS) : 0;
+  const walk = pick ? P(pick.walk) : ownWalk ? [ownWalk] : takes('Zombie_Walk_Fwd_Loop');
+  const blows = pick ? P(pick.blows) : (ownBlow ? [ownBlow, ownBlow, C.Melee_Hook] : [...scratch, C.Melee_Hook, C.OverhandThrow]).filter(Boolean);
+  const knock = C.Hit_Knockback, fell = got('death') || knock, last = fell ? Math.round(fell.duration * FPS) : 0;
   gltf.animations = [
-    named(idle[0], 'idle'), named(walk[0], 'walk'), named(walk[1] || walk[0], 'run'),
-    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(C.Melee_Hook || blows[2], 'attack3'),
-    sub(knock, 'hit', 0, 9), named(knock, 'death'), knock && THREE.AnimationUtils.subclip(knock, 'dead', last - 1, last, FPS),
-    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop, 'fall'),
-    prone(walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
+    named(idle[0], 'idle'), named(walk[0], 'walk'), named(got('run') || walk[1] || walk[0], 'run'),
+    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(pick ? blows[2] || blows[0] : C.Melee_Hook || blows[2], 'attack3'),
+    got('hit') ? named(got('hit'), 'hit') : sub(knock, 'hit', 0, 9), named(fell, 'death'), fell && THREE.AnimationUtils.subclip(fell, 'dead', last - 1, last, FPS),
+    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(got('jump') || C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop || C.Jump_Loop, 'fall'),
+    prone(got('crawl') || walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
     sub(prone(idle[0], 'crawl_death'), 'crawl_death', 0, 2),
+    ...Object.entries(pick?.extra || {}).map(([n, k]) => named(C[k], n)),
   ].filter(Boolean);
   // (the takes each body draws its own from; and where in each blow it lands)
-  gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
+  if (!pick) gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
   gltf.userData.ual = true;
   return gltf;
 }
+
+/** A beast on the UAL skeleton with its clips in its own file (templates/models/creatures/beast_ual):
+ * bones renamed for the brain and its moves made from `pick` (adaptUAL). */
+export function adaptBeast(gltf, pick) { return adaptUAL(gltf, ualClips(gltf), null, pick); }
 
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
