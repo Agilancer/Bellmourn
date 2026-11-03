@@ -68,3 +68,22 @@ Use the headless harness (scratchpad `harness.mjs`). It serves the sibling Bellm
 - `test_war.mjs`: the mountain.
 
 Run both renderers (`--q=?renderer=webgl`). Syntax-check changed modules as `.mjs` copies (`node --check x.mjs`): a `.js` check misses ES-module redeclarations.
+
+## Critics (DUNGEON_BUILDING.md section 15)
+Two critics reviewed every iteration: a level designer with 20 years in dungeons, and a younger critic with sharp taste for the genre.
+- **Round 1:** both said revise. Their notes were dark interiors, no leading line in the nave, black statues, and thin camps and ruins.
+- **Round 2:** the veteran approved. The other still saw black statues, a dark crypt and black pillars.
+- **Round 3:** both approved.
+
+What the rounds changed:
+- the temple and crypt light as indoor (cathedral) spaces;
+- a pale runner down the nave, a deep portal, flame pylons, the apse ceiling;
+- the crypt floor lifted, the tomb lit, embers at the gallery bends, torches down the stair;
+- the doors half open with a fire inside;
+- lantern posts, dice boards and candles at the camps;
+- rubble at the ruins.
+
+## Traps found on the way
+- `castle_keep_ivory_chapel_marble` laid **triplanar** (`tri: true`) draws black. Use `castle_keep_pale_keep_limestone` for pale stone that is laid triplanar.
+- A builder cone is drawn for its outside only. Put a ceiling under any cone roof you can stand under.
+- `buildWorld` resets `ctx.zones`. Build anything with rooms after it, but register its clear zone (so no trees grow there) before it.
