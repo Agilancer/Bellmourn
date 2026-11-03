@@ -535,7 +535,7 @@ export function buildMountain(ctx, M) {
     P('goat_weapon_cache', c.x + Math.cos(ta - 1.9) * 5.2, c.z + Math.sin(ta - 1.9) * 5.2, 1, ta);
     // the ram's skull on its stake, facing the road
     const [rx, rz] = S.road[c.road], sa = Math.atan2(rx - c.x, rz - c.z), sx = c.x + Math.sin(sa) * 8, sz = c.z + Math.cos(sa) * 8, sy = S.heightAt(sx, sz);
-    const bone = M('castle_keep_ivory_chapel_marble', 0.5), pole = M('keep_01_weathered_limestone_01', 0.6, { tint: 0x8a7458 });   // (a weathered stave, a bleached skull)
+    const bone = M('castle_keep_ivory_chapel_marble', 0.5), pole = M('castle_keep_pale_keep_limestone', 0.6, { tint: 0x8a7458 });   // (a weathered stave, a bleached skull)
     b.place(sx, sy, sz, sa, 1, (o) => {
       o.box([-0.05, 0, -0.05], [0.05, 2.3, 0.05], pole);
       o.blob([0, 2.42, 0.05], [0.16, 0.2, 0.24], bone, { detail: 1, jitter: 0.06, seed: 50 + n });
