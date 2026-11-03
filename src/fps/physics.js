@@ -173,6 +173,15 @@ export class Physics {
     }
   }
 
+  /** Is there something solid between two bodies standing at a and b, at height y above their feet?
+   * (a blow, a grab or a pounce can't land through a wall or a window pane) */
+  between(a, b, y = 1.1) {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, l = Math.hypot(dx, dy, dz);
+    if (l < 0.3) return false;
+    const hit = this.ray([a.x, a.y + y, a.z], [dx / l, dy / l, dz / l], l);
+    return !!(hit && hit.t < l - 0.3);
+  }
+
   /** Lowest ceiling above a cylinder standing at p (for jumps and low passages). */
   ceilingAt(x, z, y, r) {
     let best = Infinity;
@@ -182,8 +191,9 @@ export class Physics {
   }
 
   /** First hit of a ray (origin o, unit direction d) within `far`: {t, box, normal} or null.
-   * The outdoor ground counts too. */
-  ray(o, d, far) {
+   * The outdoor ground counts too. `see`: a line of sight, which passes through glass (a box with
+   * `see` set: the houses' window panes). */
+  ray(o, d, far, see = false) {
     let best = null;
     const steps = Math.ceil(far / (CELL * 0.5));
     const seen = new Set();
@@ -193,6 +203,7 @@ export class Physics {
       for (const b of this.near(x - CELL * 0.5, z - CELL * 0.5, x + CELL * 0.5, z + CELL * 0.5)) {
         if (seen.has(b)) continue;
         seen.add(b);
+        if (see && b.see) continue;
         const hit = b.seg ? raySeg(o, d, b) : rayBox(o, d, b);
         if (hit && hit.t <= far && (!best || hit.t < best.t)) best = { ...hit, box: b };
       }
