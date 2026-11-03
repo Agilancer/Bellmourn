@@ -367,7 +367,7 @@ async function build() {
   const dressed = dressWorld(ctx, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }), await dressingJson);
   ctx.built = b.finish(scene);
   ctx.built.push(...dressed);
-  ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []), ...(ctx.mountain?.trailMeshes || []));   // (still: drawn in the world's bundles)
+  ctx.built.push(...(ctx.mountain?.meshes || []), ...[ctx.mountain?.roadMesh, ctx.mountain?.trackMesh, ctx.mountain?.vergeMesh].filter(Boolean), ...(ctx.mountain?.trailMeshes || []));   // (still: drawn in the world's bundles)
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
   await mark('merge');

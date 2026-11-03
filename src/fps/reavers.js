@@ -8,6 +8,7 @@
 // where you'll be when it gets there, turning end over end along its arc; it bites into you, or rings
 // off your raised shield, or sticks where it lands, and lies there a while.
 import * as THREE from 'three';
+import { lifeDead } from './mountainlife.js';
 
 // a bandit's colours (foes.js recolour): each a few cloth and leather shades, multiplying the clothes'
 // own (their greens and creams brought down to the mud, soot and old blood of men who live rough)
@@ -198,7 +199,7 @@ export function populateMountainDead(zombies, S, { touch = false } = {}) {
     const zb = zombies.spawn(v, x, z, { zone: 'wild', start: 'playdead', area: { x, z, r: 6 } });
     zb.band = 'frostmere'; n++;
   }
-  return n;
+  return n + lifeDead(zombies, S, { touch });   // (the graves by the road, and the dead in the places off it: mountainlife.js)
 }
 
 /** You've walked into ambush A: everyone lying in wait there comes for you at once, with a shout. */

@@ -28,6 +28,8 @@ import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, s
 import { buildHolds } from './holds.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TOUCH } from './input.js';
+import { layRoads } from './roads.js';
+import { planLife, lifeSpurs, buildLife, massForest } from './mountainlife.js';
 
 export const MOUNT = { x: -1000, z: -1000, R: 860, peak: 480, name: 'The Sorrowhorn' };
 export const GATE = { bearing: 225 * Math.PI / 180, r0: 300, r1: 305.5, h: 9, name: 'The Broken Stair' };
@@ -202,7 +204,8 @@ const SIDE_LEDGES = [
 // ambushes: where they wait above the road, behind rocks, for you to come by: [how far along, who]
 const AMBUSHES = [[0.172, 'bandit'], [0.338, 'bandit'], [0.472, 'scythe'], [0.548, 'scythe'], [0.722, 'scythe'], [0.925, 'scythe']];
 // where the road's outer edge breaks off sheer: [how far along, how far either way]
-const BRINKS = [[0.185, 0.014], [0.462, 0.01], [0.56, 0.016], [0.69, 0.012], [0.785, 0.012], [0.948, 0.01]];
+const BRINKS = [[0.065, 0.01], [0.105, 0.012], [0.145, 0.01], [0.185, 0.014], [0.235, 0.012], [0.275, 0.01], [0.32, 0.012], [0.365, 0.01], [0.405, 0.012], [0.462, 0.01],
+  [0.51, 0.012], [0.56, 0.016], [0.6, 0.01], [0.645, 0.012], [0.69, 0.012], [0.735, 0.01], [0.785, 0.012], [0.83, 0.012], [0.875, 0.01], [0.915, 0.012], [0.948, 0.01]];
 
 /** Lay out the war on the mountain (see HOLDS): each site's pad (a shelf the carve flattens, `neck` its
  * causeway to the road), its side path (a trail), the ambushes' hiding places, and the road's sheer
@@ -328,7 +331,7 @@ function planMere(S) {
   S.mere = { x: MERE.x, z: MERE.z, y, r0: MERE.r0, r1: MERE.r1, r: MERE.r, fixed: true, id: 'frostmere', name: 'The Frostmere', kind: 'mere',
     mouth: [mx, mz], ux: (mx - MERE.x) / Math.hypot(mx - MERE.x, mz - MERE.z), uz: (mz - MERE.z) / Math.hypot(mx - MERE.x, mz - MERE.z) };
   S.shelves.push(S.mere);
-  S.trails.push({ name: 'The way to the Frostmere', w: 1.6, pts, side: true, to: 'frostmere', mat: ['ground_gravel_03', 1.6, { tint: 0xc4c4c6 }] });   // (trodden grit through the snow)
+  S.trails.push({ name: 'The way to the Frostmere', w: 1.6, pts, side: true, to: 'frostmere', road: 'mountain' });   // (trodden grit through the snow)
 }
 
 // ------------------------------------------------------------------ the heightfield
@@ -357,6 +360,7 @@ export class Sorrowhorn {
     this.indexRoad();
     planHolds(this);   // (the keeps, towers, camps and ledges, their paths, the ambushes and the sheer drops)
     planMere(this);    // (the Frostmere's shelf and the way to it off the Stair)
+    planLife(this, { natural, zigzag, hash2, ROAD_W, MOUNT });   // (the places off the road and their paths, the graves, the goat men's ledges: mountainlife.js)
     this.meshes = []; this.patches = [];
     this.h = new Float32Array(NX * NZ);
     this.carve();
@@ -402,12 +406,13 @@ export class Sorrowhorn {
         const span = Math.min(18, Math.max(3, Math.abs(h - r.y) * 0.9));
         const w = 1 - smooth(ROAD_W, ROAD_W + span, r.d);
         h += (r.y - 0.15 - h) * w;
-        // a sheer stretch: the outer edge breaks off in a face a dozen metres down, a steep slope under it
+        // a sheer stretch: the outer edge breaks off in a face seventeen metres down, a steep slope under it
+        // (its face is a cliff of its own: mountainlife.js buildCliffs)
         if (this.brinks.has(r.i) && r.d > ROAD_W + 0.3) {
           const [ax, az] = this.road[r.i];
           if ((x - ax) * (ax - MOUNT.x) + (z - az) * (az - MOUNT.z) > 0) {
-            const e = r.d - ROAD_W - 0.3, cut = r.y - 0.15 - 12.5 * smooth(0, 2.6, e) - 0.6 * e;
-            if (cut < h) h += (cut - h) * (1 - smooth(14, 30, e));
+            const e = r.d - ROAD_W - 0.3, cut = r.y - 0.15 - 17 * smooth(0, 2.6, e) - 0.7 * e;
+            if (cut < h) h += (cut - h) * (1 - smooth(28, 44, e));
           }
         }
       }
@@ -605,7 +610,7 @@ export class Sorrowhorn {
 // pale alpine granite above; old snow lying on the level ground near the top, and on the crags' ledges. Rock wraps the cliffs by world
 // position (no stretching), the granite and basalt sampled twice at two scales so no long face
 // shows a repeat. Tints are the palette swaps (one rock texture becomes several stones).
-const LAYERS = [['ground_grass_05', 0xb2c09a], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
+const LAYERS = [['ground_grass_05', 0xa4ac88], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
   ['rock_08_mountain_alpine_granite_3_01', 0xd4d8e0], ['ground_snow_06', 0xe6e8ee], ['cliff_07_coarse_gravel_11_01', 0xc4c0ba], ['ground_grass_05', 0xd8d49c]];
 const BANDS = { meadow: 140, granite: 215, basalt: 340, snow: 400 };
 
@@ -973,7 +978,7 @@ function buildFalls(ctx, S, M) {
   const sheet = (off, wide, color, opacity, speed) => {
     const rows = 20, cols = 6, P = [], U = [], I = [];
     for (let r = 0; r <= rows; r++) {
-      const t = T * r / rows, along = V0 * t + off, y = top - 0.5 * G9 * t * t, w = wide * (1 + 0.6 * r / rows);
+      const t = T * r / rows, along = V0 * t + off, y = top - 0.5 * G9 * t * t, w = wide * (0.62 + 0.95 * r / rows);
       for (let c = 0; c <= cols; c++) {
         const u = c / cols - 0.5;
         P.push(bx + ox * along + tx * u * w, y, bz + oz * along + tz * u * w); U.push(c / cols, r / rows * drop / 4);
@@ -991,9 +996,11 @@ function buildFalls(ctx, S, M) {
   };
   sheet(-0.25, 2.6, 0xa8c4d4, 0.7, 0.9); sheet(0, 3.0, 0xffffff, 0.85, 1.35); sheet(0.3, 3.3, 0xffffff, 0.45, 1.8);
   // the rill above the brink: down the slope from the snowfields, a ribbon a hand over the ground
+  const rill = [];
   { const P = [], U = [], I = []; let x = bx, z = bz, along = 0;
     for (let s = 0; s < 18; s++) {
       const w = 0.8 + 0.25 * Math.sin(s * 0.9);
+      rill.push([x, z, w]);
       for (const side of [-1, 1]) { const px = x + tx * w * side, pz = z + tz * w * side; P.push(px, S.heightAt(px, pz) + 0.07, pz); U.push(side < 0 ? 0 : 1, along / 4); }
       if (s) { const a = (s - 1) * 2; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
       const q = Math.sin(s * 0.7) * 0.6; x += (F.ux + tx * q) * 3.4; z += (F.uz + tz * q) * 3.4; along += 3.4;
@@ -1005,8 +1012,36 @@ function buildFalls(ctx, S, M) {
     mats.push({ m, map, speed: -0.5, base: new THREE.Color(0xd8ecf4) });
     const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 1; ctx.scene.add(mesh);
   }
+  // the rock either side of it dark with the wet, a band a little wider than the water
+  { const wetM = new THREE.MeshBasicMaterial({ color: 0x0c1012, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    const P = [], I = [];
+    for (let r = 0; r <= 8; r++) { const y = top - drop * r / 8, w = 3.6 + r * 0.35; for (const u of [-1, 1]) P.push(bx - ox * 0.25 + tx * u * w, y, bz - oz * 0.25 + tz * u * w); if (r) { const a = (r - 1) * 2; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I);
+    const wet = new THREE.Mesh(g, wetM); wet.material.side = THREE.DoubleSide; wet.renderOrder = 1; ctx.scene.add(wet); }
   // the lip it pours from, mossy, and the rocks it lands among
   const rock = M('rock_05_overworld_granite_1_02', 3, { tint: 0xb8b4ac, tri: true }), moss = M('rock_06_overworld_mossy_rock_1_03', 2.4, { tint: 0xb0b8a0, tri: true });
+  // the rill's bed and banks: stones breaking its surface (the water parts round them), mossy boulders
+  // and pebbles along both banks, moss in the wet at the water's edge
+  { let sd = 977; const r = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const wet = M('rock_06_overworld_mossy_rock_1_03', 1.6, { tint: 0x8a9a74, tri: true });
+    for (let s = 2; s + 1 < rill.length; s++) {   // (from a little back from the brink: nothing hung on the falls' face)
+      const [x, z, w] = rill[s], [x2, z2] = rill[s + 1], L = Math.hypot(x2 - x, z2 - z) || 1, ax = (x2 - x) / L, az = (z2 - z) / L, nx = -az, nz = ax;
+      const wy = S.heightAt(x, z), level = (px, pz) => Math.abs(S.heightAt(px, pz) - wy) < 1.2 + L * 0.3;
+      for (let k = 0; k < 2; k++) {   // in the water
+        const t = r() * L, o = (r() - 0.5) * w * 1.3, px = x + ax * t + nx * o, pz = z + az * t + nz * o, q = 0.14 + r() * 0.26, py = S.heightAt(px, pz);
+        if (!level(px, pz)) continue;
+        b.place(px, py - q * 0.25, pz, r() * 6, 1, (o2) => o2.blob([0, q * 0.4, 0], [q * 1.3, q * 0.7, q], k ? rock : wet, { detail: 1, jitter: 0.25, seed: 540 + s * 3 + k }), { solid: false });
+      }
+      for (const side of [-1, 1]) {   // on its banks
+        const t = r() * L, o = (w + 0.25 + r() * 1.1) * side, px = x + ax * t + nx * o, pz = z + az * t + nz * o, q = r() < 0.3 ? 0.5 + r() * 0.6 : 0.16 + r() * 0.24, py = S.heightAt(px, pz);
+        if (!level(px, pz)) continue;
+        b.place(px, py - q * 0.3, pz, r() * 6, 1, (o2) => o2.blob([0, q * 0.45, 0], [q * 1.25, q * 0.8, q], q > 0.45 ? moss : rock, { detail: 1, jitter: 0.22, seed: 580 + s * 5 + side }), { solid: q > 0.8 });
+        const mx = x + ax * L * 0.5 + nx * (w + 0.05) * side, mz = z + az * L * 0.5 + nz * (w + 0.05) * side;
+        if (!level(mx, mz)) continue;
+        b.place(mx, S.heightAt(mx, mz) - 0.06, mz, Math.atan2(ax, az), 1, (o2) => o2.blob([0, 0.03, 0], [0.22, 0.06, L * 0.4], wet, { detail: 0, jitter: 0.3, seed: 620 + s * 2 + side }), { solid: false });
+      }
+      if (r() < 0.5 && ctx.bill) { const tufts = ctx.lib.sprites?.('scatter', (q) => /dry_reeds|fern/.test(q.id)) || []; if (tufts.length) { const o = (w + 0.6) * (r() < 0.5 ? -1 : 1), px = x + nx * o, pz = z + nz * o; if (S.heightAt(px, pz) < 360) ctx.bill.add(tufts[s % tufts.length].id, px, S.heightAt(px, pz), pz, 0.5 + r() * 0.3, 0.85); } }
+    } }
   b.place(bx - ox * 0.6, top - 0.5, bz - oz * 0.6, Math.atan2(ox, oz), 1, (o) => {
     o.blob([0, 0, 0.3], [2.4, 0.55, 1.3], rock, { detail: 2, jitter: 0.15, seed: 501 });
     o.blob([0, 0.45, 0.1], [2.0, 0.15, 1.0], moss, { detail: 1, jitter: 0.25, seed: 502 });
@@ -1039,7 +1074,8 @@ function buildFalls(ctx, S, M) {
   let rested = false;
   S.updateFalls = (dt, t, day, player, toast) => {
     const k = 0.35 + 0.65 * day;
-    for (const q of mats) { q.map.offset.y += dt * q.speed * (q.speed > 0 ? 1 : 1); q.m.color.copy(q.base).multiplyScalar(k); }
+    // (a picture's offset carries it the other way: taken off, the streaks run down the fall, and down the rill to its brink)
+    for (const q of mats) { q.map.offset.y -= dt * q.speed; q.m.color.copy(q.base).multiplyScalar(k); }
     for (const q of puffs) {
       q.life += dt * (q.mist ? 0.12 : 0.6);
       if (q.life > 1) q.life -= 1;
@@ -1329,8 +1365,13 @@ export function buildMountain(ctx, M) {
   const S = new Sorrowhorn();
   ctx.mountain = S;
   S.buildMesh(ctx);
-  S.roadMesh = S.buildRoad(ctx, M('ground_gravel_03', 1.6, { tint: 0xd0c8bc }), S.road.slice(0, -3));
-  S.trailMeshes = S.trails.map((t, i) => S.buildRoad(ctx, M(...(t.mat || ['ground_dirt_02', 1.4, { tint: 0x8c8070 }])), i === 0 ? t.pts.slice(0, -3) : t.pts, t.w * 0.7));
+  lifeSpurs(S);   // (the short paths to the camps, the caves and the Still Water: mountainlife.js)
+  // the road and the paths off it: loose stone of several kinds, frayed into the ground (roads.js); the
+  // paths of grit (t.road 'mountain') with the road, the trodden ones (most) their own
+  const H = (x, z) => S.heightAt(x, z);
+  S.roadMesh = layRoads(ctx, ctx.lib, 'mountain', [{ pts: S.road.slice(0, -3), half: 1.9, fray: 1.0, seed: 3 }], { heightAt: H, lift: 0.06, order: 3 });
+  S.trailMeshes = ['mountain', 'trail'].map((kind) => layRoads(ctx, ctx.lib, kind, S.trails.map((t, i) => ({ t, i })).filter(({ t }) => (t.road || 'trail') === kind)
+    .map(({ t, i }) => ({ pts: i === 0 ? t.pts.slice(0, -3) : t.pts, half: t.w * 0.75, fray: Math.min(0.9, t.w * 0.55), seed: 40 + i, spill: 0.6, step: 1.1, wander: 0.6 })), { heightAt: H, lift: 0.08, order: 2 })).filter(Boolean);
   { const tread = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0x9a968e }), P0 = S.trails[0].pts;   // (the Shepherd's Stair: a stone tread every 3 m)
     for (let i = 1; i < P0.length - 3; i++) {
       const [x, z] = P0[i], [x2, z2] = P0[i + 1], y = S.heightAt(x, z);
@@ -1343,7 +1384,6 @@ export function buildMountain(ctx, M) {
         const turn = Math.abs(Math.atan2(z2 - z, x2 - x) - Math.atan2(z - z0, x - x0)) > 0.6, cx = x + ox * (t.w + 0.9), cz = z + oz * (t.w + 0.9), cy = S.heightAt(cx, cz);
         b.place(cx, cy, cz, i, 1, (o) => {
           for (let k = 0; k < 4; k++) o.blob([Math.sin(k * 2.1) * 0.06, 0.13 + k * 0.17, 0], [0.24 - k * 0.04, 0.11, 0.21 - k * 0.035], cm, { detail: 0, jitter: 0.25, seed: 900 + ti * 100 + i + k });
-          if (turn || i % 32 === 4) { o.box([-0.03, 0.5, -0.03], [0.03, 2.2, 0.03], pole); o.box([0.03, 1.75, -0.01], [0.55, 2.15, 0.01], flag); }
         }, { solid: false });
       }
     }); }
@@ -1423,7 +1463,7 @@ export function buildMountain(ctx, M) {
   // ---- the Pilgrims' Track: off the Vigil Road through the Darkwood to the foot of the Broken Stair,
   // a worn dirt path between the trees, and a clearing at the cliff's foot so the stair shows
   const track = S.track = [[-112, -3], [-124, -38], [-146, -82], [-168, -126], [-188, -168], [gx * 293, gz * 293]];
-  b.ribbon(M('ground_dirt_02', 1.4, { tint: 0x8c8070 }), track.map(([x, z]) => [x, z]), 1.3, 0.025);
+  S.trackMesh = layRoads(ctx, ctx.lib, 'lowland', [{ pts: track, half: 1.2, fray: 0.7, seed: 21, spill: 0.4 }], { heightAt: (x, z) => ctx.physics.groundAt(x, z), lift: 0.03, order: 2 });
   (ctx.paths ||= []).push({ pts: track, w: 1.3 });
   const segD = (x, z, P) => { let best = Infinity; for (let i = 0; i + 1 < P.length; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], dx = bx - ax, dz = bz - az; const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return best; };
   S.keepsClear = (x, z) => segD(x, z, track) < 4.5 || Math.hypot(x - gx * 296, z - gz * 296) < 13 || (S.covers(x, z) && S.heightAt(x, z) > 0.4);
@@ -1570,21 +1610,46 @@ export function buildMountain(ctx, M) {
   }
   buildMere(ctx, S, M);   // (the Frostmere, off the Stair)
 
-  // ---- what grows and lies on it: conifers in the foothills and up the lower flanks (thinning as
-  // it climbs), boulders fallen from the crags (more higher up), grass and heather along the road.
-  // Never on the road, never in the lookouts
+  // ---- what grows and lies on it: a forest round its foot, thick at the bottom and thinning as it
+  // climbs to the timberline, boulders fallen from the crags (more higher up), grass and heather
+  // along the road. Never on the road, never in the lookouts
   { let seed = 4242; const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    const offRoad = (x, z, pad) => { const r = S.roadAt(x, z), t = S.trailAt(x, z); return (!r || r.d > ROAD_W + pad) && (!t || t.d > t.w + pad); };
+    const offRoad = (x, z, pad) => { const r = S.roadAt(x, z), t = S.trailAt(x, z); return (!r || r.d > ROAD_W + pad) && (!t || t.d > t.w + pad) && !S.spurNear?.(x, z, pad); };
     const awayFromViews = (x, z) => !views.some((v) => Math.hypot(x - v.x, z - v.z) < 12) && !S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < c.r1 + 2);
     const boulder = [rock, M('rock_02_cave_dark_basalt_1_05', 3, { tint: 0xb8b8c0, tri: true }), moss];
     let trees = 0, rocks = 0;
-    for (let i = 0; i < 9000 && (trees < 520 || rocks < 260); i++) {
+    // the forest: groves with meadow between (a slow noise), as thick as the ground lets it at the foot,
+    // fewer and smaller the higher it goes, the last of them stunted at a timberline that wanders up the
+    // gullies and down the ridges (never a contour line); cedar and redwood low down, then pine alone
+    if (ctx.trees3d) {
+      const vn = (x, z) => { const i = Math.floor(x), k = Math.floor(z), u = x - i, v = z - k, su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v);
+        return (hash2(i, k) * (1 - su) + hash2(i + 1, k) * su) * (1 - sv) + (hash2(i, k + 1) * (1 - su) + hash2(i + 1, k + 1) * su) * sv; };
+      // (near the ways, where you pass them close, the full trees; the rest, the forest seen across the
+      // slopes, simple pines and many more of them: mountainlife.js massForest)
+      const near3d = TOUCH ? 1000 : 2600, wantMass = TOUCH ? 3500 : 11000, mass = [];
+      for (let i = 0; i < (near3d + wantMass) * 12 && (trees < near3d || mass.length < wantMass); i++) {
+        const x = BOX.x0 + R() * (BOX.x1 - BOX.x0), z = BOX.z0 + R() * (BOX.z1 - BOX.z0);
+        if (!S.covers(x, z) || Math.hypot(x, z) < GATE.r1 + 6) continue;
+        const y = S.heightAt(x, z), sl = S.slopeAt(x, z), line = 250 + (vn(x * 0.012, z * 0.012) - 0.5) * 70;
+        if (y > line || sl > 0.62) continue;
+        const up = smooth(70, line, y), grove = smooth(0.32, 0.62, vn(x * 0.03 + 7.1, z * 0.03 + 3.3));
+        if (R() > (1 - up * 0.88) * (0.25 + 0.75 * grove) * (1 - smooth(0.42, 0.62, sl))) continue;
+        if (!offRoad(x, z, 2.5) || !awayFromViews(x, z)) continue;
+        const scale = (0.75 + R() * 0.55) * (1 - smooth(line - 60, line, y) * 0.5), r = S.roadAt(x, z), t = S.trailAt(x, z);
+        if ((r && r.d < 45) || (t && t.d < 30) || S.spurNear?.(x, z, 25)) {
+          if (trees >= near3d) continue;
+          ctx.trees3d.add(y < 140 ? ['pine', 'cedar', 'pine', 'redwood', 'cedar'][trees % 5] : 'pine', x, y - 0.2, z, scale);
+          trees++;
+        } else if (mass.length < wantMass) mass.push([x, y - 0.3, z, scale]);
+      }
+      massForest(ctx, mass);
+      S.forest = { near: trees, mass: mass.length };
+    }
+    for (let i = 0; i < 9000 && rocks < 260; i++) {
       const x = BOX.x0 + R() * (BOX.x1 - BOX.x0), z = BOX.z0 + R() * (BOX.z1 - BOX.z0), k = R(), sc = R();
       if (!S.covers(x, z) || Math.hypot(x, z) < GATE.r1 + 6) continue;
       const y = S.heightAt(x, z), sl = S.slopeAt(x, z);
       if (!offRoad(x, z, 2) || !awayFromViews(x, z)) continue;
-      const treeChance = (1 - smooth(110, 230, y)) * (sl < 0.55 ? 1 : 0);
-      if (trees < 520 && k < treeChance * 0.7 && ctx.trees3d) { ctx.trees3d.add(['pine', 'cedar', 'pine', 'redwood'][trees % 4], x, y - 0.2, z, 0.85 + sc * 0.5); trees++; continue; }
       if (rocks < 260 && k > 0.7 && sl < 0.8 && offRoad(x, z, 2 + (0.7 + sc * (y > 200 ? 2.6 : 1.6)) * 1.25)) {
         const s = 0.7 + sc * (y > 200 ? 2.6 : 1.6), m = boulder[rocks % 3];
         b.place(x, y - s * 0.3, z, sc * 6.28, 1, (o) => o.blob([0, s * 0.45, 0], [s * 1.2, s * 0.8, s], m, { detail: 2, jitter: 0.22, seed: 600 + rocks }), { solid: s > 1.1, tag: 'rock' });
@@ -1609,6 +1674,7 @@ export function buildMountain(ctx, M) {
   // the ambushes' rocks, the side paths' signposts, the crags (holds.js; reavers.js peoples them)
   buildHolds(ctx, S, M, { ledgeClimb });
   flyBirds(ctx, S);
+  buildLife(ctx, S, M);   // (the places off the road, the graves, the ledges, the cliffs, the stone along the ways, the walkers)
 
   /** Where a quest's thing waits (quests.js deepest): the shrine bell in Gorehoof's camp, the old horn
    * at the summit cairn's foot. [x, y, z] or null. */
@@ -1633,6 +1699,7 @@ export function buildMountain(ctx, M) {
   S.update = (dt, player, audio, t, o = {}) => {
     S.updateFalls?.(dt, t, o.day ?? 1, player, o.toast);
     S.updateBirds?.(dt, t, player);
+    S.updateLife?.(dt, player, t, audio, o);
     const W = S.mere;     // (out of the cutting: what the ice holds, said once)
     if (W && !W.seen && Math.hypot(player.pos.x - W.x, player.pos.z - W.z) < W.r0 && Math.abs(player.pos.y - W.y) < 4) {
       W.seen = true; o.toast?.('A knight of the Sworn stands frozen in the ice, his blade still raised.');
@@ -1674,6 +1741,7 @@ export function buildMountain(ctx, M) {
     for (const h of S.ledges || []) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r1) return h.name;
     if (S.falls && Math.hypot(p.x - S.falls.pool.x, p.z - S.falls.pool.z) < 16) return 'Sorrowfall';
     if (S.mere && Math.hypot(p.x - S.mere.x, p.z - S.mere.z) < S.mere.r1) return S.mere.name;
+    for (const o of S.outposts || []) if (Math.hypot(p.x - o.x, p.z - o.z) < o.r1) return o.name;
     const d = Math.hypot(p.x - MOUNT.x, p.z - MOUNT.z);
     if (d > MOUNT.R) return 'The Foothills of the Sorrowhorn';
     if (S.houseZones?.some((h) => p.x > h.x0 && p.x < h.x1 && p.z > h.z0 && p.z < h.z1 && p.y < h.y1 + 0.5)) return null;   // (indoors: main.js's zones)

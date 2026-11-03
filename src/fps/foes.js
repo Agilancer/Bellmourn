@@ -32,6 +32,7 @@ import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
 import { asset } from './store.js';
 import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
+import { lifeFoes } from './mountainlife.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -1428,6 +1429,7 @@ export class Foes {
       if (L.folk !== 'goats') continue;
       for (const f of this.band(['goat_a', 'goat_a', this.gltf.goat_b ? 'goat_b' : 'goat_a'], L.x, L.z, { zone: 'mountain', area: { x: L.x, z: L.z, r: L.r0 - 1 } })) { f.yaw = Math.random() * 6.28; f.band = L.id; n++; }
     }
+    n += lifeFoes(this, m, { touch: TOUCH });   // (on their ledges over the road, in their pens: mountainlife.js)
     console.info(`foes: ${n} goat men on the Sorrowhorn`);
     return n;
   }
