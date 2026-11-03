@@ -184,6 +184,12 @@ export class Ambience {
         if (df < 30) this.want('spray', 'rain_strong', 0.5, O, [fx, fz], 30);
         if (Math.hypot(E.x - POOL.x, E.z - POOL.z) < POOL.r + 45) this.want('pool', 'waterfall_calm', 0.55, O, [POOL.x, POOL.z], POOL.r + 45);
       }
+      // Sorrowfall, on the Sorrowhorn (mountain.js)
+      if (s.falls) {
+        const [fx, fz] = s.falls, df = Math.hypot(E.x - fx, E.z - fz);
+        if (df < 140) this.want('mfalls', 'waterfall_strong', 0.85, O, [fx, fz], 140);
+        if (df < 22) this.want('mspray', 'rain_strong', 0.3, O, [fx, fz], 22);
+      }
     }
     // ---- below the ground: by which place
     if (s.under > 0.01) {

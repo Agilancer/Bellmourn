@@ -165,17 +165,14 @@ export function tickSpeech(dt) {
       L.line?.go();
     }
   }
-  // the speaker with the floor: its voice begun yet? (a neural voice that doesn't come in time: the
-  // browser's own voice says it instead, at once)
+  // the speaker with the floor: its voice begun yet? (a recording that doesn't come in time: the line
+  // is shown without it, or let go if it was only a passing remark; a line nobody has recorded is
+  // shown at once)
   if (floor && floor.state === 'cue') {
     const L = floor;
     L.cue += dt;
     if (L.line && L.line.started) start(L, L.line);
-    else if (L.line && !L.fell && (L.line.failed || L.cue > (CUE[L.pri] ?? 3)) && voice.enabled) {
-      L.line.cancel();
-      L.fell = true; L.cue = (CUE[L.pri] ?? 3) - 1.6;
-      L.line = voice.say(L.who, L.full, { ...L.vo, pri: L.pri, browser: true });
-    } else if (!L.line || L.line.failed || L.cue > (CUE[L.pri] ?? 3)) {
+    else if (!L.line || L.line.failed || L.cue > (CUE[L.pri] ?? 3)) {
       const had = !!L.line;
       L.line?.cancel();
       if (had && !L.must && !L.group && !L.toYou) {   // (a passing remark whose voice didn't come: let go)

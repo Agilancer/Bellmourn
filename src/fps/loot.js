@@ -179,6 +179,18 @@ export class Loot {
     if (Math.random() < 0.25) this.spawn(makePotion('life', 1), x - 0.4, y + 0.5, z - 0.2, { pop: true });
   }
 
+  /** The glow round a thing lying about, and the beam over a fine one. */
+  glow(col) { return new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.65 })); }
+  beam(col, rarity) { return new THREE.Mesh(this.beamGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22 + rarity * 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); }
+  /** One of each, for the warm-up before play (main.js prepare: their shaders made then, not at the
+   * first kill). */
+  samples() {
+    const g = new THREE.Group(), col = new THREE.Color('#ffd34a');
+    g.add(this.glow(col), this.beam(col, 2));
+    g.position.set(0, -56, 0);
+    return g;
+  }
+
   /** Something lying in the world to be taken up (it comes to rest on the floor below). */
   spawn(item, x, y, z, { pop = false } = {}) {
     const holder = new THREE.Group();
@@ -186,14 +198,14 @@ export class Loot {
     this.group.add(holder);
     const col = new THREE.Color(item.type === 'gear' || item.type === 'gem' || item.type === 'recipe' ? itemColor(item) : item.type === 'gold' ? '#ffd34a'
       : item.type === 'mat' ? (MATS[item.mat]?.tier >= 3 ? MATS[item.mat].tint[0] : '#d8c8a0') : item.kind === 'mana' ? '#6a8aff' : '#ff5a4a');
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.65 }));
+    const glow = this.glow(col);
     glow.scale.setScalar(item.type === 'gear' ? 0.9 : item.type === 'gem' ? 0.75 : 0.6);
     holder.add(glow);
     let beam = null;
     // the better things show from afar (a fine gem, a rare plan, a great one's reagent too)
     const shows = item.type === 'gear' ? item.rarity >= 1 : item.type === 'gem' ? item.grade >= 3 || GEMS[item.gem]?.only : item.type === 'recipe' ? item.tier >= 2 : item.type === 'mat' && MATS[item.mat]?.tier >= 3;
     if (shows) {
-      beam = new THREE.Mesh(this.beamGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22 + (item.rarity ?? 2) * 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      beam = this.beam(col, item.rarity ?? 2);
       beam.position.y = -0.45;
       holder.add(beam);
     }

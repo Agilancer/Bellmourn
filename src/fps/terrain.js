@@ -12,6 +12,9 @@ import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, s
 export const REGION = { x0: 290, x1: 780, z0: -262, z1: 262 };
 export const POOL = { x: 700, z: -40, r: 24, level: -0.6 };
 export const CLIFF = { x: 736, top: 30 };
+// Bell Knoll: the rise in the north-east hollow under the cliff that the abbots raised their bell
+// tower on, so the bells would carry over the whole of the downs (belltower.js)
+export const KNOLL = { x: 668, z: -208, r: 52, h: 13.5 };
 // where along the cliff the caves open (z): the Gloamhollow, the Drowned Grotto, the Trollhole
 export const CAVE_MOUTHS = { gloam: 8, grotto: -74, troll: 150 };
 // the stream, from the pool to where it leaves the downs
@@ -83,6 +86,9 @@ function natural(x, z) {
   h = h + (bed - h) * (1 - smooth(3.5, 15, st.d));
   const dp = Math.hypot(x - POOL.x, z - POOL.z); // the pool's basin
   h = h + (POOL.level - 2.4 - h) * (1 - smooth(POOL.r - 8, POOL.r + 6, dp));
+  // Bell Knoll: a broad, even rise out of the hollow (a flat crown the tower stands on: addPad)
+  const dk = Math.hypot(x - KNOLL.x, z - KNOLL.z);
+  if (dk < KNOLL.r) { const u = 1 - smooth(6, KNOLL.r, dk); h += KNOLL.h * u * u * (3 - 2 * u) * (0.92 + fbm(x * 0.03, z * 0.03) * 0.16); }
   // the escarpment along the east, with the plateau above it
   const cx = cliffX(z);
   const c = smooth(cx - 7, cx + 3, x);
@@ -101,8 +107,11 @@ function natural(x, z) {
   return h;
 }
 
+let mountain = null;
+/** The Sorrowhorn's ground (mountain.js), where it covers. */
+export function setMountain(m) { mountain = m; }
 export function terrainHeight(x, z) {
-  if (x < REGION.x0 - 2) return craterHeight(x, z);   // flat but for where Tessariel came down
+  if (x < REGION.x0 - 2) return mountain?.covers(x, z) ? mountain.heightAt(x, z) : craterHeight(x, z);   // flat but for where Tessariel came down (and the mountain)
   let h = natural(x, z);
   for (const p of pads) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r + 10) h = h + (p.y - h) * (1 - smooth(p.r, p.r + 10, d)); }
   return h;

@@ -20,6 +20,7 @@
 // world camera is the intro's, the hands and the HUD are put away.
 import * as THREE from 'three';
 import { loadHero } from './hero.js';
+import { pieceSample } from './zombies.js';
 import { Comet, Space } from './comet.js';
 import { CRATER, formCrater } from './crater.js';
 
@@ -152,7 +153,11 @@ export class Intro {
     // shaders), so each of his materials on a plain mesh too, under the crater where the sun's shadow
     // (which follows you there) takes it in for these frames
     const limbs = new THREE.Group();
-    this.knight.root.traverse((c) => { if (c.isSkinnedMesh) { const p = new THREE.Mesh(c.geometry, c.material); p.castShadow = true; p.frustumCulled = false; limbs.add(p); } });
+    this.knight.root.traverse((c) => {
+      if (!c.isSkinnedMesh || c.userData.shade) return;   // (not his shadow's stand-in: zombies.js makeShade)
+      const p = c.geometry.attributes.bindPos ? pieceSample(c) : new THREE.Mesh(c.geometry, c.material);   // (laid out as a real piece: zombies.js)
+      p.castShadow = true; p.frustumCulled = false; limbs.add(p);
+    });
     limbs.position.set(STRIKE.x, -25, STRIKE.z);
     o.scene.add(limbs);
     // the crater as it will be (its arms laid out, their models hung on), the knight out, every

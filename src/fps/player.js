@@ -30,6 +30,8 @@ export class Player {
     this.healing = 0;           // life still to come from a draught
     this.onFall = null;         // (damage) a long drop hurts when you land
     this.roll = 0;              // a lean of the view (a swaying bridge under you)
+    this.canDoubleJump = false; // (a charm's: the Wingbell, charms.js) one more jump in the air
+    this.doubled = false;       // (and it's been used since you left the ground)
   }
 
   update(dt, input) {
@@ -55,6 +57,14 @@ export class Player {
       this.vel.x *= f; this.vel.z *= f;
     }
     if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; this.onJump?.(); }
+    else if (!this.onGround && this.canDoubleJump && !this.doubled && this.heldT <= 0 && input.was('Space')) {
+      // the second jump: as strong as the first from wherever you are (at the top of the first,
+      // about 2.3 m up all told), and a little turn of the way you're going
+      this.vel.y = JUMP; this.doubled = true;
+      const sp = Math.hypot(this.vel.x, this.vel.z), want = Math.hypot(wx, wz);
+      if (want > 0.1) { const k = Math.max(sp, want * 0.8) / want; this.vel.x = this.vel.x * 0.4 + wx * k * 0.6; this.vel.z = this.vel.z * 0.4 + wz * k * 0.6; }
+      this.onDoubleJump?.();
+    }
     this.vel.y -= GRAVITY * dt;
 
     const p = this.pos, ox = p.x, oz = p.z, oy = p.y, wasOn = this.onGround;
@@ -79,9 +89,16 @@ export class Player {
     } else {
       this.onGround = false;
     }
+    if (this.onGround) this.doubled = false;
     if (p.y < -60) { p.set(0, 0, 12); this.vel.set(0, 0, 0); } // fell out of the world
     // on the downs nothing is below the ground but caves (physics.belowGround): never sink into it
-    if (this.physics.terrain && p.x > 286 && !this.physics.belowGround?.some((inside) => inside(p))) {
+    const mtn = this.physics.mountain?.covers(p.x, p.z);
+    if (mtn && wasOn && !this.physics.belowGround?.some((inside) => inside(p))) {
+      // (the mountain: a slope steeper than about 50 degrees can't be walked up; jump it, or go round)
+      const moved = Math.hypot(p.x - ox, p.z - oz), rise = this.physics.groundAt(p.x, p.z) - Math.max(oy, this.physics.groundAt(ox, oz));
+      if (moved > 1e-4 && rise > 0.12 && rise / moved > (this.sureFoot ? 2.6 : 1.2)) { p.x = ox; p.z = oz; }   // (the Goatfoot: steeper)
+    }
+    if (this.physics.terrain && (p.x > 286 || mtn) && !this.physics.belowGround?.some((inside) => inside(p))) {
       const g = this.physics.groundAt(p.x, p.z);
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }

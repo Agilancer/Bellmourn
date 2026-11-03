@@ -34,7 +34,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
-import { cullable, shareSkeletons, refineTexture, crisp } from './engine.js';
+import { cullable, shareSkeletons, refineTexture, crisp, SHADE_LAYER, letGo } from './engine.js';
 import { WEBGPU, T, sourceOf } from './nodes.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
@@ -70,6 +70,11 @@ export const HAUNTS = {
   troll: ['bog_troll', 'bog_troll', 'fungal_husk'],
   hollow: ['chitin_fiend', 'fungal_husk', 'pale_ghoul'],
   wood: ['pale_ghoul', 'rotting_zombie', 'fungal_husk'],
+  // the Undershrine (undershrine.js): the founders' dead out of the slag, the drowned of the seep,
+  // the bone chapel's keepers (and what Morcant raises)
+  founders: ['ember_husk', 'ember_husk', 'ember_husk', 'rotting_zombie', 'tomb_mummy'],
+  ossuary: ['bloated_drowner', 'bloated_drowner', 'deep_maw', 'plague_bearer', 'pale_ghoul'],
+  chapel: ['fungal_husk', 'chitin_fiend', 'pale_ghoul'],
 };
 const MONSTER_BONES = { pelvis: 'hips', spine_01: 'spine', spine_03: 'chest', neck_01: 'neck', Head: 'head',
   clavicle_l: 'shoulderL', clavicle_r: 'shoulderR', upperarm_l: 'upper_armL', upperarm_r: 'upper_armR',
@@ -89,6 +94,7 @@ const RADIUS = { hips: 0.17, spine: 0.16, chest: 0.18, neck: 0.065, head: 0.12, 
 const TIP = { head: 0.24, hand: 0.27, foot: 0.19 };           // leaf bones' lengths (along their +y)
 const HP = 120;   // (easier to kill than they were, but there are more of them)
 const WOUNDS = 16;
+const CORPSES = TOUCH ? 16 : 36;   // the most of the dead left lying at once (the oldest sink)
 const STAINS = 24;   // marks on the skin (blood, char, rime): the oldest gives way to the newest
 // a spell's wound is round, its rim burned (uWoundD.w = 2) or frozen (3)
 const SPELL_RIM = { fire: 2, lightning: 2, staff: 2, frost: 3, arcane: 2, missile: 2, void: 2 };
@@ -559,7 +565,7 @@ class Gore {
     const sg = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     this.splats = new THREE.InstancedMesh(sg, new THREE.MeshPhongMaterial({ map: splatTexture(), alphaTest: 0.5, color: 0x8a8a8a,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, shininess: 60, specular: 0x401010 }), this.splatMax);
-    this.splats.count = 0; this.splatNext = 0;
+    this.splats.count = 0; this.splatNext = 0; this.splats.visible = false;   // (shown with the first)
     // (WebGPU: its colours made now, so its shader has them from the first; three r187 doesn't make
     // the shader again when they come later, and the blood was drawn grey)
     if (WEBGPU) this.splats.setColorAt(0, this.reds[0]);
@@ -579,22 +585,26 @@ class Gore {
   }
 
   drop(p, v, size = 0.014, color = null) {
-    const i = this.n < this.max ? this.n++ : Math.floor(Math.random() * this.max);
-    this.pos.set([p.x, p.y, p.z], i * 3); this.vel.set([v.x, v.y, v.z], i * 3);
+    const i = this.n < this.max ? this.n++ : Math.floor(Math.random() * this.max), j = i * 3;
+    const P = this.pos, V = this.vel, C = this.col;
+    P[j] = p.x; P[j + 1] = p.y; P[j + 2] = p.z; V[j] = v.x; V[j + 1] = v.y; V[j + 2] = v.z;
     const c = color || this.reds[Math.floor(Math.random() * this.reds.length)];
-    this.col.set([c.r, c.g, c.b], i * 3);
+    C[j] = c.r; C[j + 1] = c.g; C[j + 2] = c.b;
     this.size[i] = size; this.life[i] = 3; this.blood[i] = color ? 0 : 1;
-    this.floor[i] = this.floorY(p.x, p.z, p.y);
+    // (the ground under a spray is found once for all of it: spray)
+    this.floor[i] = this._floorAt ?? this.floorY(p.x, p.z, p.y);
   }
 
   /** A spray of `n` drops from p, thrown along dir with some spread. */
   spray(p, dir, n, { speed = 3, spread = 0.6, size = 0.014 } = {}) {
-    const v = new THREE.Vector3();
+    const v = _spray;
+    this._floorAt = this.floorY(p.x, p.z, p.y);
     for (let k = 0; k < n; k++) {
       v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).multiplyScalar(spread).add(dir).normalize()
         .multiplyScalar(speed * (0.3 + Math.random() * 0.9));
       this.drop(p, v, size * (0.5 + Math.random()));
     }
+    this._floorAt = undefined;
   }
 
   splat(x, y, z, r, grow = 0, color = null) {
@@ -605,8 +615,10 @@ class Gore {
     const c = color || this.reds[Math.floor(Math.random() * 3)];
     this.splats.setColorAt(i, c);
     this.splats.instanceColor.needsUpdate = true;
-    this.pools = this.pools.filter((p) => p.i !== i);
-    if (grow) this.pools.push({ i, x, y, z, rot, r: r * 0.2, to: r, k: grow });
+    this.splats.visible = true;
+    const pools = this.pools;   // (a pool spreading where this one goes is done with)
+    for (let k = pools.length - 1; k >= 0; k--) if (pools[k].i === i || pools[k].r >= pools[k].to) { pools[k] = pools[pools.length - 1]; pools.pop(); }
+    if (grow) pools.push({ i, x, y, z, rot, r: r * 0.2, to: r, k: grow });
     this.place(i, x, y, z, rot, grow ? r * 0.2 : r);
   }
 
@@ -618,12 +630,12 @@ class Gore {
   }
 
   gib(p, v) {
-    if (this.gibs.length > 80) { const o = this.gibs.shift(); this.scene.remove(o.m); }
+    if (this.gibs.length > 80) { const o = this.gibs.shift(); this.scene.remove(o.m); letGo(o.m); }
     const m = new THREE.Mesh(this.gibGeo, this.gibMat);
     const s = 0.008 + Math.random() * 0.014;
     m.scale.set(s * (0.7 + Math.random() * 0.6), s, s * (0.7 + Math.random() * 0.6));
     m.position.copy(p);
-    m.castShadow = true;
+    m.castShadow = true; m.userData.mover = true;
     this.scene.add(m);
     this.gibs.push({ m, v: v.clone(), spin: new THREE.Vector3(Math.random(), Math.random(), Math.random()).multiplyScalar(14), s, rest: false });
   }
@@ -651,7 +663,14 @@ class Gore {
     }
     if (WEBGPU) this.geo.instanceCount = this.n;   // (a quad for each drop)
     else this.geo.setDrawRange(0, this.n);
-    this.aPos.needsUpdate = this.aCol.needsUpdate = this.aSize.needsUpdate = true;
+    // only the drops there are are sent to the GPU (not all 3,000 places every frame), and none drawn
+    // when there are none
+    this.points.visible = this.n > 0;
+    if (this.n > 0 || this.sent > 0) {
+      for (const a of [this.aPos, this.aCol]) { a.clearUpdateRanges(); a.addUpdateRange(0, Math.max(1, this.n) * 3); a.needsUpdate = true; }
+      this.aSize.clearUpdateRanges(); this.aSize.addUpdateRange(0, Math.max(1, this.n)); this.aSize.needsUpdate = true;
+    }
+    this.sent = this.n;
     for (const p of this.pools) {
       if (p.r >= p.to) continue;
       p.r = Math.min(p.to, p.r + dt * p.k);
@@ -675,6 +694,21 @@ class Gore {
 
 // ------------------------------------------------------------------ a zombie
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3(), _f = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _spray = new THREE.Vector3();
+const _pv = new THREE.Matrix4(), _frustum = new THREE.Frustum(), _sph = new THREE.Sphere();
+const shadeMats = new Map();
+/** The shadow stand-ins' material: one for each way round a body's faces are drawn (its shadow is
+ * drawn from the same side the body's was). Never drawn but into shadow maps. */
+function shadeMaterial(like) {
+  const key = like.side + '|' + like.shadowSide;
+  if (!shadeMats.has(key)) {
+    const m = new THREE.MeshBasicMaterial({ color: 0x000000, side: like.side });
+    m.shadowSide = like.shadowSide ?? null;
+    m.name = 'shade';
+    shadeMats.set(key, m);
+  }
+  return shadeMats.get(key);
+}
 const normals = new Map();   // texture -> its normal map, made once per body
 const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
@@ -783,8 +817,10 @@ function ualClips(gltf) {
 
 /** A UAL body ready for the brain: bones renamed, and the clips it asks for made from the library's.
  * Every body keeps the takes (userData.takes): each of the dead draws its own walk, idle and blows
- * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. */
-function adaptUAL(gltf, C, own = null) {
+ * from them for as long as it walks (see Zombie). It crawls on its walk laid prone. A beast (`pick`:
+ * its own clips by name for idle, walk, run, blows [three], death, jump, crawl, and `extra` moves
+ * under names of their own) keeps each move to what it's given, and has no takes. */
+function adaptUAL(gltf, C, own = null, pick = null) {
   nameByBytes(gltf);
   shareTextures(gltf.scene);
   gltf.scene.traverse((o) => { if (MONSTER_BONES[o.name]) o.name = MONSTER_BONES[o.name]; });
@@ -809,25 +845,31 @@ function adaptUAL(gltf, C, own = null) {
     }
     return k;
   };
-  const idle = takes('Zombie_Idle_Loop'), scratch = takes('Zombie_Scratch');
+  const P = (n) => [n || []].flat().map((k) => C[k]).filter(Boolean), got = (n) => (pick ? P(pick[n])[0] : null);
+  const idle = pick ? P(pick.idle) : takes('Zombie_Idle_Loop'), scratch = takes('Zombie_Scratch');
   // a variant walks and strikes its own way; the rest draw from the shared takes
   const ownWalk = own && C['Zombie_Walk_Fwd_Loop_' + own], ownBlow = own && C['Zombie_Scratch_' + own];
-  const walk = ownWalk ? [ownWalk] : takes('Zombie_Walk_Fwd_Loop');
-  const blows = (ownBlow ? [ownBlow, ownBlow, C.Melee_Hook] : [...scratch, C.Melee_Hook, C.OverhandThrow]).filter(Boolean);
-  const knock = C.Hit_Knockback, last = knock ? Math.round(knock.duration * FPS) : 0;
+  const walk = pick ? P(pick.walk) : ownWalk ? [ownWalk] : takes('Zombie_Walk_Fwd_Loop');
+  const blows = pick ? P(pick.blows) : (ownBlow ? [ownBlow, ownBlow, C.Melee_Hook] : [...scratch, C.Melee_Hook, C.OverhandThrow]).filter(Boolean);
+  const knock = C.Hit_Knockback, fell = got('death') || knock, last = fell ? Math.round(fell.duration * FPS) : 0;
   gltf.animations = [
-    named(idle[0], 'idle'), named(walk[0], 'walk'), named(walk[1] || walk[0], 'run'),
-    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(C.Melee_Hook || blows[2], 'attack3'),
-    sub(knock, 'hit', 0, 9), named(knock, 'death'), knock && THREE.AnimationUtils.subclip(knock, 'dead', last - 1, last, FPS),
-    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop, 'fall'),
-    prone(walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
+    named(idle[0], 'idle'), named(walk[0], 'walk'), named(got('run') || walk[1] || walk[0], 'run'),
+    named(blows[0], 'attack1'), named(blows[1] || blows[0], 'attack2'), named(pick ? blows[2] || blows[0] : C.Melee_Hook || blows[2], 'attack3'),
+    got('hit') ? named(got('hit'), 'hit') : sub(knock, 'hit', 0, 9), named(fell, 'death'), fell && THREE.AnimationUtils.subclip(fell, 'dead', last - 1, last, FPS),
+    named(C.LayToIdle, 'getup'), named(C.ClimbUp_1m || C.LayToIdle, 'rise'), named(got('jump') || C.NinjaJump_Start, 'jump'), named(C.NinjaJump_Idle_Loop || C.Jump_Loop, 'fall'),
+    prone(got('crawl') || walk[2] || walk[0], 'crawl'), prone(scratch[1] || scratch[0], 'crawl_attack'), sub(prone(idle[0], 'collapse'), 'collapse', 0, 18),
     sub(prone(idle[0], 'crawl_death'), 'crawl_death', 0, 2),
+    ...Object.entries(pick?.extra || {}).map(([n, k]) => named(C[k], n)),
   ].filter(Boolean);
   // (the takes each body draws its own from; and where in each blow it lands)
-  gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
+  if (!pick) gltf.userData.takes = { idle, walk, blows, prone: walk.map((w, i) => prone(w, 'crawl' + i)) };
   gltf.userData.ual = true;
   return gltf;
 }
+
+/** A beast on the UAL skeleton with its clips in its own file (templates/models/creatures/beast_ual):
+ * bones renamed for the brain and its moves made from `pick` (adaptUAL). */
+export function adaptBeast(gltf, pick) { return adaptUAL(gltf, ualClips(gltf), null, pick); }
 
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
@@ -837,6 +879,7 @@ export class Zombie {
     this.variant = variant;
     this.id = owner.nextId++;
     const root = this.root = new THREE.Group();
+    root.userData.body = true;   // (a body: engine.js's point-light shadow passes look for these)
     const model = cloneSkinned(gltf.scene);
     root.add(model);
     // the body is the biggest skinned mesh (monsters also carry eyes, brows and bones)
@@ -875,6 +918,8 @@ export class Zombie {
     // one skeleton for all its parts, and culled to what the camera and the sun can see (engine.js)
     shareSkeletons(model);
     cullable(model);
+    // a body of many materials (the Sworn's armour: nineteen) casts its shadow in one draw
+    if (geo.groups.length > 1) this.makeShade();
 
     this.mixer = new THREE.AnimationMixer(model);
     this.actions = {};
@@ -955,6 +1000,68 @@ export class Zombie {
   /** The skin's material: the zombies' gore shader (other bodies extend it). */
   material(src, lib) { return goreMaterial(src, lib); }
 
+  /** Its shadow in one draw: a stand-in on the same bones, vertices and triangles (it follows the
+   * body's index as limbs come off: syncShade) that only the lights' shadow cameras see
+   * (SHADE_LAYER), drawn with one plain material over the body's visible groups, joined where they
+   * meet. A Sworn drew each of its nineteen groups into every shadow map. (No map's alpha in it: the
+   * lashes and eyes cast whole, a few millimetres.) */
+  makeShade() {
+    const m = this.mesh, src = m.geometry, g = new THREE.BufferGeometry();
+    for (const k of ['position', 'normal', 'skinIndex', 'skinWeight']) if (src.attributes[k]) g.setAttribute(k, src.attributes[k]);
+    const first = [m.material].flat()[0];
+    const sh = this.shade = new THREE.SkinnedMesh(g, [shadeMaterial(first)]);
+    sh.name = 'shade';
+    sh.bind(m.skeleton, m.bindMatrix);
+    sh.bindMode = m.bindMode;
+    sh.position.copy(m.position); sh.quaternion.copy(m.quaternion); sh.scale.copy(m.scale);
+    sh.boundingSphere = m.boundingSphere; sh.frustumCulled = m.frustumCulled;
+    sh.layers.set(SHADE_LAYER);
+    sh.castShadow = true; sh.receiveShadow = false;
+    sh.userData.shade = true;
+    m.castShadow = false;
+    m.parent.add(sh);
+    this.syncShade();
+  }
+
+  /** The stand-in's triangles: the body's index, over the groups whose materials are shown. */
+  syncShade() {
+    const sh = this.shade;
+    if (!sh) return;
+    const src = this.mesh.geometry, g = sh.geometry, mats = [this.mesh.material].flat();
+    g.clearGroups();
+    const runs = src.groups.filter((q) => q.count > 0 && mats[q.materialIndex]?.visible !== false).sort((a, b) => a.start - b.start);
+    const spans = [];
+    let s = -1, e = -1;
+    for (const q of runs) {
+      if (q.start === e) e += q.count;
+      else { if (s >= 0) spans.push(s, e); s = q.start; e = q.start + q.count; }
+    }
+    if (s >= 0) spans.push(s, e);
+    if (spans.length > 2) {
+      // (more than one run, a fitting's piece taken off or a limb cut away between them: packed into an
+      // index of the stand-in's own, so it stays one draw; made once, the body's first size, and written
+      // over each time, never a new buffer)
+      const src = this.mesh.geometry.index.array;
+      if (!this.shadeIndex) {
+        const n = this.index.length, big = this.mesh.geometry.attributes.position.count > 65535;
+        this.shadeIndex = new THREE.BufferAttribute(big ? new Uint32Array(n) : new Uint16Array(n), 1);
+      }
+      const out = this.shadeIndex.array;
+      let o = 0;
+      for (let k = 0; k < spans.length; k += 2) { out.set(src.subarray(spans[k], spans[k + 1]), o); o += spans[k + 1] - spans[k]; }
+      if (g.index !== this.shadeIndex) g.setIndex(this.shadeIndex);
+      this.shadeIndex.clearUpdateRanges(); this.shadeIndex.addUpdateRange(0, o); this.shadeIndex.needsUpdate = true;
+      g.addGroup(0, o, 0);
+    } else {   // (one run: straight from the body's index, whichever it is now)
+      if (g.index !== src.index) g.setIndex(src.index);
+      if (spans.length) g.addGroup(spans[0], spans[1] - spans[0], 0);
+    }
+    sh.visible = spans.length > 0;
+  }
+
+  /** Whether it casts a shadow (near you only: the horde's update). */
+  castsShadow(on) { (this.shade || this.mesh).castShadow = on; }
+
   get dead() { return this.state === 'dead'; }
   get slow() { return this.chillT > 0 ? 0.4 : 1; }
 
@@ -970,7 +1077,7 @@ export class Zombie {
       if (RADIUS[kind]) this.radius[b.name] = RADIUS[kind] * s;
       if (TIP[kind]) this.tips[b.name] = TIP[kind] * s;
     }
-    this.hp = this.champ.max;
+    this.hp = this.champ.max; this._caps = null;
     for (const l of Object.keys(this.limbHp)) this.limbHp[l] *= k * 0.45;
     this.kind = { ...this.kind, sight: 26, hear: 1.6, run: Math.max(this.kind.run || 0, 2.4) };
     this.heft = 3;
@@ -995,6 +1102,23 @@ export class Zombie {
     }
   }
   get standing() { return !this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'playdead'; }
+  /** Its pose can't change: dead long enough for any fall to be over, or lying in wait once it's
+   * fully down (one that lies down again eases into it first). */
+  still() {
+    if (this.dead) return this.deadT > 6;
+    if (this.state !== 'playdead') return false;
+    const a = this.actions[this.cur];
+    return !a || a.getEffectiveWeight() > 0.999;
+  }
+  /** Whether its pose is worked out this frame (the clips run on with the time put by): where you can
+   * see it, every frame within 32 m and every other beyond; out of view, where only its shadow might
+   * show, every third frame near and every sixth further off; not drawn at all (hidden: far off, or
+   * in a room of the keep you can't see into), every twentieth. (It was every frame within 32 m,
+   * seen or not, and every third beyond.) */
+  animDue(far, mid) {
+    const n = !this.root.visible ? 20 : this.seen !== false ? (mid ? 2 : 1) : (mid ? 6 : 3);
+    return n === 1 || ++this.frame % n === 0;
+  }
   has(b) { return !this.lost.has(b); }
   arm(s) { return this.has('upper_arm' + s) && this.has('forearm' + s); }
   get legs() { return this.has('waist') && ['thighL', 'shinL', 'thighR', 'shinR'].every((b) => this.has(b)); }
@@ -1061,20 +1185,24 @@ export class Zombie {
   // -------------------------------------------------------------- hits
   /** Bone capsules in world space: [{bone, a, b, r}] for the bones still attached. */
   capsules() {
+    // (worked out once a frame, and again after a blow: every ray of a swing and every spell in
+    // flight asked again for each body near it, each time walking every bone up from the world)
+    if (this._caps && this._capsT === this.owner.time) return this._caps;
     const out = [];
+    this._caps = out; this._capsT = this.owner.time;
     if (this.state === 'buried') return out;
     this.root.updateMatrixWorld(true);
     for (const b of this.skel.bones) {
       if (b.name === 'root' || this.cutAway(b.name) || (b.name === 'hips' && !this.has('waist'))) continue;
-      const kind = b.name.replace(/[LR]$/, '');
+      const cap = b._cap ||= { kind: b.name.replace(/[LR]$/, ''), child: b.children.find((c) => c.isBone && !c.name.startsWith('shoulder') && !c.name.startsWith('thigh')) || null };
+      const kind = cap.kind;
       const r = this.radius?.[b.name] ?? RADIUS[kind];   // a body built with its own hit shapes, or the zombies'
       if (!r) continue;
-      const a = b.getWorldPosition(new THREE.Vector3());
-      const child = b.children.find((c) => c.isBone && !c.name.startsWith('shoulder') && !c.name.startsWith('thigh'));
+      const a = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
       let e;
-      if (child && kind !== 'hips') e = child.getWorldPosition(new THREE.Vector3());
-      else if (kind === 'hips') e = this.bones.spine.getWorldPosition(new THREE.Vector3());
-      else e = b.localToWorld(new THREE.Vector3(0, this.tips?.[b.name] ?? TIP[kind] ?? 0.2, 0));
+      if (cap.child && kind !== 'hips') e = new THREE.Vector3().setFromMatrixPosition(cap.child.matrixWorld);
+      else if (kind === 'hips') e = new THREE.Vector3().setFromMatrixPosition(this.bones.spine.matrixWorld);
+      else e = new THREE.Vector3(0, this.tips?.[b.name] ?? TIP[kind] ?? 0.2, 0).applyMatrix4(b.matrixWorld);
       out.push({ bone: b, a, b: e, r });
     }
     return out;
@@ -1185,6 +1313,7 @@ export class Zombie {
   hit(h, o) { const before = this.hp; this.takeBlow(h, o); this.owner.feed?.struck(this, before, h, o); }
   takeBlow(h, { dmg, dir, heavy = false, kind = 'blade', edge = null, push = 0, blow = 0 }) {
     const owner = this.owner, g = owner.gore;
+    this._caps = null;   // (a limb may come off: its hit shapes worked out again)
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
@@ -1290,6 +1419,7 @@ export class Zombie {
     if (waist) { this.lost.add('thighL'); this.lost.add('thighR'); }
     this.mesh.geometry.setIndex(keep);
     const goneGroups = this.triGroup ? this.regroup(this.mesh.geometry, keptT, goneT) : null;
+    this.syncShade(); this._caps = null;
     // the joint, in world space and bind space; a cut there colours the stump and the piece
     const joint = bone.getWorldPosition(new THREE.Vector3());
     const jb = this.toBind(joint, parent);
@@ -1332,6 +1462,7 @@ export class Zombie {
     }
     this.mesh.geometry.setIndex(keep);
     if (this.triGroup) this.regroup(this.mesh.geometry, keptT, goneT);
+    this.syncShade(); this._caps = null;
     this.root.updateMatrixWorld(true);
     for (const name of names) {
       const bone = this.bones[name];
@@ -1506,7 +1637,8 @@ export class Zombie {
     }
     // animation (every third frame when far off, every sixth when unseen but still hunting you)
     this.mixAcc += dt;
-    if (!mid || ++this.frame % (far ? 6 : 3) === 0) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
+    if (this.still()) this.mixAcc = 0;
+    else if (this.animDue(far, mid)) { this.mixer.update(this.mixAcc); this.mixAcc = 0; }
     // the stumps spurt in pulses that fade, then drip
     for (const s of this.stumps) {
       s.t += dt;
@@ -1837,6 +1969,16 @@ export class Zombie {
   remove() {
     this.gone = true;
     this.owner.scene.remove(this.root);
+    // what three kept to draw it, first (its stand-in, its arms, its eyes, its stubs share materials
+    // that are never disposed), so that taking the shared buffers off below doesn't take them from
+    // every other body of its kind as well (engine.js letGo)
+    letGo(this.root);
+    this.skel.dispose?.();   // (its bone texture)
+    if (this.shade) {   // (its buffers are the body's, let go just below)
+      const g = this.shade.geometry;
+      for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
+      g.setIndex(null); g.dispose();
+    }
     for (const k of this.shared) this.mesh.geometry.deleteAttribute(k); // the other bodies still draw with them
     this.mesh.geometry.dispose();
     for (const m of [this.mesh.material].flat()) m.dispose();
@@ -1878,6 +2020,52 @@ function closestOnSeg(p, a, b) {
   return a.clone().addScaledVector(ab, t);
 }
 
+const byX = (a, b) => a.pos.x - b.pos.x;
+
+/** A cut-off piece's stand-in for the warm-up before play (main.js prepare): a triangle of each of the
+ * body's groups, laid out as addPiece lays out a real piece (float buffers of its own: position, bind
+ * place, uv, shell; normals), drawn with the body's materials, so the shaders and pipelines a limb is
+ * drawn with are made before the first one comes off. (The body's own buffers, quantized and
+ * interleaved as loaded, made other pipelines: limbs still compiled mid-fight.) */
+/** A copy of one of a body's materials for a piece of its own (a cut piece's, a keeper's): the same
+ * shaders, and the body's wounds. */
+export function pieceMaterial(src, u = src.userData?.u) {
+  const mat = src.clone();
+  // (WebGPU: a node material's clone keeps its kind and its node graph, so its key and pipeline)
+  if (WEBGPU) { mat.userData.u = u; return mat; }
+  mat.defines = { ...(src.defines || {}) };   // (clone() leaves them behind: the shader would differ, and be made mid-fight)
+  mat.userData.u = u;
+  mat.onBeforeCompile = src.onBeforeCompile;
+  mat.customProgramCacheKey = src.customProgramCacheKey;
+  return mat;
+}
+export function pieceSample(mesh) {
+  const src = mesh.geometry, idx = src.index, P = src.attributes.position, B = src.attributes.bindPos, UV = src.attributes.uv, S = src.attributes.shell;
+  const pos = [], bp = [], uvs = [], sh = [], index = [];
+  const g = new THREE.BufferGeometry();
+  for (const q of src.groups.length ? src.groups : [{ start: 0, count: idx.count, materialIndex: 0 }]) {
+    if (q.count < 3) continue;
+    const at = pos.length / 3;
+    for (let k = 0; k < 3; k++) {
+      const i = idx.getX(q.start + k);
+      pos.push(P.getX(i), P.getY(i), P.getZ(i)); bp.push(B.getX(i), B.getY(i), B.getZ(i)); uvs.push(UV.getX(i), UV.getY(i));
+      if (S) sh.push(S.getX(i));
+      index.push(at + k);
+    }
+    g.addGroup(index.length - 3, 3, q.materialIndex ?? 0);
+  }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('bindPos', new THREE.Float32BufferAttribute(bp, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  if (S) g.setAttribute('shell', new THREE.Float32BufferAttribute(sh, 1));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  g.computeBoundingSphere();
+  const m = new THREE.Mesh(g, mesh.material);
+  m.castShadow = true; m.userData.mover = true;
+  return m;
+}
+
 function pickKind(lurk = 0.15) {
   const r = Math.random();
   return r < lurk ? 'lurker' : r < lurk + 0.32 ? 'runner' : 'shambler';
@@ -1888,6 +2076,7 @@ export class Zombies {
   constructor(scene, physics, lib = null, sfx = null) {
     this.scene = scene; this.physics = physics; this.lib = lib; this.sfx = sfx;
     this.list = [];
+    this._apart = [];         // (the standing, sorted along x each frame: update)
     this.pieces = [];
     this.gltf = {};
     this.nextId = 0;
@@ -1934,6 +2123,22 @@ export class Zombies {
       ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
     this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];
+  }
+
+  /** One of them threw in its update: said once for each kind of fault, and the rest go on. */
+  fault(z, e) {
+    const key = z.variant + ': ' + (e?.message || e);
+    const seen = this.faults ||= new Map();
+    if (!seen.has(key)) console.error('the horde: ' + z.variant + ' #' + z.id + ' (' + z.state + ') threw; the rest go on', e);
+    seen.set(key, (seen.get(key) || 0) + 1);
+    // thirty frames running: it dies where it stands (counted, as any death: quests, the Red Hand) and
+    // is taken away, rather than standing there unkillable, or throwing every frame
+    if ((z._faults = (z._faults || 0) + 1) >= 30) {
+      z.broken = true;
+      console.warn('the horde: ' + z.variant + ' #' + z.id + ' taken away (it kept throwing)');
+      try { if (!z.dead) z.die(); } catch { /* as it is */ }
+      try { z.remove(); } catch { z.gone = true; }
+    }
   }
 
   /** The surface something at (x, y, z) would land on (works underground too). */
@@ -2283,21 +2488,12 @@ export class Zombies {
     g.computeVertexNormals();
     g.computeBoundingSphere();
     // the piece keeps a material of its own (sharing the body's wounds), so it outlives the body
-    const own = (src) => {
-      const mat = src.clone();
-      // (WebGPU: a node material's clone keeps its kind and its node graph, so its key and pipeline)
-      if (WEBGPU) { mat.userData.u = z.u; return mat; }
-      mat.defines = { ...(src.defines || {}) };   // (clone() leaves them behind: the shader would differ, and be made mid-fight)
-      mat.userData.u = z.u;
-      mat.onBeforeCompile = src.onBeforeCompile;
-      mat.customProgramCacheKey = src.customProgramCacheKey;
-      return mat;
-    };
+    const own = (src) => pieceMaterial(src, z.u);
     const m = new THREE.Mesh(g, Array.isArray(z.mesh.material) ? z.mesh.material.map(own) : own(z.mesh.material));
     m.position.copy(c);
-    m.castShadow = true;
+    m.castShadow = true; m.userData.mover = true;
     this.scene.add(m);
-    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); o.m.geometry.dispose(); for (const x of [o.m.material].flat()) x.dispose(); }
+    if (this.pieces.length > 50) { const o = this.pieces.shift(); this.scene.remove(o.m); letGo(o.m); o.m.geometry.dispose(); for (const x of [o.m.material].flat()) x.dispose(); }
     // its long axis (towards the farthest vertex) and how thick it is, to lie it down on the ground
     let far = 0;
     const long = new THREE.Vector3();
@@ -2358,32 +2554,49 @@ export class Zombies {
     this.flowUpdate(player, dt);
     let engaged = 0, chasers = 0;
     const list = this.list;
+    // (what the camera can see, for how often each is posed: animDue)
+    _pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_pv, camera.coordinateSystem, camera.reversedDepth);
     for (const z of list) {
-      if (z.gone) continue;
-      const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
-      const otherLevel = Math.abs(player.pos.y - z.pos.y) > 6;
-      const far = d > 85 || (otherLevel && d > 12);
-      if (z.state !== 'buried') z.root.visible = !far;
-      z.mesh.castShadow = d < 28;
-      const pace = z.afflict(dt);
-      if (pace > 0) z.update(dt * pace, player, active, far, d > 32);
-      else if (d < 0.75 && Math.abs(player.pos.y - z.pos.y) < 1.5) {   // a frozen one is still in the way
-        const k = 0.75 / Math.max(d, 1e-3);
-        player.pos.x = z.pos.x + (player.pos.x - z.pos.x) * k; player.pos.z = z.pos.z + (player.pos.z - z.pos.z) * k;
-      }
-      if (z.goal === 'chase' && !z.dead && d < 12) chasers++;
-      if ((z.state === 'attack' || z.state === 'grab') && !z.dead && d < 2.6) engaged++;
+      if (z.gone || z.broken) continue;
+      try {
+        const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
+        const otherLevel = Math.abs(player.pos.y - z.pos.y) > 6;
+        const far = d > 85 || (otherLevel && d > 12);
+        if (z.state !== 'buried') z.root.visible = !far;
+        const casts = d < 28;
+        if (z._casts !== casts) { z._casts = casts; z.castsShadow(casts); z.root.userData.casts = casts; }
+        z.root.userData.down = z.dead;   // (the torches' moving shadows go to the standing first: engine.js)
+        if (z.mesh.boundingSphere) _sph.copy(z.mesh.boundingSphere).applyMatrix4(z.mesh.matrixWorld);
+        else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
+        z.seen = !far && _frustum.intersectsSphere(_sph);
+        const pace = z.afflict(dt);
+        if (pace > 0) z.update(dt * pace, player, active, far, d > 32);
+        else if (d < 0.75 && Math.abs(player.pos.y - z.pos.y) < 1.5) {   // a frozen one is still in the way
+          const k = 0.75 / Math.max(d, 1e-3);
+          player.pos.x = z.pos.x + (player.pos.x - z.pos.x) * k; player.pos.z = z.pos.z + (player.pos.z - z.pos.z) * k;
+        }
+        if (z.goal === 'chase' && !z.dead && d < 12) chasers++;
+        if ((z.state === 'attack' || z.state === 'grab') && !z.dead && d < 2.6) engaged++;
+        if (z._faults) z._faults = 0;   // (counted in a row)
+      } catch (e) { this.fault(z, e); }   // (one body gone wrong doesn't stop the rest, or the frame)
     }
     this.chasers = chasers; this.engaged = engaged;   // (the stalkers wait for you to be busy)
-    // they keep a little apart (and crawlers take more room)
-    for (let i = 0; i < list.length; i++) {
-      const a = list[i];
-      if (!a.standing || a.gone) continue;
-      for (let j = i + 1; j < list.length; j++) {
-        const b = list[j];
-        if (!b.standing || b.gone) continue;
-        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
-        const min = (a.mode === 'crawl' ? 0.5 : 0.36) + (b.mode === 'crawl' ? 0.5 : 0.36);
+    // they keep a little apart (and crawlers take more room): sorted along x, each is held off only
+    // those within a metre of it that way (every one of the world's few hundred dead and foes was
+    // tested against every other, every frame)
+    const S = this._apart;
+    S.length = 0;
+    for (const z of list) if (!z.gone && z.standing) { z._sepR = z.mode === 'crawl' ? 0.5 : 0.36; S.push(z); }
+    S.sort(byX);
+    for (let i = 0; i < S.length; i++) {
+      const a = S[i], ra = a._sepR;
+      for (let j = i + 1; j < S.length; j++) {
+        const b = S[j];
+        const dx = b.pos.x - a.pos.x;
+        if (dx > 1) break;   // (no two are further apart than two crawlers' room)
+        const dz = b.pos.z - a.pos.z;
+        const min = ra + b._sepR;
         if (Math.abs(dx) > min || Math.abs(dz) > min || Math.abs(b.pos.y - a.pos.y) > 1.5) continue;
         const d = Math.hypot(dx, dz);
         if (d >= min || d < 1e-4) continue;
@@ -2411,6 +2624,17 @@ export class Zombies {
           const zb = this.spawn(this.randomVariant('yard'), s[0], s[1], { zone: 'yard', kind: pickKind(0.08), start: 'rise' });
           zb.yaw = Math.atan2(player.pos.x - zb.pos.x, player.pos.z - zb.pos.z);
         }
+      }
+    }
+    // and anywhere else: past CORPSES lying about, the longest dead begin to sink (they lay two minutes
+    // each, so a long fight left hundreds, every one drawn, shadowed and posed); the great ones raised
+    // for quests, and the Red Hand, are let lie (their deaths are looked for by them)
+    if ((this._corpseT = (this._corpseT || 0) + 1) % 30 === 0) {
+      let n = 0;
+      for (const z of list) if (z.dead && !z.sinking && !z.gone) n++;
+      if (n > CORPSES) {
+        const lying = list.filter((z) => z.dead && !z.sinking && !z.gone && !z.champ && !z.def?.boss).sort((a, b) => b.deadT - a.deadT);
+        for (let i = 0; i < n - CORPSES && i < lying.length; i++) lying[i].sinking = true;
       }
     }
     if (list.some((z) => z.gone)) this.list = list.filter((z) => !z.gone);

@@ -76,10 +76,17 @@ function beamMaterial(uniforms) {
   return m;
 }
 
+// (each kind of beam's tubes, kept for its next cast: a material made and disposed with every cast
+// was compiled again with every cast, under WebGL, its shader being new each time to three's cache)
+const beamPool = new Map();
+
 /** A beam from a to b: nested additive tubes, widening away from the hand. */
 class Beam {
   constructor(scene, layers) {
     this.scene = scene;
+    this.key = JSON.stringify(layers);
+    const kept = beamPool.get(this.key);
+    if (kept?.length) { this.layers = kept.pop(); return; }
     this.layers = layers.map((o) => {
       const geo = new THREE.CylinderGeometry(1, o.tail ?? 0.4, 1, 12, 24, true).translate(0, 0.5, 0);
       const uniforms = { time: { value: 0 }, len: { value: 1 }, wave: { value: (o.wave || 0) / o.r },
@@ -107,7 +114,12 @@ class Beam {
   }
 
   hide() { for (const l of this.layers) l.m.visible = false; }
-  dispose() { for (const { m } of this.layers) { this.scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }
+  /** Put away for the next cast of its kind (hidden, still in the scene). */
+  dispose() {
+    this.hide();
+    if (!beamPool.has(this.key)) beamPool.set(this.key, []);
+    beamPool.get(this.key).push(this.layers);
+  }
 }
 
 export class Arcana {

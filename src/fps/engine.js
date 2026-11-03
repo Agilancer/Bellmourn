@@ -85,6 +85,19 @@ export function crisp(m) {
   return m;
 }
 
+// ------------------------------------------------------------------ the haze lies low
+// three's range fog, thinned with height (as nodes.js fogNode under WebGPU): high ground, the
+// Sorrowhorn's upper half, stands out of the haze from far off.
+{
+  const C = THREE.ShaderChunk, line = 'smoothstep( fogNear, fogFar, vFogDepth )';
+  if (C?.fog_fragment?.includes(line)) {   // (WebGL only: the WebGPU build has no shader chunks)
+    C.fog_pars_vertex += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
+    C.fog_vertex += '\n#ifdef USE_FOG\n\tvFogAlt = ( transpose( mat3( viewMatrix ) ) * mvPosition.xyz + cameraPosition ).y;\n#endif\n';
+    C.fog_pars_fragment += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
+    C.fog_fragment = C.fog_fragment.replace(line, 'smoothstep( fogNear, fogFar, vFogDepth * mix( 1.0, 0.18, smoothstep( 0.0, 460.0, vFogAlt ) ) )');
+  }
+}
+
 // ------------------------------------------------------------------ ground mist
 /** Mist lying on the ground in `box` [x0, z0, x1, z1] (the graveyard): a height fog in three's own
  * fog shader, so everything drawn there (stones, the dead, the grass) sinks into it by how much mist
@@ -142,8 +155,68 @@ export function makeRenderer(canvas, { touch }) {
   renderer.setPixelRatio(1);   // (the size is set in device pixels: Resolution)
   ANISO = Math.min(touch ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
   THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
+  keepCompiled(renderer);
   return renderer;
 }
+
+/** What's compiled before play stays compiled. three lets a shader go when the last thing drawn with
+ * it is disposed (WebGL r170: its program; WebGPU r187: its node build, shader modules and pipeline),
+ * and a hex, a spell's flash, a cut-off limb, a body cleared away each have materials of their own,
+ * disposed when they're gone: the next was compiled again, mid-fight, though the warm-up and the
+ * rehearsal had made it. So nothing is let go until play begins (`keepCompiled.freeze()`, after the
+ * rehearsal); then what was made by then is kept for good, and of what's made later the first LATE are
+ * kept too (a kind first met in play), the rest let go as three would (a material that builds its own
+ * nodes, or a ShaderMaterial, whose cache keys never come round again, would otherwise pile up).
+ * WebGL: programs are pinned after each frame drawn (`keepCompiled.pin`); a ShaderMaterial's never
+ * (its key is its shader's place in three's cache, which goes with its last material: kept, it would
+ * never be used again). `keepCompiled.stats()` for the counts. */
+const LATE = 96;
+export function keepCompiled(renderer) {
+  let frozen = false, late = 0;
+  const lateOne = () => late < LATE && ++late;
+  if (WEBGPU) {
+    const P = renderer._pipelines, cache = renderer._nodes?.nodeBuilderCache;
+    if (!P || !cache) return;
+    const keptP = new Set(), keptG = new Set(), keptK = new Set();
+    const spare = (kept, x) => {
+      if (!frozen || kept.has(x)) return true;
+      if (lateOne()) { kept.add(x); return true; }
+      return false;
+    };
+    const relP = P._releasePipeline.bind(P), relG = P._releaseProgram.bind(P), del = cache.delete.bind(cache);
+    // (a pipeline kept keeps its shader programs: their ids are in its key, and it would never be found
+    // again with new ones; three lets the pipeline go first, then its programs)
+    P._releasePipeline = (p) => {
+      if (!spare(keptP, p)) { relP(p); return; }
+      for (const g of [p.vertexProgram, p.fragmentProgram, p.computeProgram]) if (g) keptG.add(g);
+    };
+    P._releaseProgram = (g) => { if (frozen && !keptG.has(g)) relG(g); };
+    cache.delete = (k) => (spare(keptK, k) ? false : del(k));
+    keepCompiled.freeze = () => {
+      if (frozen) return;
+      for (const p of P.caches.values()) keptP.add(p);
+      for (const m of Object.values(P.programs || {})) for (const g of m.values()) keptG.add(g);
+      for (const k of cache.keys()) keptK.add(k);
+      frozen = true;
+    };
+    keepCompiled.stats = () => ({ pipelines: P.caches.size, nodeBuilds: cache.size, kept: keptP.size, late, frozen });
+    return;
+  }
+  keepCompiled.pin = () => {
+    const list = renderer.info.programs;
+    if (!list) return;
+    for (const p of list) {
+      if (p.kept || p.type === 'ShaderMaterial' || p.type === 'RawShaderMaterial') continue;   // (r170: type is the material's type)
+      if (frozen && !lateOne()) continue;
+      p.kept = true; p.usedTimes += 1e9;
+    }
+  };
+  keepCompiled.freeze = () => { keepCompiled.pin(); frozen = true; };
+  keepCompiled.stats = () => ({ programs: renderer.info.programs?.length, late, frozen });
+}
+keepCompiled.pin = () => {};
+keepCompiled.freeze = () => {};
+keepCompiled.stats = () => ({});
 
 async function makeWebGPU(canvas, { touch }) {
   const renderer = new THREE.WebGPURenderer({ canvas, antialias: false, powerPreference: 'high-performance', trackTimestamp: true });
@@ -154,6 +227,13 @@ async function makeWebGPU(canvas, { touch }) {
   ANISO = Math.min(touch ? 4 : 16, renderer.getMaxAnisotropy());
   THREE.Texture.DEFAULT_ANISOTROPY = ANISO;
   shadowNodesShared(renderer);
+  keepCompiled(renderer);
+  // r187 keeps a skeleton's bone matrices, and a small instanced mesh's matrices, in a uniform buffer
+  // of each draw's own, written again with every draw (a Sworn: nineteen draws, and each shadow's, of
+  // its sixty-odd bones); what it does for ones too big for a uniform buffer (a bone texture written
+  // once a frame for each skeleton, instance matrices as vertex buffers written when they change) is
+  // taken for all of them. (Set before anything is built: it changes their shaders.)
+  if (THREE.NodeBuilder?.prototype.getUniformBufferLimit) THREE.NodeBuilder.prototype.getUniformBufferLimit = () => 0;
   // ?debugrender: a draw that throws names its object and material, once each
   if (/[?&]debugrender/.test(location.search)) {
     Error.stackTraceLimit = 60;
@@ -282,6 +362,230 @@ export function shareSkeletons(root) {
     else groups.push(s);
   });
   return groups.length;
+}
+
+// ------------------------------------------------------------------ shadows
+/** The layer of the bodies' shadow stand-ins (zombies.js makeShade): seen by every light's shadow
+ * camera (shadeLayers), never by a camera that draws the picture. */
+export const SHADE_LAYER = 5;
+
+/** Every shadow map sees the stand-ins. WebGPU (r187) tests a caster's layers against the light's
+ * shadow camera: each shadow-casting light under `root` gets the layer (call before the sun's maps are
+ * made: sunshadow.js copies its camera's layers). WebGL (r170) tests them against the view camera, so
+ * the view camera takes the layer while the maps are drawn, after its own list of what it draws is
+ * made (the stand-ins are never in the picture). */
+export function shadeLayers(root, renderer) {
+  root.traverse((l) => { if (l.isLight && l.castShadow && l.shadow?.camera) l.shadow.camera.layers.enable(SHADE_LAYER); });
+  if (WEBGPU || !renderer?.shadowMap || renderer.shadowMap._shade) return;
+  const sm = renderer.shadowMap, draw = sm.render;
+  sm._shade = true;
+  sm.render = function (lights, scene, camera) {
+    const was = camera.layers.mask;
+    camera.layers.enable(SHADE_LAYER);
+    try { draw.call(this, lights, scene, camera); } finally { camera.layers.mask = was; }
+  };
+}
+
+/** Let three forget what it kept for drawing these (WebGPU: each draw's render objects, their uniform
+ * buffers and their hold on the body, until the object itself is disposed; one with a shared material,
+ * never disposed, was kept for good). Call before taking a body's shared buffers off its geometry:
+ * a render object let go of later, by the geometry's own dispose, took the shared buffers with it. */
+export function letGo(root) {
+  root.traverse((o) => { if (o.isMesh || o.isSprite || o.isPoints || o.isLine) o.dispatchEvent({ type: 'dispose' }); });
+}
+
+/** Something that moves: a body (or anything on its bones: a sword, a shield, a stub), or what's
+ * marked so (a limb cut off, an arm dropped, a gib). */
+export function isMover(o) {
+  for (let p = o, k = 0; p && k < 6; p = p.parent, k++) if (p.isSkinnedMesh || p.isBone || p.userData.mover) return true;
+  return false;
+}
+
+// ---- point lights' shadow passes (WebGPU). Each draws six faces, and each face walks the whole scene,
+// most of it the bones of bodies nowhere near the light; a body's root (a direct child of the scene,
+// at its own position) is marked userData.body, so a pass can leave out those it has no use for.
+const _lp = new THREE.Vector3(), _hid = [], _near = [], _kept = new Set();
+/** For one pass: hide the scene's direct children `out(child)` says to (put back by shown()). */
+function hidden(scene, out) {
+  // (a cell's visible is whether it's in the view of whatever camera is drawing: its own flag is shown)
+  for (const c of scene.children) if (!c.isLight && (c.isCell ? c.shown : c.visible) && out(c)) { c.visible = false; _hid.push(c); }
+}
+function shown() { for (const c of _hid) c.visible = true; _hid.length = 0; }
+/** A filter on what a shadow pass draws, made once for each pass's own draw function. */
+function filtered(node, base, keep) {
+  if (node._base !== base) {
+    node._base = base;
+    node._fn = (object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId) => {
+      if (keep(object)) base(object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId);
+    };
+  }
+  return node._fn;
+}
+let PS = null;
+function pointShadows() {
+  if (PS || !WEBGPU || !THREE.PointShadowNode) return PS;
+  const Base = THREE.PointShadowNode, still = (o) => !isMover(o);
+  /** A torch's kept map: nothing that moves is drawn in it, and no body walked. */
+  class Still extends Base {
+    getShadowRenderObjectFunction(r, s) { return filtered(this, super.getShadowRenderObjectFunction(r, s), still); }
+    renderShadow(frame) { hidden(frame.scene, (c) => c.userData.body); try { super.renderShadow(frame); } finally { shown(); } }
+  }
+  /** A spell's light: all that casts, but bodies out of its reach not walked. */
+  class Ranged extends Base {
+    renderShadow(frame) {
+      const p = this.light.getWorldPosition(_lp), r2 = ((this.light.distance || this.shadow.camera.far) + 2.5) ** 2;   // (the pass sets its far to the light's reach)
+      hidden(frame.scene, (c) => c.userData.body && c.position.distanceToSquared(p) > r2);
+      try { super.renderShadow(frame); } finally { shown(); }
+    }
+  }
+  /** A torch with bodies' shadows (liveShadows): one map for its light to read, as before (no texture or
+   * sampler more for a shader to hold: a stage's sixteen were full). Its still world is drawn into a
+   * map of its own when the game asks (the torch gone to another flame, a crate broken), with nothing
+   * that moves; each time it's drawn that is copied into the light's map, and when there are bodies
+   * near it the nearest `most` are drawn over it, the copy not cleared. */
+  class Kept extends Base {
+    setupRenderTarget(shadow, builder) {
+      const r = super.setupRenderTarget(shadow, builder), size = shadow.mapSize.width;
+      this.still?.dispose();   // (set up again: a shadow of another kind)
+      r.depthTexture.type = THREE.FloatType;   // (32-bit float depth: copied whole from one to the other)
+      const d = new THREE.CubeDepthTexture(size);
+      d.type = THREE.FloatType; d.compareFunction = r.depthTexture.compareFunction; d.name = 'PointShadowStillTexture';
+      this.still = builder.createCubeRenderTarget(size);
+      this.still.depthTexture = d;
+      this.box = new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(size, size, 6));
+      this.stillDirty = true;
+      return r;
+    }
+    getShadowRenderObjectFunction(r, s) {
+      return filtered(this, super.getShadowRenderObjectFunction(r, s), (o) => (this.pass === 'live' ? isMover(o) : !isMover(o)));
+    }
+    dispose() { this.still?.dispose(); this.still = null; super.dispose(); }
+    renderShadow(frame) {
+      const { renderer, scene } = frame;
+      // (its still world drawn again where the torch has gone to another flame, or when told: dirty())
+      // (or its reach changed: the still depth is only good for the far it was drawn with)
+      const at = this.light.getWorldPosition(_lp), far = this.light.distance || this.shadow.camera.far;
+      if (!this.stillAt?.equals(at) || this.stillFar !== far) { this.stillDirty = true; (this.stillAt ||= new THREE.Vector3()).copy(at); this.stillFar = far; }
+      if (this.stillDirty) {   // the still world, into its own map
+        const map = this.shadowMap;
+        this.shadowMap = this.still; this.pass = 'still';
+        hidden(scene, (c) => c.userData.body);
+        try { super.renderShadow(frame); } finally { shown(); this.shadowMap = map; this.pass = null; }
+        this.stillDirty = false;
+      }
+      renderer.copyTextureToTexture(this.still.depthTexture, this.shadowMap.depthTexture, this.box);
+      if (!this.keep) return;
+      // what moves near it, over the copy (three's pass clears each face first: not this time)
+      // (the warm-up: every body and everything that moves, wherever it is, so that every pipeline a
+      // body is drawn into this kind of map with is made before play)
+      const p = this.light.getWorldPosition(_lp), r2 = this.warmAll ? Infinity : ((this.light.distance || this.shadow.camera.far) + 2.5) ** 2;
+      // (those that cast at all: near you, not a slime; the dead after the standing)
+      const near = _near; near.length = 0;
+      for (const c of scene.children) {
+        if (!c.userData.body || !c.visible || !(this.warmAll || c.userData.casts)) continue;
+        const d = c.position.distanceToSquared(p);
+        if (d < r2) near.push([c.userData.down ? d * 9 + 1e4 : d, c]);
+      }
+      near.sort((a, b) => a[0] - b[0]);
+      const kept = _kept; kept.clear();
+      for (let i = 0; i < near.length && (this.warmAll || i < this.most); i++) kept.add(near[i][1]);
+      hidden(scene, (c) => !(kept.has(c) || (c.userData.mover && !c.userData.body && c.position.distanceToSquared(p) < r2)));
+      const clear = renderer.clear;
+      renderer.clear = () => renderer;
+      this.pass = 'live';
+      try { super.renderShadow(frame); } finally { renderer.clear = clear; this.pass = null; shown(); }
+    }
+  }
+  return (PS = { Still, Ranged, Kept });
+}
+
+/** (Call before anything is compiled or drawn: a light's shadowNode is read once, when its light node
+ * is first set up.) The torches' shadow maps are kept (drawn again only when a torch moves to another
+ * flame, or a crate breaks), so nothing that moves is drawn into them: a body standing by a torch when
+ * its map was drawn left its shadow on the wall there after it had walked off, or died. WebGPU: their
+ * shadow nodes skip movers (liveShadows gives them back their moving shadows); WebGL: a mover's draws
+ * into them are emptied (onBeforeShadow, for those cameras only). */
+export function stillShadows(lights) {
+  lights = lights.filter((l) => l.castShadow && l.shadow);
+  if (!lights.length) return;
+  if (WEBGPU) {
+    const P = pointShadows();
+    if (!P) return;
+    for (const l of lights) if (l.isPointLight && !l.shadow.shadowNode) l.shadow.shadowNode = new P.Still(l, l.shadow);
+    return;
+  }
+  const cams = new Set(lights.map((l) => l.shadow.camera));
+  const P = THREE.Mesh.prototype;
+  P.onBeforeShadow = function (r, o, cam, shadowCamera, geometry) {
+    if (cams.has(shadowCamera) && isMover(this)) { this._still = geometry.drawRange.count; geometry.drawRange.count = 0; }
+  };
+  P.onAfterShadow = function (r, o, cam, shadowCamera, geometry) {
+    if (this._still !== undefined) { geometry.drawRange.count = this._still; this._still = undefined; }
+  };
+}
+
+/** The spells' shadow-casting lights (WebGPU): bodies out of their reach aren't walked by their passes. */
+export function rangedShadows(lights) {
+  const P = pointShadows();
+  if (P) for (const l of lights) if (l.isPointLight && l.castShadow && !l.shadow.shadowNode) l.shadow.shadowNode = new P.Ranged(l, l.shadow);
+}
+
+/** Bodies' shadows by the torches again (WebGPU), without the phantoms: a shadowed torch's node is
+ * a Kept (its still world kept apart, what moves drawn over a copy of it). Each frame (update) the
+ * `most` torches nearest you with a casting body in reach, where their light shows, take turns to be
+ * drawn again (one a frame); one that's done is drawn once more without them. Its still world is drawn
+ * again when the torch has gone to another flame, or when told (dirty: a crate broken by it). In
+ * place of stillShadows for these lights; call before anything is compiled. */
+export function liveShadows(torches, { most = 2, near = 30, bodies = 8 } = {}) {
+  const P = pointShadows();
+  if (!P) return null;
+  const list = [];
+  for (const l of torches) {
+    if (!l.castShadow || !l.isPointLight) continue;
+    const node = new P.Kept(l, l.shadow);
+    node.most = bodies;
+    l.shadow.shadowNode = node;
+    list.push({ l, node, on: false, d: 0, any: false });
+  }
+  const want = [];
+  let turn = 0;
+  return {
+    list,
+    /** The warm-up (main.js): the first torch draws every body into its map (their pipelines are the
+     * same for every torch); after it, all are drawn again as they are (without them). */
+    warm(on) { if (list[0]) { list[0].node.warmAll = on; list[0].node.keep = on; } },
+    /** Each frame, after the torches have gone to their flames and before the picture: `at` where you
+     * are, `scene` for the bodies; `dark`: whether a torch's light shows at all (night, or under the
+     * ground). The live ones take turns, one redrawn a frame (their bodies' shadows move at half the
+     * frame rate, or a third). */
+    update(at, scene, dark = true) {
+      want.length = 0;
+      for (const e of list) {
+        e.d = e.l.intensity > 0 ? e.l.position.distanceTo(at) : Infinity;
+        e.any = false;
+        if (e.d < near) want.push(e);
+      }
+      if (want.length && dark && !this.off) {
+        for (const c of scene.children) {
+          if (!c.userData.body || !c.visible || !c.userData.casts) continue;
+          for (const e of want) if (!e.any && c.position.distanceToSquared(e.l.position) < ((e.l.distance || e.l.shadow.camera.far) + 1) ** 2) e.any = true;
+        }
+      }
+      want.sort((a, b) => a.d - b.d);
+      const live = [];
+      for (const e of want) if (!this.off && dark && e.any && live.length < most) live.push(e);
+      const pick = live.length ? live[turn++ % live.length] : null;
+      for (const e of list) {
+        const on = live.includes(e);
+        // (the one whose turn it is drawn with its bodies; one that has just stopped, once more without)
+        if (e === pick || (!on && e.on)) { e.node.keep = on; e.l.shadow.needsUpdate = true; }
+        else if (e.l.shadow.needsUpdate) e.node.keep = on;
+        e.on = on;
+      }
+    },
+    /** A torch's still world changed where it stands (a crate broken, a lid swung): drawn again. */
+    dirty(l) { for (const e of list) if (e.l === l) e.node.stillDirty = true; },
+  };
 }
 
 /** The scene's world matrices worked out only where something can be drawn: a hidden subtree (a

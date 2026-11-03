@@ -1,51 +1,37 @@
 // Voices: everyone who speaks in Bellmourn says their words aloud as well as in the bubble, each in a
-// voice of their own for good (picked from their name).
+// voice of their own. The voices are recordings, made ahead of time with Qwen3-TTS (docs/VOICES.md):
+// one MP3 a line, filed under its speaker and a hash of its words (lines/voicekey.js), fetched from
+// the voices' own site (the Bellmourn2 repository on GitHub Pages; lines/voiced.js lists what each
+// speaker has). A line nobody has recorded yet is shown in its bubble and isn't said aloud: nothing is
+// synthesised in the browser.
 //
-// On a computer the voices are neural: Kokoro-82M (Apache-2.0), run in a worker (tts_worker.js),
-// its model fetched once and cached by the browser. Villagers speak in its British and American
-// voices; Velscour's Sworn in its deepest men's voices, pitched down further and muffled as if from
-// behind a helm, their lord deeper still; the sorcerers with a ring to them; the dead dragged low,
-// slowed and roughened into a moan over the gibberish they mutter. Each line is heard in 3D from where
-// its speaker stands, following them as they move and you as you turn, softer the further off it is
-// (an inverse-distance falloff: chain, tick). A long line is said a sentence
-// at a time, so it starts at once; the model's own quiet is cut from each sentence and the pauses
-// between them come from the punctuation, so a line runs as it's spoken (pauseAfter, paceOf), and
-// what it's given to say is a copy it can't spell out letter by letter (sayable).
+// Each line is heard in 3D from where its speaker stands, following them as they move and you as you
+// turn, softer the further off it is (an inverse-distance falloff: chain, tick). A speaker's kind gives
+// their voice its effect (the Sworn behind their helms, the dead in their crypts: voicefx.js); the
+// recordings are made at the right age and sex, so nothing is pitched.
 //
-// The model and every voice it speaks in are fetched while the game loads (warm(), from main.js at
-// once; a new game waits for them: ready), on a phone too. While they're still coming, or if they
-// can't, the browser's own speech synthesis speaks instead.
+// Recordings are fetched a few at a time, the most pressing first (what's being said now, then what's
+// waiting its turn, then what's wanted ahead: the crater's lines while the game loads, the answer of
+// whoever you're walking up to), and kept decoded, the least lately wanted let go first.
 //
-// Every voice starts at one level: each sentence is brought to the same loudness as it's made, and
-// plays through the game's own sound (the master volume, the limiter); then only distance (and
-// which way you face) makes one louder than another.
-//
-// Settings: localStorage bm.voices = '0' turns all voices off; bm.neural = '0' keeps to the
-// browser's voices.
+// Settings: localStorage bm.voices = '0' turns all voices off; bm.voicebase points the game at another
+// copy of the recordings (a local one, while testing new lines).
 
 import { monsterFx, MONSTER_FX, swellBuffer } from './voicefx.js';
+import { VOICED } from './lines/voiced.js';
+import { voiceKey } from './lines/voicekey.js';
 
 const EARSHOT = 28;          // metres
-const PHONE = typeof navigator !== 'undefined' && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
-/** Which build of the model, on how many threads: the full one on a computer whose page is isolated
- * (coi.js), on all but a few of its cores; else the 8-bit one (tts_worker.js says why). */
-function build() {
-  const cores = navigator.hardwareConcurrency || 4, iso = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
-  const threads = iso ? Math.max(1, Math.min(10, cores - 4)) : 1;
-  return { dtype: !PHONE && iso && threads >= 4 ? 'fp32' : 'q8', threads };
-}
-const LOUD = 0.12;           // every sentence's loudness (RMS) before its speaker's volume
-const CHUNK = 150;           // characters: a longer sentence is made in pieces (at a comma; each piece is said as a whole)
-const CACHE = 260;           // pieces kept made (a few seconds of audio each: some tens of MB in all)
-const SWELL = 1.1;           // s a sorcerer's reversed echo rises before each piece
-/** How loud a speaker d metres off is heard: all of it near, never less than a little over half. */
+const CACHE = 200;           // recordings kept decoded
+const FETCHES = 3;           // recordings fetched at once
+const GAIN = 1.2;            // the recordings' level (made at one loudness) up to the voices' old one
+const SWELL = 1.1;           // s a sorcerer's reversed echo rises before each line
 // Every voice is heard from where its speaker stands, in 3D (an HRTF panner: left and right, in
 // front and behind, above and below, turning as you turn), and softer with distance as a voice in
 // the open is: full within REF metres, then the inverse of the distance (half at 5 m, a quarter at
 // 10, a tenth at 25); nothing past EARSHOT is said aloud at all.
 const REF = 2.5, ROLL = 1;
 const EAR = 1.6, MOUTH = 1.55;   // m above the feet: your ears; a speaker's mouth (times their size)
-const falloff = (d) => REF / (REF + ROLL * (Math.max(d, REF) - REF));
 /** Where a line's speaker's mouth is now (they move as they talk), or null if they've no place. */
 function mouth(line, out = {}) {
   const p = line.o?.pos || line.who?.pos || line.who?.root?.position;
@@ -61,180 +47,42 @@ function place(panner, at, t, now = false) {
   else panner.setPosition(at.x, at.y, at.z);
 }
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
 
-// ------------------------------------------------------------------ how a line is said
-// The voices read text through espeak's dictionary, which spells out any "word" it can't say: "Hm"
-// came out "aitch-em", "Shh" "ess-aitch-aitch", and the dead's "mmrr... ghhaa" letter by letter. So
-// what's said is a sayable copy of what's shown: the noises people make written as they sound, the
-// dead's and the beasts' as syllables a mouth can make, a few names as they're meant to be said.
-const SOUNDS = {
-  hm: 'hmm', hmm: 'hmm', hmmm: 'hmm', mm: 'hmm', mmm: 'hmm', mmmm: 'hmm', mhm: 'uh-huh', hmph: 'humph',
-  tch: 'tsk', shh: 'shush', sh: 'shush', shhh: 'shush', pst: 'psst', grr: 'gurr', grrr: 'gurr', brr: 'burr', brrr: 'burr',
+// ------------------------------------------------------------------ who sounds how
+// The monsters' effects (voicefx.js), lighter than they were on the old synthesised voices (the user
+// found Malgrave and the dead too modulated to make out): the Red Hand an octave-down double behind
+// his helm; the dead the same double in a crypt's echo; the drowned gurgling; the dry ancient dead
+// (wraiths) words carried on breath; the cave's things pure breath; the sorcerers many mouths, a
+// reversed echo rising into each line, in a crypt. `level`: each chain at about one loudness.
+const KIND = {
+  knight: { fx: 'helm' },
+  lord: { fx: ['sub', 'helm'], level: 1.1 },
+  sorcerer: { fx: ['chorus', 'crypt'], swell: true, level: 1.5 },
+  beast: { fx: ['whisper'], level: 0.6 },
 };
-const NAMES = { odile: 'Odeel', isolde: 'Izzolda' };
-const VOWEL = /[aeiouy]/;
-const KNOWN = new Set(['psst', 'tsk', 'pff', 'pfft', 'hmm', 'shh']);
-// (the clusters a syllable can start with, and end with, that espeak says as sounds)
-const ONSET = new Set(['', ...'bcdfghjklmnpqrstvwxz', 'sh', 'th', 'ch', 'ph', 'wh', 'bl', 'br', 'cl', 'cr', 'dr', 'fl', 'fr', 'gl', 'gr', 'kl', 'kr', 'pl', 'pr',
-  'sk', 'sl', 'sm', 'sn', 'sp', 'st', 'sw', 'tr', 'tw', 'thr', 'shr', 'spr', 'str', 'scr', 'skr', 'spl', 'vr', 'gn', 'kn', 'wr', 'ps', 'gh', 'sch', 'chr',
-  'phr', 'sph', 'dw', 'gw', 'sc', 'squ', 'qu', 'rh', 'shl', 'thw', 'ts', 'pn', 'sq']);
-const CODA = new Set(['', ...'bcdfgklmnprstvxzw', 'gh', 'sh', 'th', 'ch', 'ng', 'nk', 'nd', 'nt', 'mp', 'lk', 'lm', 'ln', 'lt', 'rk', 'rm', 'rn', 'rt', 'rd',
-  'rg', 'rl', 'rs', 'sk', 'st', 'ck', 'ft', 'ld', 'lf', 'mph', 'rgh', 'ngh', 'ght', 'tch', 'nch', 'rch', 'lch', 'rth', 'nth', 'pt', 'ct', 'xt', 'lp', 'sp',
-  'mb', 'mn', 'lb', 'rb', 'rf', 'rp', 'rv', 'lv', 'nc', 'ns', 'nz', 'rc', 'lth', 'dth', 'fth', 'wn', 'wl', 'wd', 'wk', 'wt', 'ws', 'lg', 'lsh', 'rsh', 'nx',
-  'ph', 'bt', 'tz', 'ts', 'ks', 'ps', 'h', 'gn', 'ngth', 'rmth', 'wth', 'pth', 'wns', 'nst', 'mpt', 'dst', 'rst', 'lst', 'xt', 'nks', 'rld', 'rmst', 'wnst']);
-const medial = (m) => { for (let k = 0; k <= m.length; k++) if (CODA.has(m.slice(0, k)) && ONSET.has(m.slice(k))) return true; return false; };
-/** Whether espeak can say `w` as a word (lower case): it has a vowel, and its consonants come in
- * clusters a syllable can start and end with (doubled letters are fine but at the start). */
-export function speakable(w) {
-  if (KNOWN.has(w)) return true;
-  // (a vowel drawn out, "Aaaaaah!", is said drawn out: only consonants piled up are spelled)
-  if (/^[^aeiouy]*([^aeiouy])\1/.test(w) || /([^aeiouy])\1\1/.test(w) || /hh/.test(w)) return false;
-  const c = w.replace(/([^aeiouy])\1/g, '$1').split(/[aeiouy]+/);
-  if (c.length < 2 || !ONSET.has(c[0])) return false;
-  const end = c[c.length - 1];
-  if (!CODA.has(end) && !CODA.has(end.replace(/(s|d|t)$/, ''))) return false;
-  return c.slice(1, -1).every(medial);
-}
-const odd = (w) => !speakable(w);
-/** One of those as syllables a mouth can make: its runs cut to one letter, the breath after a
- * consonant let go, and a vowel put in wherever its consonants pile up past saying. */
-function mouthed(w) {
-  if (/^[hsz]*s[hsz]*$/.test(w)) return 'hiss';     // (a hiss is said as one)
-  let s = w.replace(/([^aeiouy])\1+/g, '$1').replace(/([bdfgjkmnlprvz])h/g, '$1').replace(/^h(?=[^aeiouy])/, '');
-  if (!s) return 'haah';
-  if (/^[mn]$/.test(s)) return 'hmm';
-  // syllables: the consonants before each vowel run, the vowels, and whatever's left at the end
-  const parts = s.match(/[^aeiouy]*[aeiouy]+|[^aeiouy]+$/g) || [s];
-  let out = '';
-  for (let i = 0; i < parts.length; i++) {
-    const p = parts[i], v = p.search(VOWEL);
-    let on = v < 0 ? p : p.slice(0, v), nu = v < 0 ? '' : p.slice(v);
-    if (!nu) {                                  // (the consonants it ends with)
-      if (out && CODA.has(on)) { out += on; continue; }
-      if (!out) { out = on.slice(0, 1) + (/[sz]/.test(on) && !/r/.test(on) ? 'i' : 'u') + (CODA.has(on.slice(1)) ? on.slice(1) : ''); continue; }
-      out += on[0] + (CODA.has(on.slice(1)) ? 'u' + on.slice(1) : 'uh');
-      continue;
-    }
-    // a cluster that can't start a syllable: the longest end of it that can, and the rest closing the
-    // syllable before (or said as one of its own)
-    if (!ONSET.has(on)) {
-      let k = 1;
-      while (k < on.length && !ONSET.has(on.slice(k))) k++;
-      const head = on.slice(0, k);
-      on = on.slice(k);
-      if (out && CODA.has(head)) out += head;
-      else for (const c of head) out += c + 'u';
-    }
-    out += on + nu;
-  }
-  return out;
-}
-/** What the voices are given to say for `text`: the same words, with nothing in them they'd spell out. */
-export function sayable(text) {
-  return String(text).replace(/[{}*]/g, '').replace(/\.{3,}/g, '…').replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g, (w) => {
-    const l = w.toLowerCase();
-    const r = NAMES[l] ?? SOUNDS[l] ?? (!l.includes("'") && odd(l) ? mouthed(l) : null);
-    if (r == null) return w;
-    return w[0] === w[0].toUpperCase() ? r[0].toUpperCase() + r.slice(1) : r;
-  });
-}
-
-/** The pause after a piece of a line, by how it ends (the model's own quiet is cut from each piece,
- * a quarter second before it and half a second after): a full stop a breath, a question a little
- * more, a trailing off longer, a dash or a comma less. */
-export function pauseAfter(s) {
-  const e = String(s).trim().replace(/["'”’)\]]+$/, '');
-  if (/(…|\.\.\.)$/.test(e)) return 0.5;
-  if (/\?$/.test(e)) return 0.36;
-  if (/!$/.test(e)) return 0.27;
-  if (/\.$/.test(e)) return 0.3;
-  if (/[—–-]$/.test(e)) return 0.2;
-  return 0.15;
-}
-
-/** A line in the pieces the voices make it in (see neural.sentences). */
-export function splitLine(text) {
-  const out = [];
-  const src = String(text).replace(/[{}*]/g, '').replace(/\.{3,}/g, '…').replace(/\s+/g, ' ').trim();
-  // sentences, and the trailing offs inside them ("the bell… the bell…": each ends a piece)
-  for (let s of src.match(/[^.!?…]*[^.!?…\s][^.!?…]*[.!?…]+["'”’)]*|[^.!?…]+$|^[.!?…]+/g)?.map((x) => x.trim()).filter(Boolean) || []) {
-    // a break at a dash, words either side ("Wait — where are you going?")
-    const bits = s.split(/(?<=[A-Za-z,'’]\s?[—–])\s*(?=\S)/);
-    for (let b of bits) {
-      b = b.trim();
-      while (b.length > CHUNK) {
-        let cut = -1;
-        const re = /[,;:]\s/g;
-        let m;
-        while ((m = re.exec(b)) && m.index < CHUNK) if (m.index > 18) cut = m.index + 1;
-        if (cut < 0) break;
-        out.push(b.slice(0, cut).trim()); b = b.slice(cut).trim();
-      }
-      if (b) out.push(b);
-    }
-  }
-  // (a lone "…" before the words, "…Sorry.": the hesitation goes with them)
-  for (let i = out.length - 2; i >= 0; i--) if (!/[A-Za-z]/.test(out[i])) { out[i + 1] = out[i] + out[i + 1]; out.splice(i, 1); }
-  return out;
-}
-
-/** How fast a piece is said, by what it is: an exclamation a little quicker, a trailing off slower. */
-export function paceOf(s) {
-  const e = String(s).trim().replace(/["'”’)\]]+$/, '');
-  if (/(…|\.\.\.)$/.test(e)) return 0.93;
-  if (/!$/.test(e)) return 1.05;
-  return 1;
-}
-
-// ------------------------------------------------------------------ the neural voices (Kokoro)
-const KOKORO = {
-  f: ['bf_emma', 'bf_isabella', 'bf_alice', 'bf_lily', 'af_heart', 'af_bella', 'af_sarah', 'af_nicole', 'af_aoede', 'af_kore', 'af_jessica', 'af_river'],
-  m: ['bm_george', 'bm_lewis', 'bm_daniel', 'bm_fable', 'am_michael', 'am_adam', 'am_eric', 'am_liam', 'am_echo', 'am_puck'],
-  knight: ['am_onyx', 'am_fenrir', 'bm_george', 'bm_lewis', 'am_adam', 'bm_daniel'],
-  knightF: ['bf_isabella', 'af_kore', 'bf_alice'],
-  lord: ['am_onyx'],
-  sorcerer: ['bm_fable', 'am_echo', 'bf_alice'],
-  undead: ['am_onyx', 'bm_lewis', 'am_fenrir', 'af_nicole', 'bf_isabella', 'bm_daniel'],
-  beast: ['af_sky', 'am_puck'],
+const UNDEAD = {
+  dead: { fx: ['sub', 'crypt'], level: 0.9 },
+  drowned: { fx: ['gurgle'], level: 0.5 },
+  wraith: { fx: ['whisper', 'crypt'], level: 1.5 },
 };
-
-/** How a speaker sounds through the neural voices: { voice, rate (pitch: the playback rate), speed
- * (the model's pace, set so pitch and pace come out right together), fx }. */
-// The monsters' voices (voicefx.js), as the user chose them by ear (tools/monster_voices.js): the dead
-// an octave-down double, a death rattle and a hollow ring, in a stone room's echo; the drowned
-// gurgling; the dry ancient dead (wraiths) words carried on breath; the cave's things pure breath;
-// the sorcerers many mouths, a reversed echo rising into each word, in a crypt; the Red Hand with
-// something else speaking under him. `level`: each chain brought to the loudness that kind had before
-// (measured by tools/monster_voices.js: the chain's loudness out over the voice's in; the dead were
-// heard at 1.73 times their voice, the beasts 1.13, sorcerers 1.03, the lord 1.12).
-const MONSTER_VOICE = {
-  dead: { fx: ['sub', 'fry', 'undead', 'ring:45', 'crypt'], level: 0.9 },     // (1.93 out)
-  drowned: { fx: ['gurgle', 'sub', 'undead'], level: 0.39 },                  // (4.41)
-  wraith: { fx: ['whisper', 'crypt'], level: 1.5 },                           // (1.15)
-  beast: { fx: ['whisper'], level: 0.6 },                                     // (1.88)
-  sorcerer: { fx: ['chorus', 'crypt'], swell: true, level: 1.5 },             // (0.68, with the swell)
-  lord: { fx: ['sub', 'ring:30', 'helm'], level: 1.34 },                      // (0.84)
-};
-
-/** How a speaker sounds through the neural voices: { voice, rate (pitch: the playback rate), speed
- * (the model's pace, set so pitch and pace come out right together), fx, level, swell }. The dead's
- * `style` ('drowned', 'wraith') picks their voice among the dead's. */
-export function neuralCast(key, { sex = 'm', kind = 'villager', age = null, fear = false, style = null } = {}) {
-  const h = hash(kind + '|' + key), r = (n) => ((h >>> n) & 1023) / 1023;
-  const list = kind === 'knight' ? (sex === 'f' ? KOKORO.knightF : KOKORO.knight) : kind === 'villager' ? KOKORO[sex === 'f' ? 'f' : 'm'] : KOKORO[kind] || KOKORO.m;
-  let rate = 0.97 + r(5) * 0.06, fx = null, m = null;
-  if (age === 'old') rate -= 0.06; else if (age === 'young') rate += 0.05;
-  if (kind === 'knight') { rate = 0.84 + r(5) * 0.06; fx = 'helm'; }
-  if (kind === 'lord') { rate = 0.76; m = MONSTER_VOICE.lord; }
-  if (kind === 'sorcerer') { rate = 0.98 + r(5) * 0.06; m = MONSTER_VOICE.sorcerer; }
-  if (kind === 'undead') { rate = 0.6 + r(5) * 0.12; m = MONSTER_VOICE[style] || MONSTER_VOICE.dead; }
-  if (kind === 'beast') { rate = 1.45 + r(5) * 0.2; m = MONSTER_VOICE.beast; }
-  // terrified (the opening's knight as the star comes for him): his voice up and strained, rushed,
-  // shaking, still behind his helm
-  if (fear) return { voice: list[h % list.length], rate: 1.04, speed: 1.3, fx: kind === 'knight' || kind === 'lord' ? 'fear-helm' : 'fear' };
-  return { voice: list[h % list.length], rate, speed: Math.max(0.6, Math.min(1.6, (0.96 + r(13) * 0.08) / rate)), fx: m ? m.fx : fx, level: m?.level ?? 1, swell: !!m?.swell };
+/** How a speaker sounds: { voice (whose recordings: their name, or the voice the line was recorded
+ * in), fx, level, swell }. */
+function castOf(key, { kind = 'villager', style = null } = {}) {
+  const m = kind === 'undead' ? UNDEAD[style] || UNDEAD.dead : KIND[kind];
+  return { voice: key, fx: m?.fx ?? null, level: m?.level ?? 1, swell: !!m?.swell };
 }
+
+// which lines each voice has been recorded saying
+const have = new Map(Object.entries(VOICED.have || {}).map(([v, s]) => [v, new Set(String(s).split(/\s+/).filter(Boolean))]));
+const base = () => store('bm.voicebase') || VOICED.base;
+/** Where the recording of `voiceId` saying `text` is, or null if there isn't one. */
+function recordingOf(voiceId, text) {
+  const s = have.get(voiceId);
+  if (!s || !text) return null;
+  const k = voiceKey(String(text));
+  return s.has(k) ? `${base()}${encodeURIComponent(voiceId)}/${k}.mp3` : null;
+}
+const keyOf = (who, o) => o.key || who?.name || 'someone';
 
 /** A speaker's effect, feeding `out`: what to connect their voice to. `fx` is a name, or a chain of
  * them (the voice through each in turn); the monsters' effects are in voicefx.js. */
@@ -283,120 +131,63 @@ export function fxInput(ctx, fx, out) {
   return out;
 }
 
-const neural = {
-  state: 'off',              // off | loading | ready | failed
-  worker: null, ctx: null, next: 1,
-  wait: new Map(),           // id -> { key, lines: [{ line, i }] }: who wants its audio when it comes
-  cache: new Map(),          // voice|speed|sentence -> { audio, rate } (made already), or { id } (on its way)
-  playing: [],               // { src, pri, end, who }
-  ms: [],                    // how long the lines took to make (for the log)
+// ------------------------------------------------------------------ the recordings
+const rec = {
+  ctx: null, bus: null, tap: null,
+  cache: new Map(),          // url -> { buf } (decoded), or { waiters: [line...], pri, swell } (on its way)
+  queue: [],                 // urls waiting to be fetched
+  inflight: 0,
+  playing: [],               // { src, g, panner, line, end }
+  offline: null,
 
-  wanted() { return store('bm.neural') !== '0'; },
-  got: 0, of: 0,             // how many of the voices are in (every one is fetched before it's ready)
-  dl: null,                  // [loaded, total] bytes of the model, while it's coming
-  model: null,               // { dtype, threads }: what it runs
-
-  start() {
-    if (this.state !== 'off' || !this.wanted() || typeof Worker === 'undefined') { if (this.state === 'off') this.settle(false); return; }
-    this.state = 'loading';
-    try {
-      this.worker = new Worker(new URL('./tts_worker.js', import.meta.url), { type: 'module' });
-    } catch (e) { this.state = 'failed'; console.warn('voices: no worker', e); return; }
-    this.worker.onmessage = (e) => this.onMessage(e.data);
-    this.worker.onerror = (e) => { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices failed', e.message); };
-    const all = [...new Set(Object.values(KOKORO).flat())];
-    this.of = all.length;
-    this.worker.postMessage({ type: 'load', voices: all, ...build() });
+  /** Something to decode with before the game's sound has started (decoded buffers play anywhere). */
+  decoder() {
+    if (this.ctx) return this.ctx;
+    if (!this.offline && typeof OfflineAudioContext !== 'undefined') this.offline = new OfflineAudioContext(1, 1, 48000);
+    return this.offline;
   },
 
-  settle(ok) { this.done?.(ok); this.done = null; },
+  /** The recording at `url`: from the cache, or fetched (the most pressing first). line: a line
+   * waiting to say it; pri: how pressing (9: being said now; 0 to 8 waiting or wanted soon; -1 ahead). */
+  want(url, line = null, pri = -1, swell = false) {
+    const hit = this.cache.get(url);
+    if (hit?.buf) { this.cache.delete(url); this.cache.set(url, hit); if (line) { line.buf = hit.buf; line.lead = hit.lead || 0; this.pump(line); } return hit; }
+    if (hit) { if (line) hit.waiters.push(line); hit.pri = Math.max(hit.pri, pri); return hit; }
+    const job = { waiters: line ? [line] : [], pri, swell, done: null };
+    job.ready = new Promise((r) => { job.done = r; });
+    this.cache.set(url, job);
+    this.queue.push(url);
+    this.next();
+    return job;
+  },
 
-  onMessage(m) {
-    if (m.type === 'progress') { this.got = m.got; this.of = m.of; this.dl = null; return; }
-    if (m.type === 'peek') { this.peeked = m; return; }
-    if (m.type === 'download') { this.dl = [m.loaded, m.total]; return; }
-    if (m.type === 'model') { this.model = { dtype: m.dtype, threads: m.threads }; this.dl = null; return; }
-    if (m.type === 'ready') { this.state = 'ready'; this.got = this.of; this.settle(true); console.info(`voices: the neural voices are ready (Kokoro-82M ${this.model?.dtype || ''}, ${this.model?.threads || 1} threads, ${this.of} voices)`); return; }
-    if (m.type === 'error') { this.state = 'failed'; this.settle(false); console.warn('voices: the neural voices could not load', m.error); return; }
-    const w = this.wait.get(m.id);
-    this.wait.delete(m.id);
-    if (!w) return;
-    // (a piece that couldn't be made: a line not yet begun is said in the browser's voice instead;
-    // one already under way goes on past it, so its speaker doesn't fall silent with words still to come)
-    if (m.type === 'fail') {
-      this.cache.delete(w.key);
-      for (const { line, i } of w.lines) { if (!line.starts.length) line.dead = true; else { line.parts[i] = { audio: new Float32Array(240), rate: 24000, gain: 1 }; this.pump(line); } }
-      return;
+  next() {
+    while (this.inflight < FETCHES && this.queue.length) {
+      // (the most pressing waiting, first asked first among equals)
+      let bi = 0;
+      for (let i = 1; i < this.queue.length; i++) if ((this.cache.get(this.queue[i])?.pri ?? -9) > (this.cache.get(this.queue[bi])?.pri ?? -9)) bi = i;
+      const url = this.queue.splice(bi, 1)[0], job = this.cache.get(url);
+      if (!job || job.buf) continue;
+      this.inflight++;
+      fetch(url, { mode: 'cors' })
+        .then((r) => { if (!r.ok) throw new Error(r.status + ' ' + url); return r.arrayBuffer(); })
+        .then((ab) => this.decoder().decodeAudioData(ab))
+        .then((buf) => (job.swell ? swellBuffer(buf, SWELL).then((b) => ({ buf: b, lead: SWELL }), () => ({ buf, lead: 0 })) : { buf, lead: 0 }))
+        .then(({ buf, lead }) => {
+          const got = { buf, lead };
+          this.cache.delete(url); this.cache.set(url, got);
+          for (const [k, v] of this.cache) { if (this.cache.size <= CACHE) break; if (v.buf) this.cache.delete(k); }
+          for (const line of job.waiters) if (!line.dead) { line.buf = buf; line.lead = lead; this.pump(line); }
+          job.done(true);
+        })
+        .catch((e) => {
+          console.warn('voices: no recording', String(e));
+          this.cache.delete(url);
+          for (const line of job.waiters) line.dead = true;
+          job.done(false);
+        })
+        .finally(() => { this.inflight--; this.next(); });
     }
-    if (m.ms) { this.ms.push(m.ms); if (this.ms.length > 40) this.ms.shift(); }
-    // (brought to one loudness, whoever speaks: Kokoro's voices come out louder and softer)
-    let sq = 0, pk = 0;
-    for (let i = 0; i < m.audio.length; i++) { const x = m.audio[i]; sq += x * x; if (x > pk) pk = x; else if (-x > pk) pk = -x; }
-    const rms = Math.sqrt(sq / Math.max(1, m.audio.length));
-    const part = { audio: m.audio, rate: m.rate, gain: rms > 1e-5 ? Math.max(0.25, Math.min(8, LOUD / rms, 0.95 / Math.max(pk, 1e-5))) : 1 };
-    // (a sorcerer's: its reversed echo made from the whole of it first, rising SWELL s before it)
-    if (w.swell && typeof OfflineAudioContext !== 'undefined') {
-      const buf = new AudioBuffer({ length: m.audio.length, sampleRate: m.rate, numberOfChannels: 1 });
-      buf.copyToChannel(m.audio, 0);
-      swellBuffer(buf, SWELL).then((b) => { part.audio = b.getChannelData(0); part.lead = SWELL; this.keep(w, part); }, () => this.keep(w, part));
-      return;
-    }
-    this.keep(w, part);
-  },
-
-  /** A piece made: kept, and given to the lines waiting on it. */
-  keep(w, part) {
-    // (kept by when it was last made or wanted, the longest unwanted going first: a sentence made
-    // ahead, for someone you're walking up to, had kept its place in the queue from when it was asked
-    // for, and was among the first to go before it was ever said)
-    this.cache.delete(w.key); this.cache.set(w.key, part);
-    for (const [k, v] of this.cache) { if (this.cache.size <= CACHE) break; if (v.audio) this.cache.delete(k); }   // (what's still being made stays)
-    for (const { line, i } of w.lines) { if (!line.dead) { line.parts[i] = part; this.pump(line); } }
-  },
-
-  /** The cache's key for a piece in a cast (a sorcerer's swelled piece is kept apart from the same words plain). */
-  keyOf(cast, speed, text) { return cast.voice + '|' + speed.toFixed(2) + (cast.swell ? '|swell' : '') + '|' + text; },
-
-  /** A line in the pieces it's made in, each said as a whole: its sentences; a trailing off ("the
-   * bell… the bell") and a break ("Wait — where are you going?") end a piece too (the model runs
-   * straight through them, and the hesitation is lost); a very long sentence is broken at a comma. */
-  sentences(text) { return splitLine(text); },
-
-  /** A piece in a voice: from the cache, or asked for (line i of `line` gets it when it comes).
-   * Made in order of how pressing: a line being said now (9), one waiting its turn (its priority, 0
-   * to 3), one made ahead (`ahead`: -1, or more for one about to be wanted). */
-  want(cast, s, line = null, i = 0, ahead = -1) {
-    const text = sayable(s).trim(), speed = Math.max(0.6, Math.min(1.6, cast.speed * paceOf(s)));
-    const key = this.keyOf(cast, speed, text), hit = this.cache.get(key);
-    const pri = line ? (line.hold ? line.pri ?? 0 : 9) : ahead;
-    if (!/[A-Za-z]/.test(text)) { if (line) line.parts[i] = { audio: new Float32Array(240), rate: 24000, gain: 1 }; return; }   // (nothing in it to say)
-    if (hit?.audio) { if (line) line.parts[i] = hit; this.cache.delete(key); this.cache.set(key, hit); return; }
-    if (hit?.id && this.wait.has(hit.id)) {
-      if (line) { this.wait.get(hit.id).lines.push({ line, i }); line.need.push(hit.id); }
-      if (line || ahead > -1) this.worker.postMessage({ type: 'bump', ids: [hit.id], pri });
-      return;
-    }
-    const id = this.next++;
-    this.cache.set(key, { id });
-    this.wait.set(id, { key, swell: !!cast.swell, lines: line ? [{ line, i }] : [] });
-    if (line) { line.ids.push(id); line.need.push(id); }
-    this.worker.postMessage({ type: 'say', id, text, voice: cast.voice, speed, pri });
-  },
-
-  /** Make a line ahead of when it's said (a scene's, a group's, a quest's), so it plays on time
-   * (pri: how soon it'll be wanted, -1 to 8). */
-  prefetch(text, cast, pri = -1) {
-    if (this.state !== 'ready') return;
-    // (the one you're looking at, about to speak to: their first words made before anything, even
-    // what's being said now, which is already playing; the rest of it is made while those are heard)
-    this.sentences(text).forEach((s, i) => this.want(cast, s, null, 0, i === 0 && pri >= 8 ? 9.5 : pri));
-  },
-  /** Whether every piece of a line is made already (so it would be heard the moment it's said). */
-  made(text, cast) {
-    return this.sentences(text).every((s) => {
-      const t = sayable(s).trim(), sp = Math.max(0.6, Math.min(1.6, cast.speed * paceOf(s)));
-      return !/[A-Za-z]/.test(t) || !!this.cache.get(this.keyOf(cast, sp, t))?.audio;
-    });
   },
 
   /** The game's own sound (voice.useSound): its context, and a line for the voices under its master
@@ -424,87 +215,69 @@ const neural = {
     return this.ctx;
   },
 
-  /** Say a line: its sentences sent off to be made, each played as it comes, in order. o.hold: made
-   * now, but not played till its handle's go() (speech.js: on the speaker's turn). Returns its handle. */
-  say(who, text, cast, o) {
-    const sents = this.sentences(text);
-    if (!sents.length) return null;
-    // (the pauses between its pieces: by how each ends, longer for a slow voice, never quite the same twice)
-    const pauses = sents.map((s, i) => (i === sents.length - 1 ? 0.04 : pauseAfter(s) * (0.88 + Math.random() * 0.24) / Math.max(0.6, cast.rate)));
-    const line = { who, cast, o, sents, pauses, parts: new Array(sents.length).fill(null), at: 0, when: 0, ids: [], need: [], t0: performance.now(), pri: o.pri, hold: !!o.hold, starts: [], durs: [], recs: [] };
-    sents.forEach((s, i) => this.want(cast, s, line, i));
-    if (!line.hold) this.pump(line);
+  /** Say a line: its recording fetched if it isn't in yet, played as soon as it is. o.hold: not till
+   * its handle's go() (speech.js: on the speaker's turn). Returns its handle. */
+  say(who, url, cast, o) {
+    const line = { who, cast, o, url, buf: null, lead: 0, dead: false, hold: !!o.hold, pri: o.pri ?? 0, start: 0, dur: 0, when: 0, rec: null };
+    this.want(url, line, line.hold ? line.pri : 9, cast.swell);
     return this.handle(line);
   },
 
-  /** A line's handle: started (its first word is heard), done (its last is over, or it failed),
-   * failed (gone before a word), progress() (how much of it is said, 0 to 1), go(), cancel(). */
+  /** A line's handle: started (its first word is heard), done (it's over, or it failed), failed (gone
+   * before a word), progress() (how much of it is said, 0 to 1), go(), cancel(fade). */
   handle(line) {
-    const self = this, chars = line.sents.map((s) => s.length + 1), C = chars.reduce((a, b) => a + b, 0);
+    const self = this;
     return {
-      get started() { return line.starts.length > 0 && !!self.ctx && self.ctx.currentTime >= line.starts[0]; },
-      get failed() { return !!line.dead && !line.starts.length; },
-      get done() { return !!line.dead || (line.at >= line.parts.length && !!self.ctx && self.ctx.currentTime >= line.when - 0.06); },
+      get started() { return line.start > 0 && !!self.ctx && self.ctx.currentTime >= line.start; },
+      get failed() { return line.dead && !line.start; },
+      get done() { return line.dead || (line.start > 0 && !!self.ctx && self.ctx.currentTime >= line.when - 0.06); },
       progress() {
-        const now = self.ctx?.currentTime ?? 0;
-        let said = 0;
-        for (let i = 0; i < line.starts.length; i++) said += chars[i] * Math.max(0, Math.min(1, (now - line.starts[i]) / line.durs[i]));
-        return said / C;
+        if (!line.start || !self.ctx) return 0;
+        return Math.max(0, Math.min(1, (self.ctx.currentTime - line.start) / (line.dur || 1)));
       },
       go() {
         if (!line.hold) return;
-        line.hold = false; line.t0 = performance.now();
-        const ids = line.need.filter((id) => self.wait.has(id));     // (its turn: what's still to be made, first)
-        if (ids.length) self.worker.postMessage({ type: 'bump', ids, pri: 9 });
+        line.hold = false;
+        const job = self.cache.get(line.url);
+        if (job && !job.buf) job.pri = 9;
         self.pump(line);
       },
-      /** Stop it (fade: over so many seconds, a voice falling away rather than snapped off). */
       cancel(fade = 0) {
-        const now = self.ctx?.currentTime ?? 0;
-        for (const r of line.recs) {
+        const r = line.rec, now = self.ctx?.currentTime ?? 0;
+        if (r) {
           try {
             if (fade > 0 && now < r.end) { r.g.gain.setTargetAtTime(0, now, fade / 3); r.src.stop(now + fade); } else r.src.stop();
           } catch { /* done */ }
         }
-        self.drop(line);
+        line.dead = true;
       },
     };
   },
 
-  /** Play what's ready of a line, in order (a sentence starts as the one before it ends). */
+  /** Play a line once it's its turn and its recording is in. */
   pump(line) {
-    if (line.dead || line.hold) return;
+    if (line.dead || line.hold || !line.buf || line.rec) return;
     const ctx = this.audio();
     if (!ctx) return;
     voice.tick(true);    // (the listener where you are before a voice is placed about you)
-    while (line.at < line.parts.length && line.parts[line.at]) {
-      const i = line.at, p = line.parts[line.at++];
-      const buf = ctx.createBuffer(1, p.audio.length, p.rate);
-      buf.copyToChannel(p.audio, 0);
-      const src = ctx.createBufferSource();
-      src.buffer = buf; src.playbackRate.value = line.cast.rate;
-      const out = this.chain(ctx, line, p.gain || 1);
-      src.connect(out.input);
-      // (a hesitation the line begins with, "…Sorry.": a beat before the word)
-      // (a swelled piece's rising echo starts under the end of the one before it, up to half a second in)
-      const lead = i > 0 && p.lead ? Math.min(p.lead / line.cast.rate, line.pauses[i - 1] + 0.5) : 0;
-      const start = Math.max(ctx.currentTime + 0.02, line.when - lead) + (i === 0 && /^…/.test(line.sents[0]) ? 0.35 : 0);
-      src.start(start);
-      line.starts.push(start); line.durs.push(buf.duration / line.cast.rate);
-      line.when = start + buf.duration / line.cast.rate + line.pauses[i];
-      const rec = { src, g: out.input, panner: out.panner, line, pri: line.pri, who: line.who, end: line.when };
-      line.recs.push(rec);
-      this.playing.push(rec);
-      src.onended = () => { const i = this.playing.indexOf(rec); if (i >= 0) this.playing.splice(i, 1); };
-    }
+    const src = ctx.createBufferSource();
+    src.buffer = line.buf;
+    const out = this.chain(ctx, line, GAIN);
+    src.connect(out.input);
+    const start = ctx.currentTime + 0.02;
+    src.start(start);
+    line.start = start + line.lead; line.dur = Math.max(0.1, line.buf.duration - line.lead); line.when = start + line.buf.duration;
+    const r = { src, g: out.input, panner: out.panner, line, end: line.when };
+    line.rec = r;
+    this.playing.push(r);
+    src.onended = () => { const i = this.playing.indexOf(r); if (i >= 0) this.playing.splice(i, 1); };
   },
 
-  /** Where it's heard: the speaker's effect, then how loud and which side, by where they stand. */
-  /** Where a piece is heard: the speaker's effect, at one loudness, then a 3D panner at their mouth
+  /** Where a line is heard: the speaker's effect, at one loudness, then a 3D panner at their mouth
    * (moved with them each frame: voice.tick), softer with distance. */
   chain(ctx, line, level = 1) {
     const gain = ctx.createGain();
-    gain.gain.value = line.cast.level ?? 1;   // (each effect brought back to one loudness: MONSTER_VOICE)
+    gain.gain.value = line.cast.level ?? 1;
     // (evened here, before distance: on the line all voices share, it squeezed a near voice and a far
     // one together, so the far one was heard at nearly twice the falloff's level)
     const comp = ctx.createDynamicsCompressor();
@@ -525,122 +298,39 @@ const neural = {
     return { input: lv, panner };
   },
 
-  drop(line) {
-    line.dead = true;
-    // (what nobody else is waiting for is dropped from the worker's queue)
-    const ids = line.ids.filter((id) => { const w = this.wait.get(id); if (!w) return false; w.lines = w.lines.filter((x) => x.line !== line); return !w.lines.length; });
-    for (const id of ids) { this.cache.delete(this.wait.get(id).key); this.wait.delete(id); }
-    if (ids.length) this.worker.postMessage({ type: 'drop', ids });
-  },
-
   stop() {
-    for (const p of this.playing) { try { p.src.stop(); } catch { /* done */ } }
+    for (const p of this.playing) { try { p.src.stop(); } catch { /* done */ } p.line.dead = true; }
     this.playing.length = 0;
-    const ids = [...this.wait.keys()];
-    for (const id of ids) this.cache.delete(this.wait.get(id).key);
-    this.wait.clear();
-    if (ids.length) this.worker?.postMessage({ type: 'drop', ids });
+    for (const url of this.queue) { const job = this.cache.get(url); if (job && !job.buf) { for (const l of job.waiters) l.dead = true; job.waiters.length = 0; } }
   },
 };
-
-// ------------------------------------------------------------------ the browser's own voices
-const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-let voices = [];
-const loadVoices = () => { try { voices = (synth?.getVoices() || []).filter((v) => /^en/i.test(v.lang)); } catch { voices = []; } };
-if (synth) { loadVoices(); synth.addEventListener?.('voiceschanged', loadVoices); }
-const FEMALE = /zira|susan|hazel|libby|sonia|jenny|aria|natasha|samantha|karen|moira|tessa|fiona|victoria|serena|kate|female|woman|ava|allison|emma|clara|michelle|elizabeth|catherine|nicola|joanna|amy|salli|kimberly|ivy|kendra|olivia|maisie|ana\b|emily|sara/i;
-const MALE = /david|mark|george|ryan|guy|daniel|alex|fred|male|thomas|james|oliver|arthur|eric|brian|christopher|roger|steffan|william|liam|matthew|joey|justin|russell|tom\b|aaron|gordon|rishi|lee\b/i;
-const rank = (v) => (/(natural|neural|online)/i.test(v.name) ? 6 : /google/i.test(v.name) ? 4 : v.localService === false ? 3 : 1) + (/en[-_](gb|ie|au|nz)/i.test(v.lang) ? 1 : 0);
-const cast = new Map();
-
-/** How a speaker sounds through the browser's voices (kept for good): { voice, pitch, rate }. */
-export function voiceOf(key, { sex = 'm', kind = 'villager', age = null } = {}) {
-  const k = kind + '|' + key;
-  if (cast.has(k) && (cast.get(k).voice || !voices.length)) return cast.get(k);
-  const h = hash(k), r = (n) => ((h >>> n) & 1023) / 1023;
-  const want = sex === 'f' ? FEMALE : MALE, other = sex === 'f' ? MALE : FEMALE;
-  let pool = voices.filter((v) => want.test(v.name) || !other.test(v.name));
-  if (!pool.length) pool = voices;
-  const best = Math.max(0, ...pool.map(rank)), top = pool.filter((v) => rank(v) >= best - 2);
-  const voice = top.length ? top[h % top.length] : null;
-  let pitch = sex === 'f' ? 1.05 + r(3) * 0.3 : 0.85 + r(3) * 0.25, rate = 0.92 + r(13) * 0.16;
-  if (age === 'young') { pitch += 0.15; rate += 0.05; } else if (age === 'old') { pitch -= 0.12; rate -= 0.1; }
-  if (kind === 'knight') { pitch = 0.55 + r(5) * 0.25; rate = 0.86 + r(9) * 0.12; }
-  if (kind === 'lord') { pitch = 0.45; rate = 0.82; }
-  if (kind === 'sorcerer') { pitch = 1.1 + r(5) * 0.25; rate = 0.8 + r(9) * 0.1; }
-  if (kind === 'undead') { pitch = 0.1 + r(5) * 0.35; rate = 0.55 + r(9) * 0.25; }
-  if (kind === 'beast') { pitch = 1.6 + r(5) * 0.4; rate = 1.3 + r(9) * 0.3; }
-  const v = { voice, pitch: Math.max(0, Math.min(2, pitch)), rate: Math.max(0.5, Math.min(1.6, rate)) };
-  cast.set(k, v);
-  return v;
-}
-
-let browserCur = null;
-/** A line in the browser's own voice (o.hold: not till go()); its handle, as the neural one's. */
-function browserSay(who, text, o, d) {
-  if (!synth) return null;
-  const { voice: v, pitch, rate } = voiceOf(o.key || who?.name || 'someone', o);
-  const clean = sayable(text);
-  const u = new SpeechSynthesisUtterance(clean);
-  if (v) u.voice = v;
-  u.pitch = pitch; u.rate = rate;
-  u.volume = falloff(d) * (voice.sound ? Math.min(1, voice.sound.volume * 2) : 1);   // (the browser's voice can't be placed: only softened)
-  const h = {
-    started: false, done: false, failed: false, at: 0, t0: 0, est: 0.6 + (clean.length * 0.075) / rate,
-    progress() {
-      if (!this.started) return 0;
-      return Math.max(this.at / clean.length, Math.min(0.97, (performance.now() - this.t0) / 1000 / this.est));
-    },
-    go() {
-      if (synth.speaking || synth.pending) synth.cancel();
-      try { synth.speak(u); } catch { this.failed = this.done = true; return; }
-      setTimeout(() => { if (!this.started && !this.done) { this.failed = this.done = true; if (browserCur === u) synth.cancel(); } }, 1800);
-    },
-    cancel() { if (!this.done && (browserCur === u || synth.pending)) synth.cancel(); this.done = true; },
-  };
-  u.onstart = () => { h.started = true; h.t0 = performance.now(); browserCur = u; };
-  u.onboundary = (e) => { h.at = e.charIndex || h.at; };
-  u.onend = u.onerror = () => { h.done = true; if (!h.started) h.failed = true; if (browserCur === u) browserCur = null; };
-  if (!o.hold) h.go();
-  return h;
-}
 
 // ------------------------------------------------------------------ the voice
 export const voice = {
   listener: null,              // (the player: who is listening, for how loud and which side)
   sound: null,                 // (the game's Sfx: the voices play through it)
   useSound(sfx) { this.sound = sfx; },
-  /** Resolves (true) once the neural voices and every voice of theirs are in; false if they won't come. */
-  ready: null,
+  /** Resolves at once: the recordings need nothing loaded before the game (each is fetched as it's wanted). */
+  ready: Promise.resolve(true),
   enabled: store('bm.voices') !== '0',
   set(on) { this.enabled = on; try { localStorage.setItem('bm.voices', on ? '1' : '0'); } catch { /* no storage */ } if (!on) this.stop(); },
-  /** Start fetching the neural voices (after the game is up: they're big). */
-  warm() { if (this.enabled) neural.start(); else neural.settle(false); return this.ready; },
-  /** How far the voices' download has got: [in, of]. */
-  get progress() { return [neural.got, neural.of]; },
-  /** The model's download while it's coming: [MB in, MB of], else null. */
-  get download() { return neural.dl ? [Math.round(neural.dl[0] / 1e6), Math.round(neural.dl[1] / 1e6)] : null; },
-  get model() { return neural.model; },
-  /** Whether the neural voices are wanted and loaded (else the browser's speak). */
-  get natural() { return neural.state === 'ready' && neural.wanted(); },
-  get neural() { return neural.state; },
-  get debug() { return { state: neural.state, model: neural.model, waiting: neural.wait.size, cached: neural.cache.size, playing: neural.playing.length, audio: neural.ctx?.state || 'none' }; },
+  warm() { return this.ready; },
+  /** Whether lines can be made ahead (villagers.js expect): whenever voices are on. */
+  get natural() { return this.enabled; },
+  get debug() { return { cached: [...rec.cache.values()].filter((v) => v.buf).length, fetching: rec.inflight, waiting: rec.queue.length, playing: rec.playing.length, audio: rec.ctx?.state || 'none', base: base() }; },
   /** (for a test) How loud the voices are coming out now, left and right: { l, r } (RMS). */
   meter() {
-    const ctx = neural.ctx, tap = neural.tap;
+    const ctx = rec.ctx, tap = rec.tap;
     if (!ctx || !tap) return null;
-    if (!neural.meters) {
+    if (!rec.meters) {
       const split = ctx.createChannelSplitter(2), l = ctx.createAnalyser(), r = ctx.createAnalyser();
       l.fftSize = r.fftSize = 2048;
       tap.connect(split); split.connect(l, 0); split.connect(r, 1);
-      neural.meters = [l, r, new Float32Array(2048)];
+      rec.meters = [l, r, new Float32Array(2048)];
     }
-    const [l, r, buf] = neural.meters, rms = (a) => { a.getFloatTimeDomainData(buf); let s = 0; for (const x of buf) s += x * x; return Math.sqrt(s / buf.length); };
+    const [l, r, buf] = rec.meters, rms = (a) => { a.getFloatTimeDomainData(buf); let s = 0; for (const x of buf) s += x * x; return Math.sqrt(s / buf.length); };
     return { l: rms(l), r: rms(r) };
   },
-  /** (for a test) What the worker has waiting and is making: resolves { n, top, ids, doing }. */
-  peek() { return new Promise((r) => { neural.peeked = null; neural.worker?.postMessage({ type: 'peek' }); const t0 = Date.now(); const k = setInterval(() => { if (neural.peeked || Date.now() - t0 > 3000) { clearInterval(k); r(neural.peeked); } }, 20); }); },
-  get speed() { const m = neural.ms; return m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length) : null; },
 
   /** Whether something said at `pos` is heard (a quest giver always is). */
   hears(pos, pri = 0) {
@@ -648,38 +338,45 @@ export const voice = {
     if (!pos || !l || pri >= 3) return true;
     return Math.hypot(pos.x - l.x, pos.z - l.z, (pos.y ?? 0) - (l.y ?? 0)) <= EARSHOT;
   },
+  /** Whether `who` has a recording of `text` (o: { key, ... } as for say). */
+  has(who, text, o = {}) { return !!recordingOf(keyOf(who, o), text); },
 
-  /** `who` says `text` aloud. o: { key (who they are: their name), sex, kind, age, toYou, pri, pos,
-   * hold (made now, played on the handle's go()), browser (the browser's own voice: a neural line
-   * that didn't come in time) }. Returns the line's handle (speech.js waits on
-   * it: started, done, progress()), or null if it isn't said aloud. */
+  /** `who` says `text` aloud, if they've a recording of it. o: { key (who they are: their name, or the
+   * voice their line was recorded in), kind, style, toYou, pri, pos, hold (fetched now, played on the
+   * handle's go()) }. Returns the line's handle (speech.js waits on it: started, done, progress()), or
+   * null if it isn't said aloud (nobody's recorded it, or it's out of earshot). */
   say(who, text, o = {}) {
     if (!this.enabled || !text || (typeof document !== 'undefined' && document.hidden)) return null;
     const pos = o.pos || who?.pos || who?.root?.position, l = this.listener?.pos;
     const d = pos && l ? Math.hypot(pos.x - l.x, pos.z - l.z, (pos.y ?? 0) - (l.y ?? 0)) : 0;
     if (d > EARSHOT && !(o.pri >= 3)) return null;
+    const key = keyOf(who, o), url = recordingOf(key, text);
+    if (!url) return null;
     const pri = o.pri ?? (o.toYou ? 2 : o.kind && o.kind !== 'villager' ? 1 : 0);
-    const oo = { ...o, pri };
-    if (neural.state === 'off') neural.start();
-    if (!o.browser && neural.state === 'ready' && neural.wanted()) return neural.say(who, text, neuralCast(o.key || who?.name || 'someone', o), oo);
-    return browserSay(who, text, oo, d);
+    return rec.say(who, url, castOf(key, o), { ...o, pri });
   },
 
-  /** Make lines ahead of time: [[who, text, o], ...] (o as for say); pri: how soon they'll be wanted
-   * (-1, whenever; up to 8, any moment: the one you're about to speak to). */
+  /** Fetch lines ahead of time: [[who, text, o], ...] (o as for say); pri: how soon they'll be wanted
+   * (-1, whenever; up to 8, any moment: the one you're about to speak to). Resolves once they're all
+   * in (or failed). */
   prefetch(list, pri = -1) {
-    if (!this.enabled || neural.state !== 'ready') return;
-    for (const [who, text, o = {}] of list) neural.prefetch(text, neuralCast(o.key || who?.name || 'someone', o), pri);
+    if (!this.enabled) return Promise.resolve();
+    const jobs = [];
+    for (const [who, text, o = {}] of list) {
+      const key = keyOf(who, o), url = recordingOf(key, text);
+      if (url) jobs.push(rec.want(url, null, pri, castOf(key, o).swell));
+    }
+    return Promise.all(jobs.map((j) => j.ready || true));
   },
-  /** Whether a line is made already, every piece of it (so it's heard the moment it's said). */
-  made(who, text, o = {}) { return neural.state === 'ready' && neural.made(text, neuralCast(o.key || who?.name || 'someone', o)); },
+  /** Whether a line is fetched already (so it's heard the moment it's said). */
+  made(who, text, o = {}) { const url = recordingOf(keyOf(who, o), text); return !!(url && rec.cache.get(url)?.buf); },
 
-  stop() { neural.stop(); synth?.cancel(); browserCur = null; },
+  stop() { rec.stop(); },
 
   /** Each frame (speech.js tickSpeech): the ears where you are and the way you face, and every voice
    * still sounding moved to where its speaker is now. now: at once (no easing). */
   tick(now = false) {
-    const ctx = neural.ctx, l = this.listener;
+    const ctx = rec.ctx, l = this.listener;
     if (!ctx || !l?.pos) return;
     const t = ctx.currentTime, L = ctx.listener, yaw = l.yaw || 0, pitch = l.pitch || 0;
     const fx = -Math.sin(yaw) * Math.cos(pitch), fy = Math.sin(pitch), fz = -Math.cos(yaw) * Math.cos(pitch);
@@ -691,8 +388,6 @@ export const voice = {
     } else { L.setPosition(ex, ey, ez); L.setOrientation(fx, fy, fz, 0, 1, 0); }
     if (now) return;
     const at = {};
-    for (const r of neural.playing) if (r.panner && r.line) place(r.panner, mouth(r.line, at), t);
+    for (const r of rec.playing) if (r.panner && r.line) place(r.panner, mouth(r.line, at), t);
   },
 };
-
-voice.ready = new Promise((r) => { neural.done = r; });

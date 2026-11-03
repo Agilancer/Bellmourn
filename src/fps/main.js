@@ -9,7 +9,7 @@
 // only the torches on its walls (and whatever you cast) light it. Everything is loaded,
 // uploaded and compiled before play (prepare).
 import * as THREE from 'three';
-import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
+import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, shadeLayers, stillShadows, rangedShadows, liveShadows, keepCompiled, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
 import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
@@ -41,10 +41,11 @@ import { Bag, armorCut } from './bag.js';
 import { terrainHeight, REGION, POOL, STREAM, streamAt, streamLevel, riverAt, riverLevel } from './terrain.js';
 import { SPOTS } from './region.js';
 import { title } from './title.js';   // (the title screen: up before any of this has loaded; it has the sounds)
-import { Zombies } from './zombies.js';
+import { Zombies, pieceSample } from './zombies.js';
 import { Foes } from './foes.js';
 import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
+import { CALLER, GATHER_CALLS, GATHER_AGAIN, GATHER_CHATTER, GATHER_LEAD, GATHER_LAG, GATHER_SIGHT, GATHER_TALK, GATHER_AWAY, gatherLines } from './lines/opening.js';
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
@@ -65,6 +66,11 @@ import { GemFx } from './gemfx.js';
 import { Respawns } from './respawn.js';
 import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './craft.js';
 import { makeGem, GEMS } from './gems.js';
+import { makeCharm, hasAbility, CHARMS } from './charms.js';
+import { Chimes } from './belltower.js';
+import { buildUndershrine } from './undershrine.js';
+import { buildMountain, buildMountainCaves, buildMountainVillage } from './mountain.js';
+import { setMountain } from './terrain.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -171,14 +177,16 @@ function trace() {
 addEventListener('pagehide', () => { try { localStorage.removeItem(TRACE); } catch { /* no storage */ } });
 let ready = false;
 let hud, vm, player, magic, flames, skyDome, shafts, mist, smoke, physics, ctx, bill, gameInput, lib, kit, zombies, foes, villagers, slimes;
+let chimes = null;   // the bell tower's bells at noon and midnight (belltower.js)
 let sunShadows = null;   // (WebGPU: the sun's two maps, sunshadow.js)
+let liveTorches = null;  // (WebGPU: the torches' maps of what moves, engine.js liveShadows)
 let cells = null;        // (WebGPU: the still world in render bundles, cells.js)
 let quests = null, saves = null, portalMenu = null, intro = null, introBusy = false, holdHour = false, chatter = null, questVoice = null;
 let chat = null, fx = null;   // the chat log (chatlog.js) and what fights show over the picture (combatfx.js)
 let trade = null, gemFx = null, respawns = null;   // the merchants (trade.js), the gems' looks (gemfx.js), the world filling up again (respawn.js)
 // the Debug Menu's cheats (debug.js, behind Velscour's Skull by the corner map): enemies' blows off,
 // no-clip (flyFrom: where you took off, which a save keeps while you fly), and GOD MODE
-const cheats = { noDamage: false, fly: false, god: false };
+const cheats = { noDamage: false, fly: false, god: false, doubleJump: false };
 let debugMenu = null, debugFrom = null, flyFrom = null;
 // the game under way (besides the character): whether he has come down yet, the quests, where you
 // stood and the hour. "Continue" picks it up (bm.progress); the save slots keep copies (saves.js).
@@ -310,7 +318,12 @@ async function build() {
   await mark('library');
   // (the portals' ground is left bare as the world is built: portals.js)
   const portalsClear = keepPortalsClear(ctx);
+  // the Sorrowhorn, north-west behind the forest (mountain.js): its ground is the height function's too
+  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildMountain(ctx, MM); setMountain(ctx.mountain); physics.mountain = ctx.mountain; buildMountainCaves(ctx, MM);
+    // (Hornhollow's folk at their posts: the quest givers' and the villagers' keepers)
+    for (const [name, g] of Object.entries(ctx.mountain?.givers || {})) { if (GIVERS[name]) GIVERS[name].post = g.post; ctx[g.key] = { post: g.post, floor: g.floor }; } }
   buildWorld(ctx); await mark('world');
+  buildMountainVillage(ctx, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }));   // (Hornhollow's houses: their rooms go in ctx.zones as Bellmourn's do)
   // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
   // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
   ctx.entrances = [[STAIRS.x, STAIRS.z]];
@@ -318,12 +331,19 @@ async function build() {
   ctx.dungeon = ctx.catacombs.upper; ctx.deep = ctx.catacombs.deep; await mark('dungeon');
   buildKeep(ctx); await mark('keep');
   ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', cat: true }, { dg: ctx.deep, haunt: 'deep', cat: true }, { dg: ctx.catacombs.gulfDg, haunt: 'undercroft', cat: true }, ...buildDelves(ctx)];
+  // the Undershrine of Velscour, under the bell tower (undershrine.js)
+  ctx.shrine = buildUndershrine(ctx);
+  ctx.unders.push(...ctx.shrine.unders);
+  ctx.unders.push(...(ctx.mountain?.unders || []));   // (the Sorrowhorn's caves)
+  ctx.caves.push(...(ctx.mountain?.caves || []));
+  (ctx.witchLights ||= []).push(GLIMMER);
   await mark('delves');
   portalsClear();
   ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
+  ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []), ...(ctx.mountain?.trailMeshes || []));   // (still: drawn in the world's bundles)
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
   await mark('merge');
@@ -335,7 +355,7 @@ async function build() {
   ctx.containers = ctx.loot.findProps(props);          // the chests, crates, barrels and sarcophagi
   // a crate broken or a lid swung: the torches near it redraw their shadows (they only do when they move)
   props.onChange = (at) => {
-    for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) l.shadow.needsUpdate = true;
+    for (const l of torchPool) if (l.castShadow && l.userData.flame && l.position.distanceToSquared(at) < 17 * 17) { l.shadow.needsUpdate = true; liveTorches?.dirty(l); }
     sunShadows?.invalidate();   // (and the sun's map of the still world, where it's kept: sunshadow.js)
   };
   // a crate, barrel or pot broken: what it held lies where it stood, in a puff of dust or grit
@@ -347,7 +367,8 @@ async function build() {
     sfx.smash?.(clay, at);
     zombies.noise(at, 14);
   };
-  ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
+  ctx.keep.claimChest(ctx.loot);
+  ctx.mountain?.claimChests?.(ctx.loot);                // (the hoards in the Sorrowhorn's caves)                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
@@ -393,9 +414,24 @@ async function build() {
   player.onFall = (d) => hurtPlayer(d, null, 'fall');
   player.onJump = () => sfx.jump(underfoot(), inMail());
   player.onLand = (k) => sfx.land(underfoot(), inMail(), k);
+  // the Wingbell (charms.js): a bell rung in the air, and a ring of pale wind under your feet
+  player.onDoubleJump = () => {
+    sfx.wingbell?.();
+    const at = player.pos.clone();
+    magic.particles.burst(at, [new THREE.Color('#e8e0ff'), new THREE.Color('#b9a4ff'), new THREE.Color('#ffffff')], 26, { speed: 3.2, size: 0.035, grav: -0.6, drag: 3.2, life: 0.55 });
+  };
   sfx.stinger = (k) => music.stinger(k);   // (a quest done: quests.js, through audio.js)      // (a long drop hurts: the gulf)
   await applyGear(true);
   magic = new Magic(scene, physics, sfx, { shadows: HI, smoke });
+  // the bell tower on Bell Knoll rings noon and midnight; the Bellwright lifts his staff to it
+  if (ctx.belltower) chimes = new Chimes(ctx, ctx.belltower, { sfx, particles: magic.particles, onRing: (kind, near) => {
+    const orrin = villagers?.list.find((a) => a.keeperPost && a.tags.includes('bellwright'));
+    if (orrin) orrin.flare = 4;   // (his staff's crystal blazes while they ring)
+    if (orrin && near > 0.9 && !orrin.inside) {
+      villagers.play(orrin, 'torch'); orrin.gesture = 4;   // (his staff held up to the bells while they swing)
+      villagers.say(orrin, kind === 'noon' ? 'Noon. Ring, you old bronze. Ring.' : 'Midnight. Hold, below. Hold.', false, { now: true });
+    }
+  } });
   zombies = new Zombies(scene, physics, kit, sfx);
   respawns = new Respawns({ zombies });   // (notes how each is made, so it can be made again: respawn.js)
   await zombies.load(); await mark('zombies');
@@ -411,6 +447,8 @@ async function build() {
     else zombies.populateDungeon(u.dg, few(u.n), u.haunt);
   }
   ctx.catacombs.populate(zombies, few);
+  ctx.shrine.populate(zombies, few);
+  ctx.say = (who, line) => hud.announce(who, line);
   ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
   zombies.populateWild([
@@ -470,6 +508,7 @@ async function build() {
   const sworn = () => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e));
   foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
   foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
+  foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => foes.populateMountain(ctx.mountain)).catch((e) => console.warn('the goat men', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => [...zombies.list, ...slimes.list].map((z) => z.ray(p, d, far)).filter(Boolean);
@@ -516,7 +555,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
-  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
+  quests = ctx.quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
     // stops for them; closing the window hushes them)
     speak: (name, text) => {
@@ -559,6 +598,13 @@ async function build() {
     onPortals: wakeAllPortals,
     portals: () => [ctx.portals.found.size, ctx.portals.list.length],
     onGear: gearDrop,
+    charms: () => [Object.keys(CHARMS).filter((id) => char.charms?.some((c) => c?.charm === id)).length, Object.keys(CHARMS).length],
+    onBells: () => { if (!chimes) return 'There is no bell tower.'; chimes.ring(hour >= 6 && hour < 18 ? 'noon' : 'midnight', sfx.ear, L.under); return 'The bells of Bell Knoll ring out over the land.'; },
+    onCharms: () => {
+      for (const id of Object.keys(CHARMS)) addToBag(char, makeCharm(id));
+      saveCharacter(char); bag.render();
+      return 'Every charm is in your pouch: see the Charms tab (I).';
+    },
     onLevel: shiftLevel,
     level: () => [char.level, MAX_LEVEL],
   });
@@ -572,12 +618,14 @@ async function build() {
   title.onMenu = menu;
   vm.on(onEvent);
   resize();
+  await ctx.belltower?.ready;   // (its bells in their arches before the shaders are made)
   await prepare(mark);
   respawns.adopt();   // (everything in the world now comes back when cut down)
   ready = true; run.step = 'loaded';
   await rehearse();
   zombies.feed = fx; slimes.feed = fx; fx.live = true;   // (only now: the rehearsal's blows out past the edge aren't written down)
   ctx.props.coldStart();   // (the broken pieces' shaders are compiled now: their stand-ins go)
+  keepCompiled.freeze();   // (what's compiled by now stays compiled: engine.js)
 }
 
 /** Every spell cast once and one of the dead cut to pieces, out past the edge of the world where
@@ -654,8 +702,24 @@ async function prepare(mark) {
   arms.forEach((o, i) => { if (o) { o.position.set(i * 0.6, -50, 0); lying.add(o); } });
   // (and what else can lie about now: a gem, a plan, a pouch of materials: their shaders made now)
   (await Promise.all([lootModel(makeGem('ruby', 3)), lootModel(makeRecipe('helm')), lootModel(makeMat('iron'))])).forEach((o, i) => { o.position.set(i * 0.6, -52, 0); lying.add(o); });
-  const limbs = new Set();
-  scene.traverse((o) => { if (o.isSkinnedMesh) for (const m of [o.material].flat()) if (!limbs.has(m)) { limbs.add(m); const p = new THREE.Mesh(o.geometry, o.material); p.position.set(0, -60, 0); p.castShadow = true; lying.add(p); } });
+  // every weapon and shield the foes carry, in each of its finishes, as one carries it (a finish no
+  // foe out yet carried was compiled the first time one came into view: a hitch mid-fight)
+  Object.values(foes.items).forEach((it, i) => {
+    const o = it.clone();
+    o.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.frustumCulled = false; } });
+    o.position.set(i * 0.6, -54, 0); lying.add(o);
+  });
+  // (for each kind of body, a cut-off piece's stand-in: zombies.js pieceSample)
+  const kinds = new Set();
+  scene.traverse((o) => {
+    if (!o.isSkinnedMesh || o.userData.shade || !o.geometry.attributes.bindPos) return;
+    const key = [o.material].flat().map((m) => `${m.type}|${m.name}|${m.map?.uuid}|${m.side}`).join();
+    if (kinds.has(key)) return;
+    kinds.add(key);
+    const p = pieceSample(o); p.position.set(0, -60, 0); lying.add(p);
+  });
+  lying.add(ctx.loot.samples());   // (and the glow and beam a thing lying about is shown with)
+  lying.userData.mover = true;     // (all of it things that move: drawn as they are, a torch's moving shadows among them)
   scene.add(lying);
   // the villagers cast shadows only near you (the dead see to their own); every body has one
   // skeleton and culls itself (engine.js, from the bodies' constructors)
@@ -675,6 +739,15 @@ async function prepare(mark) {
       if (![m.material].flat().some((x) => mutable.has(x))) m.static = true;
     }
   }
+  // (WebGPU: an instanced mesh's matrices, and colours, sent when they change: r187 sends a dynamic one
+  // again in every pass that draws it, and every one of these says when it has changed)
+  if (WEBGPU) for (const r of [scene, vm.scene]) r.traverse((o) => { if (o.isInstancedMesh) for (const a of [o.instanceMatrix, o.instanceColor]) if (a?.usage === THREE.DynamicDrawUsage) a.setUsage(THREE.StaticDrawUsage); });
+  // every light's shadow camera sees the bodies' one-draw shadow stand-ins (zombies.js makeShade),
+  // and the torches' kept maps keep nothing that moves (engine.js stillShadows)
+  shadeLayers(scene, renderer);
+  liveTorches = touch ? null : liveShadows(torchPool);   // (bodies' shadows by the torches, none left behind)
+  stillShadows(torchPool);   // (what liveShadows didn't take: WebGL, a phone)
+  rangedShadows(magic.lights.map((e) => e.light));   // (the spells' lights: bodies out of reach not walked)
   // (WebGPU: the sun's shadow in two maps, the still world's kept and the moving things' redrawn each
   // frame; made before the shaders are compiled, which take it in)
   if (WEBGPU && HI && sun.castShadow && !/[?&]onemap\b/.test(location.search)) {
@@ -753,6 +826,7 @@ async function warmWorldGPU() {
   scene.traverse((o) => { if (o.isLight && o.castShadow) casters.push([o, o.shadow.autoUpdate]); });
   for (const [l] of casters) { l.shadow.autoUpdate = true; l.shadow.needsUpdate = true; }
   sunShadows?.invalidate(true);   // (the still world's sun map drawn whole, with everything in it)
+  liveTorches?.warm(true);        // (and a torch's map with every body drawn over its still world)
   cells?.all(true);
   const was = renderer.getRenderTarget();
   renderer.setRenderTarget(small);
@@ -766,6 +840,7 @@ async function warmWorldGPU() {
   small.dispose();
   for (const [o, v, fc] of saved) { o.visible = v; o.frustumCulled = fc; }
   for (const [l, au] of casters) { l.shadow.autoUpdate = au; l.shadow.needsUpdate = true; }
+  liveTorches?.warm(false);
   cells?.all(false);
 }
 
@@ -1322,6 +1397,8 @@ function zoneAt(p) {
     for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
     return { name: 'The Green Downs', kind: 'out', open: 1 };
   }
+  const mtn = ctx.mountain?.place(p);
+  if (mtn) return { name: mtn, kind: 'out', open: 1 };   // (the Sorrowhorn: see a long way)
   if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
   const keep = ctx.keep.place(p);
@@ -1333,6 +1410,8 @@ function zoneAt(p) {
 }
 
 const L = { out: 1, under: 0, inCathedral: 0, open: 0, fog: 46, amb: 0 }; // smoothed zone weights (and how far you see underground)
+// the Glimmerstone's light: a witch-light that goes with you below ground (off, it's far under the world)
+const GLIMMER = Object.assign([0, -9999, 0, 0.3, true], { color: 0x9ad8ff, witch: true, follow: true, range: 9, power: 2.6 });
 let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -1391,6 +1470,11 @@ function light(dt, t) {
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + L.fog * L.under;   // (a phone draws less of the distance)
+  // high on the Sorrowhorn the air is clear and the land shows a long way off (and the camera draws it)
+  { const alt = Math.max(0, camera.position.y - 30) * (1 - L.under);
+    if (alt > 0) scene.fog.far += Math.min(touch ? 900 : 2300, alt * (isDay ? 7 : 2.4));
+    const far = Math.max(L.under < 0.5 ? 2400 : 1200, scene.fog.far + 80);   // (outdoors: the Sorrowhorn from Bellmourn)
+    if (Math.abs(camera.far - far) > 60) { camera.far = far; camera.updateProjectionMatrix(); } }
   skyDome.update(day, t, camera.position, surface);
   bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
   bill.time.value = t;
@@ -1402,6 +1486,7 @@ function light(dt, t) {
   if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;
   if (ctx.lantern) ctx.lantern.color.setRGB(0.9 + 1.8 * dusk, 0.6 + 1.1 * dusk, 0.3 + 0.55 * dusk);
   mist.update(t, 0.35 + 0.65 * day.day);
+  mist.group.visible = camera.position.y < 45;   // (from high on the Sorrowhorn its sheets would be floating discs)
   lantern.position.set(camera.position.x, camera.position.y + 0.35, camera.position.z);
   lantern.intensity = 0.8 * L.under;
 
@@ -1414,7 +1499,8 @@ function light(dt, t) {
     // (an awake portal's light, out of doors only: within 30 m it ranks as if three times nearer, so
     // a lamp post doesn't crowd it out; below ground or indoors it never takes a torch's place)
     const seals = ctx.portals && L.under < 0.5 && indoor < 0.5 ? ctx.portals.lights : [];
-    const ranked = (seals.length ? [...flameList, ...seals] : flameList).map((f) => {
+    const extra = [...seals, ...(ctx.witchLights || [])];   // (and the Bellwright's witch-light: belltower.js)
+    const ranked = (extra.length ? [...flameList, ...extra] : flameList).map((f) => {
       const d2 = (f[0] - p.x) ** 2 + (f[1] - p.y) ** 2 * 4 + (f[2] - p.z) ** 2;
       return [f, f.portal && d2 < 900 ? d2 / 9 : d2];
     })
@@ -1447,6 +1533,13 @@ function light(dt, t) {
       // (its own light by night, strong enough to pool on the ground about it; by day only a glow)
       l.intensity = (1.2 + 15 * night + 6 * s.flash) * (0.88 + 0.12 * Math.sin(t * 1.3 + s.seed * 7)) * Math.min(1, s.wake);
       l.distance = 10;
+      return;
+    }
+    if (f.witch) {   // a witch-light: its own cold colour, steady, the same by day and night (it's indoors)
+      if (f.follow) l.position.set(f[0], f[1], f[2]);   // (one that goes with you)
+      l.color.setHex(f.color);
+      l.intensity = (f.power ?? 6) * (0.92 + 0.08 * Math.sin(t * 1.7));
+      l.distance = f.range ?? 7.5;
       return;
     }
     l.color.setHex(0xff9a48);
@@ -1605,6 +1698,7 @@ function setCheat(k, on) {
     return on ? 'GOD MODE: nothing can hurt you, and everything dies at one blow' : 'God mode is off';
   }
   if (k === 'noDamage') return on ? 'Enemies can no longer hurt you' : 'Enemies can hurt you again';
+  if (k === 'doubleJump') return on ? 'Double jump: press jump again in the air' : (hasAbility(char, 'doubleJump') ? 'The cheat is off, but the Wingbell in your pouch still lets you double jump' : 'Double jump is off');
   if (k === 'fly') {
     setFly(on);
     return on ? (touch ? 'No-clip: the stick flies you where you look; the jump button rises' : 'No-clip: WASD flies you where you look; Space rises, C sinks, Shift is faster')
@@ -1893,6 +1987,7 @@ function onDeath(z) {
   if (zombies.feed) fx?.died(z);
   gainXp(xpFor(z), nameOf(z));
   quests?.onKill(z);
+  ctx.shrine?.onKill(z);   // (a stage's warden leaves its gate's key where it falls)
   if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
   // materials, now and then a gem or a plan (craft.js); a great one's reagent and its plans
   const lv = placeLevel(z.pos, z.zone === 'dungeon' || z.zone === 'cave' || !!z.cave);
@@ -1995,14 +2090,13 @@ async function startOver() {
         await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
         line('The knights of the open country…');
         await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
-        if (voice.enabled && voice.neural !== 'failed' && voice.neural !== 'off') {
-          const tell = () => { const [g, o] = voice.progress, dl = voice.download; line(dl ? `The voices of the village… ${dl[0]} of ${dl[1]} MB` : o ? `The voices of the village… ${g} of ${o}` : 'The voices of the village…'); };
-          tell();
-          const each = setInterval(tell, 300);
-          await Promise.race([voice.ready, new Promise((r) => setTimeout(r, 240000))]).finally(() => clearInterval(each));
+        // what they'll say to you at the crater (their recordings: docs/VOICES.md), fetched now, so
+        // each line is in the air the moment it's due (a slow network never holds the game up long)
+        if (voice.enabled) {
+          line('The voices of the village…');
+          const said = gatherLines().map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; });
+          await Promise.race([voice.prefetch(said, 1), new Promise((r) => setTimeout(r, 20000))]);
         }
-        // what they'll say to you at the crater, made now, so each line is in the air the moment it's due
-        voice.prefetch(gatherLines().map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; }));
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
@@ -2051,74 +2145,8 @@ function setCinema(on) {
 const GATHER_DIR = (() => { const l = Math.hypot(30, 12); return [30 / l, 12 / l]; })();   // (toward the town)
 const GATHER_SIDE = [-GATHER_DIR[1], GATHER_DIR[0]];
 const along = (u, v = 0) => [CRATER.x + GATHER_DIR[0] * u + GATHER_SIDE[0] * v, CRATER.z + GATHER_DIR[1] * u + GATHER_SIDE[1] * v];
-const CALLER = 'Wren';
 const GATHER_GROUP = [['Odile', 22.5, 0.4], ['Elsie', 21.6, 2.2], ['Osric', 24.2, -2.2], ['Hesk', 23.6, 2.6], ['Tobias', 25.0, 0.8], ['Garrow', 22.8, -3.6], ['Wren', 21.8, -1.6]];
 const ARMS_PATH = { onehand: [3.2, 0.3], shield: [6.2, -0.3], staff: [8.9, 0.25] };   // (metres up the way to her, and to the side)
-// Wren calls down to you as you come round, the others calling to her, and she to them over her shoulder
-const GATHER_CALLS = [
-  { name: 'Wren', text: 'Hoy! You, down there! Can you hear me?', toYou: true, wave: true },
-  { name: 'Elsie', text: 'Is he alive, Wren?', to: 'caller' },
-  { name: 'Wren', text: "He's moving! Saints, he's moving!" },
-  { name: 'Wren', text: 'Easy, now. Can you stand? Are you hurt?', toYou: true },
-  { name: 'Tobias', text: "Don't go any nearer the edge, girl. It's still smoking.", to: 'caller' },
-  { name: 'Wren', text: "Come on up to me. Slowly, now. Mind the glass, it's still hot.", toYou: true },
-  { name: 'Wren', text: "And bring the knight's things with you. He won't be needing them now.", toYou: true },
-];
-// and now and then after, while you're still down in it
-const GATHER_AGAIN = [
-  { text: "This way. Up here, where it's not so steep." },
-  { text: 'That\'s it. Take your time.' },
-  { text: 'Up here! Follow my voice.' },
-  { text: 'Nobody here will hurt you. Come on up.' },
-  { text: 'Can you hear me? Up here, friend.', wave: true },
-  { text: "Don't be afraid. You're safe now." },
-];
-// what the others say among themselves, back from the edge (between her calls)
-const GATHER_CHATTER = [
-  { name: 'Elsie', text: 'Did you see it? He fell right out of the sky!' },
-  { name: 'Osric', text: 'In a ball of green fire. Square on top of one of the Sworn.' },
-  { name: 'Garrow', text: 'Nothing left of that knight but his armour.' },
-  { name: 'Hesk', text: 'Nobody lives through a fall like that.' },
-  { name: 'Odile', text: 'Green fire out of the vault of heaven… It cannot be. It cannot.' },
-  { name: 'Garrow', text: "That girl's mad, going right up to the edge." },
-  { name: 'Osric', text: 'Somebody had to. Better her than me.' },
-  { name: 'Elsie', text: 'Do you think he is an angel?' },
-  { name: 'Tobias', text: 'Spinning like a top, he was, all the way down.' },
-  { name: 'Hesk', text: "If he lives, he'll come to us. Wait." },
-];
-// when you've come up near her: she turns, and takes you to them (and if you fall behind)
-const GATHER_LEAD = [{ text: 'There you are. Gently, now. Come and meet the others.', wave: true }];
-const GATHER_LAG = [{ text: 'This way. Over here.', wave: true }, { text: "Come on. They don't bite." }, { text: 'Over here, friend.' }];
-// and the rest, seeing you climb out
-const GATHER_SIGHT = [
-  { name: 'Elsie', text: "There! He's climbing out!" },
-  { name: 'Tobias', text: "Saints preserve us. He's alive." },
-  { name: 'Garrow', text: 'And in his smallclothes, too.' },
-  { name: 'Odile', text: 'Nobody run. Let him come to us.', wave: true },
-];
-// what they tell you when you come to them, in turn: who they are, who you are (and what they give you)
-const GATHER_TALK = [
-  { name: 'Odile', text: "Welcome, child. You're among friends. This is Bellmourn, and I am Sister Odile.", wave: true },
-  { name: 'Elsie', text: "I'm Elsie! You fell out of the sky! In a ball of green fire! We all saw!" },
-  { name: 'Osric', text: "Osric. I'm reeve here. You came down square on one of Lord Velscour's Sworn. There's nothing left of him but his armour." },
-  { name: 'Odile', text: 'A green star out of heaven, a man curled as a child, girded in black. It is written, child.' },
-  { name: 'Odile', text: 'You are Tessariel. The Sacred Flame, sent down to kill the Demon Lord Velscour.' },
-  { name: 'Hesk', text: "Hush! Say that name where the garrison can hear, and they'll hang the lot of us." },
-  { name: 'Tobias', text: "I'm Tobias. I keep the inn, the Tolling Bell. Velscour rules us from his far throne, and the Book says you will end him." },
-  { name: 'Garrow', text: "Garrow. I'm the smith. You can't go about in your smallclothes, though. Here. You'll want more than that.", gift: 'armor' },
-  { name: 'Wren', text: "I'm Wren. I hunt these woods. Wraps for your hands. And keep that sword close.",
-    ifArms: "I'm Wren. I hunt these woods. Wraps for your hands. And the knight's sword and shield are still down there: take them.", gift: 'gloves' },
-  { name: 'Tobias', text: "Forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
-  { name: 'Hesk', text: "And I'm Mother Hesk. I mend what gets broken. Draughts, dear: red for the blood, blue for the mind.", gift: 'potions' },
-  { name: 'Odile', text: 'But before the Fiend, Flame, we have a task for you.' },
-  { name: 'Odile', text: 'The dead are walking beneath our cathedral. Speak with me, and I will tell you all of it.' },
-];
-// if you walk off while they're talking to you
-const GATHER_AWAY = [{ name: 'Elsie', text: 'Wait! Where are you going?' }];
-/** Every line of the gathering, in the order they'll be wanted (made ahead, while the game loads). */
-const gatherLines = () => [...GATHER_CALLS, ...GATHER_AGAIN.slice(0, 3).map((l) => ({ ...l, name: CALLER })), ...GATHER_LEAD.map((l) => ({ ...l, name: CALLER })), ...GATHER_SIGHT,
-  ...GATHER_TALK.flatMap((l) => (l.ifArms ? [l, { ...l, text: l.ifArms }] : [l])), ...GATHER_AGAIN.slice(3).map((l) => ({ ...l, name: CALLER })),
-  ...GATHER_LAG.map((l) => ({ ...l, name: CALLER })), ...GATHER_AWAY, ...GATHER_CHATTER];
 
 /** Where they stand: Wren up on the crater's edge toward the town (just inside its crest, where you
  * see her from the bottom), the rest out on the meadow beyond; and f, the way from the town into the crater. */
@@ -2242,7 +2270,7 @@ function sounds(dt) {
     if (foes.bossBar(player)) threat += 3;
   }
   music.update(dt, { set, threat, hurt: performance.now() - hurtAt < 4000, paused: paused || !started });
-  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused });
+  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused, falls: ctx.mountain?.falls ? [ctx.mountain.falls.x, ctx.mountain.falls.z] : null });
   // somewhere new: a stinger, the first time
   const place = z?.kind === 'under' ? z.region : z?.name;
   if (playing && place && (z.kind === 'under' || FINDS.test(place)) && !found.has(place)) {
@@ -2268,10 +2296,67 @@ function frame() {
   lastWork = performance.now() - now;
 }
 
-/** One frame of the game: input, the player, hands, magic, light, then the picture. */
+/** One frame of the game: input, the player, hands, magic, light, then the picture. Whatever throws
+ * in a frame is said once (bmFaults) and the frame goes on: the picture is still drawn and the keys
+ * still let go of (a key left 'just pressed' fired again every frame after). */
 function tick(dt) {
   t += dt;
   if (!ready) return;
+  try { step(dt); } catch (e) { fault('the game', e); }
+  try {
+    sounds(dt);
+    // (WebGPU: the renderer's and the scenes' state as a frame begins, for unstick to put back)
+    if (WEBGPU) { const U = THREE.RendererUtils; U.saveRendererState(renderer, held.r); U.saveSceneState(scene, held.s); U.saveSceneState(vm.scene, held.v); }
+    res.timer.begin(); composer.render(dt); res.timer.end(); keepCompiled.pin(); pictureFaults = 0;
+  } catch (e) { fault('the picture', e); unstick(); }
+  if (++run.frames % 30 === 1) trace();
+  gameInput.endFrame();
+}
+
+const faults = (window.bmFaults = new Map());
+let pictureFaults = 0;   // (frames in a row whose picture threw)
+if (WEBGPU && renderer.onError) {   // (the GPU's own complaints, a pipeline that won't build: counted with the rest)
+  const told = renderer.onError.bind(renderer);
+  renderer.onError = (info) => {
+    const key = 'the GPU: ' + (info?.message || info);   // (one said again only counted: no error made each frame)
+    if (faults.has(key)) faults.set(key, faults.get(key) + 1);
+    else { try { fault('the GPU', new Error(info?.message || String(info))); } catch { /* as it is */ } }
+    return told(info);
+  };
+}
+const held = { r: {}, s: {}, v: {} };
+/** A frame that threw mid-pass left three's state as that pass had it (a shadow's material over the
+ * scene, its draw filter, its target): the next frame would save it as the state to go back to. */
+function unstick() {
+  try {
+    // WebGPU: the renderer's and the scenes' state put back as they were when the frame began, as
+    // three's own utilities save it (a pass that threw left its own: a shadow's material over the
+    // scene, no background, its clear colour, its target, its draw filter, its MRT)
+    if (WEBGPU && held.r.clearColor) {
+      const U = THREE.RendererUtils;
+      U.restoreRendererState(renderer, held.r); U.restoreSceneState(scene, held.s); U.restoreSceneState(vm.scene, held.v);
+    }
+    scene.overrideMaterial = null; vm.scene.overrideMaterial = null;
+    scene.matrixWorldAutoUpdate = true; vm.scene.matrixWorldAutoUpdate = true;   // (a shadow pass holds them off while it draws)
+    renderer.autoClear = true;
+    renderer.setRenderObjectFunction?.(null); renderer.setRenderTarget(null);
+    // (WebGPU: how deep in nested renders it is, and the material being drawn, are left where the throw
+    // was: every later frame would be drawn at the wrong depth, with every draw made again, and kept)
+    if ('_callDepth' in renderer) renderer._callDepth = -1;
+    if ('_currentSourceMaterial' in renderer) renderer._currentSourceMaterial = null;
+  } catch { /* as it is */ }
+  // (WebGL leaves its render state pushed on a throw: a picture that throws frame after frame is given
+  // up, as when the GPU is lost, rather than piling them up)
+  if (++pictureFaults > 300) onLost();
+}
+function fault(where, e) {
+  const key = where + ': ' + (e?.message || e);
+  if (!faults.has(key)) console.error(where + ' threw (the game goes on):', e);
+  faults.set(key, (faults.get(key) || 0) + 1);
+}
+
+/** The game's part of a frame: everything but the sound and the picture. */
+function step(dt) {
   const inp = gameInput;
   if (intro?.running) {   // the opening has the camera: Esc (or a click or tap) skips it
     intro.update(dt);
@@ -2302,8 +2387,12 @@ function tick(dt) {
   relock.classList.toggle('show', !touch && started && !paused && !introBusy && !windowOpen() && !document.pointerLockElement && !intro?.running);
   if (active && cheats.fly) player.fly(dt, inp);
   else if (active) {
+    player.canDoubleJump = cheats.doubleJump || hasAbility(char, 'doubleJump');
+    player.sureFoot = hasAbility(char, 'sureFoot');
+    { const on = hasAbility(char, 'darkSight') && L.under > 0.3, c = camera.position;   // (the Glimmerstone: a faint light about you below)
+      GLIMMER[0] = c.x; GLIMMER[1] = on ? c.y - 0.25 : -9999; GLIMMER[2] = c.z; GLIMMER.power = 2.6 * Math.min(1, L.under * 1.5); }
     player.update(dt, inp);
-    for (const [code, kind] of Object.entries(QUICK)) if (inp.was(code)) equip(kind);
+    for (const code in QUICK) if (inp.was(code)) equip(QUICK[code]);
     if (inp.was('KeyQ')) drink('life');
     if (inp.was('KeyZ')) drink('mana');
     // right hand
@@ -2400,6 +2489,9 @@ function tick(dt) {
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
+  } else if (acting && ctx.shrine?.prompt) {
+    hud.prompt(ctx.shrine.prompt);
+    if (inp.was('KeyE')) ctx.shrine.act(sfx, (t) => hud.toast(t));
   } else if (acting && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
@@ -2448,9 +2540,17 @@ function tick(dt) {
   showUnder();
   for (const a of villagers.list) {   // (villagers' shadows: near you only)
     const near = Math.abs(a.pos.x - camera.position.x) < 42 && Math.abs(a.pos.z - camera.position.z) < 42;
-    if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
+    if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; a.root.userData.casts = near; }
   }
   for (const f of ctx.animated) f(dt, t);
+  if (ctx.shrine) { ctx.shrine.update(dt, player, { foes, sfx, toast: (m) => hud.toast(m), acting }); if (foes.gltf?.sworn_lord || foes.gltf?.sworn_m) ctx.shrine.makeStatue(foes); }
+  ctx.mountain?.update?.(dt, player, sfx, t, { day: day.day, toast: (m) => hud.toast(m), quests });   // (the Glimmerdeep's bell, Sorrowfall, the Still Water)
+  chimes?.update(dt, timeMode === 'cycle' && !holdHour ? hour : null, sfx.ear, L.under, 1 - day.day);
+  for (const a of villagers.list) if (a.staffGlow) {   // (the Bellwright's crystal: a faint glow, blazing while the bells ring)
+    a.flare = Math.max(0, (a.flare || 0) - dt);
+    const f = Math.min(1, a.flare / 1.5);
+    a.staffGlow.material.opacity = 0.25 + 0.75 * f; a.staffGlow.scale.setScalar(0.35 + 1.1 * f * (0.9 + 0.1 * Math.sin(t * 9)));
+  }
   // (in no-clip nothing sees, hears or wakes for you: as while a window is up)
   zombies.update(dt, player, acting, camera, H, 0.3 + 0.7 * day.day);
   slimes.update(dt, player, acting, camera, H);
@@ -2474,6 +2574,7 @@ function tick(dt) {
   smoke.update(dt, camera, H, 0.25 + 0.75 * day.day * (1 - L.under) + 0.1);
   ctx.portals.update(dt, { player, playing: started && !introBusy && !paused && !cheats.fly, fog: scene.fog, day: day.day, px: H / (2 * Math.tan(camera.fov * Math.PI / 360)) });
   light(dt, t);
+  liveTorches?.update(camera.position, scene, L.under > 0.5 || day.day < 0.45);   // (after the torches have gone to their flames; only where their light shows)
   hud.update(player, book);
   hud.clockTime(hour);
   if (started && player.health > lastHealth + 0.01 && lastHealth > 0) fx.healed(player.health - lastHealth);
@@ -2490,10 +2591,6 @@ function tick(dt) {
     const due = (++shadowFrame & 1) === 0 || magic.lights.some((l) => l.light.intensity > 0);
     if (WEBGPU) { if (due && L.under < 0.95) sun.shadow.needsUpdate = true; } else renderer.shadowMap.needsUpdate = due;
   }
-  sounds(dt);
-  res.timer.begin(); composer.render(dt); res.timer.end();
-  if (++run.frames % 30 === 1) trace();
-  inp.endFrame();
 }
 
 // ------------------------------------------------------------------ go
@@ -2558,7 +2655,7 @@ build().then(() => {
     quests: () => quests, saves: () => saves, intro: () => intro, newGame, continueGame, snapshot, restore, reward, onDeath, cometLight,
     trade: () => trade, gemFx: () => gemFx, respawns: () => respawns, setTrade, backToGame,
     setHour: (h) => { hour = h; }, get hour() { return hour; }, torchPool, sun, hemi, bloom, grade, tick, RaycasterClass: THREE.Raycaster, title, latestSave, voice, music, ambience, sfx, input: () => gameInput, speaking, chatter: () => chatter, combat: () => ({ riposte: riposteUntil > zombies.time, blockAt, staffCharge }),
-    cheats, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
+    compiled: () => keepCompiled.stats(), liveTorches: () => liveTorches, cheats, chimes: () => chimes, debug: () => debugMenu, setCheat, gearDrop, shiftLevel, wakeAllPortals, handsShown: () => vmPass.enabled };
 }).catch((e) => {
   console.error(e);
   window.bootError = e;

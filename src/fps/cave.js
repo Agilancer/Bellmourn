@@ -234,9 +234,15 @@ const DECOR = {
 };
 
 export class Cave {
-  /** z: where along the cliff its mouth opens; layout: its passages and chambers (see layout());
-   * water: {a, b, r} a pool in its own frame, or null; decor: as DECOR. */
-  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001, rock = null, rockK = 1 } = {}) {
+  /** z: where along the cliff its mouth opens; layout: its passages and chambers (see layout(): it is
+   * given the ground's height at the mouth); water: {a, b, r} a pool in its own frame, or null; decor:
+   * as DECOR. A cave in a cliff of its own (the Sorrowhorn's): cliff(z), about where the cliff's foot
+   * is (its mouth is cut where the ground first climbs steeper than 45 degrees, east of there), and
+   * hole, how its mouth is cut in that ground (as ctx.land.hole); torchBelow, the highest a wall torch
+   * goes (the downs' caves: under the ground). A room with `sky` is a well open to the sky: no roof. */
+  constructor(ctx, { z = -14, name = 'The Gloamhollow', layout: plan = layout, water = { a: 36, b: 6, r: 6.2 }, decor = DECOR, seed = 9001, rock = null, rockK = 1,
+    cliff: cliffAt = null, hole = null, torchBelow = -1.5, poolGlow = true } = {}) {
+    this.holeFn = hole; this.torchBelow = torchBelow; this.poolGlow = poolGlow;   // (poolGlow false: a black pool, not a glowing one)
     this.rock = rock;   // a library surface for its rock (else a generated one), rockK as bright
     this.rockK = rockK;
     this.ctx = ctx;
@@ -246,14 +252,15 @@ export class Cave {
     const phys = this.phys = ctx.physics;
     const H = (x, z2) => phys.groundAt(x, z2);
     // the mouth: at the foot of the cliff, where the ground starts climbing steeper than 45 degrees
-    const cliff = (zz) => 736 + Math.sin(zz * 0.021) * 9 + Math.sin(zz * 0.06) * 3;
+    const cliff = cliffAt || ((zz) => 736 + Math.sin(zz * 0.021) * 9 + Math.sin(zz * 0.06) * 3);
     let xf = cliff(z) - 16;
     while (xf < cliff(z) + 4 && H(xf + 0.5, z) - H(xf, z) < 0.5) xf += 0.5;
     const px = xf + 0.5;
     this.px = px; this.pz = z;
     const gMouth = H(xf, z);
     this.mouth = new THREE.Vector3(px - 5, H(px - 5, z), z);
-    const F = this.features = plan();
+    const F = this.features = plan(gMouth);
+    this.navY = cliffAt ? gMouth : null;      // (a cave of a cliff of its own: its level is its mouth's)
     // the grid, in the cave's frame: a = x - px, b = z - pz, round whatever the layout reaches
     let a1 = 10, b0 = 0, b1 = 0;
     for (const f of F) {
@@ -266,6 +273,7 @@ export class Cave {
     const nx = this.nx = Math.round((a1 - a0) / G) + 1, nz = this.nz = Math.round((b1 - b0) / G) + 1;
     const N = nx * nz;
     const S = this.s = new Float32Array(N), FL = this.floor = new Float32Array(N), HT = this.height = new Float32Array(N);
+    const skyF = F.filter((f) => f.sky), SK = this.skyCell = skyF.length ? new Uint8Array(N) : null;
     // the entrance runs down from the ground at the mouth; the shrine stair leaves it 12 m in
     F[0].f0 = gMouth;
     const stair = F.find((f) => f.tag === 'stair');
@@ -289,10 +297,12 @@ export class Cave {
       h = Math.max(h, MIN_H);                                       // never a low roof to stoop under
       if (a < 0) { floor = H(x, zz); h = 3.8; }                     // outside: the ground itself
       else if (a < 4) floor = lerp(gMouth, floor, smooth(0, 4, a));
-      // never closer than 1.5 m to the land above (away from the mouth)
-      if (a > 3 && H(x, zz) < floor + h + 1.5) s = Math.max(s, 0.5);
+      // never closer than 1.5 m to the land above (away from the mouth; a well open to the sky aside)
+      const sky = SK && skyF.some((f) => feature(f, a, b, entry).s < 0.8) ? 1 : 0;
+      if (a > 3 && !sky && H(x, zz) < floor + h + 1.5) s = Math.max(s, 0.5);
       const j = k * nx + i;
       S[j] = s; FL[j] = floor; HT[j] = h;
+      if (sky) SK[j] = 1;
     }
     if (water) {      // the surface sits a little under the floor round the bowl
       const ring = feature(F.reduce((m, f) => (feature(f, water.a, water.b).s < feature(m, water.a, water.b).s ? f : m)), water.a, water.b);
@@ -307,7 +317,7 @@ export class Cave {
   /** The clear height over the floor at grid cell j, as the rock is drawn (Infinity outside). */
   headroom(j) {
     const S = this.s, HT = this.height, a = this.a0 + (j % this.nx) * G;
-    if (a < 0.5) return Infinity;                               // no roof outside the mouth
+    if (a < 0.5 || this.skyCell?.[j]) return Infinity;          // no roof outside the mouth (or over a well)
     const l = smooth(CURL, 0.9, S[j]) * (HT[j] * 0.5 + 0.35) * smooth(-0.5, 1.5, a);
     return HT[j] - 2 * l;
   }
@@ -371,6 +381,7 @@ export class Cave {
     const j = this.idx(p.x, p.z);
     if (j < 0 || this.s[j] > 0.4) return false;
     if (p.x < this.px - 0.5) return false;
+    if (this.skyCell?.[j]) return p.y > this.floor[j] - 3 && p.y < this.phys.groundAt(p.x, p.z) + 2.5;   // (up a well, to its lip)
     return p.y > this.floor[j] - 3 && p.y < this.floor[j] + this.height[j] + 0.5;
   }
 
@@ -391,7 +402,7 @@ export class Cave {
       const j = (k + dk) * this.nx + i + di, a = this.a0 + (i + di) * G;
       const l = a < 0 ? 0 : smooth(CURL, 0.9, this.s[j]) * (this.height[j] * 0.5 + 0.35) * smooth(-0.5, 1.5, a);
       fl += w * (this.floor[j] + l);
-      if (a < 0.5) { if (w > 0) open = true; } else rf += w * (this.floor[j] + this.height[j] - l);
+      if (a < 0.5 || this.skyCell?.[j]) { if (w > 0) open = true; } else rf += w * (this.floor[j] + this.height[j] - l);
       s += w * this.s[j];
     }
     out.floor = fl; out.roof = open ? Infinity : rf; out.s = s;
@@ -451,7 +462,8 @@ export class Cave {
       }
       const f = [vert(j00, false), vert(j10, false), vert(j01, false), vert(j11, false)];
       idxF.push(f[0], f[2], f[1], f[1], f[2], f[3]);
-      if (a >= 0.5) {
+      const SKc = this.skyCell;
+      if (a >= 0.5 && !(SKc && (SKc[j00] || SKc[j10] || SKc[j01] || SKc[j11]))) {
         const c = [vert(j00, true), vert(j10, true), vert(j01, true), vert(j11, true)];
         idxC.push(c[0], c[1], c[2], c[1], c[3], c[2]);
       }
@@ -473,7 +485,8 @@ export class Cave {
     const HW = 1.9;                                     // the cut's half width
     const hx0 = px - 1.0, hx1 = px + 2.5, hz0 = pz - HW, hz1 = pz + HW;
     const yTop = this.floorAt(px + 0.5, pz) + MIN_H + 0.6;          // (the ground is cut up to 0.6 under this)
-    if (ctx.land?.hole) ctx.land.hole(hx0, hz0, hx1, hz1, yTop, this.phys);
+    const hole = this.holeFn || ctx.land?.hole;
+    if (hole) hole(hx0, hz0, hx1, hz1, yTop, this.phys);
     else this.phys.groundHoles.push([hx0, hz0, hx1, hz1]);
     (this.phys.belowGround ||= []).push((p) => this.contains(p));    // you may be under the land in here
 
@@ -539,7 +552,7 @@ export class Cave {
     const w = this.water || { x: 1e9, z: 1e9, r: 0 };
     if (this.water) {
       const wm = new THREE.Mesh(new THREE.CircleGeometry(w.r, 32).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({
-        color: 0x041014, emissive: 0x03181c, specular: 0x5ab8c0, shininess: 120, transparent: true, opacity: 0.82 }));
+        color: this.poolGlow ? 0x041014 : 0x010203, emissive: 0x03181c, specular: this.poolGlow ? 0x5ab8c0 : 0x8090a0, shininess: this.poolGlow ? 120 : 200, transparent: true, opacity: this.poolGlow ? 0.82 : 0.94 }));
       wm.position.set(w.x, w.y, w.z);
       ctx.scene.add(wm);
       this.waterMesh = wm;
@@ -625,7 +638,7 @@ export class Cave {
       ctx.scene.add(l);
       this.lights.push({ l, power });
     };
-    if (this.water) glow(new THREE.Vector3(w.x, w.y + 1.2, w.z), 0x2fc8d8, 5, 16);   // few lights: lights are dear
+    if (this.water && this.poolGlow) glow(new THREE.Vector3(w.x, w.y + 1.2, w.z), 0x2fc8d8, 5, 16);   // few lights: lights are dear
     for (const [tag, color, power, dist] of this.decor.lights) {
       const lf = this.features.find((f) => f.tag === tag);
       if (lf) glow(new THREE.Vector3(px + lf.a, (this.floorAt(px + lf.a, pz + lf.b) ?? DEEP) + 2.2, pz + lf.b), color, power, dist);
@@ -636,7 +649,7 @@ export class Cave {
     for (const [tag, n2] of this.decor.torches) {
       for (let q = 0, made = 0; q < 40 && made < n2; q++) {
         const p = this.wallSpot(tag, R);
-        if (!p || p.y > -1.5) continue;
+        if (!p || p.y > this.torchBelow) continue;
         ctx.props?.add('wall_torch', p.x, p.y - 2.0, p.z, p.rot + Math.PI);
         made++;
       }
@@ -740,7 +753,7 @@ export class Cave {
     const k = 1 - smooth(70, 110, d);
     const t = performance.now() / 1000;
     this.lights.forEach(({ l, power }, i) => { l.intensity = power * k * (0.85 + 0.15 * Math.sin(t * (1.3 + i * 0.37))); });
-    if (this.waterMesh) this.waterMesh.material.emissive.setRGB(0.01, 0.07 + 0.015 * Math.sin(t * 0.8), 0.085 + 0.02 * Math.sin(t * 0.8 + 1));
+    if (this.waterMesh) { const k = this.poolGlow ? 1 : 0.03; this.waterMesh.material.emissive.setRGB(0.01 * k, (0.07 + 0.015 * Math.sin(t * 0.8)) * k, (0.085 + 0.02 * Math.sin(t * 0.8 + 1)) * k); }
   }
 }
 
@@ -757,9 +770,10 @@ export function caveNav(cave) {
     if (j >= 0 && cave.s[j] < -0.35 && cave.px + cave.a0 + 0.5 < x0 + i) cell[k * nx + i] = 0;
   }
   return {
-    name: cave.name, cave: true, y: DEEP,
+    name: cave.name, cave: true, y: cave.navY ?? DEEP,
     nav: { x0, z0, nx, nz, cell },
-    contains: (p) => cave.contains(p),
+    // (in a well open to the sky it's the open air's light, and the sky's over it: the cave still holds you)
+    contains: (p) => cave.contains(p) && !cave.skyCell?.[cave.idx(p.x, p.z)],
     floorAt: (x, z) => cave.floorAt(x, z),
     spot: (tag, inset) => cave.spot(tag, inset),
     tags: cave.features.map((f) => f.tag),
