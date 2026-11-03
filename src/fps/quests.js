@@ -43,6 +43,10 @@ export const GIVERS = {
   Wren: { call: 'Wren', post: [84, 7.5, -Math.PI / 2] },
   // the Bellwright, in the bell tower's hall on Bell Knoll (belltower.js; he never leaves it)
   Orrin: { call: 'Orrin the Bellwright', post: [TOWER.x + 2.7, TOWER.z - 2.3, -0.785] },
+  // Hornhollow's folk, high on the Sorrowhorn (their posts set when the mountain is built: main.js)
+  Maud: { call: 'Elder Maud', post: [0, 0, 0] },
+  Jory: { call: 'Jory the Herdsman', post: [0, 0, 0] },
+  Tamsin: { call: 'Tamsin', post: [0, 0, 0] },
 };
 
 // ---------------------------------------------------------------------- the quests
@@ -183,6 +187,36 @@ QUESTS.push(
     done: 'There. Hear that? No, you cannot, not yet. At noon. Here: the Wingbell. Ring it in the air and the air rings back. You will find the cliffs to the north-west are not so high, now.',
     objectives: [{ type: 'fetch', item: 'sigil', name: "Morcant's sigil", at: 'arena', label: "Morcant's sigil" }], map: 'shrine', reward: { xp: 3000, gold: 300, charms: ['wingbell'] } },
 );
+// Hornhollow's, at the Pilgrims' Road's end on the Sorrowhorn: their bell, their goats, their
+// healer's flowers and her spring, the herding horn on the summit
+QUESTS.push(
+  { id: 'hh_bell', giver: 'Maud', title: 'The Hornhollow Bell', lvl: 10,
+    text: "The goat men came down off Gorehoof's Shelf at the new moon and took the bell out of our shrine. It's no bigger than a bucket and it has rung for every birth and burial on this mountain for two hundred years. They've hung it up in their camp to mock us. Kill them, and bring it home.",
+    brief: "Kill the goat men at Gorehoof's Shelf and bring Hornhollow's shrine bell home to Elder Maud.", wait: "Gorehoof's Shelf. Back down the road, under the crag. You'll smell them before you see them.",
+    done: 'There. Hear it? That is the sound of this village again. I had forgotten how much I hated it.',
+    objectives: [{ type: 'kill', where: 'gorehoof', count: 'all', label: "The goat men of Gorehoof's Shelf slain" }, { type: 'fetch', item: 'shrinebell', name: "Hornhollow's shrine bell", at: 'gorehoof', label: "The shrine bell" }],
+    map: 'gorehoof', reward: { xp: 2600, gold: 220 } },
+  { id: 'hh_horns', giver: 'Jory', title: 'Horn for Horn', lvl: 9,
+    text: "Forty ewes, I had. Eleven now. The goat men take them for the fat and leave me the bones. Every goat man you put down, take his horns. Six pair, and I'll know the mountain's square with me.",
+    brief: "Bring Jory six pairs of goat men's horns.", wait: 'Six pair. They grow them big up here.',
+    done: "Six. I'll nail them over the fold, and let the rest of them see.",
+    objectives: [{ type: 'drop', item: 'ramhorn', name: "Goat men's horns", count: 6, from: 'goats', label: "Goat men's horns" }], map: 'hornhollow', reward: { xp: 1900, gold: 160 } },
+  { id: 'hh_snowbloom', giver: 'Tamsin', title: 'Snowbloom', lvl: 10,
+    text: 'Snowbloom grows up on the snowfields beside the Shepherd\'s Stair, where nothing else will. It is the only thing I have that brings a fever down. I am too slow on the Stair now. Six flowers.',
+    brief: "Gather six snowbloom on the snowfields beside the Shepherd's Stair.", wait: 'White, with a blue heart. They close when you breathe on them.',
+    done: 'Six. That is four children who will see the spring.',
+    objectives: [{ type: 'gather', item: 'snowbloom', name: 'Snowbloom', count: 6, label: 'Snowbloom gathered', spots: 'snowfield' }], map: 'summit', reward: { xp: 2100, gold: 120, potions: [['life', 4]] } },
+  { id: 'hh_glimmer', giver: 'Tamsin', title: 'The Foul Water', lvl: 11, after: ['hh_snowbloom'],
+    text: 'Our spring comes out of the Glimmerdeep, the cave at the top of the road. Since the autumn it tastes of the grave. The dead are walking in there, in the water. Lay them down and the water will run clean.',
+    brief: 'Lay down every one of the dead walking in the Glimmerdeep.', wait: 'Up the road, where the stone shines. Take a light.',
+    done: 'It ran clear this morning. I cried into it, which rather spoiled it.',
+    objectives: [{ type: 'kill', where: 'glimmer', count: 'all', label: 'The dead in the Glimmerdeep laid down' }], map: 'glimmer', reward: { xp: 3000, gold: 240 } },
+  { id: 'hh_horn', giver: 'Jory', title: 'The Herding Horn', lvl: 11, after: ['hh_horns'],
+    text: "My grandfather's herding horn is up on the summit cairn. He left it there for the mountain when he got too old to climb, and the mountain can give it back now. With it I can call the flock off the high pasture before the goat men get to them.",
+    brief: "Climb the Shepherd's Stair to the summit and bring back Jory's grandfather's herding horn.", wait: "Up the Stair behind the shrine. It's a long way. Don't look down. Do look out.",
+    done: "That's it. I'd know it anywhere. Listen.",
+    objectives: [{ type: 'fetch', item: 'herdhorn', name: 'The old herding horn', at: 'summit', label: 'The old herding horn' }], map: 'summit', reward: { xp: 3200, gold: 260 } },
+);
 const BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
 
 // the champions: one of the dead grown huge, in its place below ground
@@ -210,6 +244,12 @@ function places(ctx) {
     troll: { ...m(cave('The Trollhole')), r: 0, name: 'The Trollhole' },
     keep: { x: -262, z: 0, r: 0, name: 'The Red Throne, Blackvigil Keep' },
     shrine: { x: TOWER.x, z: TOWER.z, r: 0, name: 'The hatch in the Bell Tower, Bell Knoll' },
+    ...(ctx.mountain ? {
+      hornhollow: { x: ctx.mountain.villageSite.x, z: ctx.mountain.villageSite.z, r: 20, name: 'Hornhollow, on the Sorrowhorn' },
+      gorehoof: { x: ctx.mountain.camps[3].x, z: ctx.mountain.camps[3].z, r: 18, name: "Gorehoof's Shelf" },
+      glimmer: { ...m(cave('The Glimmerdeep')), r: 0, name: 'The Glimmerdeep' },
+      summit: { x: ctx.mountain.summitSite.x, z: ctx.mountain.summitSite.z, r: 20, name: 'The summit of the Sorrowhorn' },
+    } : {}),
   };
 }
 
@@ -224,6 +264,10 @@ const ITEM_LOOK = {
   grimoire: { color: 0x4a2a6a, glow: [0.8, 0.5, 1.5], shape: 'box' },
   relic: { color: 0xd8ccae, glow: [0.8, 1.2, 0.8], shape: 'box' },
   sigil: { color: 0x9a4cff, glow: [1.0, 0.5, 1.7], shape: 'shard' },
+  shrinebell: { color: 0xb08040, glow: [1.3, 1.0, 0.5], shape: 'box' },
+  ramhorn: { color: 0xd8c8a8, glow: [1.0, 0.9, 0.7], shape: 'shard' },
+  snowbloom: { color: 0xf0f8ff, glow: [0.7, 0.9, 1.4], shape: 'flower' },
+  herdhorn: { color: 0xc8a878, glow: [1.2, 1.0, 0.6], shape: 'shard' },
 };
 function itemModel(kind) {
   const L = ITEM_LOOK[kind], g = new THREE.Group();
@@ -362,6 +406,9 @@ export class Quests {
       case 'knights': return !!z.def && z.kindName === 'knight';
       case 'founders': case 'cloister': case 'ossuary': case 'kneeling': return z.shrineTag === where && !z.mirror;
       case 'morcant': return z.slay === 'morcant';
+      case 'goats': return /^goat_/.test(z.variant || '');
+      case 'gorehoof': { const g = c.mountain?.camps?.[3]; return /^goat_/.test(z.variant || '') && !!g && Math.hypot(z.home.x - g.x, z.home.z - g.z) < 22; }
+      case 'glimmer': return nm === 'The Glimmerdeep';
       default: return false;
     }
   }
@@ -430,6 +477,8 @@ export class Quests {
       }
     } else if (kind === 'shrine') {
       out.push(...(this.ctx.shrine?.spots(n) || []));
+    } else if (kind === 'snowfield') {
+      out.push(...(this.ctx.mountain?.snowSpots?.(n) || []));
     } else if (kind === 'gloam') {
       const cave = this.ctx.caves?.find((c) => c.name === 'The Gloamhollow');
       const tags = ['cavern', 'north', 'nest', 'south', 'warren', 'shrine', 'bones', 'loop', 'cavern', 'warren'];
@@ -440,7 +489,7 @@ export class Quests {
 
   /** The room furthest from a dungeon's way in (a spot on its floor), or a cave chamber. */
   deepest(place) {
-    const at = this.ctx.shrine?.fetchSpot(place);
+    const at = this.ctx.shrine?.fetchSpot(place) || this.ctx.mountain?.fetchSpot?.(place);
     if (at) return at;
     const dg = this.dungeonOf(place);
     if (!dg) return null;

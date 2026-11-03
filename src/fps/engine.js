@@ -94,7 +94,7 @@ export function crisp(m) {
     C.fog_pars_vertex += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
     C.fog_vertex += '\n#ifdef USE_FOG\n\tvFogAlt = ( transpose( mat3( viewMatrix ) ) * mvPosition.xyz + cameraPosition ).y;\n#endif\n';
     C.fog_pars_fragment += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
-    C.fog_fragment = C.fog_fragment.replace(line, 'smoothstep( fogNear, fogFar, vFogDepth * mix( 1.0, 0.3, smoothstep( 40.0, 320.0, vFogAlt ) ) )');
+    C.fog_fragment = C.fog_fragment.replace(line, 'smoothstep( fogNear, fogFar, vFogDepth * mix( 1.0, 0.18, smoothstep( 0.0, 460.0, vFogAlt ) ) )');
   }
 }
 

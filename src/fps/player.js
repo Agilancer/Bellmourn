@@ -96,7 +96,7 @@ export class Player {
     if (mtn && wasOn && !this.physics.belowGround?.some((inside) => inside(p))) {
       // (the mountain: a slope steeper than about 50 degrees can't be walked up; jump it, or go round)
       const moved = Math.hypot(p.x - ox, p.z - oz), rise = this.physics.groundAt(p.x, p.z) - Math.max(oy, this.physics.groundAt(ox, oz));
-      if (moved > 1e-4 && rise > 0.12 && rise / moved > 1.2) { p.x = ox; p.z = oz; }
+      if (moved > 1e-4 && rise > 0.12 && rise / moved > (this.sureFoot ? 2.6 : 1.2)) { p.x = ox; p.z = oz; }   // (the Goatfoot: steeper)
     }
     if (this.physics.terrain && (p.x > 286 || mtn) && !this.physics.belowGround?.some((inside) => inside(p))) {
       const g = this.physics.groundAt(p.x, p.z);

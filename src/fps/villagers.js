@@ -87,6 +87,11 @@ const ROSTER = [
   // hand. He lives at his post in the tower's hall (`keeper`: ctx.belltower.post) and never leaves it
   { m: 'villager_m11', name: 'Orrin', call: 'Orrin the Bellwright', tags: ['learned', 'old', 'bellwright'], keeper: 'belltower', armor: 'runebound', helm: false,
     hair: [0.86, 0.86, 0.9], pale: 0.7, staff: 'templates/models/belltower/bellstaff.glb' },
+  // Hornhollow's folk, where the Pilgrims' Road ends on the Sorrowhorn (mountain.js): they keep to
+  // their posts (`keeper`: ctx.hornMaud ...). Bodies the town already has, their hair their own
+  { m: 'villager_f02', name: 'Maud', call: 'Elder Maud', tags: ['old', 'learned', 'hillfolk'], keeper: 'hornMaud', hair: [0.9, 0.9, 0.92], pale: 0.85 },
+  { m: 'villager_m09', name: 'Jory', call: 'Jory the Herdsman', tags: ['worker', 'hillfolk'], keeper: 'hornJory', hair: [0.32, 0.22, 0.14] },
+  { m: 'villager_f06', name: 'Tamsin', call: 'Tamsin', tags: ['healer', 'hillfolk'], keeper: 'hornTamsin', hair: [0.55, 0.3, 0.16] },
 ];
 // what the Bellwright says to himself and to you, between his work
 const BELLWRIGHT = ['Noon and midnight. Never late. Not once in nineteen years.', 'The bronze remembers every hand that rang it.',
