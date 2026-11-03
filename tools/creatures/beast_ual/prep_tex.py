@@ -38,7 +38,27 @@ def bleed(rgb, mask, px=24):
     return out
 
 
-def main(src, out):
+def fur_islands(lum, bgl, d=0.03, reach=26):
+    """Islands of a sheet painted in dark fur, which a brightness threshold eats into: the
+    threshold's islands (cleanly apart) grown over every pixel with the grain of paint (brighter
+    than the flat gutter, or textured) within `reach` px of them. Returns the labels."""
+    lab, _ = ndimage.label(ndimage.binary_opening(lum > bgl + d, iterations=2))
+    m1 = ndimage.uniform_filter(lum, 5)
+    sd = np.sqrt(np.maximum(ndimage.uniform_filter(lum * lum, 5) - m1 * m1, 0))
+    paint = ndimage.binary_opening((m1 > bgl + 0.012) | (sd > 0.007), iterations=1)
+    dist, (iy, ix) = ndimage.distance_transform_edt(lab == 0, return_indices=True)
+    out = np.where(paint & (dist < reach), lab[iy, ix], 0)
+    out = np.where(lab > 0, lab, out)
+    filled = np.zeros_like(out)
+    for i, sl in enumerate(ndimage.find_objects(out)):
+        if sl is None:
+            continue
+        k = ndimage.binary_fill_holes(out[sl] == i + 1)
+        filled[sl][k] = i + 1
+    return filled
+
+
+def main(src, out, fur=False):
     os.makedirs(out, exist_ok=True)
     im = np.asarray(Image.open(src).convert("RGB")).astype(np.float32) / 255.0
     lum = im @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -46,6 +66,8 @@ def main(src, out):
     bgl = float(np.percentile(edge, 30))               # the gutters: black or dark grey, per sheet
     mask = ndimage.binary_opening(lum > max(0.055, bgl + 0.02), iterations=2)
     print("background lum %.3f" % bgl)
+    if fur:
+        mask = fur_islands(lum, bgl) > 0
     mask = ndimage.binary_fill_holes(mask)
     mask = ndimage.binary_erosion(mask, iterations=1)  # drop the dark anti-aliased rim
 

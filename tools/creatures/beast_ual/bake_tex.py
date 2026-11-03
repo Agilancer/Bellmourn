@@ -181,7 +181,8 @@ def main(npz, tex, out, size=2048):
     lum = col @ np.array([0.299, 0.587, 0.114])
     red = np.clip((col[:, 0] - 0.5 * (col[:, 1] + col[:, 2])) * 6, 0, 1)
     col = col + (col - lum[:, None]) * 0.9 * red[:, None] * RED
-    col = col * (0.9 if RED else 1.04)          # the beast men keep the sheet's own values
+    WOLF = os.environ.get("BEAST") == "wolf"
+    col = col * (0.9 if RED else (1.2 if WOLF else 1.04))   # the beast men keep the sheet's own values (the wolf's lifted to read in the dark)
     # torn cheek: raw wet meat round the rip; the mouth falls away to black down the throat
     wnd = lerp(WOUND[:, None])[:, 0]
     meat = np.array([0.2, 0.035, 0.03]) * (0.75 + 2.5 * det.mean(1, keepdims=True))   # dark blood
@@ -194,7 +195,24 @@ def main(npz, tex, out, size=2048):
     hair = np.sin(p[:, 0] * 2600 + 4 * np.sin(p[:, 2] * 420)) * np.sin(p[:, 2] * 140 + p[:, 0] * 90)
     col = col * (1 + 0.07 * fc * hair)[:, None]              # fine hair streaks down the bridge and cheeks
     sh = lerp(SHADE[:, None])[:, 0]
-    col = col * (1 - 0.34 * sh)[:, None]                     # countershading
+    col = col * (1 - (0.14 if WOLF else 0.34) * sh)[:, None]   # countershading
+    if "FROST" in d.files:                                    # silver guard hair, streaked like the painted fur
+        fr_ = lerp(d["FROST"][:, None])[:, 0]
+        silver = np.array([0.64, 0.61, 0.57]) * (0.72 + 2.4 * det.mean(1, keepdims=True)) * (0.85 + 0.15 * hair[:, None])
+        streak = np.clip(0.55 + 0.45 * np.sin(p[:, 2] * 900 + 6 * np.sin(p[:, 0] * 310 + p[:, 1] * 270)), 0, 1)   # the dark undercoat between the tips
+        col = col + (np.clip(silver, 0, 1) - col) * (0.75 * fr_ * (0.55 + 0.45 * streak))[:, None]
+    if "COAT" in d.files:                                     # pale mottled patches on the outer limbs into the coat
+        cw_ = lerp(d["COAT"][:, None])[:, 0]
+        lum_ = col @ np.array([0.299, 0.587, 0.114])
+        pink = np.clip((col[:, 0] - col[:, 2]) * 6, 0, 1) * np.clip((lum_ - 0.2) * 5, 0, 1)
+        coat = np.array([0.2, 0.18, 0.17]) * (0.8 + 2.0 * det.mean(1, keepdims=True)) * (0.9 + 0.1 * hair[:, None])
+        col = col + (np.clip(coat, 0, 1) - col) * (0.85 * cw_ * pink)[:, None]
+        sat_ = col - (col @ np.array([0.299, 0.587, 0.114]))[:, None]
+        col = col - sat_ * (0.5 * cw_)[:, None]                         # scabs on the knees and shins quietened
+    if "MOUTHW" in d.files:                                       # the gape's lining: wet, red gums and tongue
+        mw_ = lerp(d["MOUTHW"][:, None])[:, 0]
+        gum = col * np.array([1.5, 0.75, 0.75]) + np.array([0.12, 0.01, 0.02])
+        col = col + (np.clip(gum, 0, 1) - col) * (0.75 * mw_)[:, None]
     dk = lerp(DARK[:, None])[:, 0]
     col = col * (1 - dk[:, None])
     # teeth: dirty ivory, never as grey as the skin
@@ -202,7 +220,7 @@ def main(npz, tex, out, size=2048):
     isT = th > 0.05
     tip = np.clip((th - 0.3) / 0.7, 0, 1)[:, None]
     lumt = col @ np.array([0.299, 0.587, 0.114])
-    ivory = np.clip(0.42 + 0.9 * (lumt - lumt.mean()), 0.3, 0.85)[:, None] * np.array([1.0, 0.93, 0.78]) * (0.85 + 1.5 * det.mean(1, keepdims=True))
+    ivory = np.clip((0.62 if os.environ.get("BEAST") == "wolf" else 0.42) + 0.9 * (lumt - lumt.mean()), 0.3, 0.9)[:, None] * np.array([1.0, 0.95, 0.84]) * (0.85 + 1.5 * det.mean(1, keepdims=True))
     rot_t = np.array([0.3, 0.2, 0.12]) * (0.8 + 2.0 * det.mean(1, keepdims=True))
     col = np.where(isT[:, None], rot_t * (1 - tip) + ivory * tip, col)
     # nails: cracked yellow-grey plates; the beds behind them gone black
@@ -219,9 +237,15 @@ def main(npz, tex, out, size=2048):
     tan = np.clip((ratio - 0.36) / 0.14, 0, 1) * lb
     redder = np.stack([col[:, 0] * 0.95, col[:, 0] * 0.3, col[:, 0] * 0.2], 1) * 0.9
     col = col * (1 - tan[:, None]) + redder * tan[:, None]
-    # claws: black keratin
+    # claws: black keratin (the wolf's: a dark root going to yellowed horn at the point)
     cw = lerp(CLAW[:, None])[:, 0]
-    col = col * (1 - 0.8 * cw[:, None]) + np.array([0.05, 0.04, 0.035]) * 0.8 * cw[:, None]
+    if "CLAWT" in d.files and os.environ.get("BEAST") == "wolf":
+        ct = lerp(d["CLAWT"][:, None])[:, 0][:, None]
+        horn = np.array([0.16, 0.11, 0.07]) * (1 - ct) ** 1.2 + np.array([0.86, 0.78, 0.6]) * (1 - (1 - ct) ** 1.2)
+        horn = horn * (0.85 + 1.2 * det.mean(1, keepdims=True)) * (0.9 + 0.1 * np.sin(ct * 60 + p[:, :1] * 900))
+        col = col * (1 - 0.9 * cw[:, None]) + horn * 0.9 * cw[:, None]
+    else:
+        col = col * (1 - 0.8 * cw[:, None]) + np.array([0.05, 0.04, 0.035]) * 0.8 * cw[:, None]
     # keratin: tan bony root, near-black shaft, worn tan tip; sharp growth rings, pale ridge
     # crests, splits along the grain (the derived normal map picks the rings up)
     hf = lerp(HORNF[:, None])[:, 0]; spk = lerp(SPIKE[:, None])[:, 0]
@@ -287,12 +311,12 @@ def main(npz, tex, out, size=2048):
 
     lum = img @ np.array([0.299, 0.587, 0.114], np.float32)
     red = np.clip((img[..., 0] - (img[..., 1] + img[..., 2]) * 0.5) * 4.0, 0, 1)
-    rough = ndimage.gaussian_filter(np.clip(0.74 + 0.1 * (lum - lum[mask].mean()), 0.6, 0.85), 1.0)   # dry hide
+    rough = ndimage.gaussian_filter(np.clip((0.84 if os.environ.get("BEAST") == "wolf" else 0.74) + 0.1 * (lum - lum[mask].mean()), 0.6, 0.92), 1.0)   # dry hide
     rough = rough * (1 - eyes) + 0.2 * eyes            # wet eyes catch the torchlight
     rough = rough * (1 - hornimg) + 0.94 * hornimg      # dull keratin
-    rough = rough * (1 - glossimg) + 0.4 * glossimg     # polished horn on the beast men, catches a rim
+    rough = rough * (1 - glossimg) + (0.25 if os.environ.get("BEAST") == "wolf" else 0.4) * glossimg     # polished horn on the beast men, catches a rim (the wolf's: a wet nose, gums, teeth)
     em = np.zeros((size, size, 3), np.float32)        # amber eyes that read in the dark
-    glow = np.clip((eyes - 0.15) * 3, 0, 1) ** 1.5 * (1.0 if RED else 0.35)
+    glow = np.clip((eyes - 0.15) * 3, 0, 1) ** 1.5 * (1.0 if RED else (0.9 if os.environ.get("BEAST") == "wolf" else 0.35))
     hot = np.clip(slitimg * 1.4, 0, 1) * (eyes > 0.1)
     em[..., 0] = np.clip(glow * 0.85 + hot, 0, 1)
     em[..., 1] = np.clip(glow * 0.28 + hot * 0.85, 0, 1)

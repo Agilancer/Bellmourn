@@ -38,13 +38,17 @@ def profile(lab, seed, axis, smooth=15):
 
 
 def main(src, out):
-    prep_tex.main(src, out)
+    fur = bool(uvmap.L.get("fur_mask"))
+    prep_tex.main(src, out, fur)
     # islands are told apart on a stricter mask than the texture's (that one keeps dark claws and
     # hoof tips, but lets neighbouring pieces touch)
     from PIL import Image
     lum = np.asarray(Image.open(src).convert("L"), np.float32) / 255.0
     edge = np.concatenate([lum[:4].ravel(), lum[-4:].ravel()])
-    lab, _ = ndimage.label(ndimage.binary_opening(lum > np.percentile(edge, 30) + 0.045, iterations=2))
+    if fur:                  # dark fur at the islands' edges belongs to them
+        lab = prep_tex.fur_islands(lum, float(np.percentile(edge, 30)), uvmap.L.get("island_d", 0.045))
+    else:
+        lab, _ = ndimage.label(ndimage.binary_opening(lum > np.percentile(edge, 30) + uvmap.L.get("island_d", 0.045), iterations=2))
     z = {}
     for name, seed, axis in uvmap.strips():
         assert lab[seed[1], seed[0]], (name, seed)

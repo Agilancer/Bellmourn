@@ -107,6 +107,24 @@ def widen():
 
 
 widen()
+
+
+def add_jaw():
+    """The wolf's lower jaw gets a bone of its own (UAL has none): hinged under the ear, out to the chin."""
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = ARM.data.edit_bones
+    j = eb.new("jaw")
+    j.head = tuple(sdf.HD((0, -0.006, 1.626)))
+    j.tail = tuple(sdf.HD((0, -0.14, 1.597)))
+    j.roll = 0.0
+    j.parent = eb["Head"]
+    j.use_connect = False
+    bpy.ops.object.mode_set(mode="OBJECT")
+    ARM.data.bones["jaw"].use_deform = True
+
+
+if sdf.WOLF:
+    add_jaw()
 beastclips.author(ARM, bpy.context.scene, sdf.SPECIES, log)
 if os.environ.get("CLIPS_ONLY"):          # quick look at the clip log
     raise SystemExit(0)
@@ -235,18 +253,27 @@ h1 = add((0, -0.03, 1.60), 0.08, nk)
 h2 = add((0, -0.01, 1.665), 0.09, h1)
 h3 = add((0, 0.02, 1.74), 0.08, h2)
 h4 = add((0, 0.025, 1.785), 0.05, h3)
-add((0, -0.115, 1.615), 0.04, h1)                               # muzzle
+add(tuple(sdf.HD((0, -0.15, 1.655))) if sdf.WOLF else (0, -0.115, 1.615), 0.045 if sdf.WOLF else 0.04, h1)   # muzzle
 for s in (1, -1):
     X = sdf.HIP_X
-    hp = add((s * X, 0.01, 0.86), 0.105, hips)
-    t1 = add((s * X, 0.0, 0.72), 0.09, hp)
+    hp = add((s * (X + 0.012 * sdf.WOLF), 0.01, 0.86), 0.118 if sdf.WOLF else 0.105, hips)
+    t1 = add((s * (X + 0.012 * sdf.WOLF), 0.0, 0.72), 0.104 if sdf.WOLF else 0.09, hp)
     kn = add((s * X, -0.005, 0.535), 0.08, t1)
     c1 = add((s * X, 0.03, 0.34), 0.076, kn)
     ak = add((s * X, 0.04, 0.21), 0.064, c1)                     # ankle, sized to the sculpt
-    an = add((s * X, 0.02, 0.12), 0.05, ak)
-    add((s * X, 0.05, 0.1), 0.04, an)                            # fetlock behind
-    ball = add((s * X, sdf.HOOF_Y, 0.045), 0.055, an)            # the hoof
-    add((s * X, sdf.HOOF_Y - 0.05, 0.03), 0.035, ball)           # its toes
+    if sdf.WOLF:                                                 # a paw: the hock behind, the pad, four clawed toes
+        add((s * X, 0.085, 0.19), 0.03, ak)                     # the hock, off the ankle
+        an = add((s * X, 0.005, 0.115), 0.04, ak)               # down the instep
+        ball = add((s * X, -0.072, 0.034), 0.055, an)
+        for dx, r in sdf.TOES:
+            tb = add((s * (X + dx), -0.103, 0.034), r * 1.1, ball)
+            tt = add((s * (X + dx * 1.15), -0.15, 0.03), r * 0.95, tb)
+            add((s * (X + dx * 1.3), -0.205, 0.012), r * 0.4, tt)
+    else:
+        an = add((s * X, 0.02, 0.12), 0.05, ak)
+        add((s * X, 0.05, 0.1), 0.04, an)                        # fetlock behind
+        ball = add((s * X, sdf.HOOF_Y, 0.045), 0.055, an)        # the hoof
+        add((s * X, sdf.HOOF_Y - 0.05, 0.03), 0.035, ball)       # its toes
 
     def A(co, s=s):  # arm points are laid out straight, then hung in the A-pose
         q = sdf.to_A(np.array([co]))[0]
@@ -269,6 +296,8 @@ for s in (1, -1):
             prev = add(A(tuple(q)), sdf.FINGER_R[name] * 1.1, prev)
         cb, cp = sdf.claw(name)
         prev = add(A(tuple(cb)), sdf.FINGER_R[name] * 0.7, prev)
+        if sdf.WOLF:                                         # the curved claw's middle
+            prev = add(A(tuple(sdf.claw_mid(np.array(cb), np.array(cp)))), sdf.FINGER_R[name] * 0.42, prev)
         add(A(tuple(cp)), 0.004, prev)
 
 cm = bpy.data.meshes.new("cage")
@@ -552,7 +581,7 @@ umin = np.full(n, 1e9); umax = np.full(n, -1e9); vmin = np.full(n, 1e9); vmax = 
 np.minimum.at(umin, lv, U); np.maximum.at(umax, lv, U); np.minimum.at(vmin, lv, Vv); np.maximum.at(vmax, lv, Vv)
 near_mouth = np.linalg.norm(P - np.array(sdf.MOUTH_C), axis=1) < 0.04
 seam = ((umax - umin) + (vmax - vmin) > 3.0) & (np.abs(P[:, 0]) < 0.875) & ~near_mouth
-limb = (np.abs(P[:, 0]) > 0.2) | (P[:, 2] < 0.85)  # thin limbs get narrow seam bands
+limb = ((np.abs(P[:, 0]) > 0.2) | (P[:, 2] < 0.85)) & ~(sdf.WOLF & (P[:, 2] > 0.76) & (P[:, 2] < 0.98))  # thin limbs get narrow seam bands (not the wolf's hips)
 _ax = np.abs(sdf.unbend(P)[:, 0])
 band = np.where(_ax > 0.86, 0.0065, np.where(_ax > 0.72, 0.016, np.where((P[:, 2] > 1.3) & (np.abs(P[:, 0]) > 0.15) & (np.abs(P[:, 0]) < 0.36), 0.026,
                 np.where(limb, 0.009, np.where(P[:, 2] > 1.5, 0.022, 0.013)))))
@@ -565,7 +594,7 @@ throat |= (P[:, 2] > 1.48) & (P[:, 2] < 1.66) & (P[:, 1] > 0.06) & (np.abs(P[:, 
 throat |= (P[:, 2] < 0.17) & (P[:, 1] > 0.04) & (np.abs(np.abs(P[:, 0]) - sdf.HIP_X) < 0.08)                       # back of the heel
 WPATCH = np.maximum(WPATCH, 0.78 * smooth(throat.astype(float), 3))
 WPATCH = WPATCH * WPATCH * (3 - 2 * WPATCH)
-HOOFV = np.clip((0.095 - P[:, 2]) / 0.02, 0, 1) * (np.abs(np.abs(P[:, 0]) - sdf.HIP_X) < 0.09)
+HOOFV = np.clip((0.095 - P[:, 2]) / 0.02, 0, 1) * (np.abs(np.abs(P[:, 0]) - sdf.HIP_X) < 0.09) * sdf.GOAT
 WPATCH = WPATCH * (1 - HOOFV)                      # the painted hoof stays: no fur cloned over the horn
 log("patched verts %", round(100 * float((WPATCH > 0.5).mean()), 1))
 pw = me.attributes.new("patchW", "FLOAT", "POINT")
@@ -1070,12 +1099,14 @@ if rags:
 # ---------------------------------------------------------------------------------- 6. skin
 log("stage: skin")
 for b in ARM.data.bones:
-    b.use_deform = b.name != "root"
+    b.use_deform = b.name not in ("root", "jaw")     # (the jaw's weights are set by hand: jaw_weights)
 for o in bpy.context.scene.objects:
     o.select_set(False)
 body.select_set(True); ARM.select_set(True)
 bpy.context.view_layer.objects.active = ARM
 bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+if "jaw" in ARM.data.bones:
+    ARM.data.bones["jaw"].use_deform = True
 mod = next(m for m in body.modifiers if m.type == "ARMATURE")
 unweighted = sum(1 for v in body.data.vertices if not v.groups or sum(g.weight for g in v.groups) < 1e-4)
 log("unweighted verts after bone heat", unweighted)
@@ -1217,6 +1248,36 @@ shoulder_weights()
 neck_weights()
 
 
+def knuckle_weights():
+    """(wolf) The bend at the knuckles spread over a wider band, so a curled hand creases softly."""
+    names = [g.name for g in body.vertex_groups if g.name.startswith(("hand_",) + beastclips.CLAW)]
+    idx = {body.vertex_groups[nm].index: k for k, nm in enumerate(names)}
+    W = np.zeros((nb, len(names)))
+    for v in bme.vertices:
+        for g in v.groups:
+            if g.group in idx:
+                W[v.index, idx[g.group]] = g.weight
+    ux = np.abs(sdf.unbend(Pb)[:, 0])
+    zone = (ux > sdf.HX((0.8 + sdf.WIDEN_ARM, 0, 0))[0]) & (ux < sdf.HX((0.9 + sdf.WIDEN_ARM, 0, 0))[0])
+    for _ in range(6):
+        acc = np.zeros_like(W); cnt = np.zeros(nb)
+        np.add.at(acc, eb[:, 0], W[eb[:, 1]]); np.add.at(acc, eb[:, 1], W[eb[:, 0]])
+        np.add.at(cnt, eb[:, 0], 1); np.add.at(cnt, eb[:, 1], 1)
+        W[zone] = 0.5 * W[zone] + 0.5 * (acc / np.maximum(cnt, 1)[:, None])[zone]
+    for k, nm in enumerate(names):
+        vg = body.vertex_groups[nm]
+        for i in np.where(zone)[0]:
+            w = float(W[i, k])
+            if w > 1e-3:
+                vg.add([int(i)], w, "REPLACE")
+            else:
+                vg.remove([int(i)])
+
+
+if sdf.WOLF:
+    knuckle_weights()
+
+
 def hoof_weights():
     """The hoof is one rigid piece on the foot bone (no toe bend through the horn); the pastern
     blends from foot to calf above it."""
@@ -1247,7 +1308,36 @@ def hoof_weights():
             fg.add([v.index], min(cur, 1.0), "REPLACE")
 
 
-hoof_weights()
+if sdf.GOAT:
+    hoof_weights()
+
+
+def jaw_weights():
+    """The lower jaw, chin and lips below the gape ride the jaw bone; the throat blends to the neck
+    under it; nothing above the gape's mid-plane moves with it."""
+    gi = {g.name: g.index for g in body.vertex_groups}
+    jg = body.vertex_groups.get("jaw") or body.vertex_groups.new(name="jaw")
+    hinge = np.array(sdf.HD((0, -0.006, 1.626))); front = np.array(sdf.MOUTH_C)
+    for v in body.data.vertices:
+        x, y, z = v.co
+        if z < 1.5 or z > 1.66 or y > 0.04 or abs(x) > 0.1:
+            continue
+        zp = hinge[2] + (front[2] - hinge[2]) * (y - hinge[1]) / (front[1] - hinge[1])    # the gape's mid-plane
+        w = ss(0.003, -0.006, z - zp) * ss(0.012, -0.03, y - hinge[1]) * ss(1.535, 1.585, z)
+        if w <= 1e-3:
+            continue
+        old = {g.group: g.weight for g in v.groups}
+        tot = sum(old.values()) or 1.0
+        for k in old:
+            body.vertex_groups[k].remove([v.index])
+        for k, wv in old.items():
+            if k != jg.index and wv / tot * (1 - w) > 1e-3:
+                body.vertex_groups[k].add([v.index], wv / tot * (1 - w), "REPLACE")
+        jg.add([v.index], w, "REPLACE")
+
+
+if sdf.WOLF:
+    jaw_weights()
 
 # ears follow the head; rags copy the nearest body weights (stiffened toward the pelvis)
 bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
@@ -1298,6 +1388,11 @@ for e in ears:
         copy_weights(e)
         continue
     g = e.vertex_groups.new(name=e.name[6:].split(".")[0] if e.name.startswith("spike_") else "Head")
+    if e.name.startswith("teeth") and sdf.WOLF:                # the lower row rides the jaw
+        low = [v.index for v in e.data.vertices if v.co.z < sdf.MOUTH_C[2]]
+        g.add([i for i in _all if i not in set(low)], 1.0, "REPLACE")
+        e.vertex_groups.new(name="jaw").add(low, 1.0, "REPLACE")
+        continue
     g.add(_all, 1.0, "REPLACE")
 for _g in ("pelvis", "thigh_l", "thigh_r"):   # each flap mostly rides its own thigh
     rags.vertex_groups.new(name=_g) if rags else None
@@ -1351,6 +1446,9 @@ for i in range(nv):
 ao = np.clip(0.36 + 0.64 * ao, 0, 1) ** 1.1 if sdf.RED else np.clip(0.5 + 0.5 * ao, 0, 1)   # beast men: lighter, the sheet carries its own shading
 eyes = np.minimum(np.linalg.norm(P - np.array(sdf.EYE), axis=1), np.linalg.norm(P - np.array(sdf.EYE) * [-1, 1, 1], axis=1))
 ao = np.where(eyes < sdf.EYE_R + 0.003, np.maximum(ao, 0.8), ao)  # wet eyes catch light, not soot
+if sdf.WOLF:                       # the open mouth: lit enough to see gums and tongue
+    _inm = np.linalg.norm((P - np.array(sdf.MOUTH_C)) / (np.array(sdf.MOUTH_R) * [1.2, 1.0, 1.6]), axis=1) < 1
+    ao = np.where(_inm, np.maximum(ao, 0.62), ao)
 sole = np.clip((0.02 - P[:, 2]) / 0.02, 0, 1) * np.clip(-N[:, 2], 0, 1)
 ao *= 1 - 0.55 * sole
 if "part" in me.attributes:
@@ -1398,7 +1496,18 @@ me.uv_layers.active = atlas
 # smart project the skin, with the head blown up first so the face gets more of the atlas
 Pk = P.copy()
 hd = np.clip((P[:, 2] - 1.52) / 0.05, 0, 1)[:, None]
-Pb = P + (P - np.array([0, -0.02, 1.66])) * 1.1 * hd      # the head gets ~2x the atlas density
+Pb = P + (P - np.array([0, -0.02, 1.66])) * (1.5 if sdf.WOLF else 1.1) * hd      # the head gets ~2x the atlas density (the wolf's ~2.5x)
+if sdf.WOLF:                                                # and the wolf's hands and paws ~1.5x
+    _ux = np.abs(sdf.unbend(P)[:, 0])
+    _sc = 1 + 0.5 * np.clip((_ux - (sdf.WRIST_X - 0.07)) / 0.08, 0, 1) ** 2
+    _ua = _ux > sdf.WRIST_X - 0.07
+    _wr = sdf.to_A(np.array([sdf.WRIST]))[0]
+    for _sg in (1, -1):
+        _k = _ua & (np.sign(P[:, 0]) == _sg)
+        Pb[_k] = _wr * [_sg, 1, 1] + (P[_k] - _wr * [_sg, 1, 1]) * _sc[_k, None]
+        _k = (P[:, 2] < 0.13) & (np.sign(P[:, 0]) == _sg)
+        _an = np.array([_sg * sdf.HIP_X, 0.0, 0.08])
+        Pb[_k] = _an + (P[_k] - _an) * 1.4
 me.vertices.foreach_set("co", Pb.ravel()); me.update()
 for poly in me.polygons:
     poly.select = poly.material_index == 0
@@ -1435,13 +1544,16 @@ for _ in range(2):
     a2 = np.zeros(nv); np.add.at(a2, evj[:, 0], CAV[evj[:, 1]]); np.add.at(a2, evj[:, 1], CAV[evj[:, 0]])
     CAV = 0.5 * CAV + 0.5 * a2 / np.maximum(c2, 1)
 CAV = np.clip(CAV / (np.percentile(np.abs(CAV), 96) + 1e-9), -1, 0.6)
+if sdf.WOLF and "part" in me.attributes:   # thin ears and teeth are all curvature: creases only on the hide
+    _pp = np.zeros(nv, np.int32); me.attributes["part"].data.foreach_get("value", _pp)
+    CAV = np.where(_pp == 0, CAV, 0.15 * CAV)
 ax = np.abs(P[:, 0])
 ROT = np.zeros(nv)
 part = np.zeros(nv, np.int32)
 if "part" in me.attributes:
     me.attributes["part"].data.foreach_get("value", part)
 mq = np.linalg.norm((P - np.array(sdf.MOUTH_C)) / (np.array(sdf.MOUTH_R) * [1.15, 1.0, 1.4]), axis=1)
-DARK = np.where((mq < 1.3) & (part != 2) & (part != 4), np.clip((P[:, 1] + 0.086) / 0.022, 0, 1) * 0.95, 0.0)
+DARK = np.where((mq < 1.3) & (part != 2) & (part != 4), np.clip((P[:, 1] + 0.086) / 0.022, 0, 1) * 0.95, 0.0) * (not sdf.WOLF)
 tq = sdf.ellipsoid(P, sdf.TEAR_C, sdf.TEAR_R, sdf.TEAR_ROT)
 WOUND = np.where(part != 2, np.clip(1 - (tq - 0.0015) / 0.0045, 0, 1), 0.0)
 DARK = np.maximum(DARK, np.where((tq < 0.0015) & (part != 2), 0.92, 0.0))
@@ -1481,14 +1593,30 @@ for _nm in uvmap.FNAMES:
     _ax = _cp - _cb; _tt = np.clip(((_mT - _cb) @ _ax) / (_ax @ _ax), 0, 1)
     _dd = np.linalg.norm(_mT - (_cb + _tt[:, None] * _ax), axis=1)
     CLAW = np.maximum(CLAW, (_dd < sdf.FINGER_R[_nm] * 0.95) * np.clip(_tt * 3, 0, 1))
-for _dx, _r in sdf.TOES:
+CLAWT = np.zeros(nv)                       # (wolf) how far out along its claw: dark root to pale horn tip
+if sdf.WOLF:
+    CLAW[:] = 0
+    _segs = []
+    for _nm in uvmap.FNAMES:
+        _b, _p = sdf.claw(_nm); _segs.append((_b, sdf.claw_mid(_b, _p), _p, sdf.FINGER_R[_nm], _mT))
+    _m2 = P.copy(); _m2[:, 0] = np.abs(_m2[:, 0])
+    for _dx, _r in sdf.TOES:
+        _b, _c, _p = sdf.toe_claw(_dx); _segs.append((_b, _c, _p, _r, _m2))
+    for _b, _c, _p, _r, _Q in _segs:
+        for _a0, _a1, _t0, _t1 in ((_b, _c, 0.0, 0.5), (_c, _p, 0.5, 1.0)):
+            _ax = _a1 - _a0; _tt = np.clip(((_Q - _a0) @ _ax) / (_ax @ _ax), 0, 1)
+            _in = np.linalg.norm(_Q - (_a0 + _tt[:, None] * _ax), axis=1) < _r * 0.95
+            CLAW = np.maximum(CLAW, _in * 1.0)
+            CLAWT = np.maximum(CLAWT, _in * (_t0 + (_t1 - _t0) * _tt))
+    CLAW = np.where(part == 0, CLAW, 0.0)
+for _dx, _r in sdf.TOES if not sdf.WOLF else ():
     _cb = np.array([sdf.HIP_X + _dx * 1.2, -0.205, 0.04]); _cp = np.array([sdf.HIP_X + _dx * 1.3, -0.255, 0.006])
     _m2 = P.copy(); _m2[:, 0] = np.abs(_m2[:, 0])
     _ax = _cp - _cb; _tt = np.clip(((_m2 - _cb) @ _ax) / (_ax @ _ax), 0, 1)
     CLAW = np.maximum(CLAW, (np.linalg.norm(_m2 - (_cb + _tt[:, None] * _ax), axis=1) < _r * 0.8) * np.clip(_tt * 3, 0, 1))
 _q = np.abs(np.abs(P[:, 0]) - sdf.HIP_X)
 _hcl = (part == 3) & (P[:, 2] < 0.2)
-CLAW = np.maximum(CLAW, 0.55 * np.clip((0.078 - P[:, 2]) / 0.012, 0, 1) * (np.abs(np.abs(P[:, 0]) - sdf.HIP_X) < 0.09))   # hoof horn
+CLAW = np.maximum(CLAW, 0.55 * np.clip((0.078 - P[:, 2]) / 0.012, 0, 1) * (np.abs(np.abs(P[:, 0]) - sdf.HIP_X) < 0.09) * sdf.GOAT)   # hoof horn
 CLAW = np.where(part == 0, CLAW, np.where(_hcl, 0.92 - 0.3 * np.clip((P[:, 1] - 0.155) / 0.015, 0, 1), 0.0)).astype(np.float32)
 _de = np.minimum(np.linalg.norm(P - np.array(sdf.EYE), axis=1), np.linalg.norm(P - np.array(sdf.EYE) * [-1, 1, 1], axis=1))
 _ev = np.where((P[:, 0] > 0)[:, None], P - np.array(sdf.EYE), P - np.array(sdf.EYE) * [-1, 1, 1])
@@ -1500,7 +1628,7 @@ _bk = np.clip((N[:, 1] + 0.05) / 0.5, 0, 1)
 _fl = np.clip((np.abs(N[:, 0]) - 0.55) / 0.35, 0, 1) * (np.abs(P[:, 0]) < 0.24) * (P[:, 2] > 0.9)
 SHADE = (np.maximum(_bk, 0.6 * _fl) * np.clip((1.58 - P[:, 2]) / 0.06, 0, 1) * np.clip((P[:, 2] - 0.12) / 0.06, 0, 1)
          * (part == 0)).astype(np.float32)
-FACEV = ((P[:, 2] > 1.52) * (P[:, 1] < 0.0) * (part == 0)).astype(np.float32)
+FACEV = ((P[:, 2] > 1.52) * (P[:, 1] < 0.0) * (part == 0)).astype(np.float32) * (not sdf.WOLF)
 _nos = sdf.HD((0.0125, -0.18, 1.587))
 _nd = np.linalg.norm((np.abs(P) * [1, 0, 0] + P * [0, 1, 1] - _nos) / (np.array([0.009, 0.016, 0.007]) * sdf.HEAD_S), axis=1)
 DARK = np.maximum(DARK, np.where(part == 0, 0.75 * np.clip(1 - _nd, 0, 1) ** 0.5, 0.0) * sdf.GOAT)          # nostrils
@@ -1508,10 +1636,53 @@ _mq2 = np.linalg.norm((P - np.array(sdf.MOUTH_C)) / (np.array(sdf.MOUTH_R) * [1.
 DARK = np.maximum(DARK, np.where(part == 0, 0.6 * np.clip(1.2 - _mq2, 0, 1), 0.0) * sdf.GOAT)               # the lip line
 _chin = sdf.HD((0.0, -0.12, 1.535))
 DARK = np.maximum(DARK, np.where(part == 0, 0.3 * np.clip(1 - np.linalg.norm((P - _chin) / [0.045, 0.06, 0.03], axis=1), 0, 1), 0.0) * sdf.GOAT)
+GLOSSW = np.zeros(nv)
+FROST = np.zeros(nv)
+COAT = np.zeros(nv)
+MOUTHW = np.zeros(nv)
+if sdf.WOLF:   # silver-tipped guard hair over the shoulders, nape, ridge and forearms, and on every lock's tip
+    _lt = np.zeros(nv, np.float32)
+    if "lockT" in me.attributes:
+        me.attributes["lockT"].data.foreach_get("value", _lt)
+    _uT = sdf.unbend(P); _uT[:, 0] = np.abs(_uT[:, 0])
+    _top = np.clip((P[:, 2] - 1.3) / 0.12, 0, 1) * np.clip((N[:, 1] * 0.7 + N[:, 2] * 0.7 + 0.1) / 0.5, 0, 1)
+    _fa = np.clip((_uT[:, 0] - sdf.ELBOW_X + 0.04) / 0.06, 0, 1) * (_uT[:, 0] < sdf.WRIST_X) * np.clip((_uT[:, 1] - 0.09) / 0.03, 0, 1)
+    _back = np.clip((P[:, 2] - 0.95) / 0.35, 0, 1) * np.clip((N[:, 1] - 0.1) / 0.4, 0, 1) * 0.7
+    _low = np.clip((np.sign(P[:, 0]) * N[:, 0] - 0.2) / 0.5, 0, 1) * ((P[:, 2] < 0.95) & (P[:, 2] > 0.15)) * 0.35
+    _face = np.clip((P[:, 2] - 1.56) / 0.03, 0, 1) * np.clip((-P[:, 1] - 0.0) / 0.03, 0, 1)
+    FROST = np.where(part == 0, np.maximum(np.maximum(0.95 * np.maximum(_top, _fa), _back), _low) * (1 - _face), 0.0)
+    # the coat: pale mottled skin on the outer limbs (knees, shins, forearms) brought to the fur's colour;
+    # bare skin stays on the chest, belly and the insides of the limbs
+    _leg = (P[:, 2] < 0.9) & (P[:, 2] > 0.06) & (np.abs(P[:, 0]) > 0.03)
+    _inner_leg = np.sign(P[:, 0]) * N[:, 0] < -0.35
+    _arm = (_uT[:, 0] > 0.3) & (_uT[:, 0] < sdf.WRIST_X + 0.02)
+    COAT = np.where(part == 0, np.maximum(_leg & ~_inner_leg, _arm & (N[:, 2] > -0.3)).astype(np.float32), 0.0)
+    COAT = np.maximum(COAT, np.where(part == 0, 0.6 * ((P[:, 2] <= 0.06) & (N[:, 2] > -0.5)), 0.0))     # the paws' tops too
+    COAT = np.maximum(COAT, np.where(part == 0, 0.8 * np.clip((N[:, 1] - 0.15) / 0.3, 0, 1) * (P[:, 2] > 0.9) * (P[:, 2] < 1.56), 0.0))   # the back cooled to the front's coat
+    _mq3 = np.linalg.norm((P - np.array(sdf.MOUTH_C)) / (np.array(sdf.MOUTH_R) * [1.05, 1.0, 1.3]), axis=1)
+    MOUTHW = np.where(part == 0, np.clip((1.0 - _mq3) * 5, 0, 1), 0.0).astype(np.float32)
+    FROST = np.where(part == 6, 0.32 + 0.68 * np.clip(_lt, 0, 1) ** 1.4, FROST).astype(np.float32)   # locks: frosted coat, pale tips
+    _hd = (P[:, 2] > 1.56) & (P[:, 1] < 0.02)
+    FROST = np.where((part == 6) & _hd, 0.15 + 0.6 * np.clip(_lt, 0, 1) ** 1.4, FROST).astype(np.float32)
+if sdf.WOLF:   # a black wet nose, black lips round the gape, the mouth falling to dark down the throat
+    _m3 = np.abs(P) * [1, 0, 0] + P * [0, 1, 1]
+    _pad = np.linalg.norm((_m3 - sdf.HD((0, -0.192, 1.663))) / (np.array([0.026, 0.024, 0.022]) * sdf.HEAD_S), axis=1)
+    DARK = np.maximum(DARK, np.where(part == 0, 0.55 * np.clip((1.0 - _pad) * 3, 0, 1), 0.0))
+    _nd = np.linalg.norm((_m3 - sdf.HD((0.0092, -0.208, 1.656))) / (np.array([0.008, 0.009, 0.0065]) * sdf.HEAD_S), axis=1)
+    DARK = np.maximum(DARK, np.where(part == 0, 0.9 * np.clip(1 - _nd, 0, 1) ** 0.5, 0.0))
+    _lip = np.linalg.norm((P - np.array(sdf.MOUTH_C)) / (np.array(sdf.MOUTH_R) * [1.3, 1.08, 1.75]), axis=1)
+    DARK = np.maximum(DARK, np.where(part == 0, 0.55 * np.clip((1.12 - _lip) * 4, 0, 1), 0.0))
+    _deep = np.clip((P[:, 1] - (sdf.MOUTH_C[1] + 0.045)) / 0.04, 0, 1) * (_lip < 1.05)
+    DARK = np.maximum(DARK, np.where(part == 0, 0.6 * _deep, 0.0))
+    GLOSSW = np.where(part == 0, np.maximum(np.clip((1.05 - _pad) * 3, 0, 1), np.clip((1.1 - _lip) * 4, 0, 1)), 0.0)
+    GLOSSW = np.maximum(GLOSSW, (part == 2) * 0.6)
+    _tv = np.zeros(nv); _tv[lv] = np.clip((SPX[:, 1] - 258) / 32, 0, 1)
+    TOOTH = np.where(part == 2, 0.3 + 0.7 * _tv, 0.0).astype(np.float32)      # dirty ivory, root to point
 np.savez_compressed(npz, atlas=AUV, sheet=SPX, tri=tl[tm == 0], P=P[lv], N=N[lv], W=Wv[lv], LOW=LOWV[lv],
                     CAV=CAV[lv], ROT=ROT[lv], DARK=DARK[lv], WOUND=WOUND[lv], BONE=BONE[lv], TOOTH=TOOTH[lv],
                     NAIL=NAIL[lv], BED=BED[lv], EYEW=EYEW[lv], LIMB=LIMB[lv], CLAW=CLAW[lv], HORNF=HORNF[lv], SPIKE=SPIKE[lv], NOSEL=NOSEL[lv],
-                    GLOSS=(part == 7).astype(np.float32)[lv], SHADE=SHADE[lv], FACE=FACEV[lv], EYE=np.array(sdf.EYE))
+                    GLOSS=np.maximum((part == 7).astype(np.float32), GLOSSW)[lv], SHADE=SHADE[lv], FACE=FACEV[lv], EYE=np.array(sdf.EYE),
+                    CLAWT=CLAWT[lv], FROST=FROST[lv], COAT=COAT[lv], MOUTHW=MOUTHW[lv])
 BAKED = os.path.join(OUT, "tex")
 r = subprocess.run(["python", "-I", os.path.join(HERE, "bake_tex.py"), npz, TEX, BAKED], capture_output=True, text=True,
                    env=dict(os.environ, BRUTE=sdf.SPECIES, BEAST=sdf.SPECIES))
@@ -1527,7 +1698,7 @@ if os.path.exists(_em):
     _eu = nt.nodes.new("ShaderNodeUVMap"); _eu.uv_map = "Atlas"
     nt.links.new(_eu.outputs["UV"], _et.inputs["Vector"])
     nt.links.new(_et.outputs["Color"], _bs.inputs["Emission Color"])
-    _bs.inputs["Emission Strength"].default_value = 3.2
+    _bs.inputs["Emission Strength"].default_value = 6.0 if sdf.WOLF else 3.2
 for nd in list(nt.nodes):
     if nd.type == "TEX_IMAGE" and nd.image and nd.image.name in swap:
         cs = nd.image.colorspace_settings.name

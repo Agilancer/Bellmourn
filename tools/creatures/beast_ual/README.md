@@ -22,7 +22,14 @@ blender -b <work>/out/beast_goat.blend --python tools/creatures/beast_ual/review
 ```
 
 A build takes about 2 minutes and ends by slimming the GLB (`slim.py`). Copy
-`<work>/out/beast_goat.glb` into `templates/models/creatures/beast_ual/`.
+`<work>/out/beast_<species>.glb` into Bellmourn2's `templates/models/creatures/beast_ual/` (the
+model store, docs/ASSETS.md) and merge that before the tools change here.
+
+It also runs inside a live Blender (driven over MCP, as the werewolf was): exec build.py from a
+`bpy.app.timers` callback with `bpy.ops.wm.read_factory_settings(use_empty=True)` swapped for a
+data clear (reading factory settings unloads the add-ons), the cached modules (`sdf`, `uvmap`,
+`beastclips`, `beastparts`) dropped from `sys.modules` and `os.environ["BEAST"]` set first; then
+review.py in the same session.
 
 ## Files
 
@@ -37,10 +44,20 @@ A build takes about 2 minutes and ends by slimming the GLB (`slim.py`). Copy
   mane) coloured from the painted fur.
 - `beastclips.py`: the species' clips, cut from UAL clips, reshaped in armature space, with
   two-bone IK for planted hooves and fists; and the hunch applied to every clip.
-  Goat: `Goat_Idle_Loop`, `Goat_Ram_Charge`, `Goat_Hammer`, `Goat_Leap`. All in place, like UAL.
+  Goat: `Goat_Idle_Loop`, `Goat_Ram_Charge`, `Goat_Hammer`, `Goat_Leap`.
+  Wolf: `Wolf_Idle_Loop`, `Wolf_Prowl_Loop`, `Wolf_Run_Loop`, `Wolf_Rake` (contacts f13, f27),
+  `Wolf_Lunge_Bite` (built from its own idle: tell f5-13, hit f22, punish window f46-58),
+  `Wolf_Pounce` (lands f36), `Wolf_Howl`; every library clip gets the hands opened (`claws_all`:
+  long claws would pierce a fist) and the jaw held in a snarl (`jaw_all`). All in place, like UAL.
 - `bake_tex.py`: the sheet baked onto the model's atlas, clone-patched where it stretches,
   countershaded (darker back and flanks) for a two-tone read in the dark.
 - `slim.py`: drops the animation channels that never leave the rest pose and stores the skin
   weights as bytes (the goat: 9.6 MB to 6.5 MB, every clip plays exactly as before).
+- The wolf (`BEAST=wolf`): a jaw bone added to the rig (`build.add_jaw`, weights by hand in
+  `jaw_weights`); fur as geometry locks (`beastparts._lock`: flattened, drooping, frosted at the
+  tips through the `lockT` attribute) over sculpted ruff bulk (`sdf.TUFTS`); dark-fur islands found
+  by grain, not brightness (`prep_tex.fur_islands`); the bridge of the muzzle mapped by distance
+  along the snout; frost kept off the face; `symmetrize` (a pose averaged with its mirror in
+  armature space) where a base clip spins.
 - `review.py`: lit contact sheets (`LIGHT=studio` by default, `LIGHT=crypt` for the dim one),
   `clip:<Action>@<fraction>:-:<view>` shots and `b_*` beast close-ups.
