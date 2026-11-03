@@ -655,9 +655,22 @@ export class Cave {
       }
     }
     const BONES = ['catacombs_skull_pyramid', 'catacombs_long_bone_heap', 'catacombs_supine_skeleton', 'catacombs_burial_urn_cluster'];
+    // (in a passage, a skeleton slumped at the foot of its wall, low enough to pass: never a heap of
+    // skulls on the way through, which spot() would put on the passage's middle line)
+    const byWall = (f) => {
+      for (let t = 0; t < 30; t++) {
+        const seg = Math.floor(R() * (f.pts.length - 1)), u = 0.2 + R() * 0.6, [a0, b0] = f.pts[seg], [a1, b1] = f.pts[seg + 1], L = Math.hypot(a1 - a0, b1 - b0) || 1, side = R() < 0.5 ? -1 : 1;
+        const a = lerp(a0, a1, u), b = lerp(b0, b1, u), nx = -(b1 - b0) / L * side, nz = (a1 - a0) / L * side;
+        let last = null;
+        for (let r = 0; r < 6; r += 0.2) { const x = px + a + nx * r, z = pz + b + nz * r, j = this.idx(x, z); if (j < 0 || S[j] > -0.5) break; last = [x, z, j]; }
+        if (last && Math.hypot(last[0] - w.x, last[1] - w.z) > w.r + 0.8) return new THREE.Vector3(last[0], FL[last[2]], last[1]);
+      }
+      return null;
+    };
     for (const [tag, n2] of this.decor.bones) for (let q = 0; q < n2; q++) {
-      const p = spot(tag, 1.0);
-      if (p && ctx.bill) ctx.bill.add(BONES[q % BONES.length], p.x, p.y, p.z, 1, 0.85);
+      const f = this.features.find((ff) => ff.tag === tag), pass = f?.type === 'pass';
+      const p = pass ? byWall(f) : spot(tag, 1.0);
+      if (p && ctx.bill) ctx.bill.add(pass ? 'catacombs_supine_skeleton' : BONES[q % BONES.length], p.x, p.y, p.z, 1, 0.85);
     }
 
     // the flow field's walkable cells (a margin off the walls)
