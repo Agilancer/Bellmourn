@@ -36,6 +36,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
 import { cullable, shareSkeletons, refineTexture, crisp, SHADE_LAYER, letGo } from './engine.js';
 import { WEBGPU, T, sourceOf } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -2095,11 +2096,11 @@ export class Zombies {
 
   async load(variants = [], monsters = [], grotesques = GROTESQUES) {
     const loader = new GLTFLoader();
-    const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(`${MONSTER_ROOT}${m}.glb`)); };
+    const monster = async (m) => { this.gltf[m] = adaptMonster(await loader.loadAsync(asset(`${MONSTER_ROOT}${m}.glb`))); };
     // the dead are the UAL bodies now, under the grotesques' names; the clips they share come first
     let clips = null;
-    try { clips = ualClips(await loader.loadAsync(UAL_ROOT + 'ual2_clips.glb')); } catch (e) { console.warn('undead clips', e); }
-    const ual = (file, own) => loader.loadAsync(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${file}.glb`).then((gl) => adaptUAL(gl, clips, own));
+    try { clips = ualClips(await loader.loadAsync(asset(UAL_ROOT + 'ual2_clips.glb'))); } catch (e) { console.warn('undead clips', e); }
+    const ual = (file, own) => loader.loadAsync(asset(`${UAL_ROOT}game/${TOUCH ? 'phone/' : ''}${file}.glb`)).then((gl) => adaptUAL(gl, clips, own));
     const grotesque = async (g) => {   // one that won't load is left out of the horde, not fatal
       if (clips && UAL_FAMILY[g]) {    // a family of bodies under one name
         let fam = UAL_FAMILY[g];
@@ -2111,7 +2112,7 @@ export class Zombies {
         if (got.length) { (this.bodies ||= {})[g] = got; this.gltf[g] = got[0].gltf; return; }
       }
       try {
-        this.gltf[g] = clips && UAL_DEAD[g] ? await ual(UAL_DEAD[g]) : await loader.loadAsync(`${GROTESQUE_ROOT}${g}.glb`);
+        this.gltf[g] = clips && UAL_DEAD[g] ? await ual(UAL_DEAD[g]) : await loader.loadAsync(asset(`${GROTESQUE_ROOT}${g}.glb`));
       } catch (e) { console.warn('undead', g, e); }
     };
     const one = async () => {   // a phone: one decoding at a time
@@ -2119,7 +2120,7 @@ export class Zombies {
       for (const g of grotesques) await grotesque(g);
     };
     await Promise.all([
-      ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(`${ROOT}zombie_${v}.glb`); }),
+      ...variants.map(async (v) => { this.gltf[v] = await loader.loadAsync(asset(`${ROOT}zombie_${v}.glb`)); }),
       ...(TOUCH ? [one()] : [...monsters.map(monster), ...grotesques.map(grotesque)]),
     ]);
     this.pool = [...variants, ...monsters, ...grotesques.filter((g) => this.gltf[g])];

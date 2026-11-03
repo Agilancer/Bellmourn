@@ -10,9 +10,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
-import { WEBGPU, T } from './nodes.js';
+import { WEBGPU, T, keyed, settled } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-const ROOT = 'templates/models/';
+const ROOT = asset('templates/models/');
 const _p = new THREE.Vector3(), _a = new THREE.Vector3(), _d = new THREE.Vector3(), _h = new THREE.Vector3();
 // the greatsword turns a quarter in the hands as a swing lifts it, so it cuts with the edge
 // (the carry shows the flat); it turns back as the blade comes home
@@ -22,6 +23,8 @@ const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloo
   'penitents_greatsword', 'tombstone']);
 // the kinds whose model can be chosen in the inventory (every model of that kind in the manifest)
 const MODEL_TYPE = { onehand: 'one-handed weapon', twohand: 'two-handed weapon' };
+// the one-handers that crush rather than cut: they bonk where a blade would stab (main.js BLUNT)
+const BLUNT = /mace|hammer|club|morning_star|maul/;
 export const ITEMS = {
   onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
   twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
@@ -184,6 +187,30 @@ function fleshKind() {
   return Flesh;
 }
 
+/** The arm models (gauntlets and bare arms) are open at the elbow and drawn two-sided, so a forearm
+ * brought up by the eye (a two-hander's windups and follow-throughs) showed the inside of its sleeve
+ * lit and painted like the outside. Their back faces, the inside, are drawn near black, as in shadow:
+ * the lit colour times INSIDE, the same in both renderers (before any fog: the arms' scene has none).
+ * Held items keep both faces lit. */
+const INSIDE = 0.06;
+let insideOut = null;
+function darkInside(m) {
+  if (WEBGPU) {
+    const { vec4, output, frontFacing, select } = T;
+    insideOut ||= settled(vec4(output.rgb.mul(select(frontFacing, 1.0, INSIDE)), output.a));
+    m.outputNode = insideOut;
+    return m.isNodeMaterial ? m : keyed(m, 'arm-inside');
+  }
+  const own = m.onBeforeCompile, key = Object.hasOwn(m, 'customProgramCacheKey') ? m.customProgramCacheKey() : '';
+  m.onBeforeCompile = (sh, r) => {
+    own.call(m, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>',
+      `if ( ! gl_FrontFacing ) outgoingLight *= ${INSIDE.toFixed(3)};\n#include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => key + '|bm-inside';
+  return m;
+}
+
 /** The move set: catalog + each side's clips (smoothed once), fetched on first use. */
 let movesP = null;
 export function loadMoves(loader = new GLTFLoader()) {
@@ -317,7 +344,10 @@ export class ViewModel {
   resize(aspect) {
     this.aspect = aspect;
     // the rigs' projection (tools/models/viewer.html), widened for any aspect ratio
-    const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S;
+    // (a two-hander also gets its own viewmodel field of view, zoomed out about the centre so arms
+    // swinging right past the eye read smaller; the crosshair stays put)
+    const zoom = this.twoHanded() ? (this.moves?.cat.views?.twohand_zoom ?? 1) : 1;
+    const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S * zoom;
     // (a two-hander's arms swing past the eye: anything nearer than 10 cm is cut away, so a passing
     // sleeve flicks by instead of filling the screen with its inside)
     const CY = H - (H / 2) * S, near = S === this.manifest.view_scale ? 0.02 : 0.10, far = 20;
@@ -446,7 +476,7 @@ export class ViewModel {
     const out = new THREE.MeshPhongMaterial({ map: m.map, side: THREE.DoubleSide,
       specular: item ? 0x6a625a : 0x1c1a18, shininess: item ? 48 : 16 });
     if (m.map && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.map, item ? 1.0 : 1.3);
-    return crisp(out);
+    return crisp(item ? out : darkInside(out));
   }
 
   /** Bare skin (the bare arms, tools/models/hands/build_hands.py): its bumps from its own height map
@@ -458,7 +488,7 @@ export class ViewModel {
     if (m.aoMap && this.lib?.normals) out.normalMap = this.lib.normalFrom(m.aoMap, 0.9);
     const shine = m.metalnessMap || m.roughnessMap;
     if (shine) out.specularMap = shine;
-    if (WEBGPU) return crisp(out);   // (its light is its kind's own: fleshKind)
+    if (WEBGPU) return crisp(darkInside(out));   // (its light is its kind's own: fleshKind)
     out.onBeforeCompile = (sh) => {
       // (and the sky's and the ground's light on it mostly greyed: the world's warm fill made skin clay)
       sh.fragmentShader = sh.fragmentShader.replace('#include <lights_phong_pars_fragment>', THREE.ShaderChunk.lights_phong_pars_fragment.replace(
@@ -470,7 +500,7 @@ export class ViewModel {
         .replace('#include <opaque_fragment>', 'outgoingLight = mix( outgoingLight, vec3( dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ), 0.25 * ( 1.0 - smoothstep( 0.08, 0.3, dot( outgoingLight, vec3( 0.299, 0.587, 0.114 ) ) ) ) );\n#include <opaque_fragment>');
     };
     out.customProgramCacheKey = () => 'bm-flesh';
-    return crisp(out);
+    return crisp(darkInside(out));
   }
 
   /** Put the equipped items in the hands and start the matching walk loops. */
@@ -565,7 +595,9 @@ export class ViewModel {
    * the next blow of a combo will follow the one under way). */
   attackRight() { return this.attack('R'); }
 
-  attack(side) {
+  /** Attack with this hand; `slot` picks another of the weapon's attacks (a two-hander: right
+   * click 'twohand_r', wheel click 'twohand_m'), the hand's own slot otherwise. */
+  attack(side, slot = null) {
     const kind = this.equip[side];
     if (!kind) return 'spell';
     let st = this.state[side];
@@ -577,16 +609,17 @@ export class ViewModel {
       // that rests after this blow takes no more until it has
       if (st.chain && !st.queued && !this.rests(side, st) && st.action.time < (st.events.link ?? st.duration) + 0.15) { st.queued = true; return 'queued'; }
       // near the end of a rest: kept, and it goes as soon as the weapon is back at the carry
-      if (st.chain && this.rests(side, st) && (st.duration - st.action.time) / (st.action.timeScale || 1) <= BUFFER) { this.buffered[side] = true; return 'buffered'; }
+      if (st.chain && this.rests(side, st) && (st.duration - st.action.time) / (st.action.timeScale || 1) <= BUFFER) { this.buffered[side] = slot || true; return 'buffered'; }
       return null;
     }
     const both = ITEMS[kind]?.both;
     if (both && this.busy('L') && !/_aside_/.test(this.state.L.name)) return null;
-    const list = this.pick(SLOT_OF[kind])?.chain;
+    const list = this.pick(slot || SLOT_OF[kind])?.chain;
     if (!list) return null;
-    const index = both ? (this.turn[side] ?? 0) : 0;   // (two-handers take turns about their blows)
+    const tk = side + (slot || '');                    // (each button keeps its own turn)
+    const index = both ? (this.turn[tk] ?? 0) : 0;   // (two-handers take turns about their blows)
     this.strike(side, list, index, 0, 0.1);
-    if (both) this.turn[side] = index + 1;
+    if (both) this.turn[tk] = index + 1;
     return kind;
   }
 
@@ -617,14 +650,19 @@ export class ViewModel {
     }
   }
 
-  /** With the shield up the sword hand only stabs, round the shield's edge (LMB). */
+  /** With the shield up the sword hand only thrusts over the rim (a blunt weapon bonks) (LMB). */
   stab() {
     if (!this.blocking || this.equip.R !== 'onehand') return null;
     const st = this.state.R;
     if (st && st.name !== 'sword_guard') return null;
-    this.play('R', 'sword_stab', { fade: 0.06, speed: PACE.onehand });
-    return 'stab';
+    // a blade thrusts down the crosshair over the rim; a mace, hammer or club bonks instead
+    const want = this.blunt() ? 'blade_over' : 'blade_stab';
+    this.play('R', this.clipInfo(want) ? want : 'sword_stab', { fade: 0.06, speed: PACE.onehand });
+    return this.blunt() ? 'bonk' : 'stab';
   }
+
+  /** Whether this hand's one-hander is blunt (a mace, hammer or club): no stabs. */
+  blunt(side = 'R') { return this.equip[side] === 'onehand' && BLUNT.test(ITEMS.onehand.id || ''); }
 
   /** A see-through, rim-lit ghost of the held shield, to throw as the shove's wave
    * ({g, alpha(a), w}: its shield's width; shovewave.js places and flies it). */
@@ -644,11 +682,12 @@ export class ViewModel {
     const it = this.arms.L?.item;
     if (!it || !SHIELD[this.equip.L]) return null;
     it.updateMatrixWorld(true);
-    return it.localToWorld(new THREE.Vector3(0, 0, 0.08));
+    const c = this.shieldSize().c;   // (the board's middle: the grip is near its right edge now)
+    return it.localToWorld(new THREE.Vector3(c.x, c.y, 0.08));
   }
 
-  /** The held shield's size in metres ({w, h}: across its face and along its grip), from its
-   * own model (the shove's reach and width go by it). */
+  /** The held shield's size in metres ({w, h}: across its face and along its grip; c: its
+   * middle, from the grip), from its own model (the shove's reach and width go by it). */
   shieldSize() {
     const it = this.arms.L?.item;
     if (!it || !SHIELD[this.equip.L]) return null;
@@ -662,7 +701,7 @@ export class ViewModel {
         b.union(mb.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
       });
       const sz = b.getSize(new THREE.Vector3());
-      it.userData.size = { w: sz.x, h: sz.y };
+      it.userData.size = { w: sz.x, h: sz.y, c: b.getCenter(new THREE.Vector3()) };
     }
     return it.userData.size;
   }
@@ -679,7 +718,7 @@ export class ViewModel {
     // a shield swings out of the sword's way, frame for frame with the blow
     const sh = this.equip.L;
     if (side === 'R' && kind === 'onehand' && SHIELD[sh] && !this.blocking && (!this.state.L || /_aside_/.test(this.state.L.name)))
-      this.play('L', `${SHIELD[sh]}_aside_${name.split('_')[1]}`, { from, fade, freeze, speed });
+      this.play('L', `${SHIELD[sh]}_aside_${name.slice(name.indexOf('_') + 1)}`, { from, fade, freeze, speed });
     // and a sword in the other hand makes room for this one
     const other = side === 'R' ? 'L' : 'R';
     if (kind === 'onehand' && this.equip[other] === 'onehand' && (!this.state[other] || /_aside_/.test(this.state[other].name)))
@@ -787,9 +826,9 @@ export class ViewModel {
         else if (!st.unwind && !a.paused && a.time >= st.duration - 1e-4) {
           this.state[side] = null;
           const t3 = this.manifest.events[BLOCK[this.equip.L]]?.hold;
-          if (st.name === 'sword_stab' && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
+          if ((st.name === 'sword_stab' || st.name === 'blade_stab' || st.name === 'blade_over') && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
           else this.playWalk(side);
-          if (this.buffered[side]) { this.buffered[side] = false; if (st.chain) (this.kept ||= []).push(side); }   // (the kept click: below, once both hands are done)
+          if (this.buffered[side]) { const b = this.buffered[side]; this.buffered[side] = false; if (st.chain) (this.kept ||= []).push([side, b === true ? null : b]); }   // (the kept click: below, once both hands are done)
         }
       } else if (arm.walk) {
         arm.walk.timeScale = 0.25 + Math.min(1.3, speed / 6.2);
@@ -812,7 +851,7 @@ export class ViewModel {
         st.last = t;
       }
     }
-    for (const s of this.kept?.splice(0) || []) this.attack(s);
+    for (const [s, slot] of this.kept?.splice(0) || []) this.attack(s, slot);
     this.slide(dt);
   }
 
@@ -820,7 +859,7 @@ export class ViewModel {
    * so nothing bends) by how far its grip is from the centre, so the hands ride wide. Two hands
    * on one grip slide together. */
   slide(dt = 1 / 60) {
-    if (this.manifest && this.viewScale() !== this.shownScale) this.resize(this.aspect ?? 1.6);   // (weapon changed)
+    if (this.manifest && (this.viewScale() !== this.shownScale || this.twoHanded() !== this.shownTwo)) { this.shownTwo = this.twoHanded(); this.resize(this.aspect ?? 1.6); }   // (weapon changed)
     const fx = this.camera.projectionMatrix.elements[0];
     // (a two-hander drawn unshrunk keeps its hands where the capture put them: no spread)
     const wide = this.viewScale() === this.manifest?.view_scale;
@@ -833,6 +872,12 @@ export class ViewModel {
       arm.scene.updateMatrixWorld(true);
       const p = arm.socket.getWorldPosition(_p);
       shift[side] = p.z < -0.01 ? (fx * p.x / -p.z) * (f - 1) : 0;
+      // (a crosshair one-hander, swung along its line through the crosshair, isn't spread: it
+      // would push the tip off the crosshair; the spread eases out and back in around it)
+      this.slideK ??= { R: 1, L: 1 };
+      const keep = this.clipInfo(this.state[side]?.name)?.noslide ? 0 : 1;
+      this.slideK[side] += (keep - this.slideK[side]) * Math.min(1, dt * 14);
+      shift[side] *= this.slideK[side];
     }
     if (this.twoHanded() && shift.R !== undefined) shift.L = shift.R;
     for (const side of ['R', 'L']) {

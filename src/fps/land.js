@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { REGION, POOL, STREAM, terrainHeight as downsHeight, streamAt } from './terrain.js';
 import { WEBGPU, T, keyed, ref, settled } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 export const WORLD = { x0: -1150, x1: 1250, z0: -1200, z1: 1200 };
 export const CORE_R = 300;   // the village clearing and the Darkwood: flat ground (y = 0)
@@ -311,7 +312,8 @@ export class Land {
         res();
       };
       img.onerror = res;
-      img.src = `templates/models/kit/tex/ground_${name}.png`;
+      img.crossOrigin = 'anonymous';   // (read back above: fine from the Pages copy too)
+      img.src = asset(`templates/models/kit/tex/ground_${name}.png`);
     }))).then(() => { arr.needsUpdate = true; });
     const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x060606, shininess: 4 });
     m.userData.noGlass = true;

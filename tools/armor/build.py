@@ -25,13 +25,15 @@ from mathutils import Matrix, Vector, kdtree
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path[:0] = [HERE]
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
 
 import pieces as PC  # noqa: E402
 import retarget as RT  # noqa: E402
 from sets import SETS  # noqa: E402
 
-VILLAGERS = os.path.join(ROOT, "templates", "models", "creatures", "villagers")
-GAUNTLETS = os.path.join(ROOT, "templates", "models", "gauntlets")
+VILLAGERS = models("creatures", "villagers")
+GAUNTLETS = models("gauntlets")
 SWATCHES = os.path.join(ROOT, "assets", "textures", "materials")
 REF = {"male": "villager_m10", "female": "villager_f06"}
 PPM = 800  # swatch pixels per metre, as dress.py

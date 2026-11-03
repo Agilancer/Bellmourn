@@ -1,21 +1,31 @@
 """Static dev server for the game with caching disabled (ES modules are cached aggressively).
-Serves the checkout it lives in, wherever it is started from.
+Serves the checkout it lives in, wherever it is started from, and under /Bellmourn2/ the Bellmourn2
+checkout beside it (where the models live: docs/ASSETS.md), as GitHub Pages lays the two out.
 
 POST /shot?name=foo with a PNG body saves art/view/shots/foo.png (&ext=wav: foo.wav, a voice sample), so exact game-canvas frames
 can be pulled out of the browser for pixel review (localhost only).
-POST /picks with a JSON body saves templates/models/fp_picks.json: the attacks chosen in the
-move picker (moves.html)."""
+POST /picks with a JSON body saves Bellmourn2's templates/models/fp_picks.json: the attacks chosen
+in the move picker (moves.html)."""
 import http.server, json, os, re, sys
 from urllib.parse import urlparse, parse_qs
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from assetstore import STORE, models  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'art', 'view', 'shots')
-PICKS = os.path.join(ROOT, 'templates', 'models', 'fp_picks.json')
-MOVES = os.path.join(ROOT, 'templates', 'models', 'fp_moves.json')
+STORE_PATH = '/Bellmourn2/'   # (the URL the game asks for it at: src/fps/store.js)
+if STORE:
+    print(f'Serving {STORE} at {STORE_PATH}', flush=True)
+else:
+    print(f'No Bellmourn2 checkout beside {ROOT}: the game reads the models from GitHub Pages', flush=True)
 
 
 def save_picks(data):
     """Keep only real slot -> option ids from the move catalog; returns what was written."""
+    if not STORE:
+        raise OSError('no Bellmourn2 checkout')
+    PICKS, MOVES = models('fp_picks.json'), models('fp_moves.json')
     slots = json.load(open(MOVES, encoding='utf-8'))['slots']
     picks = json.loads(data)
     out = {k: v for k, v in picks.items()
@@ -31,6 +41,16 @@ def save_picks(data):
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=ROOT, **k)
+
+    def translate_path(self, path):
+        # /Bellmourn2/... is the Bellmourn2 checkout (the cleaning in the base class keeps it inside)
+        if STORE and urlparse(path).path.startswith(STORE_PATH):
+            home, self.directory = self.directory, STORE
+            try:
+                return super().translate_path(path[len(STORE_PATH) - 1:])
+            finally:
+                self.directory = home
+        return super().translate_path(path)
 
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store')

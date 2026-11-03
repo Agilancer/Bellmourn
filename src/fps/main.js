@@ -14,6 +14,7 @@ import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 import { Builder } from './geo.js';
 import { Billboards } from './sprites.js';
 import { Props } from './props.js';
@@ -398,7 +399,7 @@ async function build() {
   ctx.motes = new Motes(scene, ctx, touch);   // (snow off the horn, motes in the caves, embers off the fires)
   ctx.motes.fires = ctx.fires || [];
 
-  const manifest = await (await fetch('templates/models/manifest.json')).json();
+  const manifest = await (await fetch(asset('templates/models/manifest.json'))).json();
   useManifest(manifest);
   fitCharacter(char); saveCharacter(char);   // its arms' models, and the basic sword, shield and staff
   vm = new ViewModel(manifest, kit);
@@ -2400,7 +2401,12 @@ function step(dt) {
     { const on = hasAbility(char, 'darkSight') && L.under > 0.3, c = camera.position;   // (the Glimmerstone: a faint light about you below)
       GLIMMER[0] = c.x; GLIMMER[1] = on ? c.y - 0.25 : -9999; GLIMMER[2] = c.z; GLIMMER.power = 2.6 * Math.min(1, L.under * 1.5); }
     player.update(dt, inp);
-    for (const code in QUICK) if (inp.was(code)) equip(QUICK[code]);
+    // 1-6: with a one-hander out, a combo each (maces, hammers and clubs bonk where a blade stabs);
+    // Shift+1-5 (or 1-5 with no one-hander out) quick-equip
+    const shift = inp.held('ShiftLeft') || inp.held('ShiftRight');
+    const oneOut = vm.equip.R === 'onehand' && !vm.blocking;
+    for (const code in QUICK) if (inp.was(code) && (shift || !oneOut)) equip(QUICK[code]);
+    if (oneOut && !shift) for (let n = 1; n <= 6; n++) if (inp.was('Digit' + n)) vm.attack('R', (vm.blunt() ? 'blunt' : 'onehand') + n);
     if (inp.was('KeyQ')) drink('life');
     if (inp.was('KeyZ')) drink('mana');
     // right hand
@@ -2426,6 +2432,11 @@ function step(dt) {
         }
       } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
     } else if (inp.was('Mouse0')) vm.attackRight();   // (a click for every blow: between a combo's blows the next waits cocked a moment)
+    // a two-hander has an attack on each button: right click its wide back-and-forth, wheel click its stab
+    if (vm.twoHanded() && !vm.blocking) {
+      if (inp.was('Mouse2')) vm.attack('R', 'twohand_r');
+      else if (inp.was('Mouse1')) vm.attack('R', 'twohand_m');
+    }
     // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
     if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
     const wasBlocking = vm.blocking;

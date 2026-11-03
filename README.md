@@ -37,6 +37,11 @@ the Deep Undercroft. The old zombies and monsters stay in the repo, unloaded.
 python tools/serve.py 8124
 ```
 
+The models (`templates/models`) live in the [Bellmourn2](https://github.com/Agilancer/Bellmourn2)
+repo, to keep this one's Pages site under GitHub's 1 GB: clone it beside this checkout and the
+server serves it at `/Bellmourn2/`, as Pages does ([docs/ASSETS.md](docs/ASSETS.md)). Paths like
+`templates/models/...` below are in that repo.
+
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 `/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
 Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page

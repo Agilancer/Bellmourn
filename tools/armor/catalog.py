@@ -12,10 +12,12 @@ from PIL import Image, ImageDraw
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
 
 from sets import SETS  # noqa: E402
 
-ARMOR = os.path.join(ROOT, "templates", "models", "armor")
+ARMOR = models("armor")
 
 
 def main():

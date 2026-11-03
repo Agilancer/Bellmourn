@@ -55,7 +55,12 @@ def at(xf, yf, z):
 def slide(arms):
     """How far (drawn px) each arm is slid sideways: {side: px}. Two hands on one grip slide
     together, by the right hand's amount."""
+    if R.VIEW_SCALE != R.REST_SCALE:   # (a two-hander drawn unshrunk keeps its hands where they are)
+        return {}
     g = {a["side"]: R.project(a["G"])[0] - W / 2 for a in arms if a["G"][2] > R.NEAR}
+    for a in arms:   # (the crosshair one-handers stay where they are swung: no slide)
+        if a.get("noslide"):
+            g[a["side"]] = 0.0
     out = {s: x * (STRETCH - 1) for s, x in g.items()}
     if any(a.get("support") for a in arms) and "R" in out:
         out["L"] = out["R"]
@@ -101,7 +106,9 @@ def towards(a, b, s, name, tics, **extra):
 SWORD = dict(S=at(0.80, 0.90, 0.40), ang=86, dz=0.05)
 GREAT = dict(S=at(0.76, 0.90, 0.42), ang=62, dz=0.15, twist=-22)  # (torso turned right)
 STAFF = dict(S=at(0.83, 0.95, 0.36), ang=90, dz=0.05)
-KITE = dict(S=at(0.85, 1.05, 0.46), ang=100, dz=0.10, face=(0.62, 0.10, 0.78))
+# (shields are held by a grip at the board's right edge and strapped along the forearm
+# (tools/models/shield_grip.py, arm.py): the forearm runs across the body so the board faces out)
+KITE = dict(S=at(0.62, 1.30, 0.36), ang=100, dz=0.10, face=(0.30, 0.10, 0.95))
 ROUND = dict(KITE)   # (held like the kite: see ROUND_BLOCK)
 HAND = palm("READY", 2, 0.82, 0.89, 0.33, (-0.10, 0.30, 0.95), (-0.40, -0.90, 0.15), 0.55)
 BOTH = palm("READY", 2, 0.75, 0.90, 0.32, (-0.15, 0.30, 0.94), (-0.45, -0.85, 0.25), 0.55)
@@ -229,15 +236,15 @@ SWORD_STAB = [
 # Block (UAL2 Idle_Shield_Loop / Shield_OneShot / Idle_Shield_Break): the shield comes up across
 # the chest, face to the enemy, its rim just under the crosshair so you look over it; a blow
 # knocks it back and out (BRACE), then it lowers to the corner. Frame 3 holds while blocking.
-KITE_UP = dict(S=at(0.62, 0.90, 0.50), ang=96, dz=0.0, face=(-0.28, 0.12, 0.95))
+KITE_UP = dict(S=at(0.47, 1.00, 0.38), ang=92, dz=0.0, face=(0.0, 0.08, 1.0))   # (fist mid, forearm across, rim under the crosshair)
 KITE_BLOCK = [
     pose(KITE, "CARRY", 2, ref="Shield_OneShot@0"),
     towards(KITE, KITE_UP, 0.45, "RAISE 1", 1, ref="Shield_OneShot@2"),
     towards(KITE, KITE_UP, 0.85, "RAISE 2", 1, ref="Shield_OneShot@4"),
-    pose(KITE_UP, "SHOVE", 3, S=at(0.57, 0.80, 0.56), face=(-0.38, 0.14, 0.92), ref="Shield_OneShot@6"),   # (driven out and up: the shove)
-    pose(KITE_UP, "STEADY", 2, S=at(0.62, 0.91, 0.50), ref="Shield_OneShot@8"),   # (settling back into the block)
+    pose(KITE_UP, "SHOVE", 3, S=at(0.48, 0.92, 0.48), face=(0.0, 0.20, 1.0), ref="Shield_OneShot@6"),   # (driven out and up: the shove)
+    pose(KITE_UP, "STEADY", 2, S=at(0.47, 1.01, 0.39), ref="Shield_OneShot@8"),   # (settling back into the block)
     pose(KITE_UP, "BLOCK", 4, ref="Idle_Shield_Loop@0", hold=True),
-    dict(KITE_UP, name="BRACE", tics=2, S=at(0.65, 0.94, 0.46), face=(0.12, 0.05, 0.99),
+    dict(KITE_UP, name="BRACE", tics=2, S=at(0.49, 1.07, 0.33), face=(0.25, 0.30, 0.92),
          ref="Idle_Shield_Break@4"),
     towards(KITE, KITE_UP, 0.65, "LOWER 1", 2),
     towards(KITE, KITE_UP, 0.30, "LOWER 2", 2),
@@ -252,13 +259,13 @@ def raised(key, dy=0.03):
     return dict(key, S=(x, y - dy * H / VIEW, z))
 
 
-ROUND, ROUND_UP = raised(KITE), raised(KITE_UP)
-ROUND_BLOCK = [raised(key) for key in KITE_BLOCK]
+ROUND, ROUND_UP = raised(KITE, 0.14), raised(KITE_UP, 0.14)   # (smaller: held higher to cover as much)
+ROUND_BLOCK = [raised(key, 0.14) for key in KITE_BLOCK]
 # a second sword makes room the same way when the other hand swings: out and down a little
 SWORD_ROOM = dict(S=at(0.87, 0.96, 0.40), ang=78, dz=0.10)
 # out of the way of the sword: lower and further out into the corner, face turned outward
-KITE_ASIDE = dict(S=at(0.95, 1.16, 0.46), ang=110, dz=0.12, face=(0.90, 0.12, 0.42))
-ROUND_ASIDE = raised(KITE_ASIDE)
+KITE_ASIDE = dict(S=at(0.80, 1.36, 0.36), ang=105, dz=0.10, face=(0.75, 0.10, 0.66))
+ROUND_ASIDE = raised(KITE_ASIDE, 0.14)
 
 
 def aside_weights(keys):
@@ -389,7 +396,7 @@ BOTH_CAST = [
 # its 3 segments from the hand's line, toward the palm; fan], in degrees; the thumb [opening
 # from the fingers' line toward the thumb side, its lift off the palm, bend at the knuckle,
 # bend at the tip]. A left-hand video reads as the mirrored right.
-MOCAP_VIDEOS = ("one", "twoL", "twoR", "swing2h")
+MOCAP_VIDEOS = ("one", "twoL", "twoR", "swing2h", "swing1h")
 
 
 def thumb(open_, lift, mcp, ip):
@@ -606,6 +613,9 @@ def add(cid, frames_by_side, **info):
 SWORD_ATTACKS = dict(chop=SWORD_CHOP, diag=SWORD_DIAG, back=SWORD_BACK, rise=SWORD_RISE)
 # two-handed: the user's own swing video (mocap2h.py), drawn unshrunk from a raised eye
 GREAT_ATTACKS = mocap2h.clips()
+# one-handed: the user's sword-and-shield video (mocap1h.py), by the same crosshair rules
+import mocap1h  # noqa: E402
+BLADE_ATTACKS = mocap1h.clips()
 GREAT_M = mocap2h.guard_pose()
 HAND_CASTS = dict(mocap=HAND_MOCAP, thrust=HAND_THRUST, push=HAND_PUSH, hurl=HAND_HURL)
 STAFF_CASTS = dict(point=STAFF_POINT, over=STAFF_OVER)
@@ -631,7 +641,12 @@ for name, keys in SWORD_ATTACKS.items():
                                 for s in "RL"}, kind="aside")
 for name, keys in GREAT_ATTACKS.items():   # (blades show their flat by key now: no quarter-turn roll)
     add(f"great_{name}", {"RL": two_handed(keys)}, kind="attack", heavy=True, roll=False,
-        stab=name == "stab", power=1.2 if name in ("chop", "over") else 1.1 if name == "stab" else 1.0)
+        stab=name == "stab", power=1.25 if name == "slam" else 1.2 if name == "chop" else 1.1 if name == "stab" else 1.0)
+for name, keys in BLADE_ATTACKS.items():   # (right hand only; never slid sideways)
+    add(f"blade_{name}", {"R": frames(keys, "R", "sword1h")}, kind="attack", noslide=True,
+        stab=name == "stab", power=1.15 if name == "over" else 1.1 if name == "stab" else 1.0)
+    for kind, carry, aside in (("round", ROUND, ROUND_ASIDE), ("kite", KITE, KITE_ASIDE)):   # (the shield steps aside)
+        add(f"{kind}_aside_{name}", {"L": frames(shield_aside(carry, aside, keys), "L", kind)}, kind="aside")
 add("sword_stab", {s: frames(SWORD_STAB, s, "sword1h") for s in "RL"}, kind="attack", stab=True,
     power=1.1)
 add("round_block", {"L": frames(ROUND_BLOCK, "L", "round")}, kind="block")
@@ -649,6 +664,8 @@ for name, keys in STAFF_CASTS.items():
 # What the player can choose between (the move viewer, moves.html), and the defaults.
 SLOTS = {
     "onehand": dict(title="One-handed weapon", options=[
+        dict(id="lines", name="Combo 1: cut, cut, overhead (your video)", chain=["blade_d1", "blade_d2", "blade_over"],
+             ref="your sword-and-shield video", note="every cut along its line through the crosshair"),
         dict(id="combo", name="Combo: cut, backhand, rising", chain=["sword_diag", "sword_back", "sword_rise"],
              ref="UAL2 Sword_Regular_Combo"),
         dict(id="diag", name="Diagonal cut", chain=["sword_diag"], ref="UAL1 Sword_Attack"),
@@ -656,17 +673,22 @@ SLOTS = {
         dict(id="rise", name="Rising slash", chain=["sword_rise"], ref="UAL2 Sword_Regular_A"),
         dict(id="chop", name="Overhead chop", chain=["sword_chop"], ref="your swing video's timing",
              note="straight down; slower, lands harder"),
-    ], default="combo"),
-    "twohand": dict(title="Two-handed weapon", options=[
-        dict(id="combo", name="Combo: slash, slash, overhead", chain=["great_cut1", "great_cut2", "great_over"],
-             ref="your two-hand swing video", note="motion captured"),
-        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your two-hand swing video",
-             note="straight down; slower, lands harder"),
-        dict(id="stab", name="Stab", chain=["great_stab"], ref="your two-hand swing video",
-             note="coil at the hip, lunge at the crosshair"),
-        dict(id="sweep", name="Horizontal sweep", chain=["great_sweep"], ref="your two-hand swing video"),
+    ], default="lines"),
+    # two-handers: a different attack on each mouse button (left, right, wheel click)
+    "twohand": dict(title="Two-handed weapon (left click)", options=[
+        dict(id="combo", name="Combo: slash, slash, SLAM", chain=["great_cut1", "great_cut2", "great_slam"],
+             ref="your two-hand swing video, Dark Messiah style", note="cuts through the crosshair; the slam comes over the head"),
+        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your two-hand swing video"),
         dict(id="rise", name="Rising backhand", chain=["great_rise"], ref="your two-hand swing video"),
     ], default="combo"),
+    "twohand_r": dict(title="Two-handed weapon (right click)", options=[
+        dict(id="wide", name="Wide horizontal, back and forth", chain=["great_wide_r", "great_wide_l"],
+             ref="your two-hand swing video", note="right to left, then left to right, across the whole view"),
+    ], default="wide"),
+    "twohand_m": dict(title="Two-handed weapon (wheel click)", options=[
+        dict(id="stab", name="Stab", chain=["great_stab"], ref="your two-hand swing video",
+             note="coil at the hip, lunge at the crosshair"),
+    ], default="stab"),
     "spell": dict(title="One-hand spell", options=[
         dict(id="mocap", name="Thrust and splay (your cast)", chain=["hand_mocap"],
              ref="your casting video", note="motion captured from your left-hand cast"),
@@ -684,3 +706,14 @@ SLOTS = {
         dict(id="over", name="Overhand", chain=["staff_over"], ref="UAL2 OverhandThrow"),
     ], default="point"),
 }
+
+# keys 1-6 with a one-hander out: a combo each (mocap1h.COMBOS); maces, hammers and clubs bonk
+# where a blade would stab (mocap1h.BLUNT)
+for _n, _chain in mocap1h.COMBOS.items():
+    SLOTS[f"onehand{_n}"] = dict(title=f"One-handed weapon, key {_n}", options=[dict(
+        id="combo", name=" then ".join(_c for _c in _chain), chain=[f"blade_{_c}" for _c in _chain],
+        ref="your sword-and-shield video")], default="combo")
+for _n, _chain in mocap1h.BLUNT.items():
+    SLOTS[f"blunt{_n}"] = dict(title=f"Mace, hammer or club, key {_n}", options=[dict(
+        id="combo", name=" then ".join(_c for _c in _chain), chain=[f"blade_{_c}" for _c in _chain],
+        ref="your sword-and-shield video", note="bonks: no stabbing")], default="combo")
