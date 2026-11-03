@@ -12,7 +12,7 @@ export class Input {
     this.keys = new Set();
     this.pressed = new Set();   // edge-triggered this frame
     this.look = [0, 0];
-    this.mouse = { left: false, right: false };
+    this.mouse = { left: false, right: false, middle: false };
     this.move = [0, 0];         // touch joystick
     this.touch = TOUCH;
     this.sensitivity = 0.0022;
@@ -34,10 +34,12 @@ export class Input {
       }
       if (e.button === 0) { this.mouse.left = true; this.pressed.add('Mouse0'); }
       if (e.button === 2) { this.mouse.right = true; this.pressed.add('Mouse2'); }
+      if (e.button === 1) { this.mouse.middle = true; this.pressed.add('Mouse1'); e.preventDefault(); }   // (wheel click)
     });
     addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.left = false;
       if (e.button === 2) this.mouse.right = false;
+      if (e.button === 1) this.mouse.middle = false;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('mousemove', (e) => {
@@ -53,7 +55,7 @@ export class Input {
   /** Let go of everything held (the window lost focus, or the touch controls were put away). */
   release() {
     this.keys.clear();
-    this.mouse.left = this.mouse.right = false;
+    this.mouse.left = this.mouse.right = this.mouse.middle = false;
     this.move = [0, 0]; this.stickRun = false;
     this.resetTouch?.();
   }
@@ -138,6 +140,6 @@ export class Input {
   }
 
   was(code) { return this.pressed.has(code); }
-  held(code) { return this.keys.has(code) || (code === 'Mouse0' && this.mouse.left) || (code === 'Mouse2' && this.mouse.right); }
+  held(code) { return this.keys.has(code) || (code === 'Mouse0' && this.mouse.left) || (code === 'Mouse2' && this.mouse.right) || (code === 'Mouse1' && this.mouse.middle); }
   endFrame() { this.pressed.clear(); this.look = [0, 0]; }
 }
