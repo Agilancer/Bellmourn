@@ -422,7 +422,7 @@ export class Sorrowhorn {
 // pale alpine granite above; old snow lying on the level ground near the top, and on the crags' ledges. Rock wraps the cliffs by world
 // position (no stretching), the granite and basalt sampled twice at two scales so no long face
 // shows a repeat. Tints are the palette swaps (one rock texture becomes several stones).
-const LAYERS = [['ground_grass_05', 0xb8d0a0], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
+const LAYERS = [['ground_grass_05', 0xb2c09a], ['rock_06_overworld_mossy_rock_1_03', 0xc8ccb8], ['ground_gravel_03', 0xc8c4be], ['rock_05_overworld_granite_1_02', 0xd6d2cc],
   ['rock_08_mountain_alpine_granite_3_01', 0xd4d8e0], ['ground_snow_06', 0xe6e8ee], ['cliff_07_coarse_gravel_11_01', 0xc4c0ba], ['ground_grass_05', 0xd8d49c]];
 const BANDS = { meadow: 140, granite: 215, basalt: 340, snow: 400 };
 
@@ -851,7 +851,7 @@ function buildFalls(ctx, S, M) {
     b.place(bx2, by, bz2, Math.atan2(-tx, -tz), 1, (o) => { o.box([-0.9, 0, -0.18], [-0.6, 0.42, 0.18], wallM); o.box([0.6, 0, -0.18], [0.9, 0.42, 0.18], wallM); o.box([-1.1, 0.42, -0.26], [1.1, 0.55, 0.26], M('castle_keep_pale_keep_limestone', 1.2)); }, { solid: true, minHeight: 0.3 }); }
   S.falls = { x: foot.x, z: foot.z, top, pool, name: 'Sorrowfall' };
   // (the slimes on the wet shelf round the pool, not in it: in front of it and to either side)
-  S.slimeSpots = [[ox * 7 + tx * 2, oz * 7 + tz * 2, [['azure', 'S', 2], ['azure', 'M', 1]]], [ox * 7 - tx * 3, oz * 7 - tz * 3, [['mire', 'S', 2], ['azure', 'XS', 2]]]]
+  S.slimeSpots = [[ox * 7 + tx * 2, oz * 7 + tz * 2, [['azure', 'S', 2], ['azure', 'M', 1]]], [ox * 7.5 + tx * 0.5, oz * 7.5 + tz * 0.5, [['mire', 'S', 2], ['azure', 'XS', 2]]]]
     .map(([dx, dz, mix]) => ({ x: F.x + dx, z: F.z + dz, r: 2.8, mix }));
   let rested = false;
   S.updateFalls = (dt, t, day, player, toast) => {
@@ -877,6 +877,23 @@ function buildFalls(ctx, S, M) {
     } else if (Math.hypot(player.pos.x - pool.x, player.pos.z - pool.z) > pool.r + 12) rested = false;
   };
   return S.falls;
+}
+
+// ------------------------------------------------------------------ the star-seals
+/** The Sorrowhorn's star-seals (portals.js PORTALS: main.js adds them before the world is planted):
+ * in the Broken Stair's clearing below the cliff, on the caves' forecourts, beside the Still Water and
+ * on Hornhollow's green, each on level ground clear of the way through. */
+export function mountainPortals(S) {
+  const g = GATE.bearing, gx = Math.cos(g), gz = Math.sin(g), tx = -gz, tz = gx, out = [];
+  out.push({ id: 'brokenstair', name: 'The Broken Stair', where: 'In the clearing below the cliff', land: 'Bellmourn and the Darkwood', x: gx * 288 + tx * 6, z: gz * 288 + tz * 6, look: [gx * 300, gz * 300] });
+  const [A, B] = S.caveSites || [];
+  if (A) out.push({ id: 'throat', name: "The Wether's Throat", where: 'On the forecourt', land: 'The Sorrowhorn', x: A.x - 2, z: A.z - 3, look: "The Wether's Throat" });
+  if (B) out.push({ id: 'glimmerdeep', name: 'The Glimmerdeep', where: 'On the forecourt', land: 'The Sorrowhorn', x: B.x - 2, z: B.z + 3, look: 'The Glimmerdeep' });
+  const F = S.fallsSite;
+  if (F) { const ox = -F.ux, oz = -F.uz, sx = -oz, sz = ox; out.push({ id: 'sorrowfall', name: 'Sorrowfall', where: 'Beside the Still Water', land: 'The Sorrowhorn', x: F.x + ox * 6.5 - sx * 5.5, z: F.z + oz * 6.5 - sz * 5.5, look: [F.x + F.ux * 11, F.z + F.uz * 11] }); }
+  const V = S.villageSite;
+  if (V) { const at2 = (f, s) => [V.x + V.ux * f - V.uz * s, V.z + V.uz * f + V.ux * s], [x, z] = at2(-8, -6); out.push({ id: 'hornhollow', name: 'Hornhollow', where: 'On the green', land: 'The Sorrowhorn', x, z, look: at2(2, 0) }); }
+  return out;
 }
 
 // ------------------------------------------------------------------ Hornhollow's houses
@@ -1139,6 +1156,10 @@ export function buildMountain(ctx, M) {
     for (let k = 0; k < 3; k++) {
       const a = 0.9 + k * 2.1, px = T.x + Math.cos(a) * 4.2, pz = T.z + Math.sin(a) * 4.2;
       b.place(px, ty, pz, 0, 1, (o) => o.box([-0.04, 0, -0.04], [0.04, 2.6, 0.04], M('ship_01_tarblack_oak', 1)), { solid: true });
+      { const rope = M('ship_01_tarblack_oak', 1, { tint: 0x605040 });                 // (the line they hang on)
+        let lx = T.x, ly = ty + 3.4, lz = T.z;
+        for (let f = 1; f <= 6; f++) { const u = f / 6, nx = T.x + (px - T.x) * u, nz = T.z + (pz - T.z) * u, ny = ty + 3.4 - 0.9 * u - Math.sin(Math.PI * u) * 0.5;
+          b.place(0, 0, 0, 0, 1, (o) => o.beam([lx, ly, lz], [nx, ny, nz], 0.012, 0.012, rope), { solid: false }); lx = nx; ly = ny; lz = nz; } }
       for (let f = 1; f < 6; f++) {
         const u = f / 6, x = T.x + (px - T.x) * u, z = T.z + (pz - T.z) * u, y = ty + 3.4 - (3.4 - 2.5) * u - Math.sin(Math.PI * u) * 0.5;
         b.place(x, y, z, Math.atan2(px - T.x, pz - T.z) + Math.PI / 2, 1, (o) => o.box([-0.16, -0.3, -0.01], [0.16, 0, 0.01], cloth([0xc04040, 0x4060c0, 0xe0c040, 0x40a060, 0xe8e0d0][(f + k) % 5])), { solid: false });
@@ -1198,6 +1219,7 @@ export function buildMountain(ctx, M) {
       if (rocks < 260 && k > 0.7 && sl < 0.8 && offRoad(x, z, 2 + (0.7 + sc * (y > 200 ? 2.6 : 1.6)) * 1.25)) {
         const s = 0.7 + sc * (y > 200 ? 2.6 : 1.6), m = boulder[rocks % 3];
         b.place(x, y - s * 0.3, z, sc * 6.28, 1, (o) => o.blob([0, s * 0.45, 0], [s * 1.2, s * 0.8, s], m, { detail: 2, jitter: 0.22, seed: 600 + rocks }), { solid: s > 1.1, tag: 'rock' });
+        (S.boulders ||= []).push([x, z, s]);   // (dressing.js lays their fallen stone round them)
         rocks++;
       }
     }

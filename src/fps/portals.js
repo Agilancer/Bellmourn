@@ -72,6 +72,9 @@ export const PORTALS = [
   { id: 'gloam', name: 'The Gloamhollow', where: 'Below the cave mouth', land: 'The Green Downs', x: 706, z: 14, look: 'The Gloamhollow' },
   { id: 'grotto', name: 'The Drowned Grotto', where: 'Below the cave mouth', land: 'The Green Downs', x: 700, z: -86, look: 'The Drowned Grotto' },
   { id: 'troll', name: 'The Trollhole', where: 'Below the cave mouth', land: 'The Green Downs', x: 704, z: 144, look: 'The Trollhole' },
+  // at the foot of Bell Knoll, off the path up to the tower (the Bellwright's, and the Undershrine under it)
+  { id: 'belltower', name: 'The Bell Tower', where: 'At the foot of Bell Knoll', land: 'The Green Downs', x: 647, z: -140, look: [668, -208] },
+  // (the Sorrowhorn's are added once its ground is laid out: mountain.js mountainPortals)
 ];
 
 /** While the world is built: nothing planted on a portal's ground (the trees, the forest floor's
