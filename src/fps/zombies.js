@@ -875,6 +875,40 @@ function adaptUAL(gltf, C, own = null, pick = null) {
  * bones renamed for the brain and its moves made from `pick` (adaptUAL). */
 export function adaptBeast(gltf, pick) { return adaptUAL(gltf, ualClips(gltf), null, pick); }
 
+/** A body's actions by clip name, each made the first time it's asked for (played, or looked at):
+ * made up front, an action for every clip of every body (three hundred bodies on a phone, thirty-odd
+ * clips each, every action an interpolant and a binding a bone) was the biggest thing in the heap.
+ * Reads and writes as a plain object; clipOf() gives a name's clip without making its action. */
+export function lazyActions(mixer, clips, once) {
+  const A = {};
+  Object.defineProperty(A, CLIPS, { value: new Map() });   // (not enumerable)
+  for (const clip of clips) lazyAction(A, mixer, clip.name, clip, once.has(clip.name));
+  return A;
+}
+
+/** One lazy action in `A` (lazyActions): `name` plays `clip`, once and held at its end if `once`. */
+export function lazyAction(A, mixer, name, clip, once = false) {
+  A[CLIPS]?.set(name, clip);
+  const fix = (a) => { Object.defineProperty(A, name, { value: a, writable: true, configurable: true, enumerable: true }); return a; };
+  Object.defineProperty(A, name, {
+    configurable: true, enumerable: true,
+    get() {
+      const a = mixer.clipAction(clip);
+      if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+      return fix(a);
+    },
+    set: fix,
+  });
+}
+
+/** The clip `name` plays in a lazyActions set, its action left unmade (or made: either way). */
+export function clipOf(A, name) {
+  const d = Object.getOwnPropertyDescriptor(A, name);
+  if (d && 'value' in d) return d.value?.getClip?.() || null;   // (made, or put there since)
+  return A[CLIPS]?.get(name) || null;
+}
+const CLIPS = Symbol('clips');
+
 export class Zombie {
   static ONCE = ONCE;      // clips that play once (subclasses bring their own)
 
@@ -926,30 +960,20 @@ export class Zombie {
     if (geo.groups.length > 1) this.makeShade();
 
     this.mixer = new THREE.AnimationMixer(model);
-    this.actions = {};
-    for (const clip of gltf.animations) {
-      const a = this.mixer.clipAction(clip);
-      if (this.constructor.ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
-      this.actions[clip.name] = a;
-    }
+    this.actions = lazyActions(this.mixer, gltf.animations, this.constructor.ONCE);
     // a UAL body: its own walk, idle and blows from the takes, kept for as long as it walks (no two
     // side by side shamble the same), and where in each blow its hand lands
     const T = gltf.userData.takes;
     if (T) {
       const n = this.owner.nextTake = (this.owner.nextTake || 0) + 1, own = (list, salt) => list[(n * 3 + salt + Math.floor(Math.random() * 7)) % list.length];
-      const set = (name, clip, once = false) => {
-        if (!clip) return;
-        const a = this.mixer.clipAction(clip);
-        if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
-        this.actions[name] = a;
-      };
+      const set = (name, clip, once = false) => { if (clip) lazyAction(this.actions, this.mixer, name, clip, once); };
       set('idle', own(T.idle, 0)); const w = Math.floor(Math.random() * T.walk.length);
       set('walk', T.walk[w]); set('run', T.walk[(w + 1) % T.walk.length]); set('crawl', T.prone[w]);
       // three blows of its own from the scratches, the hook and the overhand throw, swapped round as it fights
       const blows = T.blows.slice().sort(() => Math.random() - 0.5);
       ['attack1', 'attack2', 'attack3'].forEach((k, i) => set(k, blows[i % blows.length], true));
       this.blowPool = blows;
-      this.hitAt = Object.fromEntries(['attack1', 'attack2', 'attack3', 'crawl_attack'].map((k) => [k, Math.round((this.actions[k]?.getClip().duration || 1) * FPS * 0.5)]));
+      this.hitAt = Object.fromEntries(['attack1', 'attack2', 'attack3', 'crawl_attack'].map((k) => [k, Math.round((clipOf(this.actions, k)?.duration || 1) * FPS * 0.5)]));
     }
     this.cur = null;
 

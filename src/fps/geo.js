@@ -10,6 +10,7 @@ export class Builder {
   constructor(physics) {
     this.physics = physics;
     this.batches = new Map(); // material -> chunk key -> [geometry]
+    this.compact = false;     // (a phone: the merged meshes' normals and shades in fewer bytes: compact())
   }
 
   push(mat, geo) {
@@ -507,12 +508,14 @@ export class Builder {
       mat.vertexColors = true;
       for (const geos of chunks.values()) {
         let g = mergeGeometries(geos, false);
+        geos.length = 0;   // (the pieces let go as soon as they're merged)
         if (mat.userData.feather) {   // a feathered overlay: its solid middle drawn without blending
           const [band, solid] = splitFeather(g);
-          if (solid) meshes.push(this.addMesh(scene, solid, solidTwin(mat), -1000.5 + layerOf(solid)));
+          if (solid) meshes.push(this.addMesh(scene, this.compact ? compact(solid) : solid, solidTwin(mat), -1000.5 + layerOf(solid)));
           if (!band) continue;
           g = band;
         }
+        if (this.compact) compact(g);
         g.computeBoundingSphere();
         const mesh = new THREE.Mesh(g, mat);
         mesh.matrixAutoUpdate = false;
@@ -563,6 +566,31 @@ function splitFeather(g) {
     }
     return out;
   });
+}
+
+/** A merged mesh in fewer bytes, for a phone (its memory, and the GPU's): normals as 16-bit and the
+ * shade as 8-bit, both normalized, so the shaders read the same floats (to 1/32767 and 1/255). A shade
+ * over 1 (a few lit pieces) can't be held so: that mesh keeps its floats. Positions, UVs (world metres)
+ * and the feather's edge stay as they are. */
+function compact(g) {
+  const n = g.attributes.normal;
+  if (n && n.array instanceof Float32Array) {
+    const src = n.array, dst = new Int16Array(src.length);
+    for (let i = 0; i < src.length; i++) dst[i] = Math.round(Math.max(-1, Math.min(1, src[i])) * 32767);
+    g.setAttribute('normal', new THREE.BufferAttribute(dst, 3, true));
+  }
+  const c = g.attributes.color;
+  if (c && c.array instanceof Float32Array) {
+    const src = c.array;
+    let ok = true;
+    for (let i = 0; i < src.length && ok; i++) ok = src[i] >= 0 && src[i] <= 1;
+    if (ok) {
+      const dst = new Uint8Array(src.length);
+      for (let i = 0; i < src.length; i++) dst[i] = Math.round(src[i] * 255);
+      g.setAttribute('color', new THREE.BufferAttribute(dst, c.itemSize, true));
+    }
+  }
+  return g;
 }
 
 /** The solid middle's material: the overlay's own, unblended and writing no depth, drawn in turn with
