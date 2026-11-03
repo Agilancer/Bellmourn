@@ -277,9 +277,12 @@ function downsMaterial(lib) {
       dPX = dFdx(vDP); dPY = dFdy(vDP);
       dUm = untileMask(vDP.xz, 3.0);
       float n1 = dNoise(gp * 0.035), n2 = dNoise(gp * 0.11 + 7.0), n3 = dNoise(gp * 0.06 + 31.0);
+      // the blend weights come per vertex, 3 m apart, so their edges ran straight along the triangles:
+      // pushed about by noise at two small scales here, they're ragged as worn ground is
+      float warp = (dNoise(gp * 0.55 + 3.3) - 0.5) * 0.32 + (dNoise(gp * 1.7 + 9.1) - 0.5) * 0.14, nM = dNoise(gp * 0.018 + 51.0);
       // every layer drawn only where it shows
       float slope = 1.0 - normalize(vDN).y;
-      float wr = smoothstep(0.22, 0.4, slope + (n2 - 0.5) * 0.12);
+      float wr = smoothstep(0.22, 0.4, slope + (n2 - 0.5) * 0.12 + warp * 0.3);
       vec3 c = vec3(0.0);
       if (wr < 0.999) {
         float a = smoothstep(0.4, 0.62, n2), b = smoothstep(0.7, 0.8, n1 * 0.6 + n3 * 0.4);
@@ -287,6 +290,8 @@ function downsMaterial(lib) {
         if (a < 0.999) grass = dTex(dT0, gp, 1.7) * ${tint[0]};
         if (a > 0.001) grass = mix(grass, dTex2(dT0, gp, mat2(0.6, -0.8, 0.8, 0.6), vec2(0.37), 1.9) * ${T(0xffa8ff)}, a);
         if (b > 0.001) grass = mix(grass, dTex(dT1, gp, 2.6) * ${tint[1]}, b);
+        // (a little less green, and in broad patches drier or lusher: not one even lawn)
+        grass = mix(vec3(dot(grass, vec3(0.299, 0.587, 0.114))), grass, 0.85) * mix(vec3(1.05, 0.98, 0.84), vec3(0.93, 1.0, 0.97), smoothstep(0.3, 0.7, nM));
         c = grass * (1.0 - wr);
       }
       if (wr > 0.001) {
@@ -300,11 +305,11 @@ function downsMaterial(lib) {
       }
       // the banks: mud and gravel, a ragged beach of sand round the pool (on the low, level
       // ground, not up the cliff) and bars of it along the stream
-      float shore = smoothstep(0.42, 0.58, vDA.z + (n2 - 0.5) * 0.3) * (1.0 - smoothstep(0.25, 0.45, slope))
+      float shore = smoothstep(0.42, 0.58, vDA.z + (n2 - 0.5) * 0.3 + warp * 0.6) * (1.0 - smoothstep(0.25, 0.45, slope))
         * (1.0 - smoothstep(${(POOL.level + 2.5).toFixed(1)}, ${(POOL.level + 5).toFixed(1)}, vDP.y));
       // (on the cliffs the wet shows as dark, wet rock rather than mud smeared down the face)
       float steep = smoothstep(0.3, 0.55, slope);
-      float wb = smoothstep(0.2, 0.7, max(vDA.x, shore)) * (1.0 - steep);
+      float wb = smoothstep(0.28, 0.58, max(vDA.x + warp * 1.2, shore)) * (1.0 - steep);
       if (wb > 0.001) {
         float sand = max(shore, smoothstep(0.6, 0.7, n3) * smoothstep(0.3, 0.8, vDA.x)), a = smoothstep(0.4, 0.7, n1), sb = smoothstep(0.2, 0.8, sand);
         vec3 bank = vec3(0.0);
@@ -314,7 +319,8 @@ function downsMaterial(lib) {
         c = mix(c, bank, wb);
       }
       c *= 1.0 - 0.38 * steep * smoothstep(0.2, 0.8, vDA.x);
-      float wp = smoothstep(0.3, 0.8, vDA.y) * (1.0 - smoothstep(0.3, 0.5, slope));
+      float wp = smoothstep(0.38, 0.62, vDA.y + warp) * (1.0 - smoothstep(0.3, 0.5, slope));
+      c *= 1.0 - 0.16 * smoothstep(0.12, 0.34, vDA.y + warp) * (1.0 - wp);   // (the turf trodden darker beside the way)
       if (wp > 0.001) c = mix(c, dTex(dT6, gp, 1.5) * ${tint[6]}, wp);
       // old snow lying in the hollows of the plateau above the falls, in ragged drifts
       float snow = smoothstep(${(CLIFF.top - 2.5).toFixed(1)}, ${(CLIFF.top + 0.5).toFixed(1)}, vDP.y) * (1.0 - smoothstep(0.1, 0.28, slope))
@@ -354,10 +360,12 @@ function downsNode(tex, tints) {
       return c;
     };
     const n1 = snoise(gp.mul(0.035)).toVar(), n2 = snoise(gp.mul(0.11).add(7.0)).toVar(), n3 = snoise(gp.mul(0.06).add(31.0)).toVar();
+    // (the blend weights' edges pushed about by noise at two small scales: ragged, not along the triangles)
+    const warp = snoise(gp.mul(0.55).add(3.3)).sub(0.5).mul(0.32).add(snoise(gp.mul(1.7).add(9.1)).sub(0.5).mul(0.14)).toVar(), nM = snoise(gp.mul(0.018).add(51.0)).toVar();
     // every layer drawn only where it shows
     const nn = normalize(normalGeometry).toVar();
     const slope = nn.y.oneMinus().toVar();
-    const wr = smoothstep(0.22, 0.4, slope.add(n2.sub(0.5).mul(0.12))).toVar();
+    const wr = smoothstep(0.22, 0.4, slope.add(n2.sub(0.5).mul(0.12)).add(warp.mul(0.3))).toVar();
     const c = vec3(0.0).toVar();
     If(wr.lessThan(0.999), () => {
       const a = smoothstep(0.4, 0.62, n2).toVar(), b = smoothstep(0.7, 0.8, n1.mul(0.6).add(n3.mul(0.4))).toVar();
@@ -365,6 +373,7 @@ function downsNode(tex, tints) {
       If(a.lessThan(0.999), () => { grass.assign(dTex(0, 1.7).mul(tint(tints[0]))); });
       If(a.greaterThan(0.001), () => { grass.assign(mix(grass, dTex2(0, vec2(0.37), 1.9).mul(tint(0xffa8ff)), a)); });
       If(b.greaterThan(0.001), () => { grass.assign(mix(grass, dTex(1, 2.6).mul(tint(tints[1])), b)); });
+      grass.assign(mix(vec3(dot(grass, vec3(0.299, 0.587, 0.114))), grass, 0.85).mul(mix(vec3(1.05, 0.98, 0.84), vec3(0.93, 1.0, 0.97), smoothstep(0.3, 0.7, nM))));
       c.assign(grass.mul(wr.oneMinus()));
     });
     If(wr.greaterThan(0.001), () => {
@@ -376,11 +385,11 @@ function downsNode(tex, tints) {
     });
     // the banks: mud and gravel, a ragged beach of sand round the pool (on the low, level ground,
     // not up the cliff) and bars of it along the stream
-    const shore = smoothstep(0.42, 0.58, DA.z.add(n2.sub(0.5).mul(0.3))).mul(smoothstep(0.25, 0.45, slope).oneMinus())
+    const shore = smoothstep(0.42, 0.58, DA.z.add(n2.sub(0.5).mul(0.3)).add(warp.mul(0.6))).mul(smoothstep(0.25, 0.45, slope).oneMinus())
       .mul(smoothstep(+(POOL.level + 2.5).toFixed(1), +(POOL.level + 5).toFixed(1), P.y).oneMinus()).toVar();
     // (on the cliffs the wet shows as dark, wet rock rather than mud smeared down the face)
     const steep = smoothstep(0.3, 0.55, slope).toVar();
-    const wb = smoothstep(0.2, 0.7, max(DA.x, shore)).mul(steep.oneMinus()).toVar();
+    const wb = smoothstep(0.28, 0.58, max(DA.x.add(warp.mul(1.2)), shore)).mul(steep.oneMinus()).toVar();
     If(wb.greaterThan(0.001), () => {
       const sand = max(shore, smoothstep(0.6, 0.7, n3).mul(smoothstep(0.3, 0.8, DA.x)));
       const a = smoothstep(0.4, 0.7, n1).toVar(), sb = smoothstep(0.2, 0.8, sand).toVar();
@@ -391,7 +400,8 @@ function downsNode(tex, tints) {
       c.assign(mix(c, bank, wb));
     });
     c.mulAssign(steep.mul(0.38).mul(smoothstep(0.2, 0.8, DA.x)).oneMinus());
-    const wp = smoothstep(0.3, 0.8, DA.y).mul(smoothstep(0.3, 0.5, slope).oneMinus()).toVar();
+    const wp = smoothstep(0.38, 0.62, DA.y.add(warp)).mul(smoothstep(0.3, 0.5, slope).oneMinus()).toVar();
+    c.mulAssign(smoothstep(0.12, 0.34, DA.y.add(warp)).mul(wp.oneMinus()).mul(0.16).oneMinus());
     If(wp.greaterThan(0.001), () => { c.assign(mix(c, dTex(6, 1.5).mul(tint(tints[6])), wp)); });
     // old snow lying in the hollows of the plateau above the falls, in ragged drifts
     const snow = smoothstep(+(CLIFF.top - 2.5).toFixed(1), +(CLIFF.top + 0.5).toFixed(1), P.y).mul(smoothstep(0.1, 0.28, slope).oneMinus())
