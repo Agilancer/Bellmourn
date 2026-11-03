@@ -124,12 +124,13 @@ export function buildTemple(ctx, M) {
   b.box([-1.8, F + 0.75, NZ1 + 3.4], [1.8, F + 1.9, NZ1 + 5.2], dark);
   for (const s of [-1, 1]) b.place(0, 0, 0, 0, 1, (o) => o.beam([s * 3.6, F + 11.5, NZ1 + 8], [0, F + 2.4, NZ1 + 8], 0.6, 0.35, gold), { solid: false });
   flame(-4.6, F + 0.75, NZ1 + 4.5, 0.5); flame(4.6, F + 0.75, NZ1 + 4.5, 0.5);
+  for (const s of [-1, 1]) flame(s * 4.8, F, NZ0 - 3.4, 0.45);    // (braziers at the portal)
 
   // ---- the crypt, in the podium: the stair down from the floor's well; round it and a core of rock the
   // galleries run, loculi and sarcophagi along their outer walls; the tomb hall at the back, the
   // first commander's tomb on its dais; the reliquary at the front
   const C0 = g + 0.5, CT = F - 0.5;     // its floor, its ceiling (the temple floor's underside)
-  b.box([X0 + 1.5, g - 0.6, Z0 + 1.5], [X1 - 1.5, C0, Z1 - 1.5], M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x5e5854 }));
+  b.box([X0 + 1.5, g - 0.6, Z0 + 1.5], [X1 - 1.5, C0, Z1 - 1.5], M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x9a8e82 }));
   b.stairs(0, HZ0, F, -(UP - 0.5), 2 * HX - 0.2, '+z', stone, { step: 0.25, run: 0.5 });
   for (const s of [-1, 1]) b.box([s > 0 ? HX : -HX - 0.6, C0, HZ0], [s > 0 ? HX + 0.6 : -HX, CT, HZ1], crypt);       // (the stair's shaft)
   b.box([-5, C0, Z0 + 7], [5, CT, HZ0], crypt);                                                                          // (the core)
@@ -152,7 +153,9 @@ export function buildTemple(ctx, M) {
   for (const s of [-1, 1]) b.place(0, 0, 0, 0, 1, (o) => o.beam([s * 1.2, C0 + 1.62, Z1 - 7.4], [0, C0 + 1.62, Z1 - 4.6], 0.18, 0.06, gold), { solid: false });   // (his V on its lid)
   // its light: torches down the galleries (warm on the way round), a green glow on the tomb
   for (const z of [224, 238, 252]) for (const s of [-1, 1]) { ctx.flames.push([s * (X1 - 2.0), C0 + 2.6, z, 0.18, 1]); ctx.scatter?.place('torch', s * (X1 - 1.9), C0 + 2.2, z, 1); }
-  ctx.flames.push([0, C0 + 1.9, Z1 - 6, 0.25, 1]);
+  ctx.flames.push([0, C0 + 1.9, Z1 - 6, 0.5, 1]);                 // (the tomb: the brightest thing down here, seen from the stair's foot)
+  for (const s of [-1, 1]) { ctx.flames.push([s * 4.2, C0 + 0.9, Z1 - 6, 0.22, 1]); ctx.scatter?.place('candelabrum', s * 4.2, C0 + 0.5, Z1 - 6, 1); }
+  for (const s of [-1, 1]) ctx.flames.push([s * 9, C0 + 0.6, 258, 0.16, 1]);    // (embers low at the galleries' far bends)
   ctx.flames.push([0, C0 + 3.5, HZ1 - 0.6, 0.22, 1]);         // (the stair's foot lit)
   // the reliquary at the front: the oath-roll's chest, between the galleries
   ctx.props?.add('chest_gilded_iron', 0, C0, Z0 + 4, Math.PI, 1);

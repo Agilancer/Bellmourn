@@ -82,7 +82,7 @@ function pillar(o, mat, x, z, h, k) {
 /** A ruin: a ring (or a row) of broken pillars at different heights, round a cracked floor, their
  * fallen drums and a capital lying where they came down. */
 function ruin(b, M, ctx, x, z, k, row = false) {
-  const marble = M('castle_keep_ivory_chapel_marble', 1.4, { tint: 0xc8c0b0, tri: true }), floor = M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x9a968c });
+  const marble = M('castle_keep_ivory_chapel_marble', 1.4, { tint: 0xf0e8dc, tri: true }), floor = M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x9a968c });
   const y = groundAt(ctx, x, z), n = row ? 6 : 7, rot = rnd() * TAU, R = 6.5;
   const spots = Array.from({ length: n }, (_, i) => row ? [(i - (n - 1) / 2) * 3.2, 0] : [Math.cos(i / n * TAU) * R, Math.sin(i / n * TAU) * R]);
   b.place(x, y - 0.25, z, rot, 1, (o) => {
@@ -141,15 +141,15 @@ export function layDetails(ctx, M) {
     }
   }
   // outcrops: the Darkwood, the downs, the foothills
-  const tryPlace = (gen, want, fn) => { for (let t = 0, n = 0; t < want * 40 && n < want; t++) { const [x, z] = gen(); if (free(x, z, 9)) { fn(x, z, n); n++; } } };
+  const tryPlace = (gen, want, fn) => { for (let t = 0, n = 0; t < want * 60 && n < want; t++) { const [x, z] = gen(); if (free(x, z, 9) && fn(x, z, n) !== false) n++; } };   // (fn false: not there after all)
   tryPlace(() => { const a = rnd() * TAU, r = 125 + rnd() * 150; return [Math.cos(a) * r, Math.sin(a) * r]; }, 9, (x, z, n) => { outcrop(b, M, x, groundAt(ctx, x, z), z, 2.4 + rnd() * 2.2, n); D.zones.push([x, z, 6]); stats.outcrops++; });
   tryPlace(() => [300 + rnd() * 460, -240 + rnd() * 480], 12, (x, z, n) => { outcrop(b, M, x, groundAt(ctx, x, z), z, 2.2 + rnd() * 3, n + 20); stats.outcrops++; });
   if (S) {
     tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 330 + rnd() * 260; return [Math.cos(a) * r, Math.sin(a) * r]; }, 12, (x, z, n) => {
-      if (!S.covers(x, z) || S.slopeAt(x, z) > 0.5) return; outcrop(b, M, x, S.heightAt(x, z), z, 3 + rnd() * 3, n + 40); stats.outcrops++; });
+      if (!S.covers(x, z) || S.slopeAt(x, z) > 0.5) return false; outcrop(b, M, x, S.heightAt(x, z), z, 3 + rnd() * 3, n + 40); stats.outcrops++; });
     // groves of broadleaf round the mountain's feet: on its lowest, gentlest ground
     tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 312 + rnd() * 240; return [Math.cos(a) * r, Math.sin(a) * r]; }, 18, (x, z, n) => {
-      if (!S.covers(x, z) || S.heightAt(x, z) > 120 || S.slopeAt(x, z) > 0.55) return; grove(ctx, M, x, z, 6 + (n % 5), n); stats.groves++; });
+      if (!S.covers(x, z) || S.heightAt(x, z) > 120 || S.slopeAt(x, z) > 0.55) return false; grove(ctx, M, x, z, 6 + (n % 5), n); stats.groves++; });
   }
   // the old ruins: in Darkwood clearings, on the downs, one in the foothills
   const ruinSpots = [[-150, -205, true], [205, -95, false], [520, 175, false], [420, -200, true], [-120, 200, false]];

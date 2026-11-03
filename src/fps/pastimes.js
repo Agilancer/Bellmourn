@@ -63,7 +63,8 @@ export function layCamps(ctx, M) {
       ctx.scatter?.place('lantern', lx, ly + 2.05, lz + 0.0, 1); ctx.flames.push([lx, ly + 2.25, lz, 0.14, 1]); }
     // where they throw the bones: a board on a stump, two dice on it
     if (C.folk.some((f) => f[2] === 'dice')) { const bx = C.x + Math.sin(a0 - 0.9) * 2.2, bz = C.z + Math.cos(a0 - 0.9) * 2.2, by = groundAt(ctx, bx, bz);
-      b.place(bx, by, bz, a0, 1, (o) => { o.cylinder([0, 0, 0], [0, 0.5, 0], 0.32, 8, wood); o.box([-0.45, 0.5, -0.32], [0.45, 0.56, 0.32], wood); for (const d of [-0.12, 0.1]) o.box([d - 0.035, 0.56, -0.035], [d + 0.035, 0.63, 0.035], M('castle_keep_ivory_chapel_marble', 0.3)); }, { solid: false }); }
+      b.place(bx, by, bz, a0, 1, (o) => { o.cylinder([0, 0, 0], [0, 0.5, 0], 0.32, 8, wood); o.box([-0.45, 0.5, -0.32], [0.45, 0.56, 0.32], wood); for (const d of [-0.12, 0.1]) o.box([d - 0.035, 0.56, -0.035], [d + 0.035, 0.63, 0.035], M('castle_keep_ivory_chapel_marble', 0.3)); }, { solid: false });
+      ctx.scatter?.place('candle', bx + 0.3, by + 0.56, bz, 1); ctx.flames.push([bx + 0.3, by + 0.75, bz, 0.07, 1]); }
     ctx.scatter?.place('water_barrel', C.x + Math.sin(a0 - 2.3) * 3.6, y, C.z + Math.cos(a0 - 2.3) * 3.6, 0.9);
     // the folk: one either side of the fire, facing it
     C.folk.forEach(([key, name], k) => {

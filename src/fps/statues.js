@@ -52,6 +52,15 @@ function bake(foes, v, clip, frac, weapon, shield) {
   }
   mixer.stopAllAction();
   for (const p of parts) for (const k of Object.keys(p.attributes)) if (k !== 'position') p.deleteAttribute(k);
+  // each part turned outward: a mirrored rig winds its triangles the other way round, and a statue lit
+  // from inside reads black (as the graveyard's headstones once did). Its signed volume says which way.
+  for (const p of parts) {
+    const P = p.attributes.position.array, I = p.index.array;
+    let vol = 0;
+    for (let t = 0; t < I.length; t += 3) { const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+      vol += P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c]); }
+    if (vol < 0) { const J = I.slice(); for (let t = 0; t < J.length; t += 3) { J[t + 1] = I[t + 2]; J[t + 2] = I[t + 1]; } p.setIndex(new THREE.BufferAttribute(J, 1)); }
+  }
   const geo = mergeGeometries(parts, false);
   if (!geo) return null;
   // stood on its feet at the origin, facing +z
