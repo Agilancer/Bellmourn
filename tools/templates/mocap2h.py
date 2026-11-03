@@ -183,6 +183,8 @@ def keys_of(seq, edge=True, cross=False, line=None, P=None):
         out.append(key)
     if cross and P.get("knuckle", True):
         _edges_to_crosshair(samples, out, line)
+    elif P.get("steady"):
+        _steady(out)
     # the blade smears from just after the wind-up to just past the hit
     e = next((i for i, f in enumerate(out) if f.get("enter")), 0)
     h = next((i for i, f in enumerate(out) if f.get("hit")), None)
@@ -196,42 +198,136 @@ FLAT_ROLL = 20.0   # degrees the edges sit off the crosshair, so the blade isn't
 
 
 def _edges_to_crosshair(samples, out, line=None):
-    """Each tic's `knuckle`: from the blade (at the sweet spot) straight toward the crosshair's
-    line, square to the blade, so the edges face the crosshair (the rig turns the fist the
-    shorter way: either edge will do). Full through the swing itself, from the key after the
-    windup to the link; eased in over the windup and back out to the guard."""
+    """Each tic's `fist_roll`: the turn (degrees, about the handle, from the fist's natural set)
+    that brings the blade's edges to face along the swing's line (its plane through the eye), or
+    toward the crosshair; a little off edge-on (FLAT_ROLL) so the flat shows. The blade has two
+    edges: the turn is picked once and then kept continuous over the swing, so the fist never
+    flips round the handle. Full from the key after the windup through the key after the hit,
+    eased in over the windup; from there to the clip's end the turn unwinds against the fist's own
+    natural turn back to guard, spread evenly, so the wrist never snaps round at the end."""
     n = len(out)
     firsts = [i for i, f in enumerate(out) if " >" not in f["name"]]
     en = next((i for i, f in enumerate(out) if f.get("enter")), 0)
     e0 = next((i for i in firsts if i > en), en)
     l0 = next((i for i, f in enumerate(out) if f.get("link")), n - 1)
-    prev = None
+    h0 = next((i for i, f in enumerate(out) if f.get("hit")), l0)
+    h1 = min(l0, next((i for i in firsts if i > h0), h0))   # (held to the key after the hit)
+    prev_v, prev_phi, prev_a = None, None, None
     for i, (g, d, *_r) in enumerate(samples):
+        if i > h1:
+            break
+        if i < e0:
+            continue
+        w = 1.0
+        if w <= 0.0:
+            continue
         if line is not None:                    # the swing's own plane (eye + its line)
             v = np.cross(np.asarray(line, float) if np.ndim(line) else _line_normal(line), d)
         else:
             p = g + d * SWEET
             v = np.array([0.0, p[1], 0.0]) - p
-        v = v - d * np.dot(v, d)
+            v = v - d * np.dot(v, d)
         if np.linalg.norm(v) < 0.03:            # (right on the line: keep the last way)
-            v = prev if prev is not None else v
+            v = prev_v if prev_v is not None else v
         if np.linalg.norm(v) < 1e-6:
             continue
         v = un(v)
         if FLAT_ROLL:                           # (turn it a little so a sliver of the flat shows)
             r = math.radians(FLAT_ROLL)
             v = un(v * math.cos(r) + np.cross(d, v) * math.sin(r))
-        if prev is not None and np.dot(v, prev) < 0:
-            v = -v                              # (same edge plane; the rig picks the side)
-        prev = v
-        if e0 <= i <= l0:
-            w = 1.0
-        elif i < e0:
-            w = _ease((i - en) / max(1, e0 - en)) if i > en else 0.0
+        prev_v = v
+        # the fist's natural set at this tic (the rig, unturned), and the turn to the edge, in rig space
+        k0 = {q: x for q, x in out[i].items() if q not in ("knuckle", "knuckle_w", "fist_roll")}
+        a0 = _R.pose_arm("R", dict(k0, weapon="sword2h"))["A"]
+        dr, vr = rig(d), rig(v)
+        # the edge the fist turns to: the nearer one to start with, then whichever keeps the fist
+        # itself moving smoothly (its natural set can swing round fast as the blade passes the
+        # forearm; the turned fist must not)
+        if prev_a is None:     # the edge the windup turns the fist to the least for
+            N0 = _natural_turn(out[:i + 1])
+            phi = min((_roll_to(a0, s * vr, dr) + q for s in (1, -1) for q in (0.0, -360.0, 360.0)),
+                      key=lambda c: abs(N0 + c))
         else:
-            w = _ease((n - 1 - i) / max(1, n - 1 - l0))
-        out[i]["knuckle"] = tuple(rig(v))
-        out[i]["knuckle_w"] = float(w)
+            t = vr if np.dot(vr, prev_a) >= 0 else -vr
+            phi = _roll_to(a0, t, dr)
+            phi = min((phi, phi - 360.0, phi + 360.0), key=lambda c: abs(c - prev_phi))
+        prev_phi = phi
+        r = math.radians(phi * w)
+        prev_a = a0 * math.cos(r) + np.cross(dr, a0) * math.sin(r)
+        out[i]["fist_roll"] = float(phi * w)
+    _wind_in(out, e0)
+    _unwind(out, h1)
+
+
+def _roll_to(a0, t, dr):
+    """Degrees about the handle dr that turn the fist a0 to t."""
+    return math.degrees(math.atan2(float(np.dot(np.cross(a0, t), dr)), float(np.dot(a0, t))))
+
+
+def _natural(keys):
+    """The fist's natural set (A, D) at each key: the rig, no turn."""
+    out = []
+    for k in keys:
+        q = _R.pose_arm("R", dict({x: y for x, y in k.items() if x not in ("knuckle", "knuckle_w", "fist_roll")}, weapon="sword2h"))
+        out.append((np.asarray(q["A"], float), np.asarray(q["D"], float)))
+    return out
+
+
+def _natural_turn(keys):
+    """Degrees the natural fist turns about the handle over these keys, all told."""
+    nat = _natural(keys)
+    return sum(_twist(a0, d0, a1, d1) for (a0, d0), (a1, d1) in zip(nat, nat[1:]))
+
+
+def _spread(out, i, j):
+    """Keys i..j: the turn goes from key i's to key j's against the fist's natural turn, spread
+    evenly (eased at both ends), so the fist itself turns by the least it must between them (a
+    whole turn either way is the same set of the fist, so the shortest is taken)."""
+    if j - i < 2:
+        return
+    r0, r1 = out[i].get("fist_roll", 0.0), out[j].get("fist_roll", 0.0)
+    nat = _natural(out[i:j + 1])
+    N = [0.0]
+    for (a0, d0), (a1, d1) in zip(nat, nat[1:]):
+        N.append(N[-1] + _twist(a0, d0, a1, d1))
+    total = min((N[-1] + r1 - r0 + q for q in (0.0, -360.0, 360.0)), key=abs)
+    for m in range(1, j - i):
+        u = m / (j - i)
+        out[i + m]["fist_roll"] = float(r0 + total * u * u * (3 - 2 * u) - N[m])
+
+
+def _wind_in(out, e):
+    """From the clip's first tic (no turn) to key `e` (its turn), turning by the least."""
+    _spread(out, 0, e)
+
+
+def _steady(out):
+    """A thrust: no turn of the fist's own beyond the least (guard to hit, hit back to guard); the
+    natural set of the fist at the hit is kept."""
+    h = next((i for i, f in enumerate(out) if f.get("hit")), None)
+    if h is None:
+        _spread(out, 0, len(out) - 1)
+    else:
+        _spread(out, 0, h)
+        _spread(out, h, len(out) - 1)
+
+
+def _twist(a0, d0, a1, d1):
+    """Degrees the fist turns about the handle from (a0, d0) to (a1, d1): a0 carried along the
+    blade's own swing from d0 to d1, then measured against a1 about d1."""
+    v, c = np.cross(d0, d1), float(np.dot(d0, d1))
+    if np.linalg.norm(v) > 1e-9 and c > -0.999:
+        vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+        a0 = (np.eye(3) + vx + vx @ vx / (1 + c)) @ a0
+    a0, a1 = a0 - d1 * np.dot(a0, d1), a1 - d1 * np.dot(a1, d1)
+    return math.degrees(math.atan2(float(np.dot(np.cross(a0, a1), d1)), float(np.dot(a0, a1))))
+
+
+def _unwind(out, h):
+    """From key `h` (its turn held) back to the clip's last tic (no turn), turning by the least:
+    the turn comes off against the fist's own turn back to guard, not undone in a snap."""
+    _spread(out, h, len(out) - 1)
+    out[-1].pop("fist_roll", None)
 
 
 def guard_pose():

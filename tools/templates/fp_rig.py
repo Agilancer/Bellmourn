@@ -246,6 +246,21 @@ def _pose_arm(side, key):
             d = norm(f * math.cos(r) + up * math.sin(r))
     if not held:
         a = norm(a - d * np.dot(a, d))
+    if key.get("fist_roll") and not held:
+        # the fist (and the sword in it) turned about the handle by this many degrees from its
+        # natural set: a wrist roll worked out over the whole swing (mocap2h), so it never flips
+        r = math.radians(key["fist_roll"])
+        a = norm(a * math.cos(r) + np.cross(d, a) * math.sin(r))
+        w = g - a * HAND
+        for t in (0.97, 0.94, 0.91, 0.88, 0.85, 0.82):   # (out of reach: toward the eye, as below)
+            if np.linalg.norm(w - s) <= UPPER + FORE - 1e-3:
+                break
+            g = np.asarray(key["G3"], float) * t
+            w = g - a * HAND
+        if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:
+            w = s + norm(w - s) * (UPPER + FORE - 1e-3)
+            g = w + a * HAND
+        e = solve_elbow(s, w, pole)
     kn = key.get("knuckle")
     if kn is not None and not held:
         # the fist turns about the handle (a wrist roll: fist and blade turn together, the blade

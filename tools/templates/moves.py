@@ -548,6 +548,23 @@ STAFF_POINT = [
      for n, s in (("RETURN 1", 0.35), ("RETURN 2", 0.6), ("RETURN 3", 0.8), ("RETURN 4", 0.93))] + [
     pose(STAFF, "SETTLE", 2)]
 
+# Staff, lift: no blow, just the staff raised (the fist up a third of the screen, the head up over
+# the crosshair) to shoot, the bolt leaving its head at the top; it kicks back a little as the bolt
+# goes, then settles to the carry.
+STAFF_LIFT_FIRE = k("FIRE", 1, 0.72, 0.65, 0.43, 107, 0.12, fire=True)
+STAFF_LIFT_HOLD = k("HOLD", 1, 0.722, 0.665, 0.42, 105, 0.08)
+STAFF_LIFT = [
+    pose(STAFF, "CARRY", 2),
+    k("LIFT 1", 2, 0.80, 0.85, 0.38, 95, 0.05),
+    k("LIFT 2", 2, 0.76, 0.74, 0.40, 100, 0.07),
+    k("TOP", 1, 0.73, 0.67, 0.42, 105, 0.10),
+    STAFF_LIFT_FIRE,
+    k("RECOIL", 2, 0.725, 0.68, 0.41, 104, 0.04),
+    STAFF_LIFT_HOLD,
+] + [towards(STAFF_LIFT_HOLD, STAFF, s, n, 2)
+     for n, s in (("LOWER 1", 0.4), ("LOWER 2", 0.75), ("LOWER 3", 0.93))] + [
+    pose(STAFF, "SETTLE", 2)]
+
 # Staff, overhand (UAL2 OverhandThrow): heave the head back over the right shoulder, then bring
 # it over the top so it points at the target as the bolt leaves it.
 STAFF_OVER_FIRE = k("FIRE", 2, 0.63, 0.70, 0.44, 106, 1.60, fire=True, ref="OverhandThrow@12")
@@ -660,6 +677,7 @@ add("both_cast", {"RL": both_hands(BOTH_CAST)}, kind="cast")
 add("both_mocap", {"RL": both_hands(BOTH_MOCAP)}, kind="cast")
 for name, keys in STAFF_CASTS.items():
     add(f"staff_{name}", {"R": frames(keys, "R", "staff")}, kind="cast")
+add("staff_lift", {"R": frames(STAFF_LIFT, "R", "staff")}, kind="cast")
 
 # What the player can choose between (the move viewer, moves.html), and the defaults.
 SLOTS = {
@@ -702,9 +720,11 @@ SLOTS = {
         dict(id="gather", name="Gather and push", chain=["both_cast"], ref="UAL1 Spell_Simple"),
     ], default="mocap"),
     "staff": dict(title="Staff", options=[
+        dict(id="lift", name="Lift", chain=["staff_lift"], ref="(your note: just a lift to shoot)",
+             note="no swing: the staff rises upright, the bolt leaves its head at the top"),
         dict(id="point", name="Raise and point", chain=["staff_point"], ref="(the first rig)"),
         dict(id="over", name="Overhand", chain=["staff_over"], ref="UAL2 OverhandThrow"),
-    ], default="point"),
+    ], default="lift"),
 }
 
 # keys 1-6 with a one-hander out: a combo each (mocap1h.COMBOS); maces, hammers and clubs bonk
