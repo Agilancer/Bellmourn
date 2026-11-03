@@ -83,8 +83,13 @@ export function buildRegion(ctx, M, hm) {
   ctx.belltower = buildBellTower(ctx, M);
 
   // ---------------------------------------------------------------- the hamlet
-  homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0,
-    furnish: [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2], ['bookshelf', 1.5, -h.d / 2 + 0.6, 0]] },
+  // (each room laid out with its bookshelf and bed along the north wall; a house whose door is in
+  // that wall has it the other way about, so the bookshelf doesn't stand in the doorway: there it
+  // goes in the middle of the back wall, between the windows either side)
+  const room = (h) => { const f = h.door === 'n' ? -1 : 1;
+    return [['table', 0, 0.5, 0], ['stool', 0, 1.7], ['bed', h.w / 2 - 1.6, -h.d / 2 + 1.4, Math.PI / 2], ['barrel', -h.w / 2 + 1, -h.d / 2 + 1], ['candelabrum', -h.w / 2 + 1, h.d / 2 - 1.2], ['bookshelf', f > 0 ? 1.5 : 0, -h.d / 2 + 0.6, 0]]
+      .map(([id, x, z, r]) => [id, x, z * f, r == null || f > 0 ? r : Math.PI - r]); };
+  homes.forEach((h, i) => detailedHouse(ctx, { ...h, biome: 'downs', h: 3.7, storeys: 2, timber: i % 2 === 0, furnish: room(h) },
   M, { ...hm, ...hm.perHouse(3 + i) }));
   for (const h of homes) { // a little clutter by each home
     S(['town_scatter_16_firewood_stack', 'town_scatter_01_closed_barrel', 'town_scatter_31_vegetable_basket', 'town_scatter_17_workbench'][homes.indexOf(h)], h.x + h.w / 2 + 2, h.z - 2);

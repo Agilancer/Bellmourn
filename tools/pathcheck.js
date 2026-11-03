@@ -125,11 +125,15 @@ function doors(bm, out) {
     const y = d.leaves[0].pivot.position.y, alongX = mx[0] - mn[0] > mx[1] - mn[1];
     const cx = (mn[0] + mx[0]) / 2, cz = (mn[1] + mx[1]) / 2, half = (alongX ? mx[0] - mn[0] : mx[1] - mn[1]) / 2;
     const where = `${d.name} @ ${round(cx)},${round(cz)}`;
+    // (its jambs: what stands in the door's own line, beside its leaves and not across them, is the
+    // doorway's frame (a gate's pillars, an arch's foot), not something in front of it)
+    const jamb = (b) => (alongX ? (b.max[0] <= mn[0] + 0.1 || b.min[0] >= mx[0] - 0.1) && b.min[2] < cz && b.max[2] > cz
+      : (b.max[2] <= mn[1] + 0.1 || b.min[2] >= mx[1] - 0.1) && b.min[0] < cx && b.max[0] > cx);
     for (const side of [-1, 1]) {
       // the doorway's apron: as wide as the door and a bit, 1.6 m out
       const r = alongX ? [cx - half - 0.3, side < 0 ? cz - 1.6 : cz, cx + half + 0.3, side < 0 ? cz : cz + 1.6]
         : [side < 0 ? cx - 1.6 : cx, cz - half - 0.3, side < 0 ? cx : cx + 1.6, cz + half + 0.3];
-      for (const b of inRect(physics, ...r, y)) out.push({ area: 'doors', kind: 'doorway', door: where, side, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
+      for (const b of inRect(physics, ...r, y)) if (!jamb(b)) out.push({ area: 'doors', kind: 'doorway', door: where, side, what: name(b), at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
     }
     // through it: from 1.4 m out on one side to 1.4 m out on the other
     const a = alongX ? { x: cx, z: cz - 1.4 } : { x: cx - 1.4, z: cz }, b = alongX ? { x: cx, z: cz + 1.4 } : { x: cx + 1.4, z: cz };
@@ -214,12 +218,17 @@ function roads(bm, out) {
     const lane = Math.min(p.w * 0.5, 1.4); // the middle of the road, wide enough to walk unhindered
     for (let i = 0; i + 1 < p.pts.length; i++) {
       const [ax, az] = p.pts[i], [bx, bz] = p.pts[i + 1], len = Math.hypot(bx - ax, bz - az);
+      if (!len) continue;
+      const ux = (bx - ax) / len, uz = (bz - az) / len, first = i === 0, last = i + 2 === p.pts.length;
       for (let t = 0; t <= len; t += 0.8) {
         const x = ax + (bx - ax) * t / len, z = az + (bz - az) * t / len, y = physics.groundAt(x, z);
         for (const b of physics.near(x - lane, z - lane, x + lane, z + lane)) {
           if (seen.has(b) || b.tag === 'door' || !standing(b, y)) continue;
           const cx = Math.max(b.min[0], Math.min(x, b.max[0])), cz = Math.max(b.min[2], Math.min(z, b.max[2]));
           if ((x - cx) ** 2 + (z - cz) ** 2 >= lane * lane) continue;
+          // (nothing past the road's ends: a road may run up to a stair or a gate, and that's not on it)
+          const along = (cx - ax) * ux + (cz - az) * uz;
+          if ((last && along > len) || (first && along < 0)) continue;
           seen.add(b);
           out.push({ area: 'roads', kind: 'on the road', what: name(b), tag: b.tag, at: [round((b.min[0] + b.max[0]) / 2), round((b.min[2] + b.max[2]) / 2)] });
         }
