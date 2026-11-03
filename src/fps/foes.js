@@ -93,17 +93,19 @@ export const FOES = {
   // their eyes are a man's. A reaver swings a two-hander, or an axe in each fist, and throws axes
   // that turn over and over as they come (`thrower`); their fire-callers go bareheaded with a staff
   // and a hatchet, and burn you. Their warlord is a head taller than the rest, with the great scythe.
-  scythe_m: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+  // (The helmed ones are the Sworn's own bodies under the helm, so they take the clips already made for
+  // them: each villager's set of clips costs its share of the heap.)
+  scythe_m: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
     R: ['scythe', 'great_axe', 'dane_axe', 'headsman', 'bloodletter', 'claymore', 'warmaul'] },
-  scythe_f: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_f05', armor: 'scythe', sex: 'f', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+  scythe_f: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_f08', armor: 'scythe', sex: 'f', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
     R: ['scythe', 'great_axe', 'flamberge', 'bloodletter', 'dane_axe'] },
-  scythe_axes: { kind: 'knight', title: 'Red Scythe Axeman', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_axes', thrower: true,
+  scythe_axes: { kind: 'knight', title: 'Red Scythe Axeman', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_axes', thrower: true,
     R: ['bearded_axe', 'butchers_axe'], L: ['bearded_axe', 'butchers_axe'], Lsock: 'gripL' },
   scythe_mage_m: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_m06', armor: 'scythe', sex: 'm', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
     caster: true, spell: 'fire', R: ['bearded_axe', 'bone_cleaver'], L: ['brazier_staff', 'gnarled_staff', 'iron_crook'], Lsock: 'gripL' },
   scythe_mage_f: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
     caster: true, spell: 'fire', R: ['bearded_axe', 'fang_blade'], L: ['brazier_staff', 'serpent_staff'], Lsock: 'gripL' },
-  scythe_warlord: { kind: 'knight', title: 'Hask Redhand, Warlord of the Red Scythe', faction: 'scythe', body: { villager: 'villager_m05', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged'], stats: 'warlord', thrower: true,
+  scythe_warlord: { kind: 'knight', title: 'Hask Redhand, Warlord of the Red Scythe', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged'], stats: 'warlord', thrower: true,
     boss: true, scale: 1.3, R: ['scythe'] },
   scythe_pyre: { kind: 'knight', title: 'Ysolde the Kindler, Fire-Mother of the Red Scythe', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged'], stats: 'pyre',
     caster: true, spell: 'fire', scale: 1.15, R: ['fang_blade'], L: ['brazier_staff'], Lsock: 'gripL' },
