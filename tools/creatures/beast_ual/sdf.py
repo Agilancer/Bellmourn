@@ -13,6 +13,7 @@ import numpy as np
 SPECIES = os.environ.get("BEAST", "goat")
 RED = BLUE = False          # (brute build switches, kept off)
 GOAT = SPECIES == "goat"
+WOLF = SPECIES == "wolf"
 
 # ---- primitives ------------------------------------------------------------------------------
 
@@ -102,9 +103,9 @@ _F = {  # 01 head, 02 head, 03 head, 04 head, 04 tail (UAL2 left hand, before wi
 }
 FINGERS0 = {k: [(x + WIDEN_ARM, y, z) for x, y, z in v] for k, v in _F.items()}
 FINGER_R0 = {"index": 0.0124, "middle": 0.0132, "ring": 0.0124, "pinky": 0.011, "thumb": 0.016}   # grooves between them
-HAND_S = 1.3                  # big clawed hands: the hand bones grow with them (build.widen)
+HAND_S = 1.48 if WOLF else 1.3   # big clawed hands: the hand bones grow with them (build.widen)
 WRIST = np.array([0.739 + WIDEN_ARM, 0.065, 1.441])          # hand_l's head on the widened rig
-HEAD_S = 1.1                  # a heavier skull; horns, ears and beard grow with it
+HEAD_S = 1.26 if WOLF else 1.1   # a heavier skull; horns, ears and beard grow with it
 HEAD_PIV = np.array([0.0, 0.0, 1.6])
 
 
@@ -128,13 +129,28 @@ EYE_R0 = 0.0118
 MOUTH_C0 = (0.0, -0.14, 1.562)   # the mouth: a closed slit along the muzzle
 MOUTH_R0 = (0.036, 0.036, 0.0042)
 HORN_BOSS0 = (0.04, -0.012, 1.762)
+MOUTH_IN0 = -0.152
+HEAD_C0 = (0.0, -0.025, 1.665)
+CLAW_L, CLAW_DROP, CLAW_THUMB = 0.026, -0.017, 0.011        # nail-claws: length past the tip, hook down
+if WOLF:                      # the wolf: amber eyes under a scowling brow, a long deep muzzle, the jaw dropped in a snarl
+    EYE0 = (0.043, -0.066, 1.703)
+    EYE_R0 = 0.013
+    MOUTH_C0 = (0.0, -0.153, 1.618)                        # the gape: open about 3.4 cm at the front
+    MOUTH_R0 = (0.03, 0.076, 0.0195)
+    MOUTH_IN0 = -0.184                                     # behind the lips is the mouth
+    HEAD_C0 = (0.0, -0.04, 1.672)
+    FINGER_R0 = {"index": 0.0118, "middle": 0.0124, "ring": 0.0118, "pinky": 0.0106, "thumb": 0.0148}
+    TIP_FRAC = {"index": 0.78, "middle": 0.78, "ring": 0.78, "pinky": 0.78}   # long fingers
+    CLAW_L, CLAW_DROP, CLAW_THUMB = 0.062, -0.03, 0.036     # long hooked claws
+    TOES = [(-0.041, 0.0185), (-0.0135, 0.0205), (0.0135, 0.0205), (0.041, 0.018)]   # four clawed toes on a paw
+    FINGER_R = {k: r * HAND_S for k, r in FINGER_R0.items()}
 EYE = tuple(HD(EYE0))         # ... and these are where it all lands on the grown head
 EYE_R = EYE_R0 * HEAD_S
 MOUTH_C = tuple(HD(MOUTH_C0))
 MOUTH_R = tuple(np.array(MOUTH_R0) * HEAD_S)
 HORN_BOSS = tuple(HD(HORN_BOSS0))
-MOUTH_IN = float(HD((0, -0.152, 1.6))[1])                  # inside the slit (y >) maps to the painted mouth
-HEAD_C = tuple(HD((0.0, -0.025, 1.665)))   # rays out from here put the head's cage on the sculpt
+MOUTH_IN = float(HD((0, MOUTH_IN0, 1.6))[1])               # inside the slit (y >) maps to the painted mouth
+HEAD_C = tuple(HD(HEAD_C0))                # rays out from here put the head's cage on the sculpt
 TEAR_C = (0.0, 0.0, 9.0)
 TEAR_R = (0.001, 0.001, 0.001)
 TEAR_ROT = np.eye(3)
@@ -175,8 +191,13 @@ def _claw0(name):
     d = (tip - prev) / np.linalg.norm(tip - prev)
     r = FINGER_R0[name]
     base = tip + d * r * 0.35 + np.array([0, 0, r * 0.3])
-    point = base + d * (0.011 if name == "thumb" else 0.026) + np.array([0, 0, -0.012 if name == "thumb" else -0.017])   # stubby, hooked nails
+    point = base + d * (CLAW_THUMB if name == "thumb" else CLAW_L) + np.array([0, 0, -0.012 if name == "thumb" else CLAW_DROP])   # hooked nails
     return base, point
+
+
+def claw_mid(base, point):
+    """A curved claw's middle: out along the finger first, then hooked down to the point."""
+    return base + (point - base) * 0.5 + np.array([0, 0, 0.3 * abs(point[2] - base[2])])
 
 
 def finger_pts(name):
@@ -303,7 +324,10 @@ def _hand0(m):
     d = smin(d, round_cone(m, (0.835 + x, 0.05, 1.434), t[1], 0.025, 0.018), 0.016)  # thenar
     for name in ("index", "middle", "ring", "pinky"):
         base = np.array(_fp0(name)[0])
-        d = smin(d, sphere(m, base + (0, 0, 0.011), FINGER_R0[name] * 1.45), 0.004)   # big bony knuckles, one bump each
+        if WOLF:                                    # knuckles eased into the back of the hand (a hard crease folds the skin)
+            d = smin(d, sphere(m, base + (0, 0, 0.009), FINGER_R0[name] * 1.25), 0.014)
+        else:
+            d = smin(d, sphere(m, base + (0, 0, 0.011), FINGER_R0[name] * 1.45), 0.004)   # big bony knuckles, one bump each
     for name in FINGERS0:
         pts = _fp0(name)
         r = FINGER_R0[name]
@@ -314,7 +338,12 @@ def _hand0(m):
             if j:
                 f = smin(f, sphere(m, pts[j] + (0, 0, 0.002), r * (1.05 - 0.07 * j)), 0.004)   # knobbly joints
         base, point = _claw0(name)
-        f = smin(f, round_cone(m, base, point, r * 0.86, 0.002), 0.004)
+        if WOLF:                                     # a thick curved claw: up off the tip, then hooked down
+            mid = claw_mid(base, point)
+            f = smin(f, round_cone(m, base, mid, r * 0.8, r * 0.48), 0.004)
+            f = smin(f, round_cone(m, mid, point, r * 0.48, 0.0018), 0.002)
+        else:
+            f = smin(f, round_cone(m, base, point, r * 0.86, 0.002), 0.004)
         d = smin(d, f, 0.005 if name != "thumb" else 0.012)
     return d
 
@@ -349,17 +378,218 @@ def leg(m):
     return smin(d, h, 0.022)
 
 
-def body(p):
+# ---- the wolf ----------------------------------------------------------------------------------
+
+def _head_wolf0(p):
+    """A werewolf's head at the painted face's scale: a broad skull and wide cheekbones, a heavy
+    scowling brow, a long deep muzzle with a level bridge and a blunt nose, the jaw dropped open in
+    a snarl under hanging flews."""
+    m = p.copy(); m[:, 0] = np.abs(m[:, 0])
+    d = ellipsoid(p, (0, 0.02, 1.718), (0.076, 0.086, 0.068))                          # broad skull
+    d = smin(d, ellipsoid(p, (0, 0.058, 1.672), (0.062, 0.062, 0.056)), 0.03)          # skull base
+    d = smin(d, ellipsoid(m, (0.055, -0.024, 1.67), (0.027, 0.05, 0.028)), 0.025)      # wide cheekbones
+    d = smin(d, ellipsoid(m, (0.04, -0.052, 1.704), (0.03, 0.03, 0.026)), 0.02)        # the eyes' housing
+    d = smin(d, round_cone(p, (0, -0.045, 1.684), (0, -0.184, 1.66), 0.043, 0.024), 0.03)   # long deep muzzle, tapering
+    d = smin(d, round_cone(m, (0.025, -0.058, 1.652), (0.017, -0.177, 1.646), 0.027, 0.016), 0.02)   # flews over the jaw
+    d = smin(d, ellipsoid(p, (0, -0.192, 1.663), (0.0175, 0.015, 0.0135)), 0.01)       # the nose
+    d = smax(d, -ellipsoid(m, (0.0092, -0.208, 1.656), (0.0055, 0.006, 0.0042), rot_y(-30)), 0.002)   # nostrils
+    d = smax(d, -ellipsoid(p, (0, -0.206, 1.64), (0.0022, 0.01, 0.011)), 0.002)        # the split under the nose
+    d = smin(d, round_cone(m, (0.05, -0.008, 1.622), (0.015, -0.158, 1.592), 0.027, 0.018), 0.02)   # the heavy jaw
+    d = smin(d, ellipsoid(p, (0, -0.156, 1.589), (0.021, 0.019, 0.014)), 0.01)         # chin
+    d = smin(d, round_cone(m, (0.012, -0.071, 1.718), (0.062, -0.047, 1.736), 0.016, 0.013), 0.02)   # heavy scowling brow, low at the nose
+    d = smax(d, -ellipsoid(p, (0, -0.078, 1.712), (0.005, 0.012, 0.016)), 0.006)       # the furrow between the brows
+    for k, (y_, z_) in enumerate(((-0.1, 1.71), (-0.116, 1.706), (-0.132, 1.701))):     # snarl wrinkles across the bridge
+        d = smax(d, -ellipsoid(p, (0, y_, z_), (0.024 - 0.002 * k, 0.0025, 0.0035)), 0.003)
+    d = smax(d, -ellipsoid(m, (0.026, -0.168, 1.628), (0.016, 0.03, 0.014)), 0.009)   # the lip drawn up off the fangs
+    d = smax(d, -ellipsoid(p, (0, -0.196, 1.633), (0.017, 0.012, 0.0075)), 0.007)      # and off the front teeth, under the nose
+    d = smax(d, -ellipsoid(m, (EYE0[0], EYE0[1] - 0.002, EYE0[2]), (0.019, 0.018, 0.0135)), 0.005)   # sockets
+    d = smin(d, sphere(m, EYE0, EYE_R0), 0.003)
+    d = smin(d, round_cone(m, (EYE0[0] - 0.013, EYE0[1] - 0.009, EYE0[2] + 0.002), (EYE0[0] + 0.014, EYE0[1] - 0.003, EYE0[2] + 0.011), 0.005, 0.004), 0.004)   # upper lid, slanting
+    d = smin(d, round_cone(m, (EYE0[0] - 0.011, EYE0[1] - 0.007, EYE0[2] - 0.009), (EYE0[0] + 0.012, EYE0[1] - 0.003, EYE0[2] - 0.006), 0.0036, 0.003), 0.004)
+    d = smax(d, -ellipsoid(p, MOUTH_C0, MOUTH_R0), 0.003)                               # the gape
+    d = smin(d, ellipsoid(p, (0, 0.094, 1.69), (0.06, 0.04, 0.042)), 0.016)            # occiput
+    return d
+
+
+def head(p):
+    if WOLF:
+        return HEAD_S * _head_wolf0(HEAD_PIV + (p - HEAD_PIV) / HEAD_S)
+    return head_goat(p)
+
+
+def wolf_bulk(p, m):
+    """The werewolf's build over the shared base: a deep barrel chest on a narrow waist, massive
+    trapezius rising to the skull, a hump between the shoulder blades, lats flaring into a V."""
+    d = ellipsoid(p, (0, 0.025, 1.33), (0.214, 0.145, 0.2))                           # barrel chest
+    d = smin(d, round_cone(m, (0.05, 0.075, 1.52), (0.22, 0.075, 1.48), 0.07, 0.062), 0.05)     # massive trapezius, below the skull
+    d = smin(d, ellipsoid(p, (0, 0.108, 1.45), (0.15, 0.07, 0.1)), 0.05)               # the hump
+    d = smin(d, ellipsoid(m, (0.168, 0.062, 1.29), (0.09, 0.09, 0.16)), 0.05)          # lats: the V
+    d = smin(d, ellipsoid(m, (0.098, -0.1, 1.388), (0.108, 0.034, 0.062), rot_z(20) @ rot_y(-18)), 0.03)   # slab pecs
+    d = smin(d, round_cone(p, (0, 0.03, 1.44), (0, 0.02, 1.6), 0.098, 0.07), 0.05)    # thick neck
+    return d
+
+
+def wolf_arm(m):
+    x = DW
+    d = ellipsoid(m, (0.326 + x, 0.062, 1.455), (0.104, 0.1, 0.095))                    # boulder deltoid
+    d = smin(d, ellipsoid(m, (0.4 + x, 0.016, 1.446), (0.11, 0.062, 0.066)), 0.03)     # biceps
+    d = smin(d, ellipsoid(m, (0.4 + x, 0.118, 1.446), (0.11, 0.06, 0.064)), 0.03)      # triceps
+    d = smin(d, ellipsoid(m, (0.6 + x, 0.06, 1.449), (0.13, 0.078, 0.072)), 0.03)      # heavy forearm
+    return d
+
+
+def toe_claw(dx):
+    """A toe's claw (left foot, mirrored by |x|): base off the toe's tip, a curved hook into the ground."""
+    tx = HIP_X + dx
+    base = np.array([tx + dx * 0.22, -0.16, 0.03])
+    point = np.array([tx + dx * 0.31, -0.222, 0.004])
+    return base, claw_mid(base, point), point
+
+
+def _leg_wolf(m):
+    x = HIP_X
+    d = round_cone(m, (x + 0.028, 0.01, 0.93), (x + 0.004, 0.0, 0.57), 0.128, 0.078)    # heavy thighs, apart at the crotch
+    d = smin(d, ellipsoid(m, (x + 0.024, -0.055, 0.75), (0.108, 0.088, 0.168)), 0.04)   # quads
+    d = smin(d, ellipsoid(m, (x + 0.016, 0.068, 0.78), (0.1, 0.088, 0.158)), 0.04)      # hamstrings
+    d = smin(d, ellipsoid(m, (x, 0.0, 0.535), (0.066, 0.06, 0.05)), 0.03)               # knee
+    d = smin(d, sphere(m, (x, -0.055, 0.54), 0.032), 0.02)                               # kneecap
+    d = smin(d, round_cone(m, (x, 0.004, 0.52), (x, 0.03, 0.23), 0.068, 0.04), 0.03)    # shin
+    d = smin(d, ellipsoid(m, (x + 0.004, 0.062, 0.43), (0.088, 0.086, 0.13)), 0.03)     # calf, high and heavy
+    d = smin(d, round_cone(m, (x, 0.066, 0.32), (x, 0.092, 0.2), 0.03, 0.022), 0.03)    # the tendon to the hock
+    # the paw, digitigrade: the hock high behind the ankle with air under it, a long steep instep
+    # down to a broad pad, four short arched clawed toes
+    f = ellipsoid(m, (x, 0.095, 0.2), (0.027, 0.03, 0.032))                             # the hock
+    f = smin(f, round_cone(m, (x, 0.085, 0.25), (x, 0.128, 0.188), 0.022, 0.011), 0.012)  # its hard spur, pointing back
+    f = smin(f, round_cone(m, (x, 0.075, 0.195), (x, -0.062, 0.042), 0.031, 0.036), 0.025)   # long steep instep, air under it
+    f = smin(f, ellipsoid(m, (x, -0.09, 0.03), (0.06, 0.046, 0.03)), 0.022)             # the broad pad, under the ball only
+    for dx, r in TOES:
+        tx = x + dx
+        f = smin(f, round_cone(m, (tx, -0.103, 0.034), (tx + dx * 0.12, -0.135, 0.043), r * 1.18, r * 1.06), 0.012)   # arched knuckle
+        f = smin(f, round_cone(m, (tx + dx * 0.12, -0.135, 0.043), (tx + dx * 0.2, -0.157, 0.025), r * 1.06, r * 0.88), 0.008)
+        b, c, pt = toe_claw(dx)
+        f = smin(f, round_cone(m, b, c, r * 0.72, r * 0.42), 0.004)
+        f = smin(f, round_cone(m, c, pt, r * 0.42, 0.0016), 0.002)
+    f = smax(f, -(m[:, 2] - 0.002), 0.02)                                                # flat sole
+    return smin(d, f, 0.04)
+
+
+def body(p, tufts=True):
     p = np.atleast_2d(p).astype(float)
     m = p.copy(); m[:, 0] = np.abs(m[:, 0])
     d = torso(p, m)
     d = smin(d, neck(p, m), 0.05)
-    d = smin(d, head_goat(p), 0.035)
+    if WOLF:
+        d = smin(d, wolf_bulk(p, m), 0.04)
+    d = smin(d, head(p), 0.035)
     mt = to_T(m)
     d = smin(d, arm(mt), 0.06)
+    if WOLF:
+        d = smin(d, wolf_arm(mt), 0.04)
     d = smin(d, hand(mt), 0.022)
-    d = smin(d, leg(m), 0.045)
+    d = smin(d, _leg_wolf(m) if WOLF else leg(m), 0.045)
+    if WOLF and tufts and TUFTS:
+        d = _tufts(p, m, mt, d)
     return d
+
+
+# ---- the wolf's fur: clumps sculpted into the hide (no strands), each a tapering wedge laid along
+# the hair's fall with its tip standing a little proud, so the silhouette goes shaggy; set on the
+# bare body by casting rays at it. Groups: (space: p body / m mirrored / t the arm laid straight)
+TUFTS = []
+
+
+def _ray_surf(o, dvec, field, tmax=0.5, n=100):
+    o = np.atleast_2d(np.asarray(o, float)); dv = np.atleast_2d(np.asarray(dvec, float))
+    dv = dv / np.linalg.norm(dv, axis=1, keepdims=True)
+    hit = np.full(len(o), np.nan)
+    for k in range(n + 1):
+        tk = tmax * k / n
+        new = np.isnan(hit) & (field(o + dv * tk) < 0)
+        hit[new] = tk
+    ok = ~np.isnan(hit)
+    lo = np.where(ok, hit - tmax / n, 0); hi = np.where(ok, hit, 0)
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        ins = field(o + dv * mid[:, None]) < 0
+        hi = np.where(ins, mid, hi); lo = np.where(ins, lo, mid)
+    return o + dv * hi[:, None], ok
+
+
+def _fgrad(field, q, h=5e-4):
+    e = np.eye(3) * h
+    g = np.stack([field(q + e[i]) - field(q - e[i]) for i in range(3)], -1)
+    return g / np.maximum(np.linalg.norm(g, axis=-1, keepdims=True), 1e-9)
+
+
+def _make_tufts():
+    rng = np.random.default_rng(23)
+    base = lambda q: body(q, tufts=False)
+    baseT = lambda q: body(to_A(q), tufts=False)          # the arm, laid out straight
+    groups = []
+
+    def group(space, field, origins, dirs, flow, L, r1, lift=0.009):
+        S, ok = _ray_surf(origins, dirs, field)
+        S = S[ok]
+        if not len(S):
+            return
+        N = _fgrad(field, S)
+        items = []
+        for s_, n_ in zip(S, N):
+            fl = np.asarray(flow, float) + rng.normal(0, 0.12, 3)
+            fl -= (fl @ n_) * n_; fl /= np.linalg.norm(fl)             # along the hide
+            ln = L * rng.uniform(0.8, 1.2); r = r1 * rng.uniform(0.85, 1.15)
+            a = s_ - n_ * r * 0.55 - fl * r * 0.4
+            b = s_ + fl * ln + n_ * lift
+            items.append((a, b, r, 0.0035))
+        P_ = np.array([q for it in items for q in it[:2]])
+        pad = r1 * 1.3 + 0.03
+        groups.append((space, P_.min(0) - pad, P_.max(0) + pad, items))
+
+    # the mane: down the back of the neck and over the hump between the shoulders
+    o, dd = [], []
+    for z, w, n_ in ((1.58, 0.11, 5), (1.54, 0.15, 6), (1.5, 0.19, 7),
+                     (1.46, 0.2, 7), (1.42, 0.17, 6), (1.38, 0.12, 4)):
+        for x in np.linspace(-w, w, n_) + rng.normal(0, 0.012, n_):
+            o.append((x, 0.5, z + rng.normal(0, 0.008))); dd.append((0, -1, 0))
+    group("p", base, o, dd, (0, 0.32, -1), 0.095, 0.03, 0.02)
+    # the throat ruff, under the jaw
+    o = [(x, -0.4, z) for z in (1.565, 1.53, 1.495) for x in np.linspace(-0.055, 0.055, 4) + rng.normal(0, 0.008, 4)]
+    group("p", base, o, [(0, 1, 0)] * len(o), (0, -0.2, -1), 0.07, 0.024, 0.014)
+    # cheek ruffs: behind the jaw, swept back and down
+    o = [(0.35, y, z) for y in (-0.03, 0.0, 0.03, 0.06) for z in (1.59, 1.625, 1.66, 1.695)]
+    o = [(x, y + rng.normal(0, 0.006), z + rng.normal(0, 0.006)) for x, y, z in o]
+    group("m", base, o, [(-1, 0, 0)] * len(o), (0.35, 0.75, -0.6), 0.075, 0.025, 0.018)
+    # the hips' outer fur
+    o = [(0.5, y, z) for y in (-0.02, 0.05) for z in (0.9, 0.82)]
+    group("m", base, o, [(-1, 0, 0)] * len(o), (0.2, 0.3, -1), 0.06, 0.02)
+    # the backs of the calves
+    o = [(HIP_X + rng.normal(0, 0.01), 0.45, z) for z in (0.44, 0.38, 0.32, 0.26)]
+    group("m", base, o, [(0, -1, 0)] * len(o), (0, 0.35, -1), 0.06, 0.02, 0.013)
+    # shoulders (the arm laid straight): over the deltoid, falling down the arm
+    o = [(x + DW + rng.normal(0, 0.006), y, 1.8) for x in (0.25, 0.3, 0.35, 0.4) for y in (0.0, 0.06, 0.12)]
+    group("t", baseT, o, [(0, 0, -1)] * len(o), (1, 0.2, -0.35), 0.08, 0.026, 0.017)
+    # forearms: tufts off the back, swept toward the elbow
+    o = [(x + DW + rng.normal(0, 0.006), 0.4, z + rng.normal(0, 0.006)) for x in (0.53, 0.59, 0.65, 0.71) for z in (1.43, 1.465)]
+    group("t", baseT, o, [(0, -1, 0)] * len(o), (-0.7, 0.7, -0.1), 0.07, 0.022, 0.016)
+    return groups
+
+
+def _tufts(p, m, mt, d):
+    d = d.copy()
+    for space, lo, hi, items in TUFTS:
+        q = {"p": p, "m": m, "t": mt}[space]
+        k = np.all((q >= lo) & (q <= hi), axis=1)
+        if not k.any():
+            continue
+        qk = q[k]; sub = d[k]
+        for a, b, r1, r2 in items:
+            sub = smin(sub, round_cone(qk, a, b, r1, r2), 0.012)
+        d[k] = sub
+    return d
+
+
+if WOLF:
+    TUFTS = _make_tufts()
 
 
 def grad(p, h=4e-4):

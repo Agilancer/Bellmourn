@@ -6,6 +6,10 @@ creature faces -Y), one arm mirrored onto the other, poses of other clips blende
 envelopes, claws opened. Every bone is keyed on every frame. UAL clips are in place; so are these
 (the game moves the body).
 
+Wolf (the werewolf): Wolf_Rake (right claw then left, each raked down and across), Wolf_Lunge_Bite
+(springs in, claws flung wide then clapped shut on the prey, jaws driven in, a shake), Wolf_Pounce
+(a low coil, claws-first flight, lands on all fours), Wolf_Howl, Wolf_Idle_Loop.
+
 Goat (the ram): Goat_Ram_Charge (head down, horns first, a toss up through the target at the
 end), Goat_Hammer (rears back with both fists over the horns, then slams fists and horns down
 together), Goat_Leap (deep crouch, launch, hooves tucked, horns first in the air, landing low).
@@ -89,6 +93,8 @@ def symmetric_spine(ARM, w=1.0):
         pb = ARM.pose.bones[b]
         q = pb.rotation_quaternion.copy()
         qm = q.copy(); qm.y, qm.z = -q.y, -q.z           # bones along the mid-plane: mirror flips y, z
+        if q.dot(qm) < 0:                                # (the short way: past 90 degrees of twist the long way turns it round)
+            qm.negate()
         qs = q.slerp(qm, 0.5)
         pb.rotation_quaternion = q.slerp(qs, w)
 
@@ -314,6 +320,415 @@ def goat_leap(ARM, sc, log):
     return bake(ARM, "Goat_Leap", frames, log)
 
 
+# ---------------------------------------------------------------------------------------- wolf
+
+UPPER = ("spine_01", "spine_02", "spine_03", "neck_01", "Head", "jaw") + ARMB + CLAW
+JAW_SHUT = -5.0          # the jaw at rest in a snarl, lips off the teeth; the sculpt itself is open (0)
+
+
+def jaw(ARM, deg):
+    """The jaw turned about its hinge: + opens past the sculpt's gape, - closes toward a snarl."""
+    if "jaw" in ARM.pose.bones:
+        turn(ARM, "jaw", "X", deg)
+
+
+def _partner(n):
+    return n[:-2] + ("_r" if n.endswith("_l") else "_l") if n.endswith(("_l", "_r")) else n
+
+
+def mirror_upper(ARM):
+    """The upper body (spine, head, arms, claws) mirrored across the mid-plane, left for right; the
+    hips and legs keep their pose."""
+    S = Matrix.Scale(-1, 4, (1, 0, 0))
+    bpy.context.view_layer.update()
+    M = {pb.name: pb.matrix.copy() for pb in ARM.pose.bones}
+    for pb in sorted(ARM.pose.bones, key=lambda b: len(b.bone.parent_recursive)):
+        if pb.name.startswith(UPPER) and _partner(pb.name) in M:
+            pb.matrix = S @ M[_partner(pb.name)] @ S
+            bpy.context.view_layer.update()
+
+
+def symmetrize(ARM, w=1.0):
+    """The pose averaged with its own mirror image (armature space, so any bone's axes): no twist,
+    no lean to a side, both limbs alike. w=1 fully symmetric."""
+    S = Matrix.Scale(-1, 4, (1, 0, 0))
+    bpy.context.view_layer.update()
+    M = {pb.name: pb.matrix.copy() for pb in ARM.pose.bones}
+    for pb in sorted(ARM.pose.bones, key=lambda b: len(b.bone.parent_recursive)):
+        src = _partner(pb.name)
+        if src not in M:
+            continue
+        A_, B_ = M[pb.name], S @ M[src] @ S
+        qa, qb = A_.to_quaternion(), B_.to_quaternion()
+        if qa.dot(qb) < 0:
+            qb.negate()
+        q = qa.slerp(qb, 0.5 * w)
+        t = A_.translation.lerp(B_.translation, 0.5 * w)
+        pb.matrix = Matrix.Translation(t) @ q.to_matrix().to_4x4()
+        bpy.context.view_layer.update()
+
+
+def hands_to(ARM, want, w, pole, keep=None):
+    """Both hands slid toward armature-space points by w (two-bone IK), elbows toward pole(sx)."""
+    if w <= 1e-3:
+        return
+    bpy.context.view_layer.update()
+    for s_, sx in (("l", 1), ("r", -1)):
+        Mh = ARM.pose.bones["hand_" + s_].matrix.copy()
+        M = Mh.copy(); M.translation = Mh.translation.lerp(want(s_, sx), w)
+        two_bone(ARM, s_, M, pole(sx))
+
+
+def wolf_idle(ARM, sc, log):
+    """Its own idle: Idle_Loop dropped into a wide, staggered crouch, the chest pitched over the
+    knees, arms hung forward and out with the claws spread, the head low but up on the prey."""
+    act = bpy.data.actions["Idle_Loop"]
+    f0, f1 = (int(round(x)) for x in act.frame_range)
+    frames = []
+    for f in range(f0, f1 + 1):
+        put(ARM, sample(ARM, sc, "Idle_Loop", f))
+        feet = feet_of(ARM)
+        feet["l"] = Matrix.Translation((0.05, -0.13, 0)) @ feet["l"]
+        feet["r"] = Matrix.Translation((-0.06, 0.09, 0)) @ feet["r"]
+        bpy.context.view_layer.update()
+        pv = ARM.pose.bones["pelvis"]
+        pv.matrix = Matrix.Translation((0, 0.03, -0.14)) @ pv.matrix
+        plant(ARM, feet)
+        turn(ARM, "spine_01", "X", 23)
+        turn(ARM, "spine_02", "X", 8)
+        turn(ARM, "spine_03", "X", 10)
+        turn(ARM, "neck_01", "X", 10)
+        turn(ARM, "Head", "X", -24)
+        jaw(ARM, JAW_SHUT + 1.8 * (0.5 + 0.5 * math.sin((f - f0) / max(f1 - f0, 1) * 4 * math.pi)))
+        for s_, sg in (("l", 1), ("r", -1)):
+            turn(ARM, "upperarm_" + s_, "Y", -sg * 15)                # arms off the body, ready
+            turn(ARM, "upperarm_" + s_, "X", -14)                     # and forward
+            turn(ARM, "lowerarm_" + s_, "X", -26)
+        claws(ARM, 0.95)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Idle_Loop", frames, log)
+
+
+def wolf_rake(ARM, sc, log):
+    """Two raking blows, right claw then left: each arm up and back over its shoulder, then down
+    and across through the target with the torso wrung round behind it and the head driving in
+    (Zombie_Scratch's rake, the second one its mirror, cross-faded)."""
+    T1 = [(0, 0), (7, 9), (11, 11), (14, 21), (18, 27)]       # the wind-up held, claw high (the tell)
+    T2 = [(18, 6), (24, 11), (27, 21), (31, 27), (48, 43)]
+    end1 = None
+    frames = []
+    for f in range(49):
+        if f <= 18:
+            put(ARM, sample(ARM, sc, "Zombie_Scratch", timemap(f, T1)))
+        else:
+            put(ARM, sample(ARM, sc, "Zombie_Scratch", timemap(f, T2)))
+            mirror_upper(ARM)
+            x = env(f, [(18, 0), (22, 1)])
+            if x < 1:
+                put(ARM, blend(end1, readback(ARM), x, only=UPPER))
+        r1 = env(f, [(0, 0), (7, 1), (11, 1), (14, -1), (19, -0.4), (22, 0)])     # wring: wound right, thrown left
+        r2 = env(f, [(19, 0), (24, 1), (25, 1), (28, -1), (33, -0.4), (44, 0)])
+        wind = max(env(f, [(0, 0), (7, 1), (11, 1), (13, 0)]), env(f, [(19, 0), (23, 1), (25, 1), (27, 0)]))
+        lean = env(f, [(0, 0), (12, 1), (29, 1), (44, 0)])
+        turn(ARM, "spine_02", "Z", 14 * r1 - 14 * r2)
+        turn(ARM, "spine_02", "X", -9 * wind)                           # chest opened on the wind-up
+        turn(ARM, "spine_01", "X", 10 * lean)
+        turn(ARM, "neck_01", "X", -20 * lean)                            # head thrust in after the claws
+        turn(ARM, "Head", "X", -4 * lean - 12 * wind)                   # and up at the prey
+        jaw(ARM, JAW_SHUT + 15 * max(env(f, [(6, 0), (12, 1), (16, 0.2)]), env(f, [(22, 0), (26, 1), (31, 0.2)])))
+        claws(ARM, 1.0)
+        cur = readback(ARM)
+        if f == 18:
+            end1 = cur
+        frames.append(cur)
+    return bake(ARM, "Wolf_Rake", frames, log)
+
+
+def reach_hand(ARM, s_, tgt, fwd, w, pole):
+    """One hand slid to armature-space point tgt by w (two-bone IK), its length turned toward fwd, so
+    the open claws point where it reaches."""
+    if w <= 1e-3:
+        return
+    bpy.context.view_layer.update()
+    Mh = ARM.pose.bones["hand_" + s_].matrix.copy()
+    q0 = Mh.to_quaternion()
+    q1 = Mh.col[1].xyz.normalized().rotation_difference(fwd.normalized()) @ q0
+    M = q0.slerp(q1, w).to_matrix().to_4x4()
+    M.translation = Mh.translation.lerp(tgt, w)
+    two_bone(ARM, s_, M, pole)
+
+
+def wolf_bite(ARM, sc, log):
+    """Out of its own crouch (Wolf_Idle_Loop: it starts and ends there). The tell: it sinks back into
+    a coil, the claws bloom wide, the chin comes up so the gaping maw faces the prey, held trembling;
+    a shudder back, then the lunge: the hips drop and shoot forward, the whole torso pitched from the
+    hips with the back straight, the front foot stepping in and stamping; the claws swept up high
+    (the head kept up) and slammed in at the prey's cheeks ahead of the face, elbows out; the jaws open
+    to the last frame, then snapped with the head thrown past the mark (f22, the hit) and recoiling;
+    a savage shake, the shoulders whipping against it; a tear free, chin yanked up and a claw flung
+    out; a crouched, heaving pant with the claws on the floor (the punish window), eased back into
+    the crouch. In place: the game carries the body forward."""
+    from mathutils import Vector
+    idle = bpy.data.actions["Wolf_Idle_Loop"]
+    i0, i1 = (int(round(x)) for x in idle.frame_range)
+    n = max(i1 - i0, 1)
+    P6 = 2 * math.pi / 6                                                     # the shake: 4 a second
+    frames = []
+    for f in range(65):
+        put(ARM, sample(ARM, sc, "Wolf_Idle_Loop", i0 + f % n))
+        feet = feet_of(ARM)
+        coil = env(f, [(0, 0), (10, 1), (13, 1), (16, 0)])
+        back = env(f, [(11, 0), (14, 1), (16, 0)])
+        tell = env(f, [(6, 0), (8, 1), (13, 1), (15, 0)]) * math.sin(f * 2.6)
+        low = env(f, [(13, 0), (16, 1), (24, 1), (41, 0.6), (47, 0)])
+        drive = env(f, [(15, 0), (19, 1), (41, 1), (47, 0)])
+        over = env(f, [(21, 0), (22, 1), (23, 0.55), (25, 0)])              # the snap thrown past the mark, then the recoil
+        comp = env(f, [(21, 0), (22, 1), (24, 0)])
+        step = env(f, [(15, 0), (20, 1), (41, 1), (47, 0)])
+        lift = env(f, [(15, 0), (18, 1), (21, 0)])
+        shuffle = env(f, [(28, 0), (31, 1), (41, 1), (47, 0)])               # the rear foot drags in during the shake
+        slift = env(f, [(28, 0), (29.5, 1), (31, 0)])
+        pin = env(f, [(22, 0), (25, 1), (41, 1), (45, 0)])                  # the claws drop to pin it, clear of the face
+        sweep = env(f, [(14, 0), (17, 1), (19, 1), (21, 0)])
+        shut = env(f, [(18, 0), (21, 1), (41, 1), (45, 0)])
+        grip = env(f, [(22, 0), (24, 1), (41, 1), (45, 0)])                 # the claws close only once they are in
+        thrust = env(f, [(18, 0), (21, 0.75), (22, 1), (41, 1), (46, 0)])
+        shake = env(f, [(24, 0), (25, 1), (36, 1), (41, 0)])
+        sw = shake * math.sin((f - 24) * P6 - 0.5)                           # extremes at f26 / f29
+        sw3 = shake * math.sin((f - 27) * P6 - 0.5)                          # the claws and shoulders trail
+        tear = env(f, [(40, 0), (42, 1), (44, 1), (48, 0)])
+        pant = env(f, [(45, 0), (49, 1), (55, 1), (64, 0)])
+        heave = pant * math.sin(f * 0.55)
+        reach = env(f, [(0, 0), (9, 1), (41, 1), (46, 0)])
+        gape = env(f, [(0, 0), (6, 1), (21, 1), (22, 0), (40, 0), (42, 0.7), (45, 0.3), (49, 0.5), (55, 0.5), (64, 0)])
+        feet["l"] = Matrix.Translation((0, -0.3 * step, 0.08 * lift)) @ feet["l"]
+        feet["r"] = Matrix.Translation((0.03 * shuffle, -0.07 * shuffle, 0.04 * slift)) @ feet["r"]
+        bpy.context.view_layer.update()
+        pv = ARM.pose.bones["pelvis"]
+        pv.matrix = Matrix.Translation((0.05 * sw3, 0.08 * coil + 0.04 * back - 0.3 * drive - 0.08 * over,
+                                        -0.13 * coil - 0.12 * low - 0.07 * comp - 0.15 * pant + 0.02 * heave)) @ pv.matrix
+        turn(ARM, "pelvis", "X", 18 * drive)                                 # (about 40 degrees with the hunch)
+        turn(ARM, "pelvis", "Z", 10 * sw3)                                   # the tail whips against the shake
+        plant(ARM, feet)
+        turn(ARM, "spine_01", "X", 14 * coil - 8 * back + 3 * drive + 6 * comp + 8 * pant)
+        turn(ARM, "spine_02", "X", 6 * coil - 6 * back + 2 * drive + 6 * heave)
+        turn(ARM, "spine_03", "X", -8 * back - 14 * tear + 4 * heave)
+        turn(ARM, "spine_02", "Z", -7 * sw3)
+        turn(ARM, "spine_03", "Z", -12 * sw3)                                # the shoulders whip against it
+        turn(ARM, "spine_03", "Y", 8 * sw3)                                  # and the torso rolls
+        chin = env(f, [(14, 0), (16, 1), (21, 1), (23, 0)])                   # the muzzle held up on the prey to the last
+        turn(ARM, "neck_01", "X", -8 * coil - 38 * thrust - 22 * over - 8 * tear - 4 * pant)
+        turn(ARM, "Head", "X", -42 * coil + 1.2 * tell - 28 * chin - 20 * thrust - 6 * over - 45 * tear - 10 * pant + 6 * abs(sw))
+        turn(ARM, "neck_01", "Z", 16 * sw3)                                  # the neck carries the head across
+        turn(ARM, "Head", "Z", 45 * sw)
+        turn(ARM, "Head", "Y", 12 * sw)
+        jaw(ARM, JAW_SHUT + 27 * gape + 0.8 * tell)
+        bpy.context.view_layer.update()
+        hd = ARM.pose.bones["Head"].head.copy()
+        for s_, sx in (("l", 1), ("r", -1)):
+            sh = ARM.pose.bones["upperarm_" + s_].head
+            wide = Vector((sx * (0.62 + 0.01 * tell), sh.y - 0.25, sh.z + 0.12))
+            high = Vector((sx * 0.5, sh.y - 0.22, sh.z + 0.38))
+            cheek = Vector((sx * 0.18, hd.y - 0.12, hd.z + 0.16))               # the pincer framing the face, at its eyes (aimed high: the reach falls short)
+            pinp = Vector((sx * 0.32 + 0.2 * sw3, hd.y - 0.24, hd.z - 0.26 + 0.06 * sx * sw3))   # pinning it low, swung off-beat
+            fling = Vector((sx * 0.75, sh.y - 0.05, sh.z + 0.1))
+            drag = Vector((sx * 0.34, sh.y - 0.42, 0.06))                      # claws on the floor while it pants
+            t = wide.lerp(high, sweep).lerp(cheek, shut).lerp(pinp, pin)
+            if s_ == "r":
+                t = t.lerp(fling, tear)
+            w = max(reach, tear if s_ == "r" else 0.0)
+            fwd = Vector((sx * 0.1, -1.0, 0.05 + 0.6 * sweep * (1 - shut)))
+            reach_hand(ARM, s_, t, fwd, w * (1 - pant), (sx * 1.0, 0.15, 0.25))   # elbows out
+            reach_hand(ARM, s_, drag, Vector((sx * 0.2, -1.0, -0.6)), 0.9 * pant, (sx * 1.0, 0.3, 0.0))
+        claws(ARM, 1.0 - 0.45 * grip)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Lunge_Bite", frames, log)
+
+
+def wolf_pounce(ARM, sc, log):
+    """Drops into a coil with the claws almost on the ground, launches, flies claws-first with the
+    body stretched out and the legs tucked under, lands on all fours (claws planted ahead of the
+    feet) and rises. Jump_Start, NinjaJump's tuck and Jump_Land, reshaped."""
+    tuck = sample(ARM, sc, "NinjaJump_Idle_Loop", 20)
+    keys = [(0, sample(ARM, sc, "Jump_Start", 0)), (15, sample(ARM, sc, "Jump_Start", 0)),
+            (19, sample(ARM, sc, "Jump_Start", 4)), (24, blend(sample(ARM, sc, "Jump_Land", 0), tuck, 0.45)),
+            (31, blend(sample(ARM, sc, "Jump_Land", 0), tuck, 0.25)), (35, sample(ARM, sc, "Jump_Land", 3))]
+    frames = []
+    for f in range(64):
+        if f >= 35:
+            pose = sample(ARM, sc, "Jump_Land", timemap(f, [(35, 3), (42, 6), (63, 30)]))
+        else:
+            for (a0, p0), (a1, p1) in zip(keys, keys[1:]):
+                if f <= a1:
+                    s_ = (f - a0) / (a1 - a0)
+                    pose = blend(p0, p1, s_ * s_ * (3 - 2 * s_))
+                    break
+        put(ARM, pose)
+        coil = env(f, [(0, 0.3), (8, 1), (16, 1), (18, 0)])               # held low: the tell
+        launch = env(f, [(15, 0), (19, 1), (22, 0.4), (25, 0)])
+        air = env(f, [(19, 0), (23, 1), (31, 1), (35, 0)])
+        land = env(f, [(32, 0), (36, 1), (44, 0.7), (58, 0)])
+        jaw(ARM, JAW_SHUT + 14 * max(air, 0.5 * launch) + 6 * coil)
+        if coil > 1e-3:                                                 # crouched over the claws, low
+            feet = feet_of(ARM)
+            bpy.context.view_layer.update()
+            pv = ARM.pose.bones["pelvis"]
+            pv.matrix = Matrix.Translation((0, 0.03, -0.1 * coil)) @ pv.matrix
+            plant(ARM, feet)
+        turn(ARM, "pelvis", "X", 38 * air)                              # the whole body laid out flat in the air
+        for s_ in ("l", "r"):
+            turn(ARM, "thigh_" + s_, "X", -48 * air)                     # knees tucked up under it
+            turn(ARM, "calf_" + s_, "X", 70 * air)                       # shins folded back
+        turn(ARM, "spine_01", "X", 22 * coil + 10 * air + 26 * land)
+        turn(ARM, "spine_02", "X", 8 * coil - 10 * launch + 8 * air + 10 * land)
+        turn(ARM, "neck_01", "X", -18 * coil - 16 * air - 20 * land)   # eyes on the prey throughout
+        turn(ARM, "Head", "X", -10 * coil - 24 * air - 14 * land)
+        for s_, sg in (("l", 1), ("r", -1)):
+            turn(ARM, "upperarm_" + s_, "X", 30 * launch - 70 * air)                 # flung forward, claws first
+            turn(ARM, "upperarm_" + s_, "Y", -sg * 16 * air)
+            turn(ARM, "lowerarm_" + s_, "X", -10 * air)
+        hands_to(ARM, lambda s_, sx: ARM.pose.bones["upperarm_" + s_].head.__class__((sx * 0.3, -0.36, 0.1)),
+                 coil * 0.85, lambda sx: (sx * 1.0, 0.3, 0.0))
+        hands_to(ARM, lambda s_, sx: ARM.pose.bones["upperarm_" + s_].head.__class__((sx * 0.3, -0.5, 0.03)),
+                 land, lambda sx: (sx * 1.0, 0.3, 0.0))                       # planted ahead of the feet
+        reach_f = max(air, 0.6 * launch)
+        if reach_f > 1e-3:                                             # in the air: arms straight at the prey, claws pointing ahead
+            from mathutils import Vector
+            bpy.context.view_layer.update()
+            fwd = Vector((0, -1, 0.04)).normalized()                # level: the claws straight at the prey
+            for s_, sx in (("l", 1), ("r", -1)):
+                sh = ARM.pose.bones["upperarm_" + s_].head.copy()
+                Mh = ARM.pose.bones["hand_" + s_].matrix.copy()
+                tgt = Vector((sx * 0.2, sh.y - 0.64, sh.z - 0.02))
+                q0 = Mh.to_quaternion()
+                q1 = Mh.col[1].xyz.normalized().rotation_difference(fwd) @ q0   # the hand's length laid along the reach
+                M = q0.slerp(q1, reach_f).to_matrix().to_4x4()
+                M.translation = Mh.translation.lerp(tgt, reach_f)
+                two_bone(ARM, s_, M, (sx * 1.0, 0.3, -0.6))
+        claws(ARM, 1.0)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Pounce", frames, log)
+
+
+def wolf_howl(ARM, sc, log):
+    """Rears up, the arms thrown wide and back, the chest open and the muzzle to the sky; holds it,
+    trembling, then drops back to the crouch."""
+    act = bpy.data.actions["Idle_Loop"]
+    f0, f1 = act.frame_range
+    frames = []
+    for f in range(76):
+        put(ARM, sample(ARM, sc, "Idle_Loop", f0 + f % (f1 - f0)))
+        up = env(f, [(0, 0), (16, 1), (60, 1), (75, 0)])
+        tr = up * math.sin(f * 2.1) * env(f, [(16, 0), (22, 1), (56, 1), (60, 0)])
+        turn(ARM, "spine_01", "X", -10 * up)
+        turn(ARM, "spine_02", "X", -11 * up)
+        turn(ARM, "spine_03", "X", -10 * up)
+        turn(ARM, "neck_01", "X", -22 * up)                                    # the throat stretched
+        turn(ARM, "Head", "X", -42 * up + 1.5 * tr)                            # the head thrown right back, muzzle to the moon
+        jaw(ARM, JAW_SHUT + 24 * up * env(f, [(8, 0), (18, 1), (56, 1), (66, 0)]))
+        for s_, sg in (("l", 1), ("r", -1)):
+            turn(ARM, "upperarm_" + s_, "Y", -sg * (46 * up + 3 * tr))         # flung wide, trembling
+            turn(ARM, "upperarm_" + s_, "X", 10 * up)
+            turn(ARM, "lowerarm_" + s_, "Y", -sg * 40 * up)                   # forearms raised, claws to the sky
+            turn(ARM, "hand_" + s_, "Y", -sg * 15 * up)
+        claws(ARM, 1.0)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Howl", frames, log)
+
+
+HUNCH_WOLF = {"spine_02": 9.0, "spine_03": 13.0, "neck_01": 13.0, "Head": -23.0}
+
+
+def wolf_run(ARM, sc, log):
+    """Its run: Sprint_Loop pitched far forward over the knees, the arms swinging long and low with
+    the claws reaching, the head up on the prey, panting."""
+    act = bpy.data.actions["Sprint_Loop"]
+    f0, f1 = (int(round(x)) for x in act.frame_range)
+    frames = []
+    for f in range(f0, f1 + 1):
+        put(ARM, sample(ARM, sc, "Sprint_Loop", f))
+        turn(ARM, "pelvis", "X", 10)
+        turn(ARM, "spine_01", "X", 18)
+        turn(ARM, "spine_02", "X", 8)
+        turn(ARM, "neck_01", "X", -10)
+        turn(ARM, "Head", "X", -20)
+        for s_ in ("l", "r"):
+            turn(ARM, "upperarm_" + s_, "X", -22)                     # the swing carried low and forward
+            turn(ARM, "lowerarm_" + s_, "X", -10)
+        jaw(ARM, JAW_SHUT + 6 + 2 * math.sin((f - f0) / max(f1 - f0, 1) * 4 * math.pi))
+        claws(ARM, 1.0)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Run_Loop", frames, log)
+
+
+def wolf_prowl(ARM, sc, log):
+    """Its stalk: Crouch_Fwd_Loop, head low and level, claws spread, the snarl."""
+    act = bpy.data.actions["Crouch_Fwd_Loop"]
+    f0, f1 = (int(round(x)) for x in act.frame_range)
+    frames = []
+    for f in range(f0, f1 + 1):
+        put(ARM, sample(ARM, sc, "Crouch_Fwd_Loop", f))
+        turn(ARM, "spine_01", "X", 6)
+        turn(ARM, "Head", "X", -16)
+        for s_, sg in (("l", 1), ("r", -1)):
+            turn(ARM, "upperarm_" + s_, "Y", -sg * 10)
+        jaw(ARM, JAW_SHUT)
+        claws(ARM, 0.95)
+        frames.append(readback(ARM))
+    return bake(ARM, "Wolf_Prowl_Loop", frames, log)
+
+
+def jaw_all(ARM, sc, log, skip=("Wolf_",)):
+    """Every library clip holds the jaw in the snarl (the sculpt rests open)."""
+    if "jaw" not in ARM.pose.bones:
+        return
+    _reset(ARM)
+    jaw(ARM, JAW_SHUT)
+    q = readback(ARM)["jaw"][1]
+    pb = ARM.pose.bones["jaw"]
+    n = 0
+    for act in list(bpy.data.actions):
+        if act.name.startswith(skip):
+            continue
+        _assign(ARM, act)
+        for f in (int(act.frame_range[0]), int(act.frame_range[1])):
+            pb.rotation_mode = "QUATERNION"
+            pb.rotation_quaternion = q
+            pb.keyframe_insert("rotation_quaternion", frame=f, group="jaw")
+        n += 1
+    _assign(ARM, None)
+    _reset(ARM)
+    log("jaw: snarl held in", n, "clips")
+
+
+def claws_all(ARM, log, w=0.7, skip=("Wolf_",)):
+    """Every library clip's hands opened toward the claw (a fist would drive the long claws out
+    through the back of the hand): each finger key turned toward its rest by w."""
+    from mathutils import Quaternion
+    n = 0
+    for act in bpy.data.actions:
+        if act.name.startswith(skip):
+            continue
+        fcs = _fcurves(act)
+        bones = {f.data_path.split('"')[1] for f in fcs if f.data_path.startswith('pose.bones["') and f.data_path.endswith("rotation_quaternion")}
+        for b in bones:
+            if not b.startswith(CLAW):
+                continue
+            qc = sorted([f for f in fcs if f.data_path == 'pose.bones["%s"].rotation_quaternion' % b], key=lambda f: f.array_index)
+            if len(qc) != 4 or len({len(f.keyframe_points) for f in qc}) != 1:
+                continue
+            for k in range(len(qc[0].keyframe_points)):
+                q = Quaternion([f.keyframe_points[k].co[1] for f in qc]).slerp(Quaternion((1, 0, 0, 0)), w)
+                for i, f in enumerate(qc):
+                    kp = f.keyframe_points[k]
+                    dv = q[i] - kp.co[1]
+                    kp.co[1] = q[i]; kp.handle_left[1] += dv; kp.handle_right[1] += dv
+                n += 1
+            for f in qc:
+                f.update()
+    log("claws: opened", n, "finger keys")
+
+
 HUNCH = {"spine_02": 4.0, "spine_03": 7.0, "neck_01": 9.0, "Head": -14.0}     # degrees forward (+) about the body's own side axis
 
 
@@ -331,7 +746,7 @@ def _fcurves(act):
     return out
 
 
-def hunch_all(ARM, log):
+def hunch_all(ARM, log, HUNCH=HUNCH):
     """A beast's carriage in every clip: shoulders rolled forward, neck thrust out, head brought
     level again. A constant turn in each bone's own frame (so it bends with the body)."""
     from mathutils import Quaternion
@@ -394,7 +809,12 @@ def author(ARM, scene, species, log):
     if species == "goat":
         for fn in (goat_idle, goat_ram, goat_hammer, goat_leap):
             fn(ARM, sc, log)
+    if species == "wolf":
+        for fn in (wolf_idle, wolf_rake, wolf_bite, wolf_pounce, wolf_howl, wolf_run, wolf_prowl):
+            fn(ARM, sc, log)
+        claws_all(ARM, log)
+        jaw_all(ARM, sc, log)
     _assign(ARM, None)
     _reset(ARM)
-    hunch_all(ARM, log)
+    hunch_all(ARM, log, HUNCH_WOLF if species == "wolf" else HUNCH)
     sc.frame_set(keep)

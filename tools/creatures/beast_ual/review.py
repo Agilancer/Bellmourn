@@ -206,6 +206,9 @@ SHOTS.update({   # beast men
     "b_head_top": ("Idle_Loop", 20, lambda: aim(bone_pos("Head") + Vector((0, 0.0, 0.06)), (0.4, -0.6, 1), 0.75, 50)),
     "b_head_back": ("Idle_Loop", 20, lambda: aim(bone_pos("Head") + Vector((0, 0.0, 0.04)), (-0.5, 1, 0.3), 0.75, 50)),
     "b_tail": ("Idle_Loop", 20, lambda: aim(bone_pos("pelvis") + Vector((0, 0.1, 0.05)), (0.6, 1, 0.2), 0.8, 50)),
+    "b_foot_side": ("Idle_Loop", 20, lambda: aim(bone_pos("foot_l") + Vector((0.0, -0.04, 0.02)), (1, -0.15, 0.12), 0.65, 50)),
+    "b_mouth": (None, 0, lambda: aim((0, -0.2, 1.62), (0.25, -1, -0.15), 0.42, 55)),
+    "b_upper": ("Wolf_Idle_Loop", 20, lambda: aim(bone_pos("spine_03") + Vector((0, 0.05, 0.12)), (-0.7, 0.9, 0.35), 1.5, 50)),
 })
 names = argv[1].split(",") if len(argv) > 1 else DEFAULT
 for _h in filter(None, os.environ.get("HIDE", "").split(",")):    # e.g. HIDE=Brute: the armour alone
