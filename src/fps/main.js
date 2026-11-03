@@ -68,7 +68,7 @@ import { makeGem, GEMS } from './gems.js';
 import { makeCharm, hasAbility, CHARMS } from './charms.js';
 import { Chimes } from './belltower.js';
 import { buildUndershrine } from './undershrine.js';
-import { buildMountain } from './mountain.js';
+import { buildMountain, buildMountainCaves, buildMountainVillage } from './mountain.js';
 import { setMountain } from './terrain.js';
 
 const touch = TOUCH;
@@ -317,8 +317,11 @@ async function build() {
   // (the portals' ground is left bare as the world is built: portals.js)
   const portalsClear = keepPortalsClear(ctx);
   // the Sorrowhorn, north-west behind the forest (mountain.js): its ground is the height function's too
-  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildMountain(ctx, MM); setMountain(ctx.mountain); physics.mountain = ctx.mountain; }
+  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildMountain(ctx, MM); setMountain(ctx.mountain); physics.mountain = ctx.mountain; buildMountainCaves(ctx, MM);
+    // (Hornhollow's folk at their posts: the quest givers' and the villagers' keepers)
+    for (const [name, g] of Object.entries(ctx.mountain?.givers || {})) { if (GIVERS[name]) GIVERS[name].post = g.post; ctx[g.key] = { post: g.post, floor: g.floor }; } }
   buildWorld(ctx); await mark('world');
+  buildMountainVillage(ctx, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }));   // (Hornhollow's houses: their rooms go in ctx.zones as Bellmourn's do)
   // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
   // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
   ctx.entrances = [[STAIRS.x, STAIRS.z]];
@@ -329,13 +332,16 @@ async function build() {
   // the Undershrine of Velscour, under the bell tower (undershrine.js)
   ctx.shrine = buildUndershrine(ctx);
   ctx.unders.push(...ctx.shrine.unders);
+  ctx.unders.push(...(ctx.mountain?.unders || []));   // (the Sorrowhorn's caves)
+  ctx.caves.push(...(ctx.mountain?.caves || []));
+  (ctx.witchLights ||= []).push(GLIMMER);
   await mark('delves');
   portalsClear();
   ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
-  ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []));   // (still: drawn in the world's bundles)
+  ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []), ...(ctx.mountain?.trailMeshes || []));   // (still: drawn in the world's bundles)
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
   await mark('merge');
@@ -359,7 +365,8 @@ async function build() {
     sfx.smash?.(clay, at);
     zombies.noise(at, 14);
   };
-  ctx.keep.claimChest(ctx.loot);                       // (the Red Throne's, sealed till its lord falls)
+  ctx.keep.claimChest(ctx.loot);
+  ctx.mountain?.claimChests?.(ctx.loot);                // (the hoards in the Sorrowhorn's caves)                       // (the Red Throne's, sealed till its lord falls)
   await mark('props');
   ctx.stained.applyTo(scene);
   if (ctx.scatter.unmatched.size) console.info('scatter without a model of its own:', [...ctx.scatter.unmatched].join(' '));
@@ -1393,6 +1400,8 @@ function zoneAt(p) {
 }
 
 const L = { out: 1, under: 0, inCathedral: 0, open: 0, fog: 46, amb: 0 }; // smoothed zone weights (and how far you see underground)
+// the Glimmerstone's light: a witch-light that goes with you below ground (off, it's far under the world)
+const GLIMMER = Object.assign([0, -9999, 0, 0.3, true], { color: 0x9ad8ff, witch: true, follow: true, range: 9, power: 2.6 });
 let billLights = null;
 const MOON = new THREE.Color(0x8aa0e0);
 const _lx = new THREE.Vector3(), _ly = new THREE.Vector3(), _c = new THREE.Vector3(), _tdir = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -1453,7 +1462,7 @@ function light(dt, t) {
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + L.fog * L.under;   // (a phone draws less of the distance)
   // high on the Sorrowhorn the air is clear and the land shows a long way off (and the camera draws it)
   { const alt = Math.max(0, camera.position.y - 30) * (1 - L.under);
-    if (alt > 0) scene.fog.far += Math.min(touch ? 700 : 1500, alt * (isDay ? 4.5 : 1.6));
+    if (alt > 0) scene.fog.far += Math.min(touch ? 900 : 2300, alt * (isDay ? 7 : 2.4));
     const far = Math.max(L.under < 0.5 ? 2400 : 1200, scene.fog.far + 80);   // (outdoors: the Sorrowhorn from Bellmourn)
     if (Math.abs(camera.far - far) > 60) { camera.far = far; camera.updateProjectionMatrix(); } }
   skyDome.update(day, t, camera.position, surface);
@@ -1467,6 +1476,7 @@ function light(dt, t) {
   if (ctx.glass) ctx.glass.emissiveIntensity = 0.12 + 1.5 * dusk;
   if (ctx.lantern) ctx.lantern.color.setRGB(0.9 + 1.8 * dusk, 0.6 + 1.1 * dusk, 0.3 + 0.55 * dusk);
   mist.update(t, 0.35 + 0.65 * day.day);
+  mist.group.visible = camera.position.y < 45;   // (from high on the Sorrowhorn its sheets would be floating discs)
   lantern.position.set(camera.position.x, camera.position.y + 0.35, camera.position.z);
   lantern.intensity = 0.8 * L.under;
 
@@ -1516,6 +1526,7 @@ function light(dt, t) {
       return;
     }
     if (f.witch) {   // a witch-light: its own cold colour, steady, the same by day and night (it's indoors)
+      if (f.follow) l.position.set(f[0], f[1], f[2]);   // (one that goes with you)
       l.color.setHex(f.color);
       l.intensity = (f.power ?? 6) * (0.92 + 0.08 * Math.sin(t * 1.7));
       l.distance = f.range ?? 7.5;
@@ -2316,7 +2327,7 @@ function sounds(dt) {
     if (foes.bossBar(player)) threat += 3;
   }
   music.update(dt, { set, threat, hurt: performance.now() - hurtAt < 4000, paused: paused || !started });
-  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused });
+  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused, falls: ctx.mountain?.falls ? [ctx.mountain.falls.x, ctx.mountain.falls.z] : null });
   // somewhere new: a stinger, the first time
   const place = z?.kind === 'under' ? z.region : z?.name;
   if (playing && place && (z.kind === 'under' || FINDS.test(place)) && !found.has(place)) {
@@ -2425,6 +2436,9 @@ function step(dt) {
   if (active && cheats.fly) player.fly(dt, inp);
   else if (active) {
     player.canDoubleJump = cheats.doubleJump || hasAbility(char, 'doubleJump');
+    player.sureFoot = hasAbility(char, 'sureFoot');
+    { const on = hasAbility(char, 'darkSight') && L.under > 0.3, c = camera.position;   // (the Glimmerstone: a faint light about you below)
+      GLIMMER[0] = c.x; GLIMMER[1] = on ? c.y - 0.25 : -9999; GLIMMER[2] = c.z; GLIMMER.power = 2.6 * Math.min(1, L.under * 1.5); }
     player.update(dt, inp);
     for (const code in QUICK) if (inp.was(code)) equip(QUICK[code]);
     if (inp.was('KeyQ')) drink('life');
@@ -2573,6 +2587,7 @@ function step(dt) {
   }
   for (const f of ctx.animated) f(dt, t);
   if (ctx.shrine) { ctx.shrine.update(dt, player, { foes, sfx, toast: (m) => hud.toast(m), acting }); if (foes.gltf?.sworn_lord || foes.gltf?.sworn_m) ctx.shrine.makeStatue(foes); }
+  ctx.mountain?.update?.(dt, player, sfx, t, { day: day.day, toast: (m) => hud.toast(m), quests });   // (the Glimmerdeep's bell, Sorrowfall, the Still Water)
   chimes?.update(dt, timeMode === 'cycle' && !holdHour ? hour : null, sfx.ear, L.under, 1 - day.day);
   for (const a of villagers.list) if (a.staffGlow) {   // (the Bellwright's crystal: a faint glow, blazing while the bells ring)
     a.flare = Math.max(0, (a.flare || 0) - dt);

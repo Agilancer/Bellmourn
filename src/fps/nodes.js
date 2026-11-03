@@ -220,7 +220,7 @@ export function fogNode(fog, mist = null) {
   return Fn(() => {
     const c = output.rgb.toVar();
     // (the haze lies low: high ground, the Sorrowhorn's upper half, stands out of it from far off)
-    const k = smoothstep(near, far, positionView.z.negate().mul(mix(1.0, 0.3, smoothstep(40.0, 320.0, positionWorld.y))));
+    const k = smoothstep(near, far, positionView.z.negate().mul(mix(1.0, 0.18, smoothstep(0.0, 460.0, positionWorld.y))));
     // the air lit by the sun (or moon) it's looked through toward: haze in that quarter of the sky
     // glows its colour, warm at golden hour, silver under the moon (SKY: main.js light())
     const toward = clamp(T.dot(normalize(positionWorld.sub(cameraPosition)), SKY.dir), 0.0, 1.0);

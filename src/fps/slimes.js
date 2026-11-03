@@ -1477,6 +1477,14 @@ export class Slimes {
         ['drowned', [['crimson', 'XL', 1], ['azure', 'S', 2, 'roof']]],          // the drowned shrine: room to circle the big one
         ['gallery', [['azure', 'XS', 2]]],
       ]],
+      [cave('The Glimmerdeep'), [
+        ['lake', [['azure', 'M', 2], ['violet', 'S', 3, 'roof']]],               // round the black lake, and on its roof
+        ['grove', [['violet', 'XS', 3, 'roof']]],                                  // among the crystals they shine like
+      ]],
+      [cave("The Wether's Throat"), [
+        ['ossuary', [['ossuary', 'L', 1]]],
+        ['way', [['mire', 'S', 2]]],                                               // in the damp on the way to the Well
+      ]],
       [cave('The Trollhole'), [
         ['grove', [['toxic', 'XS', 4], ['toxic', 'S', 3], ['amber', 'M', 1]]],   // a swarm in the fungus they glow like
         ['seep', [['amber', 'L', 1], ['amber', 'M', 1]]],
@@ -1505,6 +1513,7 @@ export class Slimes {
       { x: 84, z: -165, r: 13, mix: [['mire', 'M', 3], ['mire', 'L', 1], ['bog', 'L', 1], ['toxic', 'XS', 3], ['violet', 'S', 2]] },   // the Darkwood's bog, among the trunks
       { x: 400, z: -128, r: 18, mix: [['mire', 'S', 3], ['mire', 'M', 2], ['bog', 'M', 2], ['crimson', 'XL', 1]] },                    // the wet meadow down the stream
       { x: 718, z: -60, r: 7, mix: [['azure', 'S', 3], ['azure', 'M', 2]] },                                                           // under the cliff by the falls
+      ...(ctx.mountain?.slimeSpots || []),                                                                                             // round the Still Water (mountain.js)
     ];
     for (const pl of places) for (const [key, size, count] of pl.mix) {
       for (let i = 0, m = BIG[size] ? count : few(count); i < m; i++) {
