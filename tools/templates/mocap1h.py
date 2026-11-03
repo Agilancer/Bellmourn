@@ -50,10 +50,12 @@ def _dir_key(name, ref, g, d, **kw):
     return dict(name=name, ref=ref, Gc=[round(float(v), 4) for v in g], dir=[round(yaw, 2), round(pitch, 2)], **kw)
 
 
-def pk(name, ref, alpha, u, depth, phi, **kw):
+def pk(name, ref, alpha, u, depth, phi, side=0.0, **kw):
+    """A fist on the swing's plane (u along its line, depth ahead), the blade turned phi from ahead
+    toward the line; `side` moves the fist off the plane to the right (a windup clear of the face)."""
     L = line_dir(alpha)
     p = math.radians(phi)
-    return _dir_key(name, ref, u * L + depth * FWD, math.cos(p) * FWD + math.sin(p) * L, **kw)
+    return _dir_key(name, ref, u * L + depth * FWD + side * RIGHT, math.cos(p) * FWD + math.sin(p) * L, **kw)
 
 
 def fk(name, ref, right, ahead, up, aim=1.5, **kw):
@@ -83,9 +85,11 @@ CUT = dict(wind=(0.30, 0.32, 100), lag=(0.12, 0.42, 60), hit=(-0.30, 0.38, 6),  
 SWINGS = {
     "d1": (37.0, (238, 242, 246, 249, 252), {}),          # high right to low left
     "d2": (143.0, (809, 812, 815, 818, 822),              # high left to low right (a shorter windup:
-           dict(wind=(0.20, 0.42, 100), lag=(0.08, 0.46, 60))),   # the right arm reaches across the face)
-    "over": (90.0, (587, 593, 598, 601, 604),             # straight down, from over the head
-             dict(wind=(0.30, 0.30, 150), hit=(-0.26, 0.40, 6), follow=(-0.30, 0.38, -10), off=(-0.33, 0.38, -16))),
+           dict(wind=(0.20, 0.42, 100), lag=(0.08, 0.46, 60),     # the right arm reaches across the face;
+                follow=(-0.32, 0.37, -10), off=(-0.35, 0.36, -20))),   # it follows through short of the edge)
+    "over": (90.0, (587, 593, 598, 601, 604),             # straight down, from over the head (raised out to
+             dict(wind=(0.30, 0.30, 150, 0.12), lag=(0.12, 0.42, 60, 0.05),   # the right so the forearm clears
+                  hit=(-0.30, 0.40, 6), follow=(-0.33, 0.38, -10), off=(-0.35, 0.38, -16))),   # the view)
     "rise1": (-25.0, (492, 497, 500, 503, 506),           # low right, up to high left (shallow: the arm
               dict(wind=(0.30, 0.40, 100), lag=(0.12, 0.44, 60), hit=(-0.18, 0.42, 6),   # stays out of the face)
                    follow=(-0.22, 0.42, -10), off=(-0.24, 0.41, -20))),
@@ -147,7 +151,7 @@ def clips():
         if name in SWINGS:
             out[name] = M2.keys_of(seq, edge=False, cross=True, line=plane_normal(SWINGS[name][0]), P=P)
         else:   # the thrust: tip on the crosshair at the hit, no edge roll
-            out[name] = M2.keys_of(seq, edge=False, cross=True, P=dict(P, knuckle=False))
+            out[name] = M2.keys_of(seq, edge=False, cross=True, P=dict(P, knuckle=False, steady=True))
         for k in out[name]:
             k["noslide"] = True
     return out

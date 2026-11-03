@@ -2,7 +2,7 @@
 // moves.html): python tools/moves_review.py art/view/onehand_check.json
 // Checks the combos on keys 1-6 (and the blunt ones), the shield stepping aside for each blow,
 // the crosshair clips' slide easing out, the thrust (or a mace's bonk) over the raised shield, and
-// where the shove's wave leaves the board. Returns a report; any "FAIL" line is a fault.
+// where the shove's wave leaves the board, and the staff's lift to shoot. Returns a report; any "FAIL" line is a fault.
 export async function run() {
   const vm = window.vm, out = [];
   const ok = (c, msg) => out.push(`${c ? 'ok  ' : 'FAIL'} ${msg}`);
@@ -50,5 +50,16 @@ export async function run() {
   ok(vm.state.R?.name === 'blade_over', `with the shield up a mace bonks (${vm.state.R?.name})`);
   vm.actLeft(false); step(1.5);
   await vm.setModel('onehand', 'arming_sword');
+  // the staff: no blow, just a lift; the bolt leaves its head at the top of it
+  vm.equip.R = 'staff'; vm.equip.L = null; await vm.applyEquip(); step(0.5);
+  const did = vm.attackRight();
+  ok(did && vm.state.R?.name === 'staff_lift', `a staff lifts to shoot (${vm.state.R?.name})`);
+  const ev = vm.manifest.events.staff_lift || {}, names = vm.clipInfo('staff_lift')?.names || [];
+  ok(ev.fire?.length === 1 && !ev.hit, `the lift has one fire mark and no hit (fire ${ev.fire})`);
+  ok(!names.some((n) => /HIT|FOLLOW|WIND/.test(n)), `the lift has no swing in it (${names.join(', ')})`);
+  const y0 = vm.castPoint('R').y; step(ev.fire?.[0] ?? 0.2); const y1 = vm.castPoint('R').y;
+  ok(y1 > y0 + 0.02, `the staff's head rises before the bolt leaves (${(y1 - y0).toFixed(3)} up)`);
+  step(1.0);
+  vm.equip.R = 'onehand'; vm.equip.L = 'shield_kite'; await vm.applyEquip();
   return out.join('\n');
 }
