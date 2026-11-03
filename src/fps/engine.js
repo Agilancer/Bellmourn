@@ -662,6 +662,29 @@ export function settled(quiet = 150, limit = 180000) {
   });
 }
 
+/** The vertices of `meshes` let go of once they're on the GPU (three's onUpload): kept, they're a
+ * second copy in the page's own memory. Only for geometry nothing reads again (the builders' merged
+ * world: its bounds are worked out already), under WebGL (a lost GPU starts the page over). Returns
+ * how many bytes will go. */
+export function letGoOnUpload(meshes) {
+  const seen = new Set();
+  let bytes = 0;
+  function drop() { this.array = null; }
+  for (const m of meshes) {
+    const g = m.geometry;
+    if (!g || seen.has(g)) continue;
+    seen.add(g);
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    if (!g.boundingBox) g.computeBoundingBox();
+    for (const a of [...Object.values(g.attributes), g.index]) {
+      if (!a?.array || a.isInterleavedBufferAttribute || a.onUploadCallback === drop) continue;
+      bytes += a.array.byteLength;
+      a.onUpload(drop);
+    }
+  }
+  return bytes;
+}
+
 /** Every texture the materials under `root` use (their maps and their uniforms'). */
 export function texturesOf(root, out = new Set()) {
   const seen = new Set();

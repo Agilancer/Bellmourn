@@ -584,8 +584,14 @@
   .tbtn.qlogb { right: calc(204px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font: 900 22px 'Cinzel Decorative', serif; color: #ffd21a; border-radius: 8px; }
   @media (pointer: coarse) { .qtrack { top: 184px; width: 34vw; font-size: 11px; } .xpbar { bottom: 2px; } }
 
-  .rotate { position: absolute; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 10; text-align: center; }
+  /* turn your phone sideways: over everything (the title and its loading too), from the first paint,
+     by CSS alone; main.js's .show is the same rule for a browser that gets the media query wrong */
+  .rotate { position: fixed; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 200; text-align: center;
+            font: 16px Cinzel, Georgia, serif; padding: 0 24px; pointer-events: auto; touch-action: none; }
+  .rotate p { margin: 0; max-width: 300px; line-height: 1.4; text-wrap: balance; }
+  .rotate small { font: 13px Georgia, serif; color: var(--gold-dim); }
   .rotate.show { display: grid; }
+  @media (pointer: coarse) and (orientation: portrait) { .rotate { display: grid; } }
   .rotate div { font-size: 64px; animation: spin 2.4s ease-in-out infinite; }
   @keyframes spin { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
 
@@ -738,6 +744,7 @@
 <div id="ui"></div>
 <!-- the title screen: black from the first paint; title.js fills it in before the game has loaded -->
 <div id="title"><div class="t-screen"><div class="t-cover"></div></div><div class="t-modal"></div></div>
+<div id="rotate" class="rotate"><div>&#x21bb;</div><p>Turn your phone sideways to play</p><small>Bellmourn is played in landscape</small></div>
 <script type="module" src="src/fps/title.js"></script>
 <script type="module" src="src/fps/main.js"></script>
 </body>

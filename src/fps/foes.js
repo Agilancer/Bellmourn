@@ -23,7 +23,7 @@
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Zombie, goreMaterial, goreShell, wrap, longLow, adaptBeast } from './zombies.js';
+import { Zombie, goreMaterial, goreShell, wrap, longLow, adaptBeast, lazyActions } from './zombies.js';
 import { letGo } from './engine.js';
 import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -388,12 +388,7 @@ class Foe extends Zombie {
     if (this.ual || this.dead || this.mode !== 'stand' || this.state !== 'move') return false;
     const meta = g.userData.foe, cur = this.cur;
     this.mixer.stopAllAction();
-    this.actions = {};
-    for (const clip of g.animations) {
-      const a = this.mixer.clipAction(clip);
-      if (ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
-      this.actions[clip.name] = a;
-    }
+    this.actions = lazyActions(this.mixer, g.animations, ONCE);   // (each made when first played: zombies.js)
     this.ual = true; this.hits = meta.hits || {};
     if (meta.gait) this.kind = { ...this.kind, gait: { ...this.kind.gait, ...meta.gait } };
     this.cur = null;
