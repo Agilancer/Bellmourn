@@ -28,8 +28,10 @@
 // and drags itself along with whatever arms it has left. Only destroying the body stops it.
 // Spells punch round holes instead, seared black at the rim (frost: rimed white), and may blow
 // off whatever they hit outright: a head, an arm, a leg (and down it goes, crawling). Blood is
-// opaque droplets that splat and pool on the ground, with gibs of meat. Corpses sink into the
-// earth after a while.
+// opaque droplets that splat and pool on the ground, with gibs of meat. The dead fall limp, thrown
+// the way the killing blow went, and lie as they land; a blow or a blast moves a corpse again
+// (ragdoll.js: the death clips play only with ?ragdoll=0, or for one cut down as it climbs out of its
+// grave). Corpses sink into the earth after a while.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -37,6 +39,7 @@ import { TOUCH } from './input.js';
 import { cullable, shareSkeletons, refineTexture, crisp, SHADE_LAYER, letGo } from './engine.js';
 import { WEBGPU, T, sourceOf } from './nodes.js';
 import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
+import { Ragdoll, RAGDOLLS, KICK } from './ragdoll.js';
 
 const ROOT = 'templates/models/creatures/zombie/';
 export const VARIANTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -1103,10 +1106,11 @@ export class Zombie {
     }
   }
   get standing() { return !this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'playdead'; }
-  /** Its pose can't change: dead long enough for any fall to be over, or lying in wait once it's
-   * fully down (one that lies down again eases into it first). */
+  /** Its clips can't change its pose: dead (a ragdoll poses it, if anything: ragdoll.js; without one,
+   * dead long enough for its fall to be over), or lying in wait once it's fully down (one that lies
+   * down again eases into it first). */
   still() {
-    if (this.dead) return this.deadT > 6;
+    if (this.dead) return !!this.rag || this.deadT > 6;
     if (this.state !== 'playdead') return false;
     const a = this.actions[this.cur];
     return !a || a.getEffectiveWeight() > 0.999;
@@ -1317,6 +1321,9 @@ export class Zombie {
     this._caps = null;   // (a limb may come off: its hit shapes worked out again)
     const b = h.bone, p = h.point;
     const back = dir.clone().negate();
+    // (what it was struck with, where and which way: should this blow kill it, the body is thrown that way)
+    const kick = (KICK[kind] ?? 2.4) * (heavy ? 1.35 : 1) * (0.8 + Math.min(1.2, push || 0) * 0.45);
+    this._blow = { point: p.clone(), dir: dir.clone(), speed: kick, t: owner.time };
     if (this.frozen > 0) dmg *= 1.5;   // brittle with ice
     if (owner.oneHit && dmg > 0) dmg = 1e6;   // (GOD MODE, the Debug Menu: anything dies at one blow, and comes apart where it's struck)
     const max = this.champ?.max || (this.kindName && this.kind?.hp) || HP;
@@ -1377,9 +1384,10 @@ export class Zombie {
     else this.hunt(owner.player?.pos, true);
     owner.alert(this, owner.player?.pos, 9);
     // (a blow doesn't throw the body back: it takes it where it stands. Only the shield's repel
-    // enchantment, and the spells that are themselves a force, move it: see knock and shove)
-    void push;
-    if (!this.dead) {
+    // enchantment, and the spells that are themselves a force, move it: see knock and shove. A corpse
+    // is moved by it, though: it lies limp, ragdoll.js)
+    if (this.dead) { this.rag?.kick(p, dir, kick * 0.6); return; }
+    {
       if (this.state === 'move' || this.state === 'attack') {
         if (this.state === 'move') this.stagger = heavy ? 0.55 : 0.32;
         if (this.state === 'move' && this.actions.hit) { this.holdT = 0; this.play('hit', 0.06); this.holdT = this.actions.hit.getClip().duration; this.stagger = Math.max(this.stagger, this.holdT); }
@@ -1442,6 +1450,7 @@ export class Zombie {
     owner.sound('sever', joint);
     if (name === 'head') { this.hp -= 30; this.jitter = 1; }
     owner.feed?.severed(this, name);
+    if (this.rag) this.rag = this.rag.rebuild();   // (cut from a corpse: it lies on without it)
     // without a leg (or its legs) it can no longer stand
     if (!this.dead && this.mode === 'stand' && !this.legs) {
       this.state = 'collapse';
@@ -1517,8 +1526,14 @@ export class Zombie {
     this.poisoned = Math.max(this.poisoned || 0, t); this.poisonDps = Math.max(this.poisonDps || 0, dps);
   }
   /** A shove (m/s) from a spell that is itself a force, worn off by friction; a frozen one slides
-   * like a statue on ice. One down on the ground isn't moved: it lies where it fell. */
+   * like a statue on ice. One crawling isn't moved: it lies where it fell. A corpse is flung (limp,
+   * and not as far: ragdoll.js). */
   shove(x, z, up = 0) {
+    if (this.dead && this.rag) {
+      const k = Math.min(0.45, 8 / Math.max(1e-3, Math.hypot(x, z, up)));
+      this.rag.push(x * k, Math.max(up * k, Math.hypot(x, z) * k * 0.25), z * k);
+      return;
+    }
     if (this.mode === 'crawl' || this.state === 'collapse' || this.dead) return;
     (this.pushV ||= new THREE.Vector3()).x += x; this.pushV.z += z;
     if (up > 0 && !this.dead) { this.pos.y += 0.05; this.vy = Math.max(this.vy, up); }
@@ -1567,13 +1582,29 @@ export class Zombie {
   }
 
   die() {
+    const was = this.state;
     this.state = 'dead';
     this.deadT = 0;
     this.owner.onDeath?.(this);   // (experience, and the quests' counts)
     // the dead carried things into the ground with them, now and then
     const loot = this.owner.foes?.ctx?.loot;
     if (loot && !this.owner.quiet && this.constructor === Zombie && Math.random() < 0.18) loot.drop([this.pos.x, this.pos.y + 0.1, this.pos.z], { tier: this.zone === 'dungeon' ? 2 : 1, under: this.zone === 'dungeon' });
-    this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
+    // it goes limp and falls as it was struck (ragdoll.js), the way it was going; the death clips only
+    // without ragdolls, for one cut down half out of its grave, or a body that can't be made one
+    this.rag = null;
+    if (RAGDOLLS && was !== 'rise' && was !== 'buried') {
+      try {
+        const b = this._blow && this.owner.time - this._blow.t < 0.3 ? this._blow : null;
+        const v = new THREE.Vector3().copy(this.vel || ZERO3);
+        if (this.pushV) v.add(this.pushV);
+        if (this.vy > 0) v.y += this.vy;
+        // (its clips are simply no longer run: stopping them would put back every bone they move as it
+        // was before them, the fingers and the bones between the ones the ragdoll poses among them)
+        this.rag = new Ragdoll(this, { blow: b, v });
+      } catch (e) { console.warn('ragdoll', this.variant, e); this.rag = null; }
+    }
+    this.pushV = null; this.knock = null; this.vy = 0;
+    if (!this.rag) this.play(this.mode === 'crawl' || this.cur === 'collapse' ? 'crawl_death' : 'death', 0.15);
     const g = this.owner.gore;
     g.splat(this.pos.x, this.owner.floorY(this.pos.x, this.pos.z, this.pos.y), this.pos.z, 2.0, 0.18);
     this.owner.sound('die', this.pos);
@@ -1633,7 +1664,7 @@ export class Zombie {
       return;
     }
     if (far && (this.dead || (!this.aggro && this.goal === 'wander'))) {   // out of the way: it waits
-      if (this.dead) this.corpse(dt);
+      if (this.dead) { this.fall(dt); this.corpse(dt); }   // (one still falling falls on)
       return;
     }
     // animation (every third frame when far off, every sixth when unseen but still hunting you)
@@ -1652,11 +1683,14 @@ export class Zombie {
       }
     }
     if (this.dead) {
-      if (this.cur === 'death' && this.done()) this.play('dead', 0.3);
-      if (this.cur === 'crawl_death' && this.done()) this.play('crawl_dead', 0.3);
-      this.corpse(dt);
-      this.ground(dt);
-      this.sync();
+      if (this.rag) this.fall(dt);
+      else {
+        if (this.cur === 'death' && this.done()) this.play('dead', 0.3);
+        if (this.cur === 'crawl_death' && this.done()) this.play('crawl_dead', 0.3);
+        this.ground(dt);
+        this.sync();
+      }
+      this.corpse(dt);   // (after: its sinking moves it down from where it lies)
       return;
     }
     this.think -= dt;
@@ -1956,11 +1990,22 @@ export class Zombie {
     }
   }
 
-  /** A body lies a while, then the earth takes it. */
+  /** Its ragdoll falls on (ragdoll.js); if it goes wrong the body plays its death clip instead. */
+  fall(dt) {
+    if (!this.rag?.awake) return;
+    try { this.rag.update(dt); } catch (e) {
+      console.warn('ragdoll', this.variant, e);
+      this.rag.drop(); this.rag = null;
+      this.play('dead', 0.2); this.mixer.update(0.3);
+    }
+  }
+
+  /** A body lies a while, then the earth takes it (as it lies: its ragdoll lies still from then). */
   corpse(dt) {
     this.deadT += dt;
     if (!this.sinking && this.deadT > 120) this.sinking = true;
     if (this.sinking) {
+      if (this.rag?.awake) this.rag.sleep();
       this.sinkT = (this.sinkT || 0) + dt;
       this.root.position.y = this.pos.y - this.sinkT * 0.12;
       if (this.sinkT > 6) this.remove();
@@ -1969,6 +2014,7 @@ export class Zombie {
 
   remove() {
     this.gone = true;
+    this.rag?.drop(); this.rag = null;
     this.owner.scene.remove(this.root);
     // what three kept to draw it, first (its stand-in, its arms, its eyes, its stubs share materials
     // that are never disposed), so that taking the shared buffers off below doesn't take them from
@@ -2542,6 +2588,9 @@ export class Zombies {
     } else if (kind === 'die') {
       s._tone(t, 1.6, { type: 'sawtooth', f0: 95, f1: 40, gain: 0.08 * k, attack: 0.05 });
       s._noise(t + 0.5, 0.3, { type: 'lowpass', f0: 600, f1: 100, gain: 0.5 * k });
+    } else if (kind === 'thud') {   // a body landing (ragdoll.js): a dull weight on the ground
+      s._noise(t, loud ? 0.22 : 0.16, { type: 'lowpass', f0: loud ? 520 : 380, f1: 80, gain: (loud ? 0.6 : 0.42) * k, attack: 0.003 });
+      s._tone(t, 0.16, { type: 'sine', f0: 90, f1: 38, gain: (loud ? 0.32 : 0.22) * k });
     } else if (kind === 'dirt') {
       s._noise(t, 1.2, { type: 'lowpass', f0: 500, f1: 120, gain: 0.45 * k, attack: 0.02 });
       s._noise(t + 0.3, 0.8, { type: 'bandpass', f0: 900, f1: 300, q: 1.5, gain: 0.2 * k, attack: 0.05 });
@@ -2572,11 +2621,14 @@ export class Zombies {
         else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
         z.seen = !far && _frustum.intersectsSphere(_sph);
         const pace = z.afflict(dt);
+        const px = z.pos.x, py = z.pos.y, pz = z.pos.z;
         if (pace > 0) z.update(dt * pace, player, active, far, d > 32);
         else if (d < 0.75 && Math.abs(player.pos.y - z.pos.y) < 1.5) {   // a frozen one is still in the way
           const k = 0.75 / Math.max(d, 1e-3);
           player.pos.x = z.pos.x + (player.pos.x - z.pos.x) * k; player.pos.z = z.pos.z + (player.pos.z - z.pos.z) * k;
         }
+        // (how it's moving: should it die, its body goes on that way: ragdoll.js)
+        if (!z.dead && dt > 0) (z.vel ||= new THREE.Vector3()).set((z.pos.x - px) / dt, (z.pos.y - py) / dt, (z.pos.z - pz) / dt);
         if (z.goal === 'chase' && !z.dead && d < 12) chasers++;
         if ((z.state === 'attack' || z.state === 'grab') && !z.dead && d < 2.6) engaged++;
         if (z._faults) z._faults = 0;   // (counted in a row)
