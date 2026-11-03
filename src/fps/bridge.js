@@ -10,6 +10,10 @@
 // keeps you between the hand ropes unless you jump over them.
 import * as THREE from 'three';
 import { TOUCH } from './input.js';
+import { WEBGPU } from './nodes.js';
+// (matrices that change now and then: WebGPU sends them when they change, not again in every pass a
+// dynamic one is drawn in; WebGL as before)
+const CHANGING = WEBGPU ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage;
 
 const SEG = 0.5;          // between planks (metres)
 const SLACK = 0.018;      // how much longer the cables are than the span (it hangs a good 2.5 m at its middle)
@@ -267,7 +271,7 @@ export class RopeBridge {
     // (their flames: never a shadow light, so walking the deck doesn't swap them; moved with the
     // lanterns in draw())
     this.lampFlames = this.lamps.map(([j, side]) => { const n = side < 0 ? this.ix.rl(j) : this.ix.rr(j); const f = [this.p[n * 3] + side * 0.06, this.p[n * 3 + 1] - 0.28, this.p[n * 3 + 2], 0.22, 1]; this.ctx.flames?.push(f); return f; });
-    for (const m of [this.planks, this.ropes, this.lampMesh]) { m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.ctx.scene.add(m); }
+    for (const m of [this.planks, this.ropes, this.lampMesh]) { m.frustumCulled = false; m.instanceMatrix.setUsage(CHANGING); this.ctx.scene.add(m); }
     // the broken ends at the gap hang down: drawn as planks dangling off their last lashing
     this.draw();
     return [this.planks, this.ropes, this.lampMesh];

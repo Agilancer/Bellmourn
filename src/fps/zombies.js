@@ -866,6 +866,7 @@ export class Zombie {
     this.variant = variant;
     this.id = owner.nextId++;
     const root = this.root = new THREE.Group();
+    root.userData.body = true;   // (a body: engine.js's point-light shadow passes look for these)
     const model = cloneSkinned(gltf.scene);
     root.add(model);
     // the body is the biggest skinned mesh (monsters also carry eyes, brows and bones)
@@ -1014,16 +1015,35 @@ export class Zombie {
     const sh = this.shade;
     if (!sh) return;
     const src = this.mesh.geometry, g = sh.geometry, mats = [this.mesh.material].flat();
-    if (g.index !== src.index) g.setIndex(src.index);
     g.clearGroups();
     const runs = src.groups.filter((q) => q.count > 0 && mats[q.materialIndex]?.visible !== false).sort((a, b) => a.start - b.start);
+    const spans = [];
     let s = -1, e = -1;
     for (const q of runs) {
       if (q.start === e) e += q.count;
-      else { if (s >= 0) g.addGroup(s, e - s, 0); s = q.start; e = q.start + q.count; }
+      else { if (s >= 0) spans.push(s, e); s = q.start; e = q.start + q.count; }
     }
-    if (s >= 0) g.addGroup(s, e - s, 0);
-    sh.visible = g.groups.length > 0;
+    if (s >= 0) spans.push(s, e);
+    if (spans.length > 2) {
+      // (more than one run, a fitting's piece taken off or a limb cut away between them: packed into an
+      // index of the stand-in's own, so it stays one draw; made once, the body's first size, and written
+      // over each time, never a new buffer)
+      const src = this.mesh.geometry.index.array;
+      if (!this.shadeIndex) {
+        const n = this.index.length, big = this.mesh.geometry.attributes.position.count > 65535;
+        this.shadeIndex = new THREE.BufferAttribute(big ? new Uint32Array(n) : new Uint16Array(n), 1);
+      }
+      const out = this.shadeIndex.array;
+      let o = 0;
+      for (let k = 0; k < spans.length; k += 2) { out.set(src.subarray(spans[k], spans[k + 1]), o); o += spans[k + 1] - spans[k]; }
+      if (g.index !== this.shadeIndex) g.setIndex(this.shadeIndex);
+      this.shadeIndex.clearUpdateRanges(); this.shadeIndex.addUpdateRange(0, o); this.shadeIndex.needsUpdate = true;
+      g.addGroup(0, o, 0);
+    } else {   // (one run: straight from the body's index, whichever it is now)
+      if (g.index !== src.index) g.setIndex(src.index);
+      if (spans.length) g.addGroup(spans[0], spans[1] - spans[0], 0);
+    }
+    sh.visible = spans.length > 0;
   }
 
   /** Whether it casts a shadow (near you only: the horde's update). */
@@ -1940,6 +1960,7 @@ export class Zombie {
     // that are never disposed), so that taking the shared buffers off below doesn't take them from
     // every other body of its kind as well (engine.js letGo)
     letGo(this.root);
+    this.skel.dispose?.();   // (its bone texture)
     if (this.shade) {   // (its buffers are the body's, let go just below)
       const g = this.shade.geometry;
       for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
@@ -2531,7 +2552,8 @@ export class Zombies {
         const far = d > 85 || (otherLevel && d > 12);
         if (z.state !== 'buried') z.root.visible = !far;
         const casts = d < 28;
-        if (z._casts !== casts) { z._casts = casts; z.castsShadow(casts); }
+        if (z._casts !== casts) { z._casts = casts; z.castsShadow(casts); z.root.userData.casts = casts; }
+        z.root.userData.down = z.dead;   // (the torches' moving shadows go to the standing first: engine.js)
         if (z.mesh.boundingSphere) _sph.copy(z.mesh.boundingSphere).applyMatrix4(z.mesh.matrixWorld);
         else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
         z.seen = !far && _frustum.intersectsSphere(_sph);

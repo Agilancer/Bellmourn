@@ -12,6 +12,10 @@
 // blade, not in a box about it.
 import * as THREE from 'three';
 import { gemLooks } from './gems.js';
+import { WEBGPU } from './nodes.js';
+// (matrices that change now and then: WebGPU sends them when they change, not again in every pass a
+// dynamic one is drawn in; WebGL as before)
+const CHANGING = WEBGPU ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage;
 
 // ------------------------------------------------------------------ pictures
 function canvasTex(S, draw) {
@@ -63,8 +67,8 @@ class Pool {
     this.mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
       blending: how === 'add' ? THREE.AdditiveBlending : THREE.NormalBlending, opacity: how === 'add' ? 1 : 0.8 });
     const m = this.mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this.mat, max);
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    m.instanceMatrix.setUsage(CHANGING);
+    m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(CHANGING);
     m.count = 0; m.frustumCulled = false; m.renderOrder = order;
     parent.add(m);
     this.add = how === 'add';
