@@ -30,6 +30,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
 import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -1282,7 +1283,7 @@ export class Foes {
 
   async load(variants = VARIANTS) {
     await Promise.all(variants.map(async (v) => {
-      const g = await this.loader.loadAsync(`${ROOT}${v}.glb`);
+      const g = await this.loader.loadAsync(asset(`${ROOT}${v}.glb`));
       g.userData = { ...(g.userData || {}), foe: JSON.parse(g.scene.userData.foe || '{}') };
       this.gltf[v] = g;
     }));
@@ -1294,7 +1295,7 @@ export class Foes {
   async loadBeasts(variants = Object.keys(FOES).filter((v) => FOES[v].beast)) {
     const files = new Map();
     const body = async (file) => {
-      const B = BEASTS[file], g = await this.loader.loadAsync(`${BEAST_ROOT}${TOUCH ? 'phone/' : ''}${file}.glb`).catch(() => this.loader.loadAsync(`${BEAST_ROOT}${file}.glb`));
+      const B = BEASTS[file], g = await this.loader.loadAsync(asset(`${BEAST_ROOT}${TOUCH ? 'phone/' : ''}${file}.glb`)).catch(() => this.loader.loadAsync(asset(`${BEAST_ROOT}${file}.glb`)));
       // the grips: the hand posed as it was in Blender, each grip brought into its bone's frame
       const scene = g.scene, arm = scene.getObjectByName('Armature') || scene, rest = [];
       scene.traverse((o) => { if (o.isBone) rest.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
@@ -1379,7 +1380,7 @@ export class Foes {
     // the animation library (ual.js), read once
     if (ual && !this.ual) this.ual = await loadUal(this.loader);
     const files = new Map(), bodies = new Map();
-    const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(url)); return files.get(url); };
+    const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(asset(url))); return files.get(url); };
     const body = (b) => {
       const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}`;
       if (!bodies.has(key)) bodies.set(key, (async () => {
@@ -1415,9 +1416,9 @@ export class Foes {
       const [id, finish] = key.split('|');
       const e = all.find((x) => x.id === id);
       if (!e) return;
-      const g = await this.loader.loadAsync(ITEM_ROOT + e.path);
+      const g = await this.loader.loadAsync(asset(ITEM_ROOT + e.path));
       let map = null;
-      if (finish && e.variants?.[finish]) map = await this.texLoader.loadAsync(ITEM_ROOT + e.variants[finish]).catch(() => null);
+      if (finish && e.variants?.[finish]) map = await this.texLoader.loadAsync(asset(ITEM_ROOT + e.variants[finish])).catch(() => null);
       g.scene.traverse((o) => {
         if (!o.isMesh) return;
         const m = map || o.material.map;

@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KNOLL, addPad } from './terrain.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 export const TOWER = { x: KNOLL.x, z: KNOLL.z };
 const S = 5;           // half the shaft's outer width
@@ -41,7 +42,7 @@ export const BELLS = [
   { name: 'Mercy', side: 0, D: 1.9 },    // east
   { name: 'Dawn', side: 4, D: 1.65 },    // west: the treble
 ];
-const BELL_GLB = 'templates/models/belltower/bell.glb';
+const BELL_GLB = asset('templates/models/belltower/bell.glb');
 
 /** Level the knoll's crown for the tower (before the ground is built); returns its height. */
 export const padBellTower = () => (TOWER.y0 = addPad(TOWER.x, TOWER.z, 11));

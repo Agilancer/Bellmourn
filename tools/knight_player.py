@@ -12,17 +12,11 @@ import sys
 import threading
 import webbrowser
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import serve  # noqa: E402  (its handler: caching off, and Bellmourn2 (the models) under /Bellmourn2/)
 
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *a, **k):
-        super().__init__(*a, directory=ROOT, **k)
-
-    def end_headers(self):
-        self.send_header('Cache-Control', 'no-store')
-        super().end_headers()
-
+class Handler(serve.Handler):
     def log_message(self, *a):   # (quiet: only the address matters)
         pass
 

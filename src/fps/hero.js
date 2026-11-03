@@ -13,8 +13,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { TOUCH } from './input.js';
 import { WEBGPU, T, ref, shared } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-const MODEL = 'templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : '') + 'villager_m09.glb';
+const MODEL = asset('templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : '') + 'villager_m09.glb');
 
 // the curl: [bone, child it points at, direction (model space: +y up, +z his front, +x his left)]
 const CURL = [

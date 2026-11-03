@@ -23,8 +23,9 @@ import { WEBGPU } from './nodes.js';
 // dynamic one is drawn in; WebGL as before)
 const CHANGING = WEBGPU ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage;
 import { crisp } from './engine.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-const ROOT = 'templates/models/props/';
+const ROOT = asset('templates/models/props/');
 // where each prop's flames are (prop space): torches and candles light the world around them
 const FLAMES = {
   wall_torch: [[0, 2.06, 0.2, 0.36]],

@@ -14,6 +14,7 @@ import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
 import { Kit } from './kit.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 import { Builder } from './geo.js';
 import { Billboards } from './sprites.js';
 import { Props } from './props.js';
@@ -390,7 +391,7 @@ async function build() {
   ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
 
-  const manifest = await (await fetch('templates/models/manifest.json')).json();
+  const manifest = await (await fetch(asset('templates/models/manifest.json'))).json();
   useManifest(manifest);
   fitCharacter(char); saveCharacter(char);   // its arms' models, and the basic sword, shield and staff
   vm = new ViewModel(manifest, kit);

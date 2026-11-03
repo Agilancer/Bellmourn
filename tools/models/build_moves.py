@@ -28,7 +28,9 @@ import moves  # noqa: E402
 from gltf import GLB  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
-MODELS = os.path.join(ROOT, "templates", "models")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+MODELS = models()
 TIC = export.TIC
 
 

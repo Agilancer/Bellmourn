@@ -11,7 +11,9 @@ import sys
 
 import bpy
 
-ROOT = os.path.join('templates', 'models', 'creatures', 'zombie_ual')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+ROOT = models('creatures', 'zombie_ual')
 ALL = ['ancient', 'cinder', 'drowned', 'ghoul', 'maw', 'mummy', 'plague', 'ropebound', 'shambler', 'veinwretch']
 TRIS = 16000
 
