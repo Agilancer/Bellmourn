@@ -388,3 +388,9 @@ are scaled by 1.6 because the hero is about 80px tall and Alucard is about 50px:
   - `build_castle.py`: crops, downscales and packs the castle kit, and registers the torch
     flame frames to their bracket.
   - `qa_*.py`: contact sheets for checking the art.
+
+## Voices
+
+Every spoken line is a recording made with Qwen3-TTS in its speaker's voice and served from the
+Bellmourn2 repository; nothing is synthesised in the browser. Any new dialogue is recorded the same
+way before it's merged: see [docs/VOICES.md](docs/VOICES.md).

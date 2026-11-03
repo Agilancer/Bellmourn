@@ -1,4 +1,4 @@
-// Monster voices: Web Audio effects that take the human out of a voice, laid over what the neural
+// Monster voices: Web Audio effects that take the human out of a voice, laid over what the recorded
 // voices say (voice.js fxInput hands any of these names to monsterFx; a speaker's fx can be a chain
 // of them, ['sub', 'fry', 'undead', 'ring:45'], the voice going through each in turn). A name can
 // carry a number: 'ring:45' (the ring's tone in Hz), 'shift:1.4' (a pitch ratio).
