@@ -2,7 +2,7 @@
 is held like a real one: the fist on the grip near the right edge and the board running back along
 the forearm. The grip stays at the model's origin (the fist's socket); the rest of the shield (board,
 rim, boss, arm pad) slides left by OFFSET[kind] x its half-width. Works on the glbs in place (the
-board's paint variants are textures, untouched); run once.
+board's paint variants are textures, untouched); a moved shield is marked and skipped.
 
     python tools/models/shield_grip.py [--dry]
 """
@@ -10,7 +10,9 @@ import glob, json, os, struct, sys
 
 import numpy as np
 
-ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "templates", "models", "items")
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+ROOT = models("items")
 SHARE = 0.62            # the grip sits this far from the board's centre toward its right edge
 
 
