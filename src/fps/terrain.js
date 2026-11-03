@@ -107,8 +107,11 @@ function natural(x, z) {
   return h;
 }
 
+let mountain = null;
+/** The Sorrowhorn's ground (mountain.js), where it covers. */
+export function setMountain(m) { mountain = m; }
 export function terrainHeight(x, z) {
-  if (x < REGION.x0 - 2) return craterHeight(x, z);   // flat but for where Tessariel came down
+  if (x < REGION.x0 - 2) return mountain?.covers(x, z) ? mountain.heightAt(x, z) : craterHeight(x, z);   // flat but for where Tessariel came down (and the mountain)
   let h = natural(x, z);
   for (const p of pads) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r + 10) h = h + (p.y - h) * (1 - smooth(p.r, p.r + 10, d)); }
   return h;

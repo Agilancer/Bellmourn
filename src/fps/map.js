@@ -10,7 +10,8 @@ import { SPOTS } from './region.js';
 import { DELVES } from './delves.js';
 
 // the chart's bounds: the forest round the village, the trail and the downs
-const WORLD = { x0: -WORLD_R - 20, x1: REGION.x1 + 20, z0: -WORLD_R - 20, z1: WORLD_R + 20 };
+// (and the Sorrowhorn, north-west behind the forest: mountain.js)
+const WORLD = { x0: -1940, x1: REGION.x1 + 20, z0: -1940, z1: WORLD_R + 20 };
 const WASH = { forest: [44, 58, 36], deep: [26, 34, 22], downs: [106, 122, 60] };
 const PX = 2;          // metres per pixel of the chart
 const INK = '#2a1e12';
@@ -69,9 +70,14 @@ export class WorldMap {
     for (let j = 0; j < this.H; j += S) for (let i = 0; i < this.W; i += S) {
       const x = WORLD.x0 + i * PX, z = WORLD.z0 + j * PX;
       const downs = x >= REGION.x0 && Math.abs(z) <= REGION.z1;
-      const col = downs ? WASH.downs : Math.hypot(x, z) < WORLD_R ? WASH.forest : WASH.deep;
+      const mtn = !downs && Math.hypot(x, z) >= WORLD_R && ctx.mountain?.covers(x, z);
+      let col = downs ? WASH.downs : Math.hypot(x, z) < WORLD_R ? WASH.forest : WASH.deep;
       let shade = 1;
-      if (downs) {
+      if (mtn) {   // the mountain by height: meadow, granite, basalt, old snow; shaded by its slopes
+        const h = terrainHeight(x, z), hx = terrainHeight(x + 6, z), hz = terrainHeight(x, z + 6);
+        col = h > 395 ? [214, 216, 222] : h > 330 ? [92, 92, 100] : h > 120 ? [128, 122, 110] : [86, 102, 66];
+        shade = Math.max(0.5, Math.min(1.4, 1 + ((h - hx) + (h - hz)) * 0.035));
+      } else if (downs) {
         const h = terrainHeight(x, z), hx = terrainHeight(x + 6, z), hz = terrainHeight(x, z + 6);
         shade = Math.max(0.55, Math.min(1.35, 1 + ((h - hx) + (h - hz)) * 0.06)) * (1 + Math.min(0.25, Math.max(-0.2, h * 0.004)));
       }
@@ -91,6 +97,12 @@ export class WorldMap {
     const [px0, pz0] = this.px(POOL.x, POOL.z); g.beginPath(); g.arc(px0, pz0, POOL.r / PX, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#3a5a6a'; g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round';
     for (const line of [STREAM, RIVER]) { g.beginPath(); line.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }
+    // the Pilgrims' Road up the Sorrowhorn, and the Broken Stair at its foot
+    if (ctx.mountain) {
+      g.strokeStyle = '#d8c8a0'; g.lineWidth = 1.6; g.beginPath();
+      ctx.mountain.road.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); });
+      g.stroke();
+    }
     // roads and paths: the village's streets, the lane to the graveyard, the trail east and the
     // downs' paths
     const rect = (x0, z0, x1, z1, fill, stroke) => { const [a, b] = this.px(x0, z0), [c2, d2] = this.px(x1, z1); g.fillStyle = fill; g.fillRect(a, b, c2 - a, d2 - b); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(a, b, c2 - a, d2 - b); } };

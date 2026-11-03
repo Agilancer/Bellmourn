@@ -62,7 +62,29 @@ export function buildBellTower(ctx, M) {
 
   // ---------------------------------------------------------------- plinth and hall floor
   // (moss on the north face, where the sun never comes)
-  box([-5.7, -2, -5.7], [5.7, 0, 5.7], { top: flags, side: trim, bottom: trim });
+  // (in four pieces round the mouth of the founders' shaft, 4.2 m square, which the hatch covers:
+  // the stair down to the Undershrine spirals round its wall, undershrine.js)
+  const SH = { x0: -2.1, x1: 2.1, z0: -3.4, z1: 0.8 }, fl0 = { top: flags, side: trim, bottom: trim };
+  box([-5.7, -2, SH.z1], [5.7, 0, 5.7], fl0); box([-5.7, -2, -5.7], [5.7, 0, SH.z0], fl0);
+  box([-5.7, -2, SH.z0], [SH.x0, 0, SH.z1], fl0); box([SH.x1, -2, SH.z0], [5.7, 0, SH.z1], fl0);
+  { // the collar: the square's corners outside the round shaft, flagged over
+    const cx = 0, cz = -1.3, R = 2.0, n = 32, Pp = [], Uu = [], tri = [];
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2, c = Math.cos(a), s2 = Math.sin(a), q = 2.1 / Math.max(Math.abs(c), Math.abs(s2));
+      Pp.push(P(cx + c * R, -0.005, cz + s2 * R), P(cx + c * q, -0.005, cz + s2 * q));
+      Uu.push([X + cx + c * R, Z + cz + s2 * R], [X + cx + c * q, Z + cz + s2 * q]);
+      const i = k * 2, j = ((k + 1) % n) * 2;
+      tri.push([i, j, i + 1], [j, j + 1, i + 1]);
+    }
+    b.mesh(flags, Pp, Uu, tri);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) physics.add(P(sx < 0 ? -2.1 : 1.45, -0.3, cz + (sz < 0 ? -2.1 : 1.45)), P(sx < 0 ? -1.45 : 2.1, 0, cz + (sz < 0 ? -1.45 : 2.1)), 'floor');
+    // an iron rail round three sides of the mouth (the south open: the stair starts there)
+    for (const [ax, az, bx, bz] of [[-2.1, -3.4, 2.1, -3.4], [-2.1, -3.4, -2.1, 0.8], [2.1, -3.4, 2.1, 0.8]]) {
+      b.beam(P(ax, 1.0, az), P(bx, 1.0, bz), 0.05, 0.06, iron);
+      for (let t = 0; t <= 1.001; t += 0.25) b.beam(P(ax + (bx - ax) * t, 0, az + (bz - az) * t), P(ax + (bx - ax) * t, 1.0, az + (bz - az) * t), 0.04, 0.04, iron);
+      physics.add(P(Math.min(ax, bx) - 0.05, 0, Math.min(az, bz) - 0.05), P(Math.max(ax, bx) + 0.05, 1.05, Math.max(az, bz) + 0.05), 'rail');
+    }
+  }
   box([-5.72, -2, -5.75], [5.72, -0.3, -5.69], mossy, { solid: false });
   box([-1.6, -0.5, 5.7], [1.6, -0.25, 6.5], trim);                                 // the step up to the door
 
@@ -165,17 +187,13 @@ export function buildBellTower(ctx, M) {
   // his desk under the north lancet, his books on the east wall, a cot, a brazier, and in the
   // middle of the floor (under the well: you can look straight up through it to the bells) the iron
   // hatch over the old casting pit. The way from the door to the stair's foot is kept clear.
-  props.add('table', X + 1.9, F, Z - 2.9, 0);
-  props.add('stool', X + 1.9, F, Z - 1.9, 0);
   props.add('bookshelf', X + IN - 0.35, F, Z - 1.8, -Math.PI / 2);   // (either side of the east lancet)
   props.add('bookshelf', X + IN - 0.35, F, Z + 1.1, -Math.PI / 2);
   props.add('bed', X + 3.4, F, Z + 2.9, 0);   // (his cot along the east wall, clear of the doorway)
   props.add('candelabrum', X + 3.2, F, Z - 0.1);   // (before the east lancet: his reading light, in front of him)
-  props.add('chest_rustic_carved', X - 2.0, F, Z - 3.25, 0);
-  b.decal(M('catacombs_decal_iron_hatch', 2), X, F + 0.012, Z - 0.4, 2.2, 0);
   // his witch-light: a violet orb in an iron tripod, cold where a fire would be warm (it lights the
   // hall and him by its own colour: main's light pool takes ctx.witchLights)
-  const wl = [-1.7, 1.2];
+  const wl = [-2.75, -2.9];
   for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2; b.beam(P(wl[0] + Math.cos(a) * 0.32, 0, wl[1] + Math.sin(a) * 0.32), P(wl[0] + Math.cos(a) * 0.08, 1.02, wl[1] + Math.sin(a) * 0.08), 0.035, 0.035, iron); }
   b.cylinder(P(wl[0], 1.0, wl[1]), P(wl[0], 1.06, wl[1]), 0.16, 8, iron);
   const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.17, 2), new THREE.MeshBasicMaterial({ color: 0xe2d6ff }));
@@ -281,7 +299,7 @@ export function buildBellTower(ctx, M) {
   ctx.interiors?.push({ ...zone, floor: F, biome: 'downs', held: true });   // (held: the Bellwright's, not the Vigil's: foes.js)
 
   const state = { x: X, z: Z, y: F, floor: F, top: F + tip + 2, belfry: F + BF, lantern: [X, F + LH, Z], bells: pivots, hatch: [X, Z - 0.4],
-    post: [X + 1.9, Z - 1.2, 0], ready: null };
+    post: [X + 2.7, Z - 2.3, -0.785], ready: null };
   state.ready = loadBells(ctx, pivots);
   return state;
 }

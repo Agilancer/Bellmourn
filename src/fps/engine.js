@@ -85,6 +85,19 @@ export function crisp(m) {
   return m;
 }
 
+// ------------------------------------------------------------------ the haze lies low
+// three's range fog, thinned with height (as nodes.js fogNode under WebGPU): high ground, the
+// Sorrowhorn's upper half, stands out of the haze from far off.
+{
+  const C = THREE.ShaderChunk, line = 'smoothstep( fogNear, fogFar, vFogDepth )';
+  if (C?.fog_fragment?.includes(line)) {   // (WebGL only: the WebGPU build has no shader chunks)
+    C.fog_pars_vertex += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
+    C.fog_vertex += '\n#ifdef USE_FOG\n\tvFogAlt = ( transpose( mat3( viewMatrix ) ) * mvPosition.xyz + cameraPosition ).y;\n#endif\n';
+    C.fog_pars_fragment += '\n#ifdef USE_FOG\n\tvarying float vFogAlt;\n#endif\n';
+    C.fog_fragment = C.fog_fragment.replace(line, 'smoothstep( fogNear, fogFar, vFogDepth * mix( 1.0, 0.3, smoothstep( 40.0, 320.0, vFogAlt ) ) )');
+  }
+}
+
 // ------------------------------------------------------------------ ground mist
 /** Mist lying on the ground in `box` [x0, z0, x1, z1] (the graveyard): a height fog in three's own
  * fog shader, so everything drawn there (stones, the dead, the grass) sinks into it by how much mist

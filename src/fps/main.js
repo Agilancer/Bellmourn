@@ -67,6 +67,9 @@ import { deathDrops, greatDrops, containerDrops, makeMat, makeRecipe } from './c
 import { makeGem, GEMS } from './gems.js';
 import { makeCharm, hasAbility, CHARMS } from './charms.js';
 import { Chimes } from './belltower.js';
+import { buildUndershrine } from './undershrine.js';
+import { buildMountain } from './mountain.js';
+import { setMountain } from './terrain.js';
 
 const touch = TOUCH;
 // the composer's classes: WebGL's from three's addons (r170's: they'd not load under r187's WebGPU
@@ -313,6 +316,8 @@ async function build() {
   await mark('library');
   // (the portals' ground is left bare as the world is built: portals.js)
   const portalsClear = keepPortalsClear(ctx);
+  // the Sorrowhorn, north-west behind the forest (mountain.js): its ground is the height function's too
+  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildMountain(ctx, MM); setMountain(ctx.mountain); physics.mountain = ctx.mountain; }
   buildWorld(ctx); await mark('world');
   // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
   // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
@@ -321,12 +326,16 @@ async function build() {
   ctx.dungeon = ctx.catacombs.upper; ctx.deep = ctx.catacombs.deep; await mark('dungeon');
   buildKeep(ctx); await mark('keep');
   ctx.unders = [{ dg: ctx.dungeon, haunt: 'undercroft', cat: true }, { dg: ctx.deep, haunt: 'deep', cat: true }, { dg: ctx.catacombs.gulfDg, haunt: 'undercroft', cat: true }, ...buildDelves(ctx)];
+  // the Undershrine of Velscour, under the bell tower (undershrine.js)
+  ctx.shrine = buildUndershrine(ctx);
+  ctx.unders.push(...ctx.shrine.unders);
   await mark('delves');
   portalsClear();
   ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
   ctx.built = b.finish(scene);
+  ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []));   // (still: drawn in the world's bundles)
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
   await mark('merge');
@@ -429,6 +438,8 @@ async function build() {
     else zombies.populateDungeon(u.dg, few(u.n), u.haunt);
   }
   ctx.catacombs.populate(zombies, few);
+  ctx.shrine.populate(zombies, few);
+  ctx.say = (who, line) => hud.announce(who, line);
   ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
   zombies.populateWild([
@@ -488,6 +499,7 @@ async function build() {
   const sworn = () => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e));
   foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
   foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
+  foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => foes.populateMountain(ctx.mountain)).catch((e) => console.warn('the goat men', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => [...zombies.list, ...slimes.list].map((z) => z.ray(p, d, far)).filter(Boolean);
@@ -534,7 +546,7 @@ async function build() {
   map = new WorldMap(ui, ctx, { touch, onClose: () => setMap(false) });
   map.shopMark = drawShopMark;
   // the quests (quests.js): who gives them, what's done, the tracker, the log
-  quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
+  quests = ctx.quests = new Quests({ ui, ctx, zombies, foes, villagers, sfx, char: () => char, toast: (t) => hud.toast(t, null), onReward: reward, log: (cat, html, o) => chat.add(cat, html, o),
     // (a quest giver reads you the quest aloud, in their own voice, first of anyone: the town's chatter
     // stops for them; closing the window hushes them)
     speak: (name, text) => {
@@ -1368,6 +1380,8 @@ function zoneAt(p) {
     for (const [x, z, r, name] of Object.values(SPOTS)) if (Math.hypot(p.x - x, p.z - z) < r) return { name, kind: 'out', open: 1 };
     return { name: 'The Green Downs', kind: 'out', open: 1 };
   }
+  const mtn = ctx.mountain?.place(p);
+  if (mtn) return { name: mtn, kind: 'out', open: 1 };   // (the Sorrowhorn: see a long way)
   if (p.x > 110 && Math.abs(p.z) < 8) return { name: 'The Bellwood Trail', kind: 'out' };
   for (const z of ctx.zones) if (p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1 && p.y < z.y1) return { name: z.name, kind: 'in' };
   const keep = ctx.keep.place(p);
@@ -1437,6 +1451,11 @@ function light(dt, t) {
   scene.fog.color.copy(day.fog).lerp(BLACK, L.under);
   scene.fog.near = 30 * surface + 3 * L.under;
   scene.fog.far = ((isDay ? 300 : 170) + (isDay ? 420 : 140) * L.open) * surface * (touch ? 0.75 : 1) + L.fog * L.under;   // (a phone draws less of the distance)
+  // high on the Sorrowhorn the air is clear and the land shows a long way off (and the camera draws it)
+  { const alt = Math.max(0, camera.position.y - 30) * (1 - L.under);
+    if (alt > 0) scene.fog.far += Math.min(touch ? 700 : 1500, alt * (isDay ? 4.5 : 1.6));
+    const far = Math.max(L.under < 0.5 ? 2400 : 1200, scene.fog.far + 80);   // (outdoors: the Sorrowhorn from Bellmourn)
+    if (Math.abs(camera.far - far) > 60) { camera.far = far; camera.updateProjectionMatrix(); } }
   skyDome.update(day, t, camera.position, surface);
   bill.light.value.copy(hemi.color).multiplyScalar(hemi.intensity * 0.55 + sun.intensity * 0.22 * L.out);
   bill.time.value = t;
@@ -1498,8 +1517,8 @@ function light(dt, t) {
     }
     if (f.witch) {   // a witch-light: its own cold colour, steady, the same by day and night (it's indoors)
       l.color.setHex(f.color);
-      l.intensity = 6 * (0.92 + 0.08 * Math.sin(t * 1.7));
-      l.distance = 7.5;
+      l.intensity = (f.power ?? 6) * (0.92 + 0.08 * Math.sin(t * 1.7));
+      l.distance = f.range ?? 7.5;
       return;
     }
     l.color.setHex(0xff9a48);
@@ -1947,6 +1966,7 @@ function onDeath(z) {
   if (zombies.feed) fx?.died(z);
   gainXp(xpFor(z), nameOf(z));
   quests?.onKill(z);
+  ctx.shrine?.onKill(z);   // (a stage's warden leaves its gate's key where it falls)
   if (z.champ) for (let i = 0; i < 2; i++) ctx.loot.drop([z.pos.x + i * 0.6, z.pos.y + 0.1, z.pos.z], { tier: 4, under: true });
   // materials, now and then a gem or a plan (craft.js); a great one's reagent and its plans
   const lv = placeLevel(z.pos, z.zone === 'dungeon' || z.zone === 'cave' || !!z.cave);
@@ -2498,6 +2518,9 @@ function step(dt) {
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
+  } else if (acting && ctx.shrine?.prompt) {
+    hud.prompt(ctx.shrine.prompt);
+    if (inp.was('KeyE')) ctx.shrine.act(sfx, (t) => hud.toast(t));
   } else if (acting && ctx.catacombs.prompt) {
     hud.prompt(ctx.catacombs.prompt);
     if (inp.was('KeyE')) ctx.catacombs.act?.();
@@ -2549,6 +2572,7 @@ function step(dt) {
     if (a.castsNear !== near && a.casts) { a.castsNear = near; for (const m of a.casts) m.castShadow = near; }
   }
   for (const f of ctx.animated) f(dt, t);
+  if (ctx.shrine) { ctx.shrine.update(dt, player, { foes, sfx, toast: (m) => hud.toast(m), acting }); if (foes.gltf?.sworn_lord || foes.gltf?.sworn_m) ctx.shrine.makeStatue(foes); }
   chimes?.update(dt, timeMode === 'cycle' && !holdHour ? hour : null, sfx.ear, L.under, 1 - day.day);
   for (const a of villagers.list) if (a.staffGlow) {   // (the Bellwright's crystal: a faint glow, blazing while the bells ring)
     a.flare = Math.max(0, (a.flare || 0) - dt);

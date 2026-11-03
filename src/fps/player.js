@@ -92,7 +92,13 @@ export class Player {
     if (this.onGround) this.doubled = false;
     if (p.y < -60) { p.set(0, 0, 12); this.vel.set(0, 0, 0); } // fell out of the world
     // on the downs nothing is below the ground but caves (physics.belowGround): never sink into it
-    if (this.physics.terrain && p.x > 286 && !this.physics.belowGround?.some((inside) => inside(p))) {
+    const mtn = this.physics.mountain?.covers(p.x, p.z);
+    if (mtn && wasOn && !this.physics.belowGround?.some((inside) => inside(p))) {
+      // (the mountain: a slope steeper than about 50 degrees can't be walked up; jump it, or go round)
+      const moved = Math.hypot(p.x - ox, p.z - oz), rise = this.physics.groundAt(p.x, p.z) - Math.max(oy, this.physics.groundAt(ox, oz));
+      if (moved > 1e-4 && rise > 0.12 && rise / moved > 1.2) { p.x = ox; p.z = oz; }
+    }
+    if (this.physics.terrain && (p.x > 286 || mtn) && !this.physics.belowGround?.some((inside) => inside(p))) {
       const g = this.physics.groundAt(p.x, p.z);
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }
