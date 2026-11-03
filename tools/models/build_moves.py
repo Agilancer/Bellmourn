@@ -136,7 +136,7 @@ def catalog():
                           sides="".join(sorted({s for k in clip["frames"] for s in k})),
                           ref=sorted({r.split("@")[0] for r in refs}))
     # (views: a weapon kind drawn at its own scale; two-handers unshrunk, see mocap2h.py)
-    return dict(stretch=moves.STRETCH, views=dict(twohand=moves.mocap2h.VIEW), clips=clips, slots=moves.SLOTS)
+    return dict(stretch=moves.STRETCH, views=dict(twohand=moves.mocap2h.VIEW, twohand_zoom=moves.mocap2h.ZOOM), clips=clips, slots=moves.SLOTS)
 
 
 # (no top-of-screen margin any more: the user retired that rule with the 3D models)
@@ -308,7 +308,7 @@ def check():
             sl = moves.slide(arms)
             pts = [R.project(q) + (sl.get(arm["side"], 0.0), 0.0) for arm in arms
                    for q in fit_check.points(arm) if q[2] > R.NEAR]
-            worst_top = min(worst_top, min(p[1] for p in pts))
+            worst_top = min([worst_top] + [p[1] for p in pts])   # (a windup can be all behind the eye)
             worst_miss = max([worst_miss] + [a["reach_miss"] for a in arms])
         for f0, f1 in zip(keys, keys[1:]):   # (and the blade as the game blends between keys)
             for q in blended_tips(f0, f1):

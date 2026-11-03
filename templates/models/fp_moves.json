@@ -1,7 +1,8 @@
 {
  "stretch": 1.3,
  "views": {
-  "twohand": 1.0
+  "twohand": 1.0,
+  "twohand_zoom": 1.0
  },
  "clips": {
   "sword_walk": {
@@ -1020,26 +1021,21 @@
     0.485714,
     0.514286,
     0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286
+    0.571429
    ],
    "events": {
-    "duration": 0.742857,
+    "duration": 0.6,
     "hit": [
-     0.314286
+     0.285714
     ],
     "whoosh": [
-     0.142857
+     0.114286
     ],
-    "enter": 0.142857,
-    "link": 0.457143,
+    "enter": 0.114286,
+    "link": 0.485714,
     "edge": [
-     -0.35,
-     -0.937
+     -0.788,
+     -0.616
     ]
    },
    "names": [
@@ -1047,27 +1043,22 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "GUARD >",
-    "WIND R",
-    "WIND R >",
-    "WIND R >",
-    "WIND R >",
-    "WIND R >",
-    "WIND R >",
-    "CUT 1 HIT",
-    "CUT 1 HIT >",
-    "CUT 1 HIT >",
-    "CUT 1 HIT >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "LAG >",
+    "LAG >",
+    "LAG >",
+    "HIT",
+    "HIT >",
     "FOLLOW",
     "FOLLOW >",
     "FOLLOW >",
     "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
+    "OFF",
+    "OFF >",
+    "OFF >",
+    "OFF >",
     "GUARD"
    ],
    "sides": "LR",
@@ -1102,28 +1093,21 @@
     0.485714,
     0.514286,
     0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429
+    0.571429
    ],
    "events": {
-    "duration": 0.8,
+    "duration": 0.6,
     "hit": [
-     0.342857
+     0.285714
     ],
     "whoosh": [
-     0.171429
+     0.114286
     ],
-    "enter": 0.171429,
-    "link": 0.514286,
+    "enter": 0.114286,
+    "link": 0.485714,
     "edge": [
-     0.405,
-     -0.914
+     0.799,
+     -0.602
     ]
    },
    "names": [
@@ -1131,29 +1115,22 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "WIND L",
-    "WIND L >",
-    "WIND L >",
-    "WIND L >",
-    "WIND L >",
-    "WIND L >",
-    "CUT 2 HIT",
-    "CUT 2 HIT >",
-    "CUT 2 HIT >",
-    "CUT 2 HIT >",
-    "CUT 2 HIT >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "LAG >",
+    "LAG >",
+    "LAG >",
+    "HIT",
+    "HIT >",
     "FOLLOW",
     "FOLLOW >",
     "FOLLOW >",
     "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
-    "FOLLOW >",
+    "OFF",
+    "OFF >",
+    "OFF >",
+    "OFF >",
     "GUARD"
    ],
    "sides": "LR",
@@ -1161,12 +1138,12 @@
     "swing2h"
    ]
   },
-  "great_over": {
+  "great_slam": {
    "kind": "attack",
    "heavy": true,
    "roll": false,
    "stab": false,
-   "power": 1.2,
+   "power": 1.25,
    "starts": [
     0.0,
     0.028571,
@@ -1188,33 +1165,21 @@
     0.485714,
     0.514286,
     0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714,
-    0.914286
+    0.571429
    ],
    "events": {
-    "duration": 0.942857,
+    "duration": 0.6,
     "hit": [
-     0.457143
+     0.4
     ],
     "whoosh": [
-     0.142857
+     0.171429
     ],
-    "enter": 0.142857,
-    "link": 0.657143,
+    "enter": 0.171429,
+    "link": 0.542857,
     "edge": [
-     -0.403,
-     0.915
+     -0.011,
+     -1.0
     ]
    },
    "names": [
@@ -1222,34 +1187,22 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "GUARD >",
-    "OVERHEAD",
-    "OVERHEAD >",
-    "OVERHEAD >",
-    "OVERHEAD >",
-    "OVERHEAD >",
-    "FALL",
-    "FALL >",
-    "FALL >",
-    "FALL >",
-    "FALL 2",
-    "FALL 2 >",
-    "CHOP HIT",
-    "CHOP HIT >",
-    "CHOP HIT",
-    "CHOP HIT >",
-    "CHOP HIT >",
-    "CHOP HIT >",
-    "DRIVE",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
+    "RAISE",
+    "RAISE >",
+    "WIND",
+    "WIND >",
+    "WIND >",
+    "WIND >",
+    "LAG",
+    "LAG >",
+    "LAG >",
+    "LAG >",
+    "HIT",
+    "HIT >",
+    "FOLLOW",
+    "FOLLOW >",
+    "OFF",
+    "OFF >",
     "GUARD"
    ],
    "sides": "LR",
@@ -1281,133 +1234,10 @@
     0.4,
     0.428571,
     0.457143,
-    0.485714,
-    0.514286,
-    0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714,
-    0.914286,
-    0.942857,
-    0.971429,
-    1.0,
-    1.028571,
-    1.057143,
-    1.085714,
-    1.114286,
-    1.142857,
-    1.171429,
-    1.2,
-    1.228571,
-    1.257143
+    0.485714
    ],
    "events": {
-    "duration": 1.285714,
-    "hit": [
-     0.628571
-    ],
-    "whoosh": [
-     0.257143
-    ],
-    "enter": 0.257143,
-    "link": 0.942857,
-    "edge": [
-     -0.003,
-     1.0
-    ]
-   },
-   "names": [
-    "GUARD",
-    "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "LIFT",
-    "LIFT >",
-    "LIFT >",
-    "LIFT >",
-    "LIFT >",
-    "COCK",
-    "COCK >",
-    "COCK >",
-    "COCK >",
-    "COCK >",
-    "COME OVER",
-    "COME OVER >",
-    "COME OVER >",
-    "COME OVER >",
-    "FALL",
-    "FALL >",
-    "FALL >",
-    "FALL >",
-    "HIT",
-    "HIT >",
-    "HIT",
-    "HIT >",
-    "HIT >",
-    "HIT >",
-    "DRIVE",
-    "DRIVE >",
-    "DRIVE >",
-    "DRIVE >",
-    "DIP",
-    "DIP >",
-    "DIP >",
-    "DIP >",
-    "DIP >",
-    "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "GUARD"
-   ],
-   "sides": "LR",
-   "ref": [
-    "swing2h"
-   ]
-  },
-  "great_stab": {
-   "kind": "attack",
-   "heavy": true,
-   "roll": false,
-   "stab": true,
-   "power": 1.1,
-   "starts": [
-    0.0,
-    0.028571,
-    0.057143,
-    0.085714,
-    0.114286,
-    0.142857,
-    0.171429,
-    0.2,
-    0.228571,
-    0.257143,
-    0.285714,
-    0.314286,
-    0.342857,
-    0.371429,
-    0.4,
-    0.428571,
-    0.457143,
-    0.485714,
-    0.514286,
-    0.542857,
-    0.571429
-   ],
-   "events": {
-    "duration": 0.6,
+    "duration": 0.514286,
     "hit": [
      0.314286
     ],
@@ -1417,8 +1247,8 @@
     "enter": 0.142857,
     "link": 0.457143,
     "edge": [
-     0.996,
-     0.085
+     -0.342,
+     -0.94
     ]
    },
    "names": [
@@ -1427,125 +1257,18 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "CHAMBER",
-    "CHAMBER >",
-    "THRUST",
-    "THRUST >",
-    "THRUST >",
-    "THRUST >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "LAG >",
+    "LAG >",
+    "LAG >",
     "HIT",
     "HIT >",
-    "HIT >",
-    "HIT >",
-    "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "GUARD"
-   ],
-   "sides": "LR",
-   "ref": [
-    "swing2h"
-   ]
-  },
-  "great_sweep": {
-   "kind": "attack",
-   "heavy": true,
-   "roll": false,
-   "stab": false,
-   "power": 1.0,
-   "starts": [
-    0.0,
-    0.028571,
-    0.057143,
-    0.085714,
-    0.114286,
-    0.142857,
-    0.171429,
-    0.2,
-    0.228571,
-    0.257143,
-    0.285714,
-    0.314286,
-    0.342857,
-    0.371429,
-    0.4,
-    0.428571,
-    0.457143,
-    0.485714,
-    0.514286,
-    0.542857,
-    0.571429,
-    0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714,
-    0.914286,
-    0.942857,
-    0.971429,
-    1.0,
-    1.028571
-   ],
-   "events": {
-    "duration": 1.057143,
-    "hit": [
-     0.457143
-    ],
-    "whoosh": [
-     0.2
-    ],
-    "enter": 0.2,
-    "link": 0.714286,
-    "edge": [
-     0.992,
-     0.126
-    ]
-   },
-   "names": [
-    "GUARD",
-    "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "GUARD >",
-    "WIND L",
-    "WIND L >",
-    "WIND L >",
-    "WIND L >",
-    "WIND L >",
-    "SWING",
-    "SWING >",
-    "SWING >",
-    "SWING >",
-    "HIT",
-    "HIT >",
-    "HIT >",
-    "HIT >",
-    "THROUGH",
-    "THROUGH >",
-    "THROUGH >",
-    "THROUGH >",
-    "FINISH",
-    "FINISH >",
-    "FINISH >",
-    "FINISH >",
-    "FINISH >",
-    "FINISH >",
-    "RECOVER",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
-    "RECOVER >",
+    "FOLLOW",
+    "FOLLOW >",
+    "OFF",
+    "OFF >",
     "GUARD"
    ],
    "sides": "LR",
@@ -1582,30 +1305,21 @@
     0.542857,
     0.571429,
     0.6,
-    0.628571,
-    0.657143,
-    0.685714,
-    0.714286,
-    0.742857,
-    0.771429,
-    0.8,
-    0.828571,
-    0.857143,
-    0.885714
+    0.628571
    ],
    "events": {
-    "duration": 0.914286,
+    "duration": 0.657143,
     "hit": [
-     0.4
+     0.314286
     ],
     "whoosh": [
      0.142857
     ],
     "enter": 0.142857,
-    "link": 0.657143,
+    "link": 0.514286,
     "edge": [
-     -0.997,
-     0.077
+     -0.567,
+     0.824
     ]
    },
    "names": [
@@ -1614,32 +1328,227 @@
     "GUARD >",
     "GUARD >",
     "GUARD >",
-    "LOW R",
-    "LOW R >",
-    "LOW R >",
-    "LOW R >",
-    "LOW R >",
-    "RISE",
-    "RISE >",
-    "RISE >",
-    "RISE >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "LAG >",
+    "LAG >",
+    "LAG >",
     "HIT",
     "HIT >",
+    "FOLLOW",
+    "FOLLOW >",
+    "FOLLOW >",
+    "FOLLOW >",
+    "OFF",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "GUARD"
+   ],
+   "sides": "LR",
+   "ref": [
+    "swing2h"
+   ]
+  },
+  "great_wide_r": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "stab": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.028571,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.142857,
+    0.171429,
+    0.2,
+    0.228571,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.485714,
+    0.514286,
+    0.542857
+   ],
+   "events": {
+    "duration": 0.571429,
+    "hit": [
+     0.228571
+    ],
+    "whoosh": [
+     0.142857
+    ],
+    "enter": 0.142857,
+    "link": 0.428571,
+    "edge": [
+     -0.965,
+     -0.262
+    ]
+   },
+   "names": [
+    "GUARD",
+    "GUARD >",
+    "GUARD >",
+    "GUARD >",
+    "GUARD >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "HIT",
     "HIT >",
+    "FOLLOW",
+    "FOLLOW >",
+    "FOLLOW >",
+    "FOLLOW >",
+    "OFF",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "GUARD"
+   ],
+   "sides": "LR",
+   "ref": [
+    "swing2h"
+   ]
+  },
+  "great_wide_l": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "stab": false,
+   "power": 1.0,
+   "starts": [
+    0.0,
+    0.028571,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.142857,
+    0.171429,
+    0.2,
+    0.228571,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143
+   ],
+   "events": {
+    "duration": 0.485714,
+    "hit": [
+     0.142857
+    ],
+    "whoosh": [
+     0.057143
+    ],
+    "enter": 0.057143,
+    "link": 0.342857,
+    "edge": [
+     0.968,
+     -0.251
+    ]
+   },
+   "names": [
+    "GUARD",
+    "GUARD >",
+    "WIND",
+    "WIND >",
+    "LAG",
+    "HIT",
     "HIT >",
-    "THROUGH",
-    "THROUGH >",
-    "THROUGH >",
-    "THROUGH >",
-    "HIGH",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
-    "HIGH >",
+    "FOLLOW",
+    "FOLLOW >",
+    "FOLLOW >",
+    "FOLLOW >",
+    "OFF",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "OFF >",
+    "BACK"
+   ],
+   "sides": "LR",
+   "ref": [
+    "swing2h"
+   ]
+  },
+  "great_stab": {
+   "kind": "attack",
+   "heavy": true,
+   "roll": false,
+   "stab": true,
+   "power": 1.1,
+   "starts": [
+    0.0,
+    0.028571,
+    0.057143,
+    0.085714,
+    0.114286,
+    0.142857,
+    0.171429,
+    0.2,
+    0.228571,
+    0.257143,
+    0.285714,
+    0.314286,
+    0.342857,
+    0.371429,
+    0.4,
+    0.428571,
+    0.457143,
+    0.485714,
+    0.514286,
+    0.542857
+   ],
+   "events": {
+    "duration": 0.571429,
+    "hit": [
+     0.285714
+    ],
+    "whoosh": [
+     0.114286
+    ],
+    "enter": 0.114286,
+    "link": 0.428571,
+    "edge": [
+     0.844,
+     0.536
+    ]
+   },
+   "names": [
+    "GUARD",
+    "GUARD >",
+    "DRAW",
+    "DRAW >",
+    "CHAMBER",
+    "CHAMBER >",
+    "CHAMBER >",
+    "CHAMBER >",
+    "THRUST",
+    "THRUST >",
+    "HIT",
+    "HIT >",
+    "HIT",
+    "HIT >",
+    "RECOVER",
+    "RECOVER >",
+    "RECOVER >",
+    "RECOVER >",
+    "RECOVER >",
     "GUARD"
    ],
    "sides": "LR",
@@ -2255,42 +2164,24 @@
    "default": "combo"
   },
   "twohand": {
-   "title": "Two-handed weapon",
+   "title": "Two-handed weapon (left click)",
    "options": [
     {
      "id": "combo",
-     "name": "Combo: slash, slash, overhead",
+     "name": "Combo: slash, slash, SLAM",
      "chain": [
       "great_cut1",
       "great_cut2",
-      "great_over"
+      "great_slam"
      ],
-     "ref": "your two-hand swing video",
-     "note": "motion captured"
+     "ref": "your two-hand swing video, Dark Messiah style",
+     "note": "cuts through the crosshair; the slam comes over the head"
     },
     {
      "id": "chop",
      "name": "Overhead chop",
      "chain": [
       "great_chop"
-     ],
-     "ref": "your two-hand swing video",
-     "note": "straight down; slower, lands harder"
-    },
-    {
-     "id": "stab",
-     "name": "Stab",
-     "chain": [
-      "great_stab"
-     ],
-     "ref": "your two-hand swing video",
-     "note": "coil at the hip, lunge at the crosshair"
-    },
-    {
-     "id": "sweep",
-     "name": "Horizontal sweep",
-     "chain": [
-      "great_sweep"
      ],
      "ref": "your two-hand swing video"
     },
@@ -2304,6 +2195,37 @@
     }
    ],
    "default": "combo"
+  },
+  "twohand_r": {
+   "title": "Two-handed weapon (right click)",
+   "options": [
+    {
+     "id": "wide",
+     "name": "Wide horizontal, back and forth",
+     "chain": [
+      "great_wide_r",
+      "great_wide_l"
+     ],
+     "ref": "your two-hand swing video",
+     "note": "right to left, then left to right, across the whole view"
+    }
+   ],
+   "default": "wide"
+  },
+  "twohand_m": {
+   "title": "Two-handed weapon (wheel click)",
+   "options": [
+    {
+     "id": "stab",
+     "name": "Stab",
+     "chain": [
+      "great_stab"
+     ],
+     "ref": "your two-hand swing video",
+     "note": "coil at the hip, lunge at the crosshair"
+    }
+   ],
+   "default": "stab"
   },
   "spell": {
    "title": "One-hand spell",

@@ -318,7 +318,10 @@ export class ViewModel {
   resize(aspect) {
     this.aspect = aspect;
     // the rigs' projection (tools/models/viewer.html), widened for any aspect ratio
-    const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S;
+    // (a two-hander also gets its own viewmodel field of view, zoomed out about the centre so arms
+    // swinging right past the eye read smaller; the crosshair stays put)
+    const zoom = this.twoHanded() ? (this.moves?.cat.views?.twohand_zoom ?? 1) : 1;
+    const H = 240, S = this.shownScale = this.viewScale(), F = (H * 1.6 / 2) * S * zoom;
     // (a two-hander's arms swing past the eye: anything nearer than 10 cm is cut away, so a passing
     // sleeve flicks by instead of filling the screen with its inside)
     const CY = H - (H / 2) * S, near = S === this.manifest.view_scale ? 0.02 : 0.10, far = 20;
@@ -566,7 +569,9 @@ export class ViewModel {
    * the next blow of a combo will follow the one under way). */
   attackRight() { return this.attack('R'); }
 
-  attack(side) {
+  /** Attack with this hand; `slot` picks another of the weapon's attacks (a two-hander: right
+   * click 'twohand_r', wheel click 'twohand_m'), the hand's own slot otherwise. */
+  attack(side, slot = null) {
     const kind = this.equip[side];
     if (!kind) return 'spell';
     let st = this.state[side];
@@ -578,16 +583,17 @@ export class ViewModel {
       // that rests after this blow takes no more until it has
       if (st.chain && !st.queued && !this.rests(side, st) && st.action.time < (st.events.link ?? st.duration) + 0.15) { st.queued = true; return 'queued'; }
       // near the end of a rest: kept, and it goes as soon as the weapon is back at the carry
-      if (st.chain && this.rests(side, st) && (st.duration - st.action.time) / (st.action.timeScale || 1) <= BUFFER) { this.buffered[side] = true; return 'buffered'; }
+      if (st.chain && this.rests(side, st) && (st.duration - st.action.time) / (st.action.timeScale || 1) <= BUFFER) { this.buffered[side] = slot || true; return 'buffered'; }
       return null;
     }
     const both = ITEMS[kind]?.both;
     if (both && this.busy('L') && !/_aside_/.test(this.state.L.name)) return null;
-    const list = this.pick(SLOT_OF[kind])?.chain;
+    const list = this.pick(slot || SLOT_OF[kind])?.chain;
     if (!list) return null;
-    const index = both ? (this.turn[side] ?? 0) : 0;   // (two-handers take turns about their blows)
+    const tk = side + (slot || '');                    // (each button keeps its own turn)
+    const index = both ? (this.turn[tk] ?? 0) : 0;   // (two-handers take turns about their blows)
     this.strike(side, list, index, 0, 0.1);
-    if (both) this.turn[side] = index + 1;
+    if (both) this.turn[tk] = index + 1;
     return kind;
   }
 
@@ -790,7 +796,7 @@ export class ViewModel {
           const t3 = this.manifest.events[BLOCK[this.equip.L]]?.hold;
           if (st.name === 'sword_stab' && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
           else this.playWalk(side);
-          if (this.buffered[side]) { this.buffered[side] = false; if (st.chain) (this.kept ||= []).push(side); }   // (the kept click: below, once both hands are done)
+          if (this.buffered[side]) { const b = this.buffered[side]; this.buffered[side] = false; if (st.chain) (this.kept ||= []).push([side, b === true ? null : b]); }   // (the kept click: below, once both hands are done)
         }
       } else if (arm.walk) {
         arm.walk.timeScale = 0.25 + Math.min(1.3, speed / 6.2);
@@ -813,7 +819,7 @@ export class ViewModel {
         st.last = t;
       }
     }
-    for (const s of this.kept?.splice(0) || []) this.attack(s);
+    for (const [s, slot] of this.kept?.splice(0) || []) this.attack(s, slot);
     this.slide(dt);
   }
 
@@ -821,7 +827,7 @@ export class ViewModel {
    * so nothing bends) by how far its grip is from the centre, so the hands ride wide. Two hands
    * on one grip slide together. */
   slide(dt = 1 / 60) {
-    if (this.manifest && this.viewScale() !== this.shownScale) this.resize(this.aspect ?? 1.6);   // (weapon changed)
+    if (this.manifest && (this.viewScale() !== this.shownScale || this.twoHanded() !== this.shownTwo)) { this.shownTwo = this.twoHanded(); this.resize(this.aspect ?? 1.6); }   // (weapon changed)
     const fx = this.camera.projectionMatrix.elements[0];
     // (a two-hander drawn unshrunk keeps its hands where the capture put them: no spread)
     const wide = this.viewScale() === this.manifest?.view_scale;

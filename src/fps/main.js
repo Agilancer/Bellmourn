@@ -2419,6 +2419,11 @@ function step(dt) {
         }
       } else if (inp.was('Mouse0') && player.mana < bolt.mana) noMana();
     } else if (inp.was('Mouse0')) vm.attackRight();   // (a click for every blow: between a combo's blows the next waits cocked a moment)
+    // a two-hander has an attack on each button: right click its wide back-and-forth, wheel click its stab
+    if (vm.twoHanded() && !vm.blocking) {
+      if (inp.was('Mouse2')) vm.attack('R', 'twohand_r');
+      else if (inp.was('Mouse1')) vm.attack('R', 'twohand_m');
+    }
     // left hand (shields are held up as long as the button is); a staff with the left hand free sweeps
     if (vm.equip.R === 'staff' && !vm.equip.L && inp.was('Mouse2')) staffSweep();
     const wasBlocking = vm.blocking;

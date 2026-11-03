@@ -55,6 +55,8 @@ def at(xf, yf, z):
 def slide(arms):
     """How far (drawn px) each arm is slid sideways: {side: px}. Two hands on one grip slide
     together, by the right hand's amount."""
+    if R.VIEW_SCALE != R.REST_SCALE:   # (a two-hander drawn unshrunk keeps its hands where they are)
+        return {}
     g = {a["side"]: R.project(a["G"])[0] - W / 2 for a in arms if a["G"][2] > R.NEAR}
     out = {s: x * (STRETCH - 1) for s, x in g.items()}
     if any(a.get("support") for a in arms) and "R" in out:
@@ -631,7 +633,7 @@ for name, keys in SWORD_ATTACKS.items():
                                 for s in "RL"}, kind="aside")
 for name, keys in GREAT_ATTACKS.items():   # (blades show their flat by key now: no quarter-turn roll)
     add(f"great_{name}", {"RL": two_handed(keys)}, kind="attack", heavy=True, roll=False,
-        stab=name == "stab", power=1.2 if name in ("chop", "over") else 1.1 if name == "stab" else 1.0)
+        stab=name == "stab", power=1.25 if name == "slam" else 1.2 if name == "chop" else 1.1 if name == "stab" else 1.0)
 add("sword_stab", {s: frames(SWORD_STAB, s, "sword1h") for s in "RL"}, kind="attack", stab=True,
     power=1.1)
 add("round_block", {"L": frames(ROUND_BLOCK, "L", "round")}, kind="block")
@@ -657,16 +659,21 @@ SLOTS = {
         dict(id="chop", name="Overhead chop", chain=["sword_chop"], ref="your swing video's timing",
              note="straight down; slower, lands harder"),
     ], default="combo"),
-    "twohand": dict(title="Two-handed weapon", options=[
-        dict(id="combo", name="Combo: slash, slash, overhead", chain=["great_cut1", "great_cut2", "great_over"],
-             ref="your two-hand swing video", note="motion captured"),
-        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your two-hand swing video",
-             note="straight down; slower, lands harder"),
-        dict(id="stab", name="Stab", chain=["great_stab"], ref="your two-hand swing video",
-             note="coil at the hip, lunge at the crosshair"),
-        dict(id="sweep", name="Horizontal sweep", chain=["great_sweep"], ref="your two-hand swing video"),
+    # two-handers: a different attack on each mouse button (left, right, wheel click)
+    "twohand": dict(title="Two-handed weapon (left click)", options=[
+        dict(id="combo", name="Combo: slash, slash, SLAM", chain=["great_cut1", "great_cut2", "great_slam"],
+             ref="your two-hand swing video, Dark Messiah style", note="cuts through the crosshair; the slam comes over the head"),
+        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your two-hand swing video"),
         dict(id="rise", name="Rising backhand", chain=["great_rise"], ref="your two-hand swing video"),
     ], default="combo"),
+    "twohand_r": dict(title="Two-handed weapon (right click)", options=[
+        dict(id="wide", name="Wide horizontal, back and forth", chain=["great_wide_r", "great_wide_l"],
+             ref="your two-hand swing video", note="right to left, then left to right, across the whole view"),
+    ], default="wide"),
+    "twohand_m": dict(title="Two-handed weapon (wheel click)", options=[
+        dict(id="stab", name="Stab", chain=["great_stab"], ref="your two-hand swing video",
+             note="coil at the hip, lunge at the crosshair"),
+    ], default="stab"),
     "spell": dict(title="One-hand spell", options=[
         dict(id="mocap", name="Thrust and splay (your cast)", chain=["hand_mocap"],
              ref="your casting video", note="motion captured from your left-hand cast"),
