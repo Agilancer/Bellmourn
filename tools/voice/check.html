@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Voices check</title>
+<style>body { font: 14px system-ui; background: #111; color: #ddd; padding: 16px } li.bad { color: #f88 } button { font: inherit; margin: 2px }</style>
+<h1>Recorded voices: the crater</h1>
+<p>Fetches every crater line's recording the way the game does (voice.js, lines/voiced.js), and lets you play each one.</p>
+<p id="sum">Checking…</p>
+<ol id="list"></ol>
+<script type="module">
+  import { voice } from '../../src/fps/voice.js';
+  import { gatherLines, CALLER } from '../../src/fps/lines/opening.js';
+  const seen = new Set(), lines = [];
+  for (const l of gatherLines()) { const who = l.name || CALLER, k = who + '|' + l.text; if (!seen.has(k)) { seen.add(k); lines.push([{ name: who }, l.text, { key: who }]); } }
+  const t0 = performance.now();
+  await voice.prefetch(lines, 1);
+  const ok = lines.filter(([w, t, o]) => voice.made(w, t, o)).length;
+  document.querySelector('#sum').textContent = `${ok} of ${lines.length} recordings fetched and decoded in ${Math.round(performance.now() - t0)} ms (${voice.debug.base})`;
+  window.voiceCheck = { ok, of: lines.length };
+  const list = document.querySelector('#list');
+  for (const [w, t, o] of lines) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.textContent = '▶'; b.onclick = () => voice.say(w, t, o);
+    li.append(b, ` ${w.name}: ${t}`);
+    if (!voice.made(w, t, o)) li.className = 'bad';
+    list.append(li);
+  }
+</script>

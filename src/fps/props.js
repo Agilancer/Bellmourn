@@ -18,6 +18,10 @@
 // never compiles a shader.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { WEBGPU } from './nodes.js';
+// (matrices that change now and then: WebGPU sends them when they change, not again in every pass a
+// dynamic one is drawn in; WebGL as before)
+const CHANGING = WEBGPU ? THREE.StaticDrawUsage : THREE.DynamicDrawUsage;
 import { crisp } from './engine.js';
 
 const ROOT = 'templates/models/props/';
@@ -134,7 +138,7 @@ export class Props {
     for (const piece of this._piecesOf(p.id)) {
       const m = new THREE.InstancedMesh(piece.geo, this.shardMats.get(p.id), 1);
       m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false;   // (a handful, and moving)
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.instanceMatrix.setUsage(CHANGING);
       const pos = piece.c.clone().multiplyScalar(p.scale).applyQuaternion(_q).add(_s.set(p.x, p.y, p.z));
       const out = pos.clone().sub(centre).setY(0);
       if (out.lengthSq() < 1e-4) out.set(Math.random() - 0.5, 0, Math.random() - 0.5);
@@ -454,8 +458,8 @@ export class Props {
         m.receiveShadow = true;
         this.scene.add(m);
       }
-      if (lidMesh || breaks) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      if (lidMesh) lidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (lidMesh || breaks) mesh.instanceMatrix.setUsage(CHANGING);
+      if (lidMesh) lidMesh.instanceMatrix.setUsage(CHANGING);
     }
     if (breaks) {
       // its pieces' material: the same, two-sided (their cut ends are open; and crisp again:

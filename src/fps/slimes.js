@@ -661,6 +661,8 @@ class Slime {
     const m = owner.materials(sp);
     this.u = m.u; this.frontMat = m.front; this.backMat = m.back;
     this.root = new THREE.Object3D();
+    // (a body that moves: kept out of the torches' kept shadow maps, in their live ones: engine.js)
+    this.root.userData.body = true; this.root.userData.mover = true;
     this.body = new THREE.Object3D();
     this.body.scale.set(this.R, this.H, this.R * this.long);
     this.root.add(this.body);
