@@ -15,8 +15,9 @@
 // zombie body's 20 bones, already under those names). A body without a shield stands easy (CALM).
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-export const UAL_URL = 'templates/models/creatures/sworn/ual.glb';
+export const UAL_URL = asset('templates/models/creatures/sworn/ual.glb');
 const FPS = 30;
 
 // the mannequin's bones under the Sworn's names (sworn.js renames the villager's to the zombie body's;

@@ -41,9 +41,11 @@ from scipy import ndimage, sparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-ARMS = os.path.join(ROOT, 'templates', 'models', 'arms')
+sys.path.append(os.path.join(ROOT, 'tools'))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+ARMS = models('arms')
 BASE = os.path.join(HERE, 'base')
-VILL = os.path.join(ROOT, 'templates', 'models', 'creatures', 'villagers', 'villager_m01.glb')
+VILL = models('creatures', 'villagers', 'villager_m01.glb')
 BLENDER = os.environ.get('BLENDER', r'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe')
 WORK = os.path.join(tempfile.gettempdir(), 'bellmourn_hands')
 TEX = 1024

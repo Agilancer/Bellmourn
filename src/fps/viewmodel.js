@@ -11,8 +11,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { refineTexture, crisp } from './engine.js';
 import { WEBGPU, T, keyed, settled } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-const ROOT = 'templates/models/';
+const ROOT = asset('templates/models/');
 const _p = new THREE.Vector3(), _a = new THREE.Vector3(), _d = new THREE.Vector3(), _h = new THREE.Vector3();
 // the greatsword turns a quarter in the hands as a swing lifts it, so it cuts with the edge
 // (the carry shows the flat); it turns back as the blade comes home

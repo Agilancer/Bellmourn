@@ -17,7 +17,7 @@
 <!-- The move picker: the game's own first-person arms (src/fps/viewmodel.js) on the move set
      baked from tools/templates/moves.py, so you can watch every attack, block and cast before
      choosing which ones the game uses. "Use these in the game" writes
-     templates/models/fp_picks.json (served by tools/moves_player.py or tools/serve.py). Beside
+     Bellmourn2's templates/models/fp_picks.json (served by tools/moves_player.py or tools/serve.py). Beside
      the view, optionally, the library mannequin playing the clip each move was keyed from. -->
 <style>
   :root {
@@ -165,9 +165,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ViewModel, ITEMS } from './src/fps/viewmodel.js';
 import { shoveArea, launchWave, stepWaves } from './src/fps/shovewave.js';
+import { asset } from './src/fps/store.js';   // (the models live in Bellmourn2)
 
 const $ = (id) => document.getElementById(id);
-const manifest = await (await fetch('templates/models/manifest.json', { cache: 'no-store' })).json();
+const manifest = await (await fetch(asset('templates/models/manifest.json'), { cache: 'no-store' })).json();
 const vm = new ViewModel(manifest, null);
 await vm.load('knight');
 const cat = vm.moves.cat;
@@ -264,7 +265,7 @@ refScene.add(new THREE.HemisphereLight(0xffffff, 0x303040, 1.3));
 const refSun = new THREE.DirectionalLight(0xffffff, 1.4); refSun.position.set(2, 4, -3); refScene.add(refSun);
 const refCam = new THREE.PerspectiveCamera(40, 0.8, 0.05, 50);
 let ref = null;
-new GLTFLoader().loadAsync('templates/models/creatures/sworn/ual.glb').then((g) => {
+new GLTFLoader().loadAsync(asset('templates/models/creatures/sworn/ual.glb')).then((g) => {
   const mat = new THREE.MeshStandardMaterial({ color: '#b8b0a4', roughness: 0.7 });
   g.scene.traverse((o) => { if (o.isMesh) { o.material = mat; o.frustumCulled = false; } });
   refScene.add(g.scene);
@@ -455,12 +456,12 @@ $('keep').onclick = async () => {
     const r = await fetch('/picks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
     if (!r.ok) throw new Error(r.status);
     out.className = 'ok';
-    out.textContent = 'Saved to templates/models/fp_picks.json. The game uses these from its next load.';
+    out.textContent = 'Saved to Bellmourn2’s templates/models/fp_picks.json. The game uses these from its next load.';
   } catch (e) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' })); a.download = 'fp_picks.json'; a.click();
     out.className = 'bad';
-    out.textContent = 'This server can’t save, so fp_picks.json was downloaded: put it in templates/models/.';
+    out.textContent = 'This server can’t save, so fp_picks.json was downloaded: put it in Bellmourn2’s templates/models/.';
   }
 };
 

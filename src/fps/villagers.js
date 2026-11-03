@@ -42,12 +42,13 @@ import { TOUCH } from './input.js';
 import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
 import { cullable, shareSkeletons } from './engine.js';
 import { WEBGPU, T, keyed, ref, shared, sharpGrad, sourceOf } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 // a phone loads their phone copies (villagers/phone/, from tools/creatures/phone_copies.py: every
 // image at most 256 square): ten of the full ones, with their 2048 heads and hair, came to over a
 // gigabyte between the decoded images and the GPU, and the tab died
-const ROOT = 'templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : '');
-const ARMOR = 'templates/models/armor/';
+const ROOT = asset('templates/models/creatures/villagers/' + (TOUCH ? 'phone/' : ''));
+const ARMOR = asset('templates/models/armor/');
 // who lives here: model, name, what others call them, their callings, the house they live in, and
 // the armour set they wear
 const ROSTER = [
@@ -304,7 +305,7 @@ export class Villagers {
   /** A staff in the right hand, standing upright from the ground as it's held in their idle (fixed to
    * the wrist then, so it swings with the arm after). */
   giveStaff(a, url) {
-    (this._staff ||= new GLTFLoader().loadAsync(url)).then((g) => {
+    (this._staff ||= new GLTFLoader().loadAsync(asset(url))).then((g) => {
       const staff = g.scene.clone(true);
       staff.traverse((o) => {
         if (!o.isMesh) return;

@@ -15,8 +15,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import render as R  # noqa: E402
 
-VILLAGERS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "templates", "models",
-                         "creatures", "villagers")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+VILLAGERS = models("creatures", "villagers")
 
 
 def load(path):

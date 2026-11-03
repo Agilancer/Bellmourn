@@ -514,6 +514,31 @@ class LocalSource {
   async range(p, a, b) { return new Uint8Array(await this.files.get(p).slice(a, b).arrayBuffer()); }
 }
 
+// The models (templates/models) live in their own repo since the game's Pages site outgrew 1 GB
+// (docs/ASSETS.md): a branch or folder without them gets them from Bellmourn2's main. One from
+// before the move still has its own, and keeps them.
+const STORE_REPO = 'Agilancer/Bellmourn2', MOVED = ['templates/models/'];
+class Split {
+  constructor(main) { this.main = main; this.store = new GitHubSource(STORE_REPO, 'main'); this.theirs = new Set(); }
+  get kind() { return this.main.kind; }
+  get name() { return this.main.name; }
+  get rangeOK() { return this.main.rangeOK; }
+  get label() { return this.theirs.size ? `${this.main.label} + models from ${this.store.label}` : this.main.label; }
+  async list() {
+    const mine = await this.main.list(), moved = (p) => MOVED.some((m) => p.startsWith(m));
+    if (mine.some((f) => moved(f.path))) return mine;
+    const theirs = (await this.store.list()).filter((f) => moved(f.path));
+    this.theirs = new Set(theirs.map((f) => f.path));
+    return [...mine, ...theirs];
+  }
+  of(p) { return this.theirs.has(p) ? this.store : this.main; }
+  url(p) { return this.of(p).url(p); }
+  web(p, line) { return this.of(p).web(p, line); }
+  text(p) { return this.of(p).text(p); }
+  range(p, a, b) { return this.of(p).range(p, a, b); }
+  branches() { return this.main.branches(); }
+}
+
 async function pickFolder() {
   if (!window.showDirectoryPicker) { $('#dirInput').click(); return; }
   let h;
@@ -632,6 +657,7 @@ function setStatus(text, err = false, frac = null) {
 // ============================================================== loading
 async function load(src) {
   const gen = ++loadGen;
+  src = new Split(src);   // (the models from Bellmourn2 where this branch or folder has none)
   S = fresh(src);
   Object.assign(G, { blobs: new Map(), ctx: {}, mods: null, queue: Promise.resolve() });   // (another branch: other code)
   $('#view').innerHTML = `<div class="empty">Reading <b>${esc(src.label)}</b>…</div>`;
