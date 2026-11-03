@@ -244,16 +244,26 @@ grows faster at half his life, and the chest (the Vigil's hoard: legendary and e
 draughts) opens only once he's dead. The Sworn load with the rest, before play (a phone takes one
 body and half the garrison, without the adepts, once the village is in).
 
-On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
-the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
+On a phone, turn it sideways (held upright, the page says so over everything, the title too, from
+its first paint): left thumb moves (push it right out to run), right thumb looks,
+and the buttons attack, use the left hand, cast F and R, use (E), jump (hold it to ride your
+shield), drink, open the map and the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
 what holds frames up, and comes back when there's time; at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
 loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
 `templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
 at a time and the villagers one at a time once the village is up, half as many of the dead, and
 the stained glass at half size;
-re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. If a run
+re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. On top of
+those, a phone (`phonemem.js`, before anything loads) makes every picture half its width and height
+as it arrives, before it goes to the GPU (`createImageBitmap`, straight alpha kept; `?fulltex` keeps
+them whole), and lets three's GLTFLoader drop each model's file once it's made (`?keepgltf`); the
+built world's merged meshes keep their normals and shades in 16 and 8 bits and let go of their
+vertices once they're on the GPU (`?keepgeo` keeps both); and every body's animations are made the
+first time each is played, not all of them for all three hundred at once (`zombies.js` lazyActions,
+everywhere). Measured on an emulated iPhone (`--use-angle=swiftshader`, so the GPU's figure is
+SwiftShader's), loaded and at the title: the tab 1.8 GB to 1.2 GB, its peak while loading 2.0 GB to
+1.5 GB, the GPU process 1.5 GB to 1.1 GB, the pictures 546 MB to 149 MB. If a run
 dies (Safari's "A problem repeatedly occurred"), the next shows under the title how far it got.
 
 Bellmourn's twenty-two people (`villagers.js`: the men and women of

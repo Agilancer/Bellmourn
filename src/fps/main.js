@@ -8,8 +8,9 @@
 // lights, bloom, tone mapping and a light grade. The dungeon has no ambient light at all:
 // only the torches on its walls (and whatever you cast) light it. Everything is loaded,
 // uploaded and compiled before play (prepare).
+import * as phoneMem from './phonemem.js';   // (first: a phone's pictures at half size and its models' files let go, from the first loaded)
 import * as THREE from 'three';
-import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, shadeLayers, stillShadows, rangedShadows, liveShadows, keepCompiled, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST } from './engine.js';
+import { makeRenderer, multisample, refineScene, visibleMatrices, DetailCull, settled, texturesOf, upload, compile, programCount, hideUnported, shadeLayers, stillShadows, rangedShadows, liveShadows, keepCompiled, findBadDraw, Resolution, TEXELS, groundMist, WEBGPU, MIST, letGoOnUpload } from './engine.js';
 import { fogNode, SKY, settled as settledGraph } from './nodes.js';
 import { Physics } from './physics.js';
 import { Library } from './lib.js';
@@ -107,6 +108,7 @@ const renderer = await (async () => {
     return new Promise(() => {});
   }
 })();
+phoneMem.useRenderer(renderer);   // (what's on the GPU already keeps its size: phonemem.js)
 const res = new Resolution({ touch });
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.2;
@@ -306,6 +308,7 @@ async function build() {
   lib = await new Library(renderer, { normals: HI }).load();
   kit = await new Kit(renderer, scene, physics, { normals: HI, shadows: HI, packs: ['props'] }).load();
   const b = new Builder(physics);
+  b.compact = touch && !WEBGPU && !/[?&]keepgeo\b/.test(location.search);   // (a phone: the world's meshes in fewer bytes: geo.js compact)
   bill = new Billboards(lib, scene);
   bill.shadows = HI;
   const props = new Props(scene, physics, lib);
@@ -463,11 +466,11 @@ async function build() {
   respawns = new Respawns({ zombies });   // (notes how each is made, so it can be made again: respawn.js)
   await zombies.load(); await mark('zombies');
   const G = GRAVEYARD;
-  zombies.populateYard(G, YARD_DEAD, YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
-  // every place below ground, and out in the world the dead about the water, the bridge, the
-  // cliff and the deep of the wood (a phone gets half)
   // (more of the dead everywhere than there were, half again on a computer; a phone, fewer)
   const few = (n) => (touch && !HI ? Math.ceil(n * 0.6) : Math.round(n * 1.5));
+  // the graveyard's horde (a phone's fewer too; YARD_DEAD is a computer's), then every place below
+  // ground, and out in the world the dead about the water, the bridge, the cliff and the deep of the wood
+  zombies.populateYard(G, touch && !HI ? few(YARD_DEAD) : YARD_DEAD, touch && !HI ? few(YARD_BURIED) : YARD_BURIED, [-7, G.z0 + 3, 7, G.z0 + 17]); // not in the mausoleum
   for (const u of ctx.unders) {
     if (u.cat) continue;
     if (u.plan) zombies.populateCave(u.dg, u.plan.map(([tag, n, haunt]) => [tag, few(n), haunt]));
@@ -804,10 +807,14 @@ async function prepare(mark) {
     }
   }
   ctx.detail = new DetailCull(cells ? ctx.built.filter((m) => !m.parent?.isCell) : ctx.built, { touch, under: ctx.builtUnder });
+  // (a phone: the built world's vertices let go once the warm-up has sent them to the GPU: nothing reads
+  // them after, and they were ~100 MB of the page's own memory: engine.js letGoOnUpload)
+  const freed = touch && !WEBGPU && !/[?&]keepgeo\b/.test(location.search) ? letGoOnUpload(ctx.built) : 0;
   // pictures: linear-filtered, mipmapped, anisotropic (crisp texels come from the shader), and
   // smooth-edged leaves, hair and lashes
   const r1 = refineScene(scene), r2 = refineScene(vm.scene);
   hideUnported(scene, vm.scene);   // (WebGPU: a GLSL shader left over is hidden, not thrown on)
+  await phoneMem.ready();   // (a phone: every picture's half-size copy made before it's sent)
   const tex = texturesOf(vm.scene, texturesOf(scene));
   await upload(renderer, tex, (k) => title.progress(Math.round(86 + 6 * k)));
   await mark('uploaded');
@@ -816,6 +823,8 @@ async function prepare(mark) {
   await warmWorld();
   scene.remove(lying);
   await mark('warm');
+  if (phoneMem.halving) { const S = phoneMem.stats; console.info(`phone pictures: ${S.halved} halved (${(S.before / 1048576).toFixed(0)} MB to ${(S.after / 1048576).toFixed(0)} MB), ${S.kept} small enough, ${S.failed} left whole`); }
+  if (freed) console.info(`the built world's vertices let go once sent: ${(freed / 1048576).toFixed(0)} MB`);
   console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${programCount(renderer) - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
 }
 
