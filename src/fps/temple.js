@@ -67,6 +67,7 @@ export function buildTemple(ctx, M) {
   for (const s of [-1, 1]) b.box([s > 0 ? HX : -HX - 0.3, F, HZ0], [s > 0 ? HX + 0.3 : -HX, F + 1.0, HZ1], dark);   // (its parapet: open toward the door)
   b.box([-HX - 0.3, F, HZ1], [HX + 0.3, F + 1.0, HZ1 + 0.3], dark);
   for (const s of [-1, 1]) flame(s * (HX + 0.15), F + 1.0, HZ0 + 0.3, 0.3);   // (the well's mouth lit: the way down shows from the nave)
+  for (const s of [-1, 1]) { ctx.flames.push([s * (HX - 0.25), F - 2.2, (HZ0 + HZ1) / 2, 0.16, 1]); ctx.scatter?.place('torch', s * (HX - 0.15), F - 2.6, (HZ0 + HZ1) / 2, 1); }   // (and halfway down)
   // the grand stair up the podium's front, braziers at its head, statues at its foot
   const pale = M('castle_keep_pale_keep_limestone', 1.4, { tint: 0x9a948c });
   b.stairs(0, Z0 - 12, g, UP, 9, '+z', pale, { step: 0.25, run: 0.5 });
@@ -126,6 +127,13 @@ export function buildTemple(ctx, M) {
   for (const s of [-1, 1]) b.place(0, 0, 0, 0, 1, (o) => o.beam([s * 3.6, F + 11.5, NZ1 + 8], [0, F + 2.4, NZ1 + 8], 0.6, 0.35, gold), { solid: false });
   flame(-4.6, F + 0.75, NZ1 + 4.5, 0.5); flame(4.6, F + 0.75, NZ1 + 4.5, 0.5);
   for (const s of [-1, 1]) flame(s * 4.8, F, NZ0 - 3.4, 0.45);    // (braziers at the portal)
+  // the great doors, standing half open inward (iron-bound oak), a fire lit just inside them
+  { const oak = M('ship_01_tarblack_oak', 1, { tint: 0x5a4434 }), iron = M('met_02_riveted_black_iron', 1);
+    for (const s of [-1, 1]) b.place(s * 2.55, F, NZ0 + 0.6, s * 1.15, 1, (o) => {
+      o.box([s > 0 ? -2.5 : 0, 0, -0.08], [s > 0 ? 0 : 2.5, 6.4, 0.08], oak);
+      for (const y of [1.2, 3.2, 5.2]) o.box([s > 0 ? -2.5 : 0, y, -0.11], [s > 0 ? 0 : 2.5, y + 0.18, 0.11], iron);
+    }, { solid: false });
+    flame(0, F, NZ0 + 4.2, 0.4); }
 
   // ---- the crypt, in the podium: the stair down from the floor's well; round it and a core of rock the
   // galleries run, loculi and sarcophagi along their outer walls; the tomb hall at the back, the
