@@ -45,6 +45,7 @@ import { Zombies, pieceSample } from './zombies.js';
 import { Foes } from './foes.js';
 import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
+import { CALLER, GATHER_CALLS, GATHER_AGAIN, GATHER_CHATTER, GATHER_LEAD, GATHER_LAG, GATHER_SIGHT, GATHER_TALK, GATHER_AWAY, gatherLines } from './lines/opening.js';
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
@@ -2078,14 +2079,13 @@ async function startOver() {
         await Promise.race([villagers.ready, new Promise((r) => setTimeout(r, 120000))]).finally(() => clearInterval(every));
         line('The knights of the open country…');
         await Promise.race([foes.ualReady, new Promise((r) => setTimeout(r, 60000))]);
-        if (voice.enabled && voice.neural !== 'failed' && voice.neural !== 'off') {
-          const tell = () => { const [g, o] = voice.progress, dl = voice.download; line(dl ? `The voices of the village… ${dl[0]} of ${dl[1]} MB` : o ? `The voices of the village… ${g} of ${o}` : 'The voices of the village…'); };
-          tell();
-          const each = setInterval(tell, 300);
-          await Promise.race([voice.ready, new Promise((r) => setTimeout(r, 240000))]).finally(() => clearInterval(each));
+        // what they'll say to you at the crater (their recordings: docs/VOICES.md), fetched now, so
+        // each line is in the air the moment it's due (a slow network never holds the game up long)
+        if (voice.enabled) {
+          line('The voices of the village…');
+          const said = gatherLines().map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; });
+          await Promise.race([voice.prefetch(said, 1), new Promise((r) => setTimeout(r, 20000))]);
         }
-        // what they'll say to you at the crater, made now, so each line is in the air the moment it's due
-        voice.prefetch(gatherLines().map((w) => { const v = villagers.list.find((q) => q.name === w.name); return [v || { name: w.name }, w.text, v ? villagers.voiceOf(v) : { key: w.name }]; }));
         line('The knight’s arms and armour…');
         await Promise.all([ctx.crater.armourReady, vm.prefetch('wayfarer'),
           ...['vigilsword', 'vigilshield', 'vigilstaff'].map((id) => { const it = makeUnique(id); return vm.modelScene(it.model, it.finish); })]
@@ -2134,74 +2134,8 @@ function setCinema(on) {
 const GATHER_DIR = (() => { const l = Math.hypot(30, 12); return [30 / l, 12 / l]; })();   // (toward the town)
 const GATHER_SIDE = [-GATHER_DIR[1], GATHER_DIR[0]];
 const along = (u, v = 0) => [CRATER.x + GATHER_DIR[0] * u + GATHER_SIDE[0] * v, CRATER.z + GATHER_DIR[1] * u + GATHER_SIDE[1] * v];
-const CALLER = 'Wren';
 const GATHER_GROUP = [['Odile', 22.5, 0.4], ['Elsie', 21.6, 2.2], ['Osric', 24.2, -2.2], ['Hesk', 23.6, 2.6], ['Tobias', 25.0, 0.8], ['Garrow', 22.8, -3.6], ['Wren', 21.8, -1.6]];
 const ARMS_PATH = { onehand: [3.2, 0.3], shield: [6.2, -0.3], staff: [8.9, 0.25] };   // (metres up the way to her, and to the side)
-// Wren calls down to you as you come round, the others calling to her, and she to them over her shoulder
-const GATHER_CALLS = [
-  { name: 'Wren', text: 'Hoy! You, down there! Can you hear me?', toYou: true, wave: true },
-  { name: 'Elsie', text: 'Is he alive, Wren?', to: 'caller' },
-  { name: 'Wren', text: "He's moving! Saints, he's moving!" },
-  { name: 'Wren', text: 'Easy, now. Can you stand? Are you hurt?', toYou: true },
-  { name: 'Tobias', text: "Don't go any nearer the edge, girl. It's still smoking.", to: 'caller' },
-  { name: 'Wren', text: "Come on up to me. Slowly, now. Mind the glass, it's still hot.", toYou: true },
-  { name: 'Wren', text: "And bring the knight's things with you. He won't be needing them now.", toYou: true },
-];
-// and now and then after, while you're still down in it
-const GATHER_AGAIN = [
-  { text: "This way. Up here, where it's not so steep." },
-  { text: 'That\'s it. Take your time.' },
-  { text: 'Up here! Follow my voice.' },
-  { text: 'Nobody here will hurt you. Come on up.' },
-  { text: 'Can you hear me? Up here, friend.', wave: true },
-  { text: "Don't be afraid. You're safe now." },
-];
-// what the others say among themselves, back from the edge (between her calls)
-const GATHER_CHATTER = [
-  { name: 'Elsie', text: 'Did you see it? He fell right out of the sky!' },
-  { name: 'Osric', text: 'In a ball of green fire. Square on top of one of the Sworn.' },
-  { name: 'Garrow', text: 'Nothing left of that knight but his armour.' },
-  { name: 'Hesk', text: 'Nobody lives through a fall like that.' },
-  { name: 'Odile', text: 'Green fire out of the vault of heaven… It cannot be. It cannot.' },
-  { name: 'Garrow', text: "That girl's mad, going right up to the edge." },
-  { name: 'Osric', text: 'Somebody had to. Better her than me.' },
-  { name: 'Elsie', text: 'Do you think he is an angel?' },
-  { name: 'Tobias', text: 'Spinning like a top, he was, all the way down.' },
-  { name: 'Hesk', text: "If he lives, he'll come to us. Wait." },
-];
-// when you've come up near her: she turns, and takes you to them (and if you fall behind)
-const GATHER_LEAD = [{ text: 'There you are. Gently, now. Come and meet the others.', wave: true }];
-const GATHER_LAG = [{ text: 'This way. Over here.', wave: true }, { text: "Come on. They don't bite." }, { text: 'Over here, friend.' }];
-// and the rest, seeing you climb out
-const GATHER_SIGHT = [
-  { name: 'Elsie', text: "There! He's climbing out!" },
-  { name: 'Tobias', text: "Saints preserve us. He's alive." },
-  { name: 'Garrow', text: 'And in his smallclothes, too.' },
-  { name: 'Odile', text: 'Nobody run. Let him come to us.', wave: true },
-];
-// what they tell you when you come to them, in turn: who they are, who you are (and what they give you)
-const GATHER_TALK = [
-  { name: 'Odile', text: "Welcome, child. You're among friends. This is Bellmourn, and I am Sister Odile.", wave: true },
-  { name: 'Elsie', text: "I'm Elsie! You fell out of the sky! In a ball of green fire! We all saw!" },
-  { name: 'Osric', text: "Osric. I'm reeve here. You came down square on one of Lord Velscour's Sworn. There's nothing left of him but his armour." },
-  { name: 'Odile', text: 'A green star out of heaven, a man curled as a child, girded in black. It is written, child.' },
-  { name: 'Odile', text: 'You are Tessariel. The Sacred Flame, sent down to kill the Demon Lord Velscour.' },
-  { name: 'Hesk', text: "Hush! Say that name where the garrison can hear, and they'll hang the lot of us." },
-  { name: 'Tobias', text: "I'm Tobias. I keep the inn, the Tolling Bell. Velscour rules us from his far throne, and the Book says you will end him." },
-  { name: 'Garrow', text: "Garrow. I'm the smith. You can't go about in your smallclothes, though. Here. You'll want more than that.", gift: 'armor' },
-  { name: 'Wren', text: "I'm Wren. I hunt these woods. Wraps for your hands. And keep that sword close.",
-    ifArms: "I'm Wren. I hunt these woods. Wraps for your hands. And the knight's sword and shield are still down there: take them.", gift: 'gloves' },
-  { name: 'Tobias', text: "Forty crowns from the inn's box. Don't spend it all on ale.", gift: 'gold' },
-  { name: 'Hesk', text: "And I'm Mother Hesk. I mend what gets broken. Draughts, dear: red for the blood, blue for the mind.", gift: 'potions' },
-  { name: 'Odile', text: 'But before the Fiend, Flame, we have a task for you.' },
-  { name: 'Odile', text: 'The dead are walking beneath our cathedral. Speak with me, and I will tell you all of it.' },
-];
-// if you walk off while they're talking to you
-const GATHER_AWAY = [{ name: 'Elsie', text: 'Wait! Where are you going?' }];
-/** Every line of the gathering, in the order they'll be wanted (made ahead, while the game loads). */
-const gatherLines = () => [...GATHER_CALLS, ...GATHER_AGAIN.slice(0, 3).map((l) => ({ ...l, name: CALLER })), ...GATHER_LEAD.map((l) => ({ ...l, name: CALLER })), ...GATHER_SIGHT,
-  ...GATHER_TALK.flatMap((l) => (l.ifArms ? [l, { ...l, text: l.ifArms }] : [l])), ...GATHER_AGAIN.slice(3).map((l) => ({ ...l, name: CALLER })),
-  ...GATHER_LAG.map((l) => ({ ...l, name: CALLER })), ...GATHER_AWAY, ...GATHER_CHATTER];
 
 /** Where they stand: Wren up on the crater's edge toward the town (just inside its crest, where you
  * see her from the bottom), the rest out on the meadow beyond; and f, the way from the town into the crater. */
