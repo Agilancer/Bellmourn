@@ -1196,9 +1196,11 @@ function shieldShove() {
   if (hit.length) magic.particles.burst(fromView(vm.castPoint('L'), 0.7), [new THREE.Color('#d0d0d0'), new THREE.Color('#ffb040')], 18, { speed: 4, size: 0.03, grav: 9, life: 0.4 });
 }
 // ------------------------------------------------------------------ Shield Boarding (board.js)
-/** What the shield rides on: the old snow lying high on the Sorrowhorn, or what the feet would tread. */
+/** What the shield rides on: the old snow lying high on the Sorrowhorn (and the Frostmere's ice, as
+ * slick), or what the feet would tread. */
 function boardGround() {
   const s = underfoot(), p = player.pos;
+  if (physics.mountain?.onIce?.(p)) return 'snow';
   if (s === 'dirt' && p.y > 392 && board.n.y > 0.8 && physics.mountain?.covers(p.x, p.z)) return 'snow';
   return s;
 }
@@ -2329,6 +2331,7 @@ function underfoot() {
   if (z.kind === 'in') return /Cathedral|Sacristy|Stair|Mausoleum|Hall of the Sworn|Barracks of the Vigil|Chapel|Armoury|Reliquary|Throne/.test(z.name) ? 'stone' : 'wood';
   if (physics.dynamic.some((d) => p.x > d.x0 && p.x < d.x1 && p.z > d.z0 && p.z < d.z1)) return 'wood';   // (the rope bridge)
   if (p.y > g + 0.12) return 'stone';   // (on something built: steps, a wall walk, a pad)
+  if (physics.mountain?.onIce?.(p)) return 'stone';   // (the Frostmere's ice rings hard underfoot)
   if ((Math.abs(p.x) < 21 && Math.abs(p.z) < 21) || (Math.abs(p.x) < 17 && Math.abs(p.z + 47.5) < 8.5) || z.name === 'Blackvigil Keep') return 'stone';   // (the plaza, the forecourt, the keep)
   return 'dirt';
 }
@@ -2359,7 +2362,8 @@ function sounds(dt) {
     if (foes.bossBar(player)) threat += 3;
   }
   music.update(dt, { set, threat, hurt: performance.now() - hurtAt < 4000, paused: paused || !started });
-  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused, falls: ctx.mountain?.falls ? [ctx.mountain.falls.x, ctx.mountain.falls.z] : null });
+  ambience.update(dt, { on: playing, zone: z, set, out: L.out, under: L.under, day: day.day, hour, flames: flameList, crater: CRATER.k, paused, falls: ctx.mountain?.falls ? [ctx.mountain.falls.x, ctx.mountain.falls.z] : null,
+    high: ctx.mountain?.covers(p.x, p.z) ? Math.min(1, Math.max(0, (p.y - 110) / 260)) : 0 });
   // somewhere new: a stinger, the first time
   const place = z?.kind === 'under' ? z.region : z?.name;
   if (playing && place && (z.kind === 'under' || FINDS.test(place)) && !found.has(place)) {

@@ -146,7 +146,8 @@ export class Ambience {
 
   /** Each frame. s: {on (in the game, not the opening), zone ({name, kind, region, open}), set (the
    * music's place), out, under (the zone weights), day (0..1), hour, flames ([x, y, z, size]...),
-   * crater (formed 0..1), paused} */
+   * crater (formed 0..1), paused, falls ([x, z] of Sorrowfall), high (how high up the Sorrowhorn: 0 at
+   * its foot .. 1 near the top)} */
   update(dt, s) {
     if (!this.sfx.ok || !this.sfx.amb) return;
     this.lines();
@@ -166,9 +167,11 @@ export class Ambience {
     // ---- the outside's beds
     if (surf > 0.01) {
       const wood = set === 'wood', downs = set === 'downs', yard = set === 'graveyard', keep = set === 'keep', village = set === 'village';
-      this.want('wind_calm', 'wind_calm', downs ? 0.6 : yard || keep ? 0.55 : wood ? 0.25 : 0.32, O);
-      this.want('wind_forest', 'wind_forest', wood ? 0.75 : village ? 0.18 : downs ? 0.12 : 0.1, O);
-      this.want('birds', 'birds', day * (wood ? 0.85 : downs ? 0.6 : village ? 0.45 : yard ? 0.12 : 0.15), O);
+      // (up the Sorrowhorn the wind gets up, and the trees and the songbirds fall away below you)
+      const hi = s.high || 0;
+      this.want('wind_calm', 'wind_calm', (downs ? 0.6 : yard || keep ? 0.55 : wood ? 0.25 : 0.32) * (1 - hi) + 0.95 * hi, O);
+      this.want('wind_forest', 'wind_forest', (wood ? 0.75 : village ? 0.18 : downs ? 0.12 : 0.1) * (1 - hi * 0.8), O);
+      this.want('birds', 'birds', day * (wood ? 0.85 : downs ? 0.6 : village ? 0.45 : yard ? 0.12 : 0.15) * (1 - hi * 0.95), O);
       this.want('night', 'night', night * (yard ? 0.85 : keep ? 0.5 : 0.7), O);
       const heat = smooth(9.5, 12, s.hour) * (1 - smooth(16.5, 19, s.hour));
       this.want('cicadas', 'cicadas', downs ? heat * 0.42 : 0, O);

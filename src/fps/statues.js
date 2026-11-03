@@ -83,26 +83,28 @@ function plinthGeo() {
   return geo;
 }
 
-/** Every statue spot (details.js's roadside ones, the temple's) stood with its statue. Returns how many. */
+/** Every statue spot (details.js's roadside ones, the temple's, the knight in the Frostmere's ice) stood
+ * with its statue. A spot may name its `pose` ([clip, fraction]) and its own `material`, stand without
+ * a plinth (`plinth: false`) and be kept on a phone (`always`). Returns how many. */
 export function raiseStatues(ctx, foes, M, { touch = false } = {}) {
-  const spots = [...(ctx.temple?.statues || []), ...(ctx.details?.statues || [])].filter((_, i) => !touch || i % 2 === 0);
+  const spots = [...(ctx.temple?.statues || []), ...(ctx.details?.statues || []), ...(ctx.mountain?.mere?.statues || [])].filter((s, i) => !touch || s.always || i % 2 === 0);
   if (!spots.length) return 0;
   // (pale limestone on a darker plinth: they read against the dark. The chapel marble draws black when it's
   // laid triplanar, so not that.)
   const stone = M('castle_keep_pale_keep_limestone', 0.8, { tint: 0xf4efe6, tri: true }), plinthM = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0x8a847c, tri: true });
-  const made = new Map(), plinth = plinthGeo(), PH = 1.47, group = new THREE.Group();
+  const made = new Map(), plinth = plinthGeo(), group = new THREE.Group();
   let n = 0;
   spots.forEach((s, i) => {
     const kind = typeof s.kind === 'number' ? ROAD[s.kind % ROAD.length] : s.kind, [v, w, sh, poses] = KINDS[kind] || KINDS.knight;
-    const [clip, frac] = poses[i % poses.length], key = `${kind}|${clip}`;
+    const [clip, frac] = s.pose || poses[i % poses.length], key = `${kind}|${clip}|${frac}`, PH = s.plinth === false ? 0 : 1.47;
     if (!made.has(key)) made.set(key, bake(foes, v, clip, frac, w, sh) || bake(foes, v, 'idle', 0.4, w, sh) || bake(foes, 'sworn_m', 'idle', 0.4, 'penitents_greatsword', null));
     const geo = made.get(key);
     if (!geo) return;
-    const m = new THREE.Mesh(geo, stone);
+    const m = new THREE.Mesh(geo, s.material || stone);
     m.position.set(s.x, s.y + PH, s.z); m.rotation.y = s.yaw; m.scale.setScalar(1.12);
     m.castShadow = m.receiveShadow = true;
-    const p = new THREE.Mesh(plinth, plinthM); p.position.set(s.x, s.y, s.z); p.rotation.y = s.yaw; p.castShadow = p.receiveShadow = true;
-    group.add(m, p);
+    group.add(m);
+    if (PH) { const p = new THREE.Mesh(plinth, plinthM); p.position.set(s.x, s.y, s.z); p.rotation.y = s.yaw; p.castShadow = p.receiveShadow = true; group.add(p); }
     ctx.physics.add([s.x - 0.75, s.y, s.z - 0.75], [s.x + 0.75, s.y + PH + 1.9, s.z + 0.75], 'statue');
     n++;
   });

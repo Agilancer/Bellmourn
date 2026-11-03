@@ -36,11 +36,17 @@ export function layCamps(ctx, M) {
   const wood = M('ship_01_tarblack_oak', 1, { tint: 0x8a7058 }), cloth = M('cloth_04_aged_cream_linen', 0.6, { tint: 0x9a8a70 });
   const out = [];
   for (const C of CAMPS) {
-    if (C.mountain != null) {      // (the drovers: just off the Pilgrims' Road where it starts to climb, on its outer side)
+    if (C.mountain != null) {      // (the drovers: just off the Pilgrims' Road where it starts to climb)
       if (!S) continue;
-      const i = Math.floor(S.road.length * C.mountain), [x, z] = S.road[i], dx = x + 1000, dz = z + 1000, L = Math.hypot(dx, dz);
-      C.x = x + dx / L * 13; C.z = z + dz / L * 13;
-      const j = Math.floor(S.road.length * (C.mountain + 0.04)), [gx, gz] = S.road[j], ex = gx + 1000, ez = gz + 1000, E = Math.hypot(ex, ez); C.goal = [gx + ex / E * 6.5, gz + ez / E * 6.5];   // (beside the road, not on it)
+      // `off` metres to the side of the road, square to it (where it starts it runs straight at the
+      // mountain, so "away from the mountain" would be back down it), on the side further from the rest of it
+      const beside = (f, off) => {
+        const R = S.road, i = Math.floor(R.length * f), [x, z] = R[i], [ax, az] = R[Math.max(0, i - 3)], [bx, bz] = R[Math.min(R.length - 1, i + 3)], L = Math.hypot(bx - ax, bz - az) || 1;
+        const nx = -(bz - az) / L, nz = (bx - ax) / L;
+        return [1, -1].map((s) => [x + nx * off * s, z + nz * off * s]).sort((p, q) => (S.roadAt(q[0], q[1])?.d ?? 99) - (S.roadAt(p[0], p[1])?.d ?? 99))[0];
+      };
+      [C.x, C.z] = beside(C.mountain, 13);
+      C.goal = beside(C.mountain + 0.04, 6.5);   // (beside the road, not on it)
     }
     const y = groundAt(ctx, C.x, C.z);
     D.zones.push([C.x, C.z, 9]);

@@ -177,7 +177,8 @@ export function populateReavers(foes, S, { touch = false } = {}) {
   return out.length;
 }
 
-/** The dead the Hollow Tower and the Pilgrims' Barrow raised (the zombies', on the mountain). */
+/** The dead the Hollow Tower and the Pilgrims' Barrow raised (the zombies', on the mountain), and the
+ * pilgrims frozen round their reliquary on the Frostmere's shore (lying still till you come near). */
 export function populateMountainDead(zombies, S, { touch = false } = {}) {
   let n = 0;
   for (const site of [...(S?.holds || []), ...(S?.ledges || [])]) {
@@ -190,6 +191,12 @@ export function populateMountainDead(zombies, S, { touch = false } = {}) {
       n++;
     }
     void C;
+  }
+  const W = S?.mere;
+  for (const [x, z] of (W?.dead || []).filter((_, k) => !touch || k % 2 === 0)) {
+    const v = (zombies.pool || []).includes('pale_ghoul') ? 'pale_ghoul' : zombies.randomVariant('water');   // (what the cold made of them)
+    const zb = zombies.spawn(v, x, z, { zone: 'wild', start: 'playdead', area: { x, z, r: 6 } });
+    zb.band = 'frostmere'; n++;
   }
   return n;
 }

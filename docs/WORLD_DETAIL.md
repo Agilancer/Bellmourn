@@ -62,10 +62,34 @@ See `mountain.js planHolds`, `holds.js` and `reavers.js`:
 - seven side-path ledges, five ambushes and sheer drops;
 - the Wardens' seven quests.
 
+## The Frostmere, and the mountain's sky and wind (`mountain.js`)
+A tarn on the horn's north-west shoulder, about 50 m under the summit. Its intent is written above `buildMere`.
+- **Where:** `MERE` holds its surveyed centre: the flattest hollow near the Shepherd's Stair. `planMere` cuts its shelf and plans the way in before the ground is carved. The way leaves the Stair at the point level with the shelf. It bows 12 m west, round the Stair's upper legs, and through a cutting up to 7 m deep in the shoulder: you come out of the cutting onto the reveal.
+- **The ice:** one disc with a drawn canvas face (`iceTexture`): dark and clear where it broke, frosted toward the shore, cracks running out from the break. It lies flush on the level shelf, so everything walks on the ground: no box underfoot, and the dead don't wade in it. `S.onIce(p)` makes footsteps ring like stone and makes Shield Boarding as slick as snow (main.js).
+- **The knight:** a statue spot (`mere.statues`, raised by `statues.js`): the Sworn knight in the pose `KNIGHT_POSE` names (`attack1_rec` at 0.2: upright, both hands on the greatsword, raised high), sunk thigh-deep in the ice, with no plinth. He wears rime of his own: grey-blue Phong, flat shaded so his shape shows in facets. A smooth pale gloss blew out white in the snow's glare. The slabs he broke wear the ice's own drawn face, dark at the core and frosted at the edges. Statue spots can now name their `pose`, their own `material` and `plinth: false`, and `always` keeps one on a phone.
+- **The far shore:** the Pilgrims' Reliquary (`chest_domed_gothic`, a mountain hoard), the T of the Flame planted behind it, their staves and packs, and a warm light in it that shows across the ice at night. Four dead pilgrims (pale ghouls, or a `water` haunt if the pool has none) lie round it (`playdead`, `reavers.js populateMountainDead`). The first to see you, about 8 to 10 m off, calls the rest, so they get up as you cross the ice to the knight.
+- **The way in:** two poles with a line of prayer flags across the cutting's mouth frame the first view. A toast tells what's in the ice, once.
+
+**Birds** (`flyBirds`): ravens wheel over where the dead are (Scythe Hold, the Hollow Tower, the Pilgrims' Barrow, Gorehoof's Shelf), and a pair of eagles ride the air over the Eyrie. They use the belltower crows' shape, in two instanced meshes. Only flocks within 450 m of you move.
+
+**Wind:** `ambience.update` takes `high` (0 at the Sorrowhorn's foot, 1 near the top). The wind rises with it, and the songbirds and the forest's trees fall away.
+
+**The map** (`map.js`) now shows the mountain:
+- its trails and side paths, dashed, and the Pilgrims' Track;
+- the keeps and towers, coloured by who holds them, and the Red Fold;
+- the goat men's camps (a ring of stakes) and the lookouts;
+- Sorrowfall and the Frostmere;
+- Hornhollow, the Horn, the Broken Stair, and the Sorrowhorn's own name.
+
+**Two things in the way, found by the path check and fixed:**
+- Crowstep Tower's palisade (`holds.js`) opened toward its frame's front, which is squared to the world, so its side path ran into the stakes. It now opens where the path crosses it.
+- The Drovers' Camp (`pastimes.js`) was set 13 m "outward" from the mountain. Where the road starts, it runs straight at the mountain, so outward was back down the road, and the camp's crates and barrels stood on it. The camp and its dash's cairn now go square to the road, on the side further from the rest of it.
+
 ## Testing
 Use the headless harness (scratchpad `harness.mjs`). It serves the sibling Bellmourn2 checkout at `/Bellmourn2/`:
 - `test_detail.mjs`: the temple peopled, the statues, the camps' folk, knucklebones and the dash, and the critics' views;
-- `test_war.mjs`: the mountain.
+- `test_war.mjs`: the mountain;
+- `test_mere.mjs`: the Frostmere (built, peopled, the dead waking), the birds, the wind, the map, the path check, and its views.
 
 Run both renderers (`--q=?renderer=webgl`). Syntax-check changed modules as `.mjs` copies (`node --check x.mjs`): a `.js` check misses ES-module redeclarations.
 
