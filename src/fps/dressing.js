@@ -321,7 +321,8 @@ export function dressWorld(ctx, M, json) {
   const S = ctx.mountain;
   ctx.fires = (S?.camps || []).map((c) => [c.x, c.y, c.z]);
   if (S?.villageSite) { const V = S.villageSite; ctx.fires.push([V.x - V.ux - V.uz * 4, V.y, V.z - V.uz + V.ux * 4]); }
-  if (S?.holdFires) ctx.fires.push(...S.holdFires);     // (the keeps', towers' and camps' fires: holds.js)
+  if (S?.holdFires) ctx.fires.push(...S.holdFires);
+  if (ctx.campFires) ctx.fires.push(...ctx.campFires);   // (the wayside camps': pastimes.js)     // (the keeps', towers' and camps' fires: holds.js)
   const meshes = D ? D.finish() : [];
   console.info(`dressing: ${D?.n || 0} ground pieces in ${meshes.length} cells`);
   return meshes;
