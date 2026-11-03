@@ -289,6 +289,7 @@ export class Villagers {
     if (kp) { a.keeperPost = kp; a.rest = 'idle'; }
     this.play(a, 'idle');
     mixer.update(Math.random() * 3);
+    root.userData.body = true;   // (engine.js's point-light shadow passes)
     this.scene.add(root);
     this.list.push(a);
     if (p.staff) this.giveStaff(a, p.staff);
