@@ -24,6 +24,8 @@ import texkit  # noqa: E402
 from geom import norm  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
 
 
 def look(eye, target):
@@ -126,7 +128,7 @@ def textured_sheet(kind, out, tile=(300, 640), close=300):
     for spec in I.ITEMS[kind]:
         model = spec["build"]()
         model.pack()
-        tex = Image.open(os.path.join(ROOT, "templates", "models", "items", kind, spec["id"],
+        tex = Image.open(models("items", kind, spec["id"],
                                       f"{spec['id']}_texture.png"))
         pts = np.concatenate([i.v for _, i in model.islands()])
         c = (pts.max(0) + pts.min(0)) / 2
@@ -180,7 +182,7 @@ def textured_gauntlet_sheet(out, size=360):
     for gid, name, _, _ in G.GAUNTLETS:
         model = G.build(gid, "R")
         model.pack()
-        tex = Image.open(os.path.join(ROOT, "templates", "models", "gauntlets", gid,
+        tex = Image.open(models("gauntlets", gid,
                                       f"{gid}_texture.png"))
         mesh = A.posed_mesh(model, mats, "R")
         target = arm["W"] * 0.8 + arm["E"] * 0.2
@@ -215,7 +217,7 @@ def fp_gauntlet_sheet(out, item=("onehand", "arming_sword"), k=3):
     spec = next(x for x in I.ITEMS[item[0]] if x["id"] == item[1])
     im = spec["build"]()
     im.pack()
-    itex = Image.open(os.path.join(ROOT, "templates", "models", "items", item[0], item[1],
+    itex = Image.open(models("items", item[0], item[1],
                                    f"{item[1]}_texture.png"))
     m = mats["item"]
     itris, iuvs, inrms = [], [], []
@@ -231,7 +233,7 @@ def fp_gauntlet_sheet(out, item=("onehand", "arming_sword"), k=3):
     for gid, name, _, _ in G.GAUNTLETS:
         model = G.build(gid, "R")
         model.pack()
-        tex = Image.open(os.path.join(ROOT, "templates", "models", "gauntlets", gid,
+        tex = Image.open(models("gauntlets", gid,
                                       f"{gid}_texture.png"))
         # one atlas for both models: the arm's texture left, the item's right
         aw, iw = tex.width, itex.width
@@ -273,7 +275,7 @@ def variant_sheet(kind, out):
             m = G.build(gid, "R")
             m.pack()
             mesh = A.posed_mesh(m, mats, "R")
-            models.append((gid, name, os.path.join(ROOT, "templates", "models", "gauntlets", gid),
+            models.append((gid, name, models("gauntlets", gid),
                            lambda tex, mesh=mesh: textured_mesh_view(
                                *mesh, tex, target + np.array([0.30, 0.15, -0.16]), target, w, h)))
     else:
@@ -287,7 +289,7 @@ def variant_sheet(kind, out):
             c = (pts.max(0) + pts.min(0)) / 2
             r = np.linalg.norm(pts - c, axis=1).max()
             models.append((spec["id"], spec["name"],
-                           os.path.join(ROOT, "templates", "models", "items", kind, spec["id"]),
+                           models("items", kind, spec["id"]),
                            lambda tex, m=m, c=c, r=r: textured_view(m, tex, c, r, w, h)))
     sheet = Image.new("RGB", (w * len(models), h * len(rows)))
     for j, (mid, name, folder, view) in enumerate(models):
@@ -306,24 +308,24 @@ def variant_sheet(kind, out):
 
 if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "gauntlets"
-    os.makedirs(os.path.join(ROOT, "templates", "models", "catalog"), exist_ok=True)
+    os.makedirs(models("catalog"), exist_ok=True)
     if what == "gauntlets":
-        print(gauntlet_sheet(os.path.join(ROOT, "templates", "models", "catalog", "gauntlets.png")))
+        print(gauntlet_sheet(models("catalog", "gauntlets.png")))
     elif what == "textured":  # python tools/models/catalog.py textured onehand|gauntlets
         kind = sys.argv[2] if len(sys.argv) > 2 else "onehand"
-        out = os.path.join(ROOT, "templates", "models", "catalog", f"{kind}_textured.png")
+        out = models("catalog", f"{kind}_textured.png")
         print(textured_gauntlet_sheet(out) if kind == "gauntlets" else textured_sheet(kind, out))
     elif what == "variants":  # python tools/models/catalog.py variants onehand|gauntlets
         kind = sys.argv[2] if len(sys.argv) > 2 else "onehand"
-        print(variant_sheet(kind, os.path.join(ROOT, "templates", "models", "catalog",
+        print(variant_sheet(kind, models("catalog",
                                                f"{kind}_variants.png")))
     elif what == "fp":  # python tools/models/catalog.py fp   (gauntlets in first person)
-        print(fp_gauntlet_sheet(os.path.join(ROOT, "templates", "models", "catalog",
+        print(fp_gauntlet_sheet(models("catalog",
                                              "gauntlets_fp.png")))
     elif what == "props":
-        print(item_sheet("props", os.path.join(ROOT, "templates", "models", "catalog", "props.png")))
+        print(item_sheet("props", models("catalog", "props.png")))
     else:
         import items as I
         for kind in I.ITEMS:
-            print(item_sheet(kind, os.path.join(ROOT, "templates", "models", "catalog",
+            print(item_sheet(kind, models("catalog",
                                                 f"{kind}.png")))

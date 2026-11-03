@@ -52,7 +52,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ?root=<folder> views another models folder (e.g. a copy with painted textures)
-const ROOT = new URLSearchParams(location.search).get('root') || '../../templates/models/';
+const ROOT = new URLSearchParams(location.search).get('root') || '/Bellmourn2/templates/models/';   // (Bellmourn2, beside the game: docs/ASSETS.md)
 const manifest = await (await fetch(ROOT + 'manifest.json', { cache: 'no-store' })).json();
 const loader = new GLTFLoader();
 const load = (p) => new Promise((ok, bad) => loader.load(ROOT + p, ok, undefined, bad));

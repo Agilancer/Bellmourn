@@ -18,7 +18,9 @@ import sys
 
 from PIL import Image
 
-ROOT = os.path.join('templates', 'models', 'creatures')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+ROOT = models('creatures')
 CAPS = {'monsters': 512, 'foes': 512, 'villagers': 256, 'grotesques': 512}   # the biggest image side a phone gets
 
 

@@ -28,7 +28,7 @@ tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(10, 10); tex.magFil
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const camera = new THREE.PerspectiveCamera(view === 'face' ? 20 : 32, W / H, 0.05, 100);
-const g = await new GLTFLoader().loadAsync('../../../templates/models/creatures/villagers/' + (q.get('m') || 'villager_m01') + '.glb');
+const g = await new GLTFLoader().loadAsync('/Bellmourn2/templates/models/creatures/villagers/' + (q.get('m') || 'villager_m01') + '.glb');
 const model = g.scene; scene.add(model);
 model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
 const mixer = new THREE.AnimationMixer(model);
