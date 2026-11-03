@@ -825,6 +825,8 @@ async function prepare(mark) {
   await mark('warm');
   if (phoneMem.halving) { const S = phoneMem.stats; console.info(`phone pictures: ${S.halved} halved (${(S.before / 1048576).toFixed(0)} MB to ${(S.after / 1048576).toFixed(0)} MB), ${S.kept} small enough, ${S.failed} left whole`); }
   if (freed) console.info(`the built world's vertices let go once sent: ${(freed / 1048576).toFixed(0)} MB`);
+  await phoneMem.sweep();   // (a phone: the pictures' copies let go, now they're on the GPU)
+  if (phoneMem.releaseStats.released) console.info(`phone pictures let go once sent: ${phoneMem.releaseStats.released} (${(phoneMem.releaseStats.bytes / 1048576).toFixed(0)} MB)`);
   console.info(`prepared in ${Math.round(performance.now() - T0)} ms: ${tex.size} textures, ${r1.materials + r2.materials} materials (${r1.a2c + r2.a2c} alpha to coverage), ${programCount(renderer) - p0} programs, ${skel} skeletons, ${ctx.detail.list.length} small pieces culled by distance; texels ${TEXELS}, ${W}x${H}`);
 }
 
