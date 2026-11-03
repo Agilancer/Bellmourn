@@ -8,6 +8,7 @@ import { VILLAGE_R, WORLD_R, GRAVEYARD, CATHEDRAL } from './world.js';
 import { REGION, POOL, STREAM, RIVER, terrainHeight } from './terrain.js';
 import { SPOTS } from './region.js';
 import { DELVES } from './delves.js';
+import { MOUNT, GATE } from './mountain.js';
 
 // the chart's bounds: the forest round the village, the trail and the downs
 // (and the Sorrowhorn, north-west behind the forest: mountain.js)
@@ -97,11 +98,15 @@ export class WorldMap {
     const [px0, pz0] = this.px(POOL.x, POOL.z); g.beginPath(); g.arc(px0, pz0, POOL.r / PX, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#3a5a6a'; g.lineWidth = 2.2; g.lineCap = 'round'; g.lineJoin = 'round';
     for (const line of [STREAM, RIVER]) { g.beginPath(); line.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); }
-    // the Pilgrims' Road up the Sorrowhorn, and the Broken Stair at its foot
+    // the Pilgrims' Road up the Sorrowhorn, and the Broken Stair at its foot; its trails and side paths
+    // dashed, and the Pilgrims' Track to it through the Darkwood
     if (ctx.mountain) {
-      g.strokeStyle = '#d8c8a0'; g.lineWidth = 1.6; g.beginPath();
-      ctx.mountain.road.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); });
-      g.stroke();
+      const line = (pts) => { g.beginPath(); pts.forEach(([x, z], k) => { const [a, b] = this.px(x, z); k ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke(); };
+      g.strokeStyle = '#d8c8a0'; g.lineWidth = 1.6; line(ctx.mountain.road);
+      g.strokeStyle = '#9a7a52'; g.lineWidth = 1.1; g.setLineDash([3, 2]);
+      for (const t of ctx.mountain.trails || []) line(t.pts);
+      if (ctx.mountain.track) line(ctx.mountain.track);
+      g.setLineDash([]);
     }
     // roads and paths: the village's streets, the lane to the graveyard, the trail east and the
     // downs' paths
@@ -163,6 +168,34 @@ export class WorldMap {
       g.textAlign = 'right';
       name(c.mouth.x + lx + 18 * PX, lz, c.name, 8);
       g.textAlign = 'center';
+    }
+    // the Sorrowhorn's places: its keeps and towers (blue for the Wardens', red for the Red Scythe's,
+    // brown for the bandits', grey for the dead's), the goat men's camps (a ring of stakes), the
+    // lookouts, Sorrowfall's pool and the Frostmere, Hornhollow and the Horn
+    const Mt = ctx.mountain;
+    if (Mt) {
+      const FOLK = { wardens: '#3a4a6a', scythe: '#8a2018', bandit: '#6a5030', dead: '#3a3a34' };
+      for (const h of Mt.holds || []) {
+        const [a, b] = this.px(h.x, h.z), r = h.kind === 'keep' ? 4.5 : 3;
+        g.fillStyle = FOLK[h.folk] || INK; g.strokeStyle = INK; g.lineWidth = 1;
+        if (h.kind === 'camp') { g.beginPath(); g.moveTo(a, b - r - 1); g.lineTo(a + r + 1, b + r); g.lineTo(a - r - 1, b + r); g.closePath(); g.fill(); g.stroke(); }
+        else { g.fillRect(a - r, b - r, r * 2, r * 2); g.strokeRect(a - r, b - r, r * 2, r * 2); }
+        name(h.x, h.z - 12, h.name, 8);
+      }
+      for (const c of Mt.camps || []) {
+        const [a, b] = this.px(c.x, c.z);
+        g.fillStyle = INK; for (let k = 0; k < 8; k++) { const t = k / 8 * Math.PI * 2; g.fillRect(a + Math.cos(t) * 4.5 - 0.6, b + Math.sin(t) * 4.5 - 0.6, 1.2, 1.2); }
+        name(c.x, c.z - 12, c.name, 8);
+      }
+      for (const v of Mt.views || []) { const [a, b] = this.px(v.x, v.z); g.strokeStyle = INK; g.lineWidth = 1; g.beginPath(); g.arc(a, b, 2.4, 0, Math.PI * 2); g.stroke(); name(v.x, v.z + 14, v.name, 7); }
+      const water = (x, z, r, fill) => { const [a, b] = this.px(x, z); g.fillStyle = fill; g.beginPath(); g.arc(a, b, Math.max(2.5, r / PX), 0, Math.PI * 2); g.fill(); g.strokeStyle = INK; g.lineWidth = 0.8; g.stroke(); };
+      if (Mt.falls) { water(Mt.falls.pool.x, Mt.falls.pool.z, Mt.falls.pool.r, '#3a5a6a'); name(Mt.falls.pool.x, Mt.falls.pool.z - 10, 'Sorrowfall', 8); }
+      if (Mt.mere) { water(Mt.mere.x, Mt.mere.z, Mt.mere.r, '#c8dce8'); name(Mt.mere.x, Mt.mere.z - 10, Mt.mere.name, 8); }
+      if (Mt.villageSite) name(Mt.villageSite.x, Mt.villageSite.z + 22, 'Hornhollow', 10);
+      if (Mt.summit) { const [a, b] = this.px(Mt.summit.x, Mt.summit.z); g.fillStyle = INK; g.beginPath(); g.moveTo(a, b - 5); g.lineTo(a + 4.5, b + 3); g.lineTo(a - 4.5, b + 3); g.closePath(); g.fill(); name(Mt.summit.x, Mt.summit.z - 10, 'The Horn', 9); }
+      const [gx, gz] = [Math.cos(GATE.bearing) * GATE.r0, Math.sin(GATE.bearing) * GATE.r0];
+      name(gx + 30, gz + 16, 'The Broken Stair', 8);
+      name(MOUNT.x + 250, MOUNT.z + 400, MOUNT.name, 16);   // (on its open south-east flank, clear of the road's names)
     }
     // the frame
     g.strokeStyle = '#1a120a'; g.lineWidth = 6; g.strokeRect(0, 0, this.W, this.H);

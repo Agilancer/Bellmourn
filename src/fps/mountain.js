@@ -26,6 +26,8 @@ import { makeCharm } from './charms.js';
 import { detailedHouse, houseMaterials } from './buildings.js';
 import { WEBGPU, T as TSL, sharpGrad, untiled, untileMask, snoise, keyed, ref, settled } from './nodes.js';
 import { buildHolds } from './holds.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { TOUCH } from './input.js';
 
 export const MOUNT = { x: -1000, z: -1000, R: 860, peak: 480, name: 'The Sorrowhorn' };
 export const GATE = { bearing: 225 * Math.PI / 180, r0: 300, r1: 305.5, h: 9, name: 'The Broken Stair' };
@@ -47,6 +49,13 @@ const CAVES = [[0.4205, "The Wether's Throat"], [0.938, 'The Glimmerdeep']];
 // into the Still Water, a pool on a shelf beside it with a fire and a bench (a rest: its cold water
 // closes wounds). How far along the road.
 const FALLS_AT = 0.74;
+// The Frostmere: a tarn in a cirque on the horn's north-west shoulder, 50 m under the summit (where:
+// the flattest hollow near the Shepherd's Stair, surveyed). The way to it leaves the Stair where the
+// Stair is level with it and runs level, bowed `bend` m west of the straight line, round the Stair's
+// upper legs and through a cutting in the shoulder. r0/r1 its shelf (level: the ice lies flush on it,
+// as a frozen tarn's snowed-over face does, so all that walks on it walks on the ground); r the ice's.
+const MERE = { x: -1041, z: -948, r0: 12.5, r1: 20, r: 9, bend: 12 };
+const KNIGHT_POSE = ['attack1_rec', 0.2];   // (the knight in its ice, upright, his blade up: statues.js bakes the Sworn knight in this pose)
 
 // ------------------------------------------------------------------ noise
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
@@ -302,6 +311,26 @@ function planHolds(S) {
   }
 }
 
+/** Lay out the Frostmere (see MERE): its shelf (the carve flattens it) and the way to it from the
+ * Shepherd's Stair (a trail, so it's cut with the ground). Needs the trails, not the ground. */
+function planMere(S) {
+  const st = S.trails[0].pts, y = natural(MERE.x, MERE.z) - 0.6;
+  // (the Stair climbs evenly, so one point on it is level with the mere: there the way leaves it)
+  let i0 = 0;
+  st.forEach(([, , sy], i) => { if (Math.abs(sy - y - 2) < Math.abs(st[i0][2] - y - 2)) i0 = i; });
+  const [ax, az, ay] = st[i0], dx = MERE.x - ax, dz = MERE.z - az, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, end = L - (MERE.r0 - 1.5);
+  const pts = [];
+  for (let s = 0; s <= end; s += 2) {   // (a point every 2 m: its ribbon keeps to the ground through the cutting)
+    const bend = Math.sin(Math.PI * s / L) * MERE.bend;
+    pts.push([ax + ux * s - uz * bend, az + uz * s + ux * bend, ay + (y - ay) * s / end]);
+  }
+  const [mx, mz] = pts[pts.length - 1];
+  S.mere = { x: MERE.x, z: MERE.z, y, r0: MERE.r0, r1: MERE.r1, r: MERE.r, fixed: true, id: 'frostmere', name: 'The Frostmere', kind: 'mere',
+    mouth: [mx, mz], ux: (mx - MERE.x) / Math.hypot(mx - MERE.x, mz - MERE.z), uz: (mz - MERE.z) / Math.hypot(mx - MERE.x, mz - MERE.z) };
+  S.shelves.push(S.mere);
+  S.trails.push({ name: 'The way to the Frostmere', w: 1.6, pts, side: true, to: 'frostmere', mat: ['ground_gravel_03', 1.6, { tint: 0xc4c4c6 }] });   // (trodden grit through the snow)
+}
+
 // ------------------------------------------------------------------ the heightfield
 export class Sorrowhorn {
   constructor() {
@@ -327,6 +356,7 @@ export class Sorrowhorn {
     this.trails = this.makeTrails();
     this.indexRoad();
     planHolds(this);   // (the keeps, towers, camps and ledges, their paths, the ambushes and the sheer drops)
+    planMere(this);    // (the Frostmere's shelf and the way to it off the Stair)
     this.meshes = []; this.patches = [];
     this.h = new Float32Array(NX * NZ);
     this.carve();
@@ -1032,6 +1062,179 @@ function buildFalls(ctx, S, M) {
   return S.falls;
 }
 
+// ------------------------------------------------------------------ the Frostmere
+/** The ice's face (a canvas): clear and dark at the middle, where it broke and froze last; paler and
+ * frosted toward the shore, snow drifted in at its edge; cracks running out from the break with rings
+ * round it, and long hairlines across the whole sheet. */
+function iceTexture() {
+  // (drawn in 1024 units; a phone's at half size, as phonemem.js halves every picture it loads)
+  const half = TOUCH && !/[?&]fulltex\b/.test(location.search), N = 1024, c = N / 2, cv = document.createElement('canvas'); cv.width = cv.height = half ? N / 2 : N;
+  const g = cv.getContext('2d');
+  if (half) g.scale(0.5, 0.5);
+  let seed = 913; const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const gr = g.createRadialGradient(c, c, 0, c, c, c);
+  gr.addColorStop(0, '#26404f'); gr.addColorStop(0.2, '#3a5a6c'); gr.addColorStop(0.55, '#7896a8'); gr.addColorStop(0.86, '#c2d4de'); gr.addColorStop(1, '#eef4f8');
+  g.fillStyle = gr; g.fillRect(0, 0, N, N);
+  for (let k = 0; k < 420; k++) {        // (frost, thicker toward the shore)
+    const a = R() * TAU, r = Math.sqrt(R()) * c;
+    g.fillStyle = `rgba(230, 240, 248, ${(0.04 + 0.1 * r / c).toFixed(3)})`; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 10 + R() * 50, 0, TAU); g.fill();
+  }
+  for (let k = 0; k < 140; k++) {        // (snow drifted in at the edge)
+    const a = R() * TAU, r = c * (0.86 + R() * 0.14);
+    g.fillStyle = `rgba(248, 250, 252, ${(0.35 + R() * 0.4).toFixed(3)})`; g.beginPath(); g.ellipse(c + Math.cos(a) * r, c + Math.sin(a) * r, 20 + R() * 50, 8 + R() * 18, a + Math.PI / 2, 0, TAU); g.fill();
+  }
+  g.lineJoin = g.lineCap = 'round';
+  const line = (pts, w, col) => { g.lineWidth = w; g.strokeStyle = col; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
+  // a crack: a thin dark line with a paler one beside it, wandering, now and then forking (fainter as it goes)
+  const crack = (x, y, a, len, w, depth) => {
+    const pts = [[x, y]];
+    for (let d = 0; d < len; d += 6 + R() * 8) {
+      a += (R() - 0.5) * 0.7; x += Math.cos(a) * 9; y += Math.sin(a) * 9; pts.push([x, y]);
+      if (depth < 2 && R() < 0.07) crack(x, y, a + (R() < 0.5 ? 1 : -1) * (0.5 + R() * 0.6), len * 0.45, w * 0.7, depth + 1);
+    }
+    line(pts, w, `rgba(12, 26, 36, ${(0.42 - depth * 0.1).toFixed(2)})`); line(pts.map(([px, py]) => [px + 1, py - 1]), Math.max(0.8, w * 0.5), `rgba(236, 246, 252, ${(0.5 - depth * 0.12).toFixed(2)})`);
+  };
+  for (let k = 0; k < 11; k++) { const a = k / 11 * TAU + R() * 0.3; crack(c + Math.cos(a) * 34, c + Math.sin(a) * 34, a, c * (0.4 + R() * 0.5), 2.2, 0); }   // (out from the break)
+  for (const rr of [40, 72, 110]) { const pts = []; for (let a = 0; a <= TAU + 0.01; a += 0.12) { const r = rr + (R() - 0.5) * 12; pts.push([c + Math.cos(a) * r, c + Math.sin(a) * r]); } line(pts, 1.2, 'rgba(228, 240, 250, 0.4)'); }   // (rings round it)
+  for (let k = 0; k < 14; k++) crack(R() * N, R() * N, R() * TAU, 120 + R() * 220, 1.1, 1);   // (old cracks across the sheet)
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+
+/** Rime: grey-blue ice over whatever it took, cut in facets (flat shaded: the knight's shape reads in the
+ * snow's glare, where a smooth pale gloss blew out white). The slabs he broke are the mere's own ice, its face on them. */
+const rimeMaterial = () => new THREE.MeshPhongMaterial({ color: 0x93acbf, specular: 0x8fa8b8, shininess: 40, emissive: 0x0a1218, flatShading: true });
+const slabMaterial = (map) => new THREE.MeshPhongMaterial({ map, color: 0xc4dceb, specular: 0xb0d0e4, shininess: 80, emissive: 0x0a141c });
+
+/** The Frostmere (planMere lays it out). Intent (docs/DUNGEON_BUILDING.md):
+ * - Who made it: the old ice, scooping a bowl out of the horn's shoulder under the summit's headwall.
+ *   Snowmelt fills it, and it lies frozen eight months of the twelve. The pilgrims held it holy and
+ *   ringed its shore with their cairns.
+ * - Since: the winter the Flame's name was forbidden, a knight of the Sworn rode the last pilgrims up
+ *   the Stair and out across the ice. They reached the far shore with their reliquary and froze there
+ *   round it. The ice broke under him and froze again over him: he stands in it to the thighs, his
+ *   blade still raised over them.
+ * - Its job: spectacle, then reward. The pilgrims' dead get up when you come to their reliquary.
+ * - First view: out of the cutting through the shoulder, under a line of prayer flags: the pale disc on
+ *   its shelf under the headwall, the knight dark in the middle of it, the reliquary's glow beyond him.
+ * - The way out: back under the flags and through the cutting to the Stair.
+ */
+function buildMere(ctx, S, M) {
+  const W = S.mere;
+  if (!W) return null;
+  const { b, physics } = ctx, y = W.y, ox = W.ux, oz = W.uz, tx = -oz, tz = ox;   // (toward the way in, and across it)
+  const at = (f, s) => [W.x + ox * f + tx * s, W.z + oz * f + tz * s];
+  const stone = M('stone_06_mossy_fieldstone_1_03', 1.6, { tri: true }), wood = M('ship_01_tarblack_oak', 1), snow = M('ground_snow_06', 2, { tint: 0xeef2f6, tri: true });
+  const rime = rimeMaterial(), cloth = (c) => M('cloth_04_aged_cream_linen', 0.5, { tint: c });
+  // the ice: a disc lying on the level shelf, its face drawn (its edge under the snow banked round it)
+  const iceFace = iceTexture(), im = new THREE.Mesh(new THREE.CircleGeometry(W.r, 56).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({
+    map: iceFace, color: 0xffffff, specular: 0x9ab8cc, shininess: 70, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  im.position.set(W.x, y + 0.05, W.z); im.receiveShadow = true; ctx.scene.add(im);
+  // snow banked round its edge, open where the way comes in
+  for (let k = 0; k < 22; k++) {
+    const a = k / 22 * TAU + 0.07, ca = Math.cos(a), sa = Math.sin(a);
+    if (ca * ox + sa * oz > 0.9) continue;
+    const r = W.r + 0.35 + (k % 3) * 0.25, x = W.x + ca * r, z = W.z + sa * r, s = 0.9 + (k * 7 % 5) * 0.25;
+    b.place(x, y - 0.12, z, -a - Math.PI / 2, 1, (o) => o.blob([0, 0.1, 0], [s * 1.5, 0.22 + (k % 2) * 0.1, s * 0.8], snow, { detail: 1, jitter: 0.2, seed: 1300 + k }), { solid: false });   // (along the shore)
+  }
+  // the pilgrims' cairns round the shore (none in the way in, nor where they died)
+  for (let k = 0; k < 9; k++) {
+    const a = k / 9 * TAU + 0.35, ca = Math.cos(a), sa = Math.sin(a), toIn = ca * ox + sa * oz;
+    if (toIn > 0.8 || toIn < -0.88) continue;
+    const r = W.r0 - 1.0, x = W.x + ca * r, z = W.z + sa * r, gy = S.heightAt(x, z);
+    b.place(x, gy, z, k, 1, (o) => { for (let i = 0; i < 5; i++) o.blob([Math.sin(i * 2.1) * 0.08, 0.16 + i * 0.2, Math.cos(i * 2.1) * 0.07], [0.3 - i * 0.04, 0.13, 0.26 - i * 0.035], stone, { detail: 1, jitter: 0.25, seed: 1340 + k * 7 + i }); }, { solid: true, minHeight: 0.3 });
+  }
+  // the way in: two poles either side of it with a line of prayer flags across, framing the view
+  { const [mx, mz] = W.mouth, ang = Math.atan2(ox, oz), poles = [-1, 1].map((s) => [mx + tx * s * 2.7, mz + tz * s * 2.7]), top = y + 3.1;
+    for (const [px, pz] of poles) { const py = S.heightAt(px, pz); b.place(px, py, pz, ang, 1, (o) => o.box([-0.05, 0, -0.05], [0.05, top - py, 0.05], wood), { solid: true }); }
+    const [[ax, az], [bx2, bz2]] = poles, rope = M('ship_01_tarblack_oak', 1, { tint: 0x605040 });
+    let lx = ax, ly = top - 0.1, lz = az;
+    for (let f = 1; f <= 8; f++) {
+      const u = f / 8, nx = ax + (bx2 - ax) * u, nz = az + (bz2 - az) * u, ny = top - 0.1 - Math.sin(Math.PI * u) * 0.45;
+      b.place(0, 0, 0, 0, 1, (o) => o.beam([lx, ly, lz], [nx, ny, nz], 0.012, 0.012, rope), { solid: false });
+      if (f < 8) b.place(nx, ny, nz, ang, 1, (o) => o.box([-0.14, -0.32, -0.01], [0.14, 0, 0.01], cloth([0xc04040, 0x4060c0, 0xe0c040, 0x40a060, 0xe8e0d0][f % 5])), { solid: false });
+      lx = nx; ly = ny; lz = nz;
+    } }
+  // the knight: off the middle a little (so the way in sees him three-quarters on), facing the far
+  // shore with his blade up, in the ice to his thighs; the ice he broke heaved up round him in slabs,
+  // each hinged at its inner edge and tipped up, and a collar of it refrozen round him
+  const [kx, kz] = at(-0.8, 2.0), kyaw = Math.atan2(-ox, -oz);
+  W.statues = [{ x: kx, y: y - 0.55, z: kz, yaw: kyaw, kind: 'knight', pose: KNIGHT_POSE, material: rime, plinth: false, always: true }];
+  { const parts = [], h = (k) => hash2(k * 7.3 + 1, k * 3.1 + 2), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
+    for (let k = 0; k < 13; k++) {
+      const a = k / 13 * TAU + (h(k) - 0.5) * 0.5, r0 = 0.55 + h(k + 20) * 0.6, tilt = 0.2 + h(k + 40) * 0.75, l = 0.5 + h(k + 80) * 0.8;
+      const slab = new THREE.BoxGeometry(0.35 + h(k + 60) * 0.6, 0.05 + h(k + 100) * 0.05, l).translate(0, 0, l / 2);
+      e.set(-tilt, Math.PI / 2 - a + (h(k + 120) - 0.5) * 0.4, (h(k + 140) - 0.5) * 0.3, 'YXZ'); q.setFromEuler(e);
+      parts.push(slab.applyMatrix4(mx.compose(new THREE.Vector3(Math.cos(a) * r0, -0.03, Math.sin(a) * r0), q, one)).toNonIndexed());
+    }
+    parts.push(new THREE.IcosahedronGeometry(0.62, 1).scale(1, 0.28, 0.9).translate(0, 0.04, 0));
+    const ice = new THREE.Mesh(mergeGeometries(parts, false), slabMaterial(iceFace));
+    ice.position.set(kx, y + 0.05, kz); ice.castShadow = ice.receiveShadow = true; ctx.scene.add(ice); }
+  physics.add([kx - 1.2, y, kz - 1.2], [kx + 1.2, y + 0.45, kz + 1.2], 'rock');
+  // the far shore: the reliquary they carried, the Flame's sign planted behind it, their staves and
+  // packs where they dropped them; a light still in the reliquary (seen across the ice at night)
+  const [cx, cz] = at(-(W.r0 - 1.6), 0), cy = S.heightAt(cx, cz), face = Math.atan2(ox, oz);
+  ctx.props?.add('chest_domed_gothic', cx, cy, cz, face, 1);
+  (S.chests ||= []).push({ id: 'chest_domed_gothic', x: cx, z: cz, name: "The Pilgrims' Reliquary", charm: null });
+  { const [px, pz] = at(-(W.r0 - 0.4), 0.2), py = S.heightAt(px, pz);
+    b.place(px, py, pz, face, 1, (o) => { o.box([-0.06, 0, -0.06], [0.06, 1.9, 0.06], wood); o.box([-0.55, 1.72, -0.06], [0.55, 1.88, 0.06], wood); }, { solid: true });   // (the T of the Flame)
+    for (const [f, s, a] of [[-(W.r0 - 2.2), -1.6, 0.4], [-(W.r0 - 1.0), 1.7, -0.7]]) { const [sx, sz] = at(f, s); b.place(sx, S.heightAt(sx, sz) + 0.05, sz, face + a, 1, (o) => o.beam([0, 0, -0.85], [0, 0.04, 0.85], 0.045, 0.045, wood), { solid: false }); }
+    for (const s of [-2.3, 2.1]) { const [sx, sz] = at(-(W.r0 - 1.3), s); ctx.scatter?.place('sacks', sx, S.heightAt(sx, sz), sz, 0.8, face + s); } }
+  (ctx.witchLights ||= []).push(Object.assign([cx, cy + 0.8, cz, 0.3, true], { color: 0xffd890, witch: true, range: 8, power: 3.2 }));
+  // where the pilgrims lie (reavers.js populateMountainDead): huddled about the reliquary
+  W.dead = [[-1.3, -2.1], [0.9, -2.4], [-0.6, 2.3], [1.7, 1.6]].map(([f, s]) => at(-(W.r0 - 1.6) + f, s));
+  W.reliquary = [cx, cy, cz];
+  S.onIce = (p) => Math.hypot(p.x - W.x, p.z - W.z) < W.r && Math.abs(p.y - y) < 1.5;
+  return W;
+}
+
+// ------------------------------------------------------------------ what flies over it
+/** Ravens wheeling over where the dead are (the heads on Scythe Hold's spikes, the Hollow Tower, the
+ * Pilgrims' Barrow, the bones in Gorehoof's camp), and a pair of eagles riding the air high over the
+ * Eyrie (theirs is the nest at its top). The belltower's crows' shape: a V of two wings and a tail,
+ * flapped by flipping the instance's height; the eagles three times the size, mostly gliding. Only the
+ * flocks within sight of you are moved (S.updateBirds, each frame). */
+function flyBirds(ctx, S) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.18, -0.34, 0.1, -0.02, 0, 0, -0.08, 0, 0, 0.18, 0, 0, -0.08, 0.34, 0.1, -0.02, 0, 0, 0.18, 0.05, 0, -0.22, -0.05, 0, -0.22], 3));
+  g.computeVertexNormals();
+  const site = (id) => S.holds.find((h) => h.id === id) || S.ledges.find((h) => h.id === id), flocks = [];
+  for (const [s, n] of [[site('scythehold'), 7], [site('hollowtower'), 6], [site("The Pilgrims' Barrow"), 4], [S.camps[3], 5]]) if (s) flocks.push({ x: s.x, z: s.z, y: s.y + 15, n, r: 15, big: false });
+  if (S.eyrie) flocks.push({ x: S.eyrie.x, z: S.eyrie.z, y: S.eyrie.top + 24, n: 2, r: 36, big: true });
+  const mesh = (big, n) => {
+    const m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: big ? 0x2a2018 : 0x0b0a0c, side: THREE.DoubleSide }), Math.max(1, n));
+    m.frustumCulled = false;
+    for (let i = 0; i < m.count; i++) m.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
+    ctx.scene.add(m);
+    return m;
+  };
+  const ravens = mesh(false, flocks.filter((f) => !f.big).reduce((s, f) => s + f.n, 0)), eagles = mesh(true, 2);
+  let ri = 0, ei = 0;
+  const birds = flocks.flatMap((f) => Array.from({ length: f.n }, (_, k) => ({ f, m: f.big ? eagles : ravens, i: f.big ? ei++ : ri++,
+    a: k / f.n * TAU + hash2(f.x, k) * 0.8, sp: (f.big ? 5.5 : 7.5) * (0.85 + hash2(k, f.z) * 0.3), ph: hash2(f.z + k, f.x) * TAU, dir: f.big || hash2(k, f.x + 3) < 0.8 ? 1 : -1, flap: 0 })));
+  const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  S.birds = { ravens, eagles, flocks: flocks.length, n: birds.length };
+  S.updateBirds = (dt, t, player) => {
+    const pp = player.pos;
+    for (const f of flocks) f.near = Math.hypot(pp.x - f.x, pp.z - f.z) < 450;
+    for (const c of birds) {
+      if (!c.f.near) { if (!c.off) { c.m.setMatrixAt(c.i, zero); c.off = true; } continue; }
+      c.off = false;
+      const f = c.f, r = f.r * (0.65 + 0.35 * Math.sin(t * 0.07 + c.ph));
+      c.a += dt * c.dir * c.sp / r;
+      p.set(f.x + Math.cos(c.a) * r, f.y + Math.sin(t * 0.23 + c.ph) * 3 + (c.i % 3) * 1.5, f.z + Math.sin(c.a) * r);
+      e.set(0, -c.a - (c.dir > 0 ? 0 : Math.PI), (f.big ? 0.25 : 0.35) * c.dir); q.setFromEuler(e);
+      // (a raven beats and glides by turns; an eagle holds its wings up and only now and then beats them)
+      const beating = Math.sin(t * (f.big ? 0.13 : 0.45) + c.ph) > (f.big ? 0.85 : -0.2);
+      c.flap += dt * (f.big ? 4 : 11 + (c.i % 3)) * (beating ? 1 : 0);
+      const k = f.big ? 3.0 : 1.15, fl = beating ? Math.cos(c.flap) * 1.3 : 0.45;
+      c.m.setMatrixAt(c.i, mx.compose(p, q, s.set(k, fl * k, k)));
+    }
+    ravens.instanceMatrix.needsUpdate = true; eagles.instanceMatrix.needsUpdate = true;
+  };
+}
+
 // ------------------------------------------------------------------ the star-seals
 /** The Sorrowhorn's star-seals (portals.js PORTALS: main.js adds them before the world is planted):
  * in the Broken Stair's clearing below the cliff, on the caves' forecourts, beside the Still Water and
@@ -1127,7 +1330,7 @@ export function buildMountain(ctx, M) {
   ctx.mountain = S;
   S.buildMesh(ctx);
   S.roadMesh = S.buildRoad(ctx, M('ground_gravel_03', 1.6, { tint: 0xd0c8bc }), S.road.slice(0, -3));
-  S.trailMeshes = S.trails.map((t, i) => S.buildRoad(ctx, M('ground_dirt_02', 1.4, { tint: 0x8c8070 }), i === 0 ? t.pts.slice(0, -3) : t.pts, t.w * 0.7));
+  S.trailMeshes = S.trails.map((t, i) => S.buildRoad(ctx, M(...(t.mat || ['ground_dirt_02', 1.4, { tint: 0x8c8070 }])), i === 0 ? t.pts.slice(0, -3) : t.pts, t.w * 0.7));
   { const tread = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0x9a968e }), P0 = S.trails[0].pts;   // (the Shepherd's Stair: a stone tread every 3 m)
     for (let i = 1; i < P0.length - 3; i++) {
       const [x, z] = P0[i], [x2, z2] = P0[i + 1], y = S.heightAt(x, z);
@@ -1365,6 +1568,7 @@ export function buildMountain(ctx, M) {
     }
     S.snowSpots = (n) => snow.slice(0, n);
   }
+  buildMere(ctx, S, M);   // (the Frostmere, off the Stair)
 
   // ---- what grows and lies on it: conifers in the foothills and up the lower flanks (thinning as
   // it climbs), boulders fallen from the crags (more higher up), grass and heather along the road.
@@ -1404,6 +1608,7 @@ export function buildMountain(ctx, M) {
   // ---- the war on the mountain: the keeps and towers, the Red Scythe's war camp, the bands' ledges,
   // the ambushes' rocks, the side paths' signposts, the crags (holds.js; reavers.js peoples them)
   buildHolds(ctx, S, M, { ledgeClimb });
+  flyBirds(ctx, S);
 
   /** Where a quest's thing waits (quests.js deepest): the shrine bell in Gorehoof's camp, the old horn
    * at the summit cairn's foot. [x, y, z] or null. */
@@ -1423,9 +1628,15 @@ export function buildMountain(ctx, M) {
       c.contents = () => mountainHoard(ch.charm).filter(Boolean);
     }
   };
-  /** Each frame: the Glimmerdeep's bell rings when you come near it (and not again for a while). */
+  /** Each frame: Sorrowfall, the birds over the mountain, the Frostmere's first sight, the beacon and
+   * the shrine bell once their quests are done, the Glimmerdeep's bell when you come near it. */
   S.update = (dt, player, audio, t, o = {}) => {
     S.updateFalls?.(dt, t, o.day ?? 1, player, o.toast);
+    S.updateBirds?.(dt, t, player);
+    const W = S.mere;     // (out of the cutting: what the ice holds, said once)
+    if (W && !W.seen && Math.hypot(player.pos.x - W.x, player.pos.z - W.z) < W.r0 && Math.abs(player.pos.y - W.y) < 4) {
+      W.seen = true; o.toast?.('A knight of the Sworn stands frozen in the ice, his blade still raised.');
+    }
     if (!S.beaconLit && S.summit && o.quests?.state?.hh_horn?.s === 'done') {    // (the Horn Beacon burning again: Jory's thanks)
       S.beaconLit = true;
       const [x, y, z] = S.summit.beacon;
@@ -1462,6 +1673,7 @@ export function buildMountain(ctx, M) {
     for (const h of S.holds || []) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r1 + 2) return h.name;
     for (const h of S.ledges || []) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r1) return h.name;
     if (S.falls && Math.hypot(p.x - S.falls.pool.x, p.z - S.falls.pool.z) < 16) return 'Sorrowfall';
+    if (S.mere && Math.hypot(p.x - S.mere.x, p.z - S.mere.z) < S.mere.r1) return S.mere.name;
     const d = Math.hypot(p.x - MOUNT.x, p.z - MOUNT.z);
     if (d > MOUNT.R) return 'The Foothills of the Sorrowhorn';
     if (S.houseZones?.some((h) => p.x > h.x0 && p.x < h.x1 && p.z > h.z0 && p.z < h.z1 && p.y < h.y1 + 0.5)) return null;   // (indoors: main.js's zones)

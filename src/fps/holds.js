@@ -237,11 +237,14 @@ function banditTower(ctx, S, site, M) {
   for (const [lx, lz] of [[-3.8, -7], [3.1, -7], [-3.8, 0.6], [3.1, 0.6]]) lbox(b, F, lx - 0.1, top, lz - 0.1, lx + 0.1, top + 2.6, lz + 0.1, wood, { solid: false });
   lbox(b, F, -4.1, top + 2.6, -7.3, 4.1, top + 2.75, 0.9, plank, { solid: false });
   for (const [x0, z0, x1, z1] of [[-3.9, -7.1, 3.2, -7.0], [-3.9, -7.1, -3.8, 0.7]]) lbox(b, F, x0, top + 0.9, z0, x1, top + 1.05, z1, wood);
-  // the palisade round the pad, open toward the path
-  const stake = M('ship_01_tarblack_oak', 1, { tint: 0xb8a088 }), open = Math.atan2(F.fz, F.fx);
+  // the palisade round the pad, open where the path comes through it (the frame is squared to the
+  // world, the path isn't: it comes up from the road at whatever angle the slope lets it)
+  const stake = M('ship_01_tarblack_oak', 1, { tint: 0xb8a088 }), ring = site.r0 - 0.8;
+  const gate = (site.path?.pts || []).reduce((g, p) => { const e = Math.abs(Math.hypot(p[0] - F.x, p[1] - F.z) - ring); return e < g.e ? { e, p } : g; }, { e: Infinity, p: null }).p;
+  const open = gate ? Math.atan2(gate[1] - F.z, gate[0] - F.x) : Math.atan2(F.fz, F.fx);
   for (let k = 0; k < 44; k++) {
     const a = k / 44 * TAU; if (Math.abs(Math.atan2(Math.sin(a - open), Math.cos(a - open))) < 0.32) continue;
-    const r = site.r0 - 0.8, x = F.x + Math.cos(a) * r, z = F.z + Math.sin(a) * r, h = 1.8 + (k % 4) * 0.15, yy = S.heightAt(x, z);
+    const r = ring, x = F.x + Math.cos(a) * r, z = F.z + Math.sin(a) * r, h = 1.8 + (k % 4) * 0.15, yy = S.heightAt(x, z);
     b.place(x, yy - 0.2, z, a, 1, (o) => { o.box([-0.1, 0, -0.1], [0.1, h, 0.1], stake); o.cone(0, 0, 0.14, h, 0.35, 5, stake); }, { solid: false });
     physics.add([x - 0.15, yy - 0.2, z - 0.15], [x + 0.15, yy + h, z + 0.15], 'post');
   }
