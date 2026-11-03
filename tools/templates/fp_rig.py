@@ -84,6 +84,13 @@ def norm(v):
     return v / np.linalg.norm(v)
 
 
+def crosshair_ray():
+    """The ray from the eye whose points are drawn on the crosshair at the current view: the
+    camera's axis unshrunk; a shrunk view (anchored at the bottom middle) lifts it."""
+    cy = VIEW_ANCHOR[1] + (SCREEN_H / 2 - VIEW_ANCHOR[1]) / VIEW_SCALE
+    return norm(np.array([0.0, (SCREEN_H / 2 - cy) / FOCAL, 1.0]))
+
+
 def project(p):
     x, y, z = p
     p = np.array([SCREEN_W / 2 + FOCAL * x / z, SCREEN_H / 2 - FOCAL * y / z])
@@ -269,9 +276,11 @@ def _pose_arm(side, key):
         # the hit of a slash: wherever the fists ended up, the blade's tip is put on the
         # crosshair's line (the camera's axis), the fist square to it as ever
         L = PROXY[key["weapon"]]["tip"]
+        ax = crosshair_ray()
         for _ in range(2):
-            ahead = g[2] + math.sqrt(max(L * L - g[0] ** 2 - g[1] ** 2, 0.01))
-            d = norm(np.array([0.0, 0.0, ahead]) - g)
+            ag = float(np.dot(ax, g))
+            t = ag + math.sqrt(max(ag * ag - float(np.dot(g, g)) + L * L, 0.01))
+            d = norm(ax * t - g)
             a = norm(a - d * np.dot(a, d))
             w = g - a * HAND
         e = solve_elbow(s, w, pole)
@@ -288,7 +297,7 @@ def _pose_arm(side, key):
     k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
     return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)),
-                weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"),
+                weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"), noslide=key.get("noslide"),
                 edge=key.get("edge"), edge_w=key.get("edge_w", 1.0),
                 face=norm(key["face"]) if "face" in key else None)
 

@@ -2393,7 +2393,12 @@ function step(dt) {
     { const on = hasAbility(char, 'darkSight') && L.under > 0.3, c = camera.position;   // (the Glimmerstone: a faint light about you below)
       GLIMMER[0] = c.x; GLIMMER[1] = on ? c.y - 0.25 : -9999; GLIMMER[2] = c.z; GLIMMER.power = 2.6 * Math.min(1, L.under * 1.5); }
     player.update(dt, inp);
-    for (const code in QUICK) if (inp.was(code)) equip(QUICK[code]);
+    // 1-6: with a one-hander out, a combo each (maces, hammers and clubs bonk where a blade stabs);
+    // Shift+1-5 (or 1-5 with no one-hander out) quick-equip
+    const shift = inp.held('ShiftLeft') || inp.held('ShiftRight');
+    const oneOut = vm.equip.R === 'onehand' && !vm.blocking;
+    for (const code in QUICK) if (inp.was(code) && (shift || !oneOut)) equip(QUICK[code]);
+    if (oneOut && !shift) for (let n = 1; n <= 6; n++) if (inp.was('Digit' + n)) vm.attack('R', (vm.blunt() ? 'blunt' : 'onehand') + n);
     if (inp.was('KeyQ')) drink('life');
     if (inp.was('KeyZ')) drink('mana');
     // right hand

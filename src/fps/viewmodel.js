@@ -23,6 +23,8 @@ const ROLLED = new Set(['greatsword', 'claymore', 'flamberge', 'headsman', 'bloo
   'penitents_greatsword', 'tombstone']);
 // the kinds whose model can be chosen in the inventory (every model of that kind in the manifest)
 const MODEL_TYPE = { onehand: 'one-handed weapon', twohand: 'two-handed weapon' };
+// the one-handers that crush rather than cut: they bonk where a blade would stab (main.js BLUNT)
+const BLUNT = /mace|hammer|club|morning_star|maul/;
 export const ITEMS = {
   onehand: { id: 'arming_sword', name: 'Arming Sword', type: 'one-handed sword', hands: ['R', 'L'] },
   twohand: { id: 'greatsword', name: 'Greatsword', type: 'two-handed sword', hands: ['R', 'L'], both: true,
@@ -648,14 +650,19 @@ export class ViewModel {
     }
   }
 
-  /** With the shield up the sword hand only stabs, round the shield's edge (LMB). */
+  /** With the shield up the sword hand only thrusts over the rim (a blunt weapon bonks) (LMB). */
   stab() {
     if (!this.blocking || this.equip.R !== 'onehand') return null;
     const st = this.state.R;
     if (st && st.name !== 'sword_guard') return null;
-    this.play('R', 'sword_stab', { fade: 0.06, speed: PACE.onehand });
-    return 'stab';
+    // a blade thrusts down the crosshair over the rim; a mace, hammer or club bonks instead
+    const want = this.blunt() ? 'blade_over' : 'blade_stab';
+    this.play('R', this.clipInfo(want) ? want : 'sword_stab', { fade: 0.06, speed: PACE.onehand });
+    return this.blunt() ? 'bonk' : 'stab';
   }
+
+  /** Whether this hand's one-hander is blunt (a mace, hammer or club): no stabs. */
+  blunt(side = 'R') { return this.equip[side] === 'onehand' && BLUNT.test(ITEMS.onehand.id || ''); }
 
   /** A see-through, rim-lit ghost of the held shield, to throw as the shove's wave
    * ({g, alpha(a), w}: its shield's width; shovewave.js places and flies it). */
@@ -675,11 +682,12 @@ export class ViewModel {
     const it = this.arms.L?.item;
     if (!it || !SHIELD[this.equip.L]) return null;
     it.updateMatrixWorld(true);
-    return it.localToWorld(new THREE.Vector3(0, 0, 0.08));
+    const c = this.shieldSize().c;   // (the board's middle: the grip is near its right edge now)
+    return it.localToWorld(new THREE.Vector3(c.x, c.y, 0.08));
   }
 
-  /** The held shield's size in metres ({w, h}: across its face and along its grip), from its
-   * own model (the shove's reach and width go by it). */
+  /** The held shield's size in metres ({w, h}: across its face and along its grip; c: its
+   * middle, from the grip), from its own model (the shove's reach and width go by it). */
   shieldSize() {
     const it = this.arms.L?.item;
     if (!it || !SHIELD[this.equip.L]) return null;
@@ -693,7 +701,7 @@ export class ViewModel {
         b.union(mb.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
       });
       const sz = b.getSize(new THREE.Vector3());
-      it.userData.size = { w: sz.x, h: sz.y };
+      it.userData.size = { w: sz.x, h: sz.y, c: b.getCenter(new THREE.Vector3()) };
     }
     return it.userData.size;
   }
@@ -710,7 +718,7 @@ export class ViewModel {
     // a shield swings out of the sword's way, frame for frame with the blow
     const sh = this.equip.L;
     if (side === 'R' && kind === 'onehand' && SHIELD[sh] && !this.blocking && (!this.state.L || /_aside_/.test(this.state.L.name)))
-      this.play('L', `${SHIELD[sh]}_aside_${name.split('_')[1]}`, { from, fade, freeze, speed });
+      this.play('L', `${SHIELD[sh]}_aside_${name.slice(name.indexOf('_') + 1)}`, { from, fade, freeze, speed });
     // and a sword in the other hand makes room for this one
     const other = side === 'R' ? 'L' : 'R';
     if (kind === 'onehand' && this.equip[other] === 'onehand' && (!this.state[other] || /_aside_/.test(this.state[other].name)))
@@ -818,7 +826,7 @@ export class ViewModel {
         else if (!st.unwind && !a.paused && a.time >= st.duration - 1e-4) {
           this.state[side] = null;
           const t3 = this.manifest.events[BLOCK[this.equip.L]]?.hold;
-          if (st.name === 'sword_stab' && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
+          if ((st.name === 'sword_stab' || st.name === 'blade_stab' || st.name === 'blade_over') && this.blocking && t3 != null) this.play('R', 'sword_guard', { from: t3, hold: t3, fade: 0.1 });   // (back behind the shield)
           else this.playWalk(side);
           if (this.buffered[side]) { const b = this.buffered[side]; this.buffered[side] = false; if (st.chain) (this.kept ||= []).push([side, b === true ? null : b]); }   // (the kept click: below, once both hands are done)
         }
@@ -864,6 +872,12 @@ export class ViewModel {
       arm.scene.updateMatrixWorld(true);
       const p = arm.socket.getWorldPosition(_p);
       shift[side] = p.z < -0.01 ? (fx * p.x / -p.z) * (f - 1) : 0;
+      // (a crosshair one-hander, swung along its line through the crosshair, isn't spread: it
+      // would push the tip off the crosshair; the spread eases out and back in around it)
+      this.slideK ??= { R: 1, L: 1 };
+      const keep = this.clipInfo(this.state[side]?.name)?.noslide ? 0 : 1;
+      this.slideK[side] += (keep - this.slideK[side]) * Math.min(1, dt * 14);
+      shift[side] *= this.slideK[side];
     }
     if (this.twoHanded() && shift.R !== undefined) shift.L = shift.R;
     for (const side of ['R', 'L']) {
