@@ -58,7 +58,7 @@ import { grantXp, xpFor, xpToNext, fitLevel, MAX_LEVEL, POINTS_PER_LEVEL } from 
 import { makeUnique } from './uniques.js';
 import { Fireflies } from './polish.js';
 import { Tufts } from './grass.js';
-import { Portals, PortalMenu, keepPortalsClear, SEAL_H } from './portals.js';
+import { Portals, PortalMenu, keepPortalsClear, SEAL_H, PORTALS } from './portals.js';
 import { shoveArea, launchWave, stepWaves } from './shovewave.js';
 import { DebugMenu } from './debug.js';
 import { Trade, SHOPS, MERCHANT_OF, SHOP_POSTS, drawShopMark } from './trade.js';
@@ -69,7 +69,8 @@ import { makeGem, GEMS } from './gems.js';
 import { makeCharm, hasAbility, CHARMS } from './charms.js';
 import { Chimes } from './belltower.js';
 import { buildUndershrine } from './undershrine.js';
-import { buildMountain, buildMountainCaves, buildMountainVillage } from './mountain.js';
+import { buildMountain, buildMountainCaves, buildMountainVillage, mountainPortals } from './mountain.js';
+import { loadDressing, dressWorld, Motes } from './dressing.js';
 import { setMountain } from './terrain.js';
 
 const touch = TOUCH;
@@ -319,7 +320,9 @@ async function build() {
   // (the portals' ground is left bare as the world is built: portals.js)
   const portalsClear = keepPortalsClear(ctx);
   // the Sorrowhorn, north-west behind the forest (mountain.js): its ground is the height function's too
+  const dressingJson = loadDressing();   // (the ground decals' atlas map, fetched while the world builds)
   { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildMountain(ctx, MM); setMountain(ctx.mountain); physics.mountain = ctx.mountain; buildMountainCaves(ctx, MM);
+    PORTALS.push(...mountainPortals(ctx.mountain));   // (its star-seals: before the forest's planted, so it leaves their ground clear)
     // (Hornhollow's folk at their posts: the quest givers' and the villagers' keepers)
     for (const [name, g] of Object.entries(ctx.mountain?.givers || {})) { if (GIVERS[name]) GIVERS[name].post = g.post; ctx[g.key] = { post: g.post, floor: g.floor }; } }
   buildWorld(ctx); await mark('world');
@@ -342,7 +345,10 @@ async function build() {
   ctx.portals = new Portals(ctx);   // the star-seals: at every village, and before every keep, barrow and cave
   // what lies wholly under the ground (the dungeons' rooms; not the flights down to them) is drawn
   // only from below
+  // the world dressed: ground decals cut from the border sheets, landmarks, the fires' embers (dressing.js)
+  const dressed = dressWorld(ctx, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }), await dressingJson);
   ctx.built = b.finish(scene);
+  ctx.built.push(...dressed);
   ctx.built.push(...(ctx.mountain?.meshes || []), ...(ctx.mountain?.roadMesh ? [ctx.mountain.roadMesh] : []), ...(ctx.mountain?.trailMeshes || []));   // (still: drawn in the world's bundles)
   ctx.builtUnder = ctx.built.filter((m) => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.max.y < -1; });
   ctx.builtUnder.push(...ctx.catacombs.meshes);    // (the bridge and the bell move, so aren't merged)
@@ -389,6 +395,8 @@ async function build() {
   ctx.crater.smokers = ctx.crater.smokeSpots.map(([x, y, z]) => { smoke.addEmitter(x, y, z, 1.6); return smoke.emitters[smoke.emitters.length - 1]; });
   ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
+  ctx.motes = new Motes(scene, ctx, touch);   // (snow off the horn, motes in the caves, embers off the fires)
+  ctx.motes.fires = ctx.fires || [];
 
   const manifest = await (await fetch('templates/models/manifest.json')).json();
   useManifest(manifest);
@@ -2526,6 +2534,7 @@ function step(dt) {
   ctx.tufts.update(t);
   ctx.crater.update(dt, t, camera);
   ctx.fireflies.update(dt, t, camera, 1 - day.day, L.under > 0.5 || camera.position.y < physics.groundAt(camera.position.x, camera.position.z) - 1);
+  ctx.motes?.update(dt, t, camera, L.under > 0.5, day.day);
   // the crater's glow (the opening has the light while it runs)
   if (!intro?.running) {
     const fl = 0.8 + 0.2 * Math.sin(t * 7.1) * Math.sin(t * 3.3);
