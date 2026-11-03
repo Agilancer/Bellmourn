@@ -498,7 +498,8 @@ class Foe extends Zombie {
   die() {
     const lying = this.cur === 'knockdown';
     super.die();
-    if (lying && this.actions.dead) this.play('dead', 0.4);
+    if (this.rag) { /* it falls limp (ragdoll.js) */ }
+    else if (lying && this.actions.dead) this.play('dead', 0.4);
     else if (this.ual && this.mode === 'stand' && this.cur === 'death' && this.actions.death2 && Math.random() < 0.5) this.play('death2', 0.15);
     this.drop();
     for (const g of this.eyes || []) g.visible = false;
@@ -526,7 +527,7 @@ class Foe extends Zombie {
   update(dt, player, active, far, mid) {
     if (this.def.boss) this.burn(dt, player);
     if (this.gone) return;
-    if (this.dead && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
+    if (this.dead && !this.rag && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
     if (this.dead || this.mode === 'crawl' || LAID.has(this.state)) {
       super.update(dt, player, active, far, mid);
       return;
