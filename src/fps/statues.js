@@ -87,7 +87,9 @@ function plinthGeo() {
 export function raiseStatues(ctx, foes, M, { touch = false } = {}) {
   const spots = [...(ctx.temple?.statues || []), ...(ctx.details?.statues || [])].filter((_, i) => !touch || i % 2 === 0);
   if (!spots.length) return 0;
-  const stone = M('castle_keep_ivory_chapel_marble', 1.2, { tint: 0xece6dc, tri: true }), plinthM = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0xaaa49a, tri: true });   // (pale marble on pale stone: they read against the dark)
+  // (pale limestone on a darker plinth: they read against the dark. The chapel marble draws black when it's
+  // laid triplanar, so not that.)
+  const stone = M('castle_keep_pale_keep_limestone', 0.8, { tint: 0xf4efe6, tri: true }), plinthM = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0x8a847c, tri: true });
   const made = new Map(), plinth = plinthGeo(), PH = 1.47, group = new THREE.Group();
   let n = 0;
   spots.forEach((s, i) => {

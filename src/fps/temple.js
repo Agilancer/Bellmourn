@@ -66,6 +66,7 @@ export function buildTemple(ctx, M) {
   b.box([X0 + 1.5, F - 0.5, HZ0], [-HX, F, HZ1], floorM); b.box([HX, F - 0.5, HZ0], [X1 - 1.5, F, HZ1], floorM);
   for (const s of [-1, 1]) b.box([s > 0 ? HX : -HX - 0.3, F, HZ0], [s > 0 ? HX + 0.3 : -HX, F + 1.0, HZ1], dark);   // (its parapet: open toward the door)
   b.box([-HX - 0.3, F, HZ1], [HX + 0.3, F + 1.0, HZ1 + 0.3], dark);
+  for (const s of [-1, 1]) flame(s * (HX + 0.15), F + 1.0, HZ0 + 0.3, 0.3);   // (the well's mouth lit: the way down shows from the nave)
   // the grand stair up the podium's front, braziers at its head, statues at its foot
   const pale = M('castle_keep_pale_keep_limestone', 1.4, { tint: 0x9a948c });
   b.stairs(0, Z0 - 12, g, UP, 9, '+z', pale, { step: 0.25, run: 0.5 });

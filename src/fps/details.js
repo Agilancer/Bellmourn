@@ -82,7 +82,7 @@ function pillar(o, mat, x, z, h, k) {
 /** A ruin: a ring (or a row) of broken pillars at different heights, round a cracked floor, their
  * fallen drums and a capital lying where they came down. */
 function ruin(b, M, ctx, x, z, k, row = false) {
-  const marble = M('castle_keep_ivory_chapel_marble', 1.4, { tint: 0xf0e8dc, tri: true }), floor = M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x9a968c });
+  const marble = M('castle_keep_pale_keep_limestone', 1.0, { tint: 0xece4d8, tri: true }), floor = M('cathedral_graveyard_nave_flagstone', 1.6, { tint: 0x9a968c });
   const y = groundAt(ctx, x, z), n = row ? 6 : 7, rot = rnd() * TAU, R = 6.5;
   const spots = Array.from({ length: n }, (_, i) => row ? [(i - (n - 1) / 2) * 3.2, 0] : [Math.cos(i / n * TAU) * R, Math.sin(i / n * TAU) * R]);
   b.place(x, y - 0.25, z, rot, 1, (o) => {
