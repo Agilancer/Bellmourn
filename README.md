@@ -63,6 +63,7 @@ sheets of them headless.
 | Key | Action |
 |---|---|
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
+| Space, held through a jump | ride your shield (Shield Boarding): W pushes, S drags, A and D carve; tap Space again to hop, let go to step off |
 | Left click | right hand: swing, or shoot with a staff (click again, or hold, mid-blow for the next blow of the combo) |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
@@ -200,7 +201,21 @@ Holding a shield up (right click) spends its **Guard** (the bar under life and m
 it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
 nothing until it has come back; it refills quickly, but only while the shield is down. Better
 shields hold more Guard and stop more, and from Rare up they're enchanted (thorns, frost, fire,
-holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
+holy light, a ward against spells, a shove).
+
+**Shield Boarding** (`board.js`, after Zelda's shield surfing): jump and keep Space held, and by the
+time you land the shield is off your arm and under your feet. You ride on with the speed you had:
+slopes speed you up (a flight of stairs rides as a slope), flat ground slows you by what it is (the
+old snow high on the Sorrowhorn hardly at all, earth more, stone most, throwing sparks), and a crest,
+a ramp or a ledge throws you into the air with your speed; a landing on a downslope turns the drop
+into speed, and only a big drop onto the flat hurts (less than on foot). W pushes a little, S drags,
+A and D carve, all as you look, so you can turn round and swing, cast or shoot on the way down while
+the shield keeps going. Tap Space again quickly to hop; let go of it to step off and run out your
+speed. A wall met side-on turns you along it; head-on at speed it throws you off. Ride into a foe
+fast and it's knocked flying and hurt (at twenty metres a second, as hard as a blow of your weapon).
+A two-hander can carry a shield too: it gives nothing then (no Guard, no stats), it's only ridden.
+
+Gear rolls from Common to Mythic with affixes; what
 you find depends on where you are (the undercroft and the downs hold better). Dread knights and
 sorcerers march between the downs' places and hold its houses.
 

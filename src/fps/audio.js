@@ -422,6 +422,46 @@ export class Sfx {
     this._tone(t, 0.6, { type: 'sine', f0: f * 2.76, f1: f * 2.76, gain: 0.018 });
   }
 
+  /** A shield ridden (board.js): its scrape over the ground, by how fast and on what (stone grinds
+   * and crackles, snow hisses, earth rasps), and the wind past you when it's fast. set(speed, the
+   * ground or null in the air, dt); stop(). Null if the sound isn't running. */
+  board() {
+    if (!this.ok) return null;
+    const c = this.ctx, t = c.currentTime;
+    const out = c.createGain(); out.gain.value = 1; out.connect(this.out);
+    const mk = (type, f, q) => {
+      const src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+      const g = c.createGain(); g.gain.value = 0;
+      src.connect(fl); fl.connect(g); g.connect(out); src.start(t, Math.random() * 0.5);
+      return { src, fl, g };
+    };
+    const scrape = mk('bandpass', 900, 0.8), rumble = mk('lowpass', 160, 0.7), wind = mk('bandpass', 700, 0.6);
+    // [scrape's pitch, its loudness, the rumble's, sparks crackling]
+    const S = { snow: [2600, 0.1, 0.04, 0], dirt: [900, 0.14, 0.1, 0], wood: [600, 0.12, 0.14, 0], stone: [1500, 0.16, 0.08, 1], water: [1800, 0.18, 0.04, 0] };
+    let crackle = 0;
+    return {
+      set: (speed, ground, dt) => {
+        const n = c.currentTime, k = Math.min(1, speed / 20), s = ground ? S[ground] || S.dirt : null;
+        scrape.g.gain.setTargetAtTime(s ? s[1] * Math.sqrt(k) : 0, n, 0.06);
+        if (s) scrape.fl.frequency.setTargetAtTime(s[0] * (0.7 + 0.6 * k), n, 0.1);
+        rumble.g.gain.setTargetAtTime(s ? s[2] * k : 0, n, 0.08);
+        wind.g.gain.setTargetAtTime(0.2 * Math.max(0, (speed - 8) / 24) ** 1.5, n, 0.15);
+        wind.fl.frequency.setTargetAtTime(500 + speed * 40, n, 0.2);
+        if (s?.[3] && speed > 4 && (crackle -= dt) <= 0) {   // (sparks off the stone)
+          crackle = 0.03 + Math.random() * 0.12 / k;
+          this._noise(n, 0.03, { type: 'highpass', f0: 3000, f1: 5000, gain: 0.05 * k, attack: 0.002 });
+        }
+      },
+      stop: () => {
+        const n = c.currentTime;
+        out.gain.setTargetAtTime(0, n, 0.08);
+        for (const x of [scrape, rumble, wind]) x.src.stop(n + 0.6);
+        setTimeout(() => out.disconnect(), 800);
+      },
+    };
+  }
+
   /** Torn through the air (a blink). */
   whoosh() {
     if (!this.ok) return;

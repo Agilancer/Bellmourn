@@ -316,6 +316,28 @@ export class ViewModel {
     this.aspect = 1.6;
     this.moves = null;        // {cat, clips, picks} (loadMoves)
     this.picks = {};          // slot -> option id (over fp_picks.json and the catalog's defaults)
+    this.dip = { R: 0, L: 0 };   // each arm lowered out of sight (1: gone; board.js, as the shield goes under the feet)
+    this.stowed = null;       // (the shield's kind while it's off the arm, ridden: stowLeft)
+  }
+
+  /** The shield off the arm (Shield Boarding: board.js) or back on it. Off, the left hand is empty
+   * (and acts as one: it casts, a staff sweeps); back, it holds the shield again. */
+  stowLeft(off) {
+    const arm = this.arms.L;
+    if (!arm) return;
+    if (off) {
+      if (!SHIELD[this.equip.L]) return;
+      this.stowed = this.equip.L;
+      this.equip.L = null; this.blocking = false; this.state.L = null;
+      if (arm.item) { arm.socket.remove(arm.item); this.stowedItem = arm.item; arm.item = null; }
+      this.playWalk('L', true);
+    } else if (this.stowed) {
+      this.equip.L = this.stowed; this.stowed = null;
+      if (this.stowedItem && !arm.item) { arm.item = this.stowedItem; arm.socket.add(arm.item); }
+      this.stowedItem = null;
+      if (this.state.L) this.state.L = null;
+      this.playWalk('L', true);
+    }
   }
 
   /** The option picked for a slot ({id, name, chain}). */
@@ -900,6 +922,7 @@ export class ViewModel {
       arm.liftX = (arm.liftX || 0) + ((want ? want[0] * sx : 0) - (arm.liftX || 0)) * k10;
       arm.lift = (arm.lift || 0) + ((want ? want[1] : 0) - (arm.lift || 0)) * k10;
       tx += arm.liftX; ty += arm.lift;
+      if (this.dip[side]) ty -= 0.42 * this.dip[side];   // (lowered out of sight: board.js)
       if (cocked) {
         const t = st.heldFor, ph = side === 'L' ? 1.1 : 0;
         tx += 0.0004 * Math.sin(t * 5.3 + ph);

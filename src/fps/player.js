@@ -3,9 +3,10 @@
 import * as THREE from 'three';
 
 // (a tall man: the eye 1.72 m up, the head 1.8; the dead stand about 1.8 m, so you meet them eye to eye)
-const R = 0.32, HEIGHT = 1.8, STEP = 0.42;
+export const R = 0.32, HEIGHT = 1.8, STEP = 0.42;
 export const EYE = 1.72;
-const WALK = 6.2, RUN = 9.4, ACCEL = 60, FRICTION = 12, GRAVITY = 24, JUMP = 7.4;
+export const GRAVITY = 24, JUMP = 7.4;
+const WALK = 6.2, RUN = 9.4, ACCEL = 60, FRICTION = 12;
 
 export class Player {
   constructor(physics, camera, bounds) {
@@ -32,11 +33,20 @@ export class Player {
     this.roll = 0;              // a lean of the view (a swaying bridge under you)
     this.canDoubleJump = false; // (a charm's: the Wingbell, charms.js) one more jump in the air
     this.doubled = false;       // (and it's been used since you left the ground)
+    this.board = null;          // (Shield Boarding, board.js: while it's ridden it moves you)
+    this.slip = 0;              // (just off the shield: the speed run out over a few strides)
+    this.crouch = 0;            // (on the shield: knees bent, the eye lower)
+    this.lean = 0; this.leanT = 0; this.jitter = 0;   // (the view leaning into a carve; the ground's judder)
   }
+
+  /** On the shield (board.js). */
+  get riding() { return !!this.board?.on; }
 
   update(dt, input) {
     this.yaw -= input.look[0];
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
+    { const oy = this.pos.y, wasOn = this.onGround;   // (on the shield, it moves you: board.js)
+      if (this.board?.step(this, dt, input)) { this.settle(dt, oy, wasOn); return; } }
     const [ax, ay] = input.axes();
     const run = input.held('ShiftLeft') || input.held('ShiftRight') || input.stickRun;
     this.heldT = Math.max(0, this.heldT - (input.dt || 1 / 60));
@@ -44,7 +54,10 @@ export class Player {
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw); // forward
     const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);  // right
     const wx = (fx * ay + rx * ax) * top, wz = (fz * ay + rz * ax) * top;
-    const control = this.onGround ? 1 : 0.35;
+    // (just off the shield, the feet catch up with the speed over a few strides)
+    const slip = this.slip > 0 ? 1 - 0.85 * Math.min(1, this.slip / 0.6) : 1;
+    this.slip = Math.max(0, this.slip - dt);
+    const control = (this.onGround ? 1 : 0.35) * slip;
     // accelerate toward the wanted velocity; friction when there's no input
     const dvx = wx - this.vel.x, dvz = wz - this.vel.z;
     const dl = Math.hypot(dvx, dvz), maxd = ACCEL * control * dt;
@@ -53,7 +66,7 @@ export class Player {
       this.vel.x += dvx * k; this.vel.z += dvz * k;
     }
     if (!ax && !ay && this.onGround) {
-      const f = Math.max(0, 1 - FRICTION * dt);
+      const f = Math.max(0, 1 - FRICTION * slip * dt);
       this.vel.x *= f; this.vel.z *= f;
     }
     if (this.onGround && (input.was('Space'))) { this.vel.y = JUMP; this.onGround = false; this.onJump?.(); }
@@ -102,13 +115,20 @@ export class Player {
       const g = this.physics.groundAt(p.x, p.z);
       if (p.y < g - 0.25) { p.y = g; this.vel.y = Math.max(0, this.vel.y); this.onGround = true; }
     }
+    this.settle(dt, oy, wasOn);
+  }
 
+  /** After moving (on foot or on the shield): the eye eased up and down stairs, the walk's bob, the
+   * camera, and life and mana coming back. */
+  settle(dt, oy, wasOn) {
+    const p = this.pos;
     // stairs and kerbs: the feet go up and down a step at a time (a stair every three or four frames
     // at a walk), but the eye glides. Steps taken on the ground (not jumps or falls, which the eye
     // follows at once) are summed and the sum eased twice over (45 ms each): that smooths the train
     // of steps into a slope with hardly a ripple, and the eye trails the feet by at most 0.8 m.
     const dy = p.y - oy;
-    if (wasOn && this.onGround && Math.abs(dy) > 0.005 && Math.abs(dy) <= STEP + 0.1) this.stair += dy;
+    // (on the shield only a built step is eased, not the slope it rides down: board.js says which)
+    if (wasOn && this.onGround && Math.abs(dy) > 0.005 && Math.abs(dy) <= STEP + 0.1 && (!this.riding || this.boxStep)) this.stair += dy;
     const k = 1 - Math.exp(-dt / 0.045), e = this.ease;
     e[0] += (this.stair - e[0]) * k;
     e[1] += (e[0] - e[1]) * k;
@@ -117,10 +137,15 @@ export class Player {
     if (Math.abs(this.stair) > 1e4) { e[0] -= this.stair; e[1] -= this.stair; this.stair = 0; }   // (keep the numbers small)
     const lag = e[1] - this.stair;
     this.speed = Math.hypot(this.vel.x, this.vel.z);
-    if (this.onGround) this.bob += this.speed * dt * 1.7;
-    const bobY = Math.sin(this.bob * 2) * 0.045 * Math.min(1, this.speed / WALK);
-    this.camera.position.set(p.x, p.y + EYE + lag + bobY, p.z);
-    this.camera.rotation.set(this.pitch, this.yaw, this.roll || 0, 'YXZ');
+    const riding = this.riding;
+    if (this.onGround && !riding) this.bob += this.speed * dt * 1.7;
+    const bobY = riding ? 0 : Math.sin(this.bob * 2) * 0.045 * Math.min(1, this.speed / WALK);
+    // on the shield: crouched, leaning into the carves, the ground juddering up through it
+    this.crouch += ((riding ? 1 : 0) - this.crouch) * (1 - Math.exp(-dt * 8));
+    this.lean += ((riding ? this.leanT : 0) - this.lean) * (1 - Math.exp(-dt * 6));
+    const judder = riding && this.jitter ? (Math.random() - 0.5) * this.jitter : 0;
+    this.camera.position.set(p.x, p.y + EYE + lag + bobY - 0.3 * this.crouch + judder, p.z);
+    this.camera.rotation.set(this.pitch, this.yaw, (this.roll || 0) + this.lean, 'YXZ');
     this.mana = Math.min(this.maxMana, this.mana + dt * this.manaRegen);
     const h = Math.min(this.healing, dt * 30);
     this.healing -= h;
@@ -130,6 +155,7 @@ export class Player {
   /** No-clip (the Debug Menu): flying where you look, through anything, with no weight and no walls.
    * WASD (or the stick) along the view, Space up, C down, Shift faster. */
   fly(dt, input) {
+    this.board?.cancel();
     this.yaw -= input.look[0];
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - input.look[1]));
     const [ax, ay] = input.axes();

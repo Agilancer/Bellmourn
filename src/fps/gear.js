@@ -317,9 +317,11 @@ export function computeStats(c) {
   const st = { dmgPct: 0, dmg: 0, crit: 5, critDmg: 50, lifeSteal: 0, spellPct: 0, armor: 0, armorPct: 0, life: 0, mana: 0,
     lifeRegen: 0.4, manaRegen: 6, moveSpeed: 0, guard: 0, guardRegen: 0, blockPct: 0, thorns: 0, burnHit: 0, chillHit: 0, xpPct: 0,
     shockHit: 0, poisonHit: 0, magicFind: 0, manaSteal: 0, spellWard: 0, enchants: {} };
+  const twoHanded = isTwoHanded(c.equip.weapon);
   for (const s of SLOTS) {
     const it = c.equip[s];
     if (!it) continue;
+    if (s === 'offhand' && twoHanded) continue;   // (a shield carried with a two-hander gives nothing: it's only ridden, board.js)
     if (it.armor) st.armor += it.armor;
     for (const a of [...(it.implicit || []), ...(it.affixes || [])]) st[a.s] = (st[a.s] || 0) + a.v;
     if (s === 'offhand') for (const e of it.enchants || []) st.enchants[e.e] = (st.enchants[e.e] || 0) + e.v;
@@ -328,7 +330,7 @@ export function computeStats(c) {
   st.spellWard = Math.min(60, st.spellWard);
   levelStats(c, st);   // what the level and the attributes bring
   st.armor = Math.round(st.armor * (1 + st.armorPct / 100));
-  const w = c.equip.weapon, sh = c.equip.offhand;
+  const w = c.equip.weapon, sh = twoHanded ? null : c.equip.offhand;
   st.weapon = w?.dmg ? w.dmg : [6, 9];                    // fists
   st.weaponKind = w?.kind || null;
   // the shield: how much Guard it holds, how much of a blow it stops while it holds

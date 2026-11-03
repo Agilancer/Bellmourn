@@ -228,6 +228,7 @@ export class CombatFx {
     this.barNumber('-' + n, 'hurt');
     const The = the.startsWith('the ') ? 'The ' + the.slice(4) : the;
     if (kind === 'fall') chat?.add('hurt', `The fall hurts you for ${fmt.num(n, 'hurt')}`);
+    else if (kind === 'crash') chat?.add('hurt', `Thrown from your shield for ${fmt.num(n, 'hurt')}`);   // (board.js)
     else if (nm) chat?.add('hurt', kind === 'spell' ? `${The}'s spell strikes you for ${fmt.num(n, 'hurt')}` : `${The} hits you for ${fmt.num(n, 'hurt')}`);
     else chat?.add('hurt', `You take ${fmt.num(n, 'hurt')} damage`);
   }
