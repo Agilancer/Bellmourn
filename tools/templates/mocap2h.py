@@ -59,20 +59,21 @@ def grip(k):
     return world(*k["G"]) if "G" in k else np.array(k["Gc"], float)
 
 
-def _reach(g, d):
-    """Pull a grip the fixed shoulders cannot reach back to where both fists can hold it."""
+def _reach(g, d, half=HALF, one=False, sho=None):
+    """Pull a grip the fixed shoulders cannot reach back to where both fists can hold it (one:
+    a one-handed grip, the right fist alone)."""
     for _ in range(4):
         hs = []
-        for sg in (1, -1):
-            s = SHO * np.array([sg, 1, 1])
-            h = g + d * HALF * sg
+        for sg in ((1,) if one else (1, -1)):
+            s = (SHO if sho is None else np.asarray(sho, float)) * np.array([sg, 1, 1])
+            h = g + d * half * sg
             hv = h - s
             hv = un(hv - hv.dot(d) * d)
             w = h - hv * HAND
             if np.linalg.norm(w - s) > UP + FO - 0.004:
                 w = s + un(w - s) * (UP + FO - 0.004)
             hs.append(w + hv * HAND)
-        g2 = (hs[0] + hs[1]) / 2
+        g2 = hs[0] if one else (hs[0] + hs[1]) / 2
         if np.linalg.norm(g2 - g) < 0.003:
             break
         g = g2
@@ -87,38 +88,46 @@ def _slerp(a, b, t):
 rig = lambda v: np.array([v[0], v[2], v[1]])     # eye space (x, ahead, up) -> rig (x, up, ahead)
 
 
-def rig_key(g, d):
+def rig_key(g, d, half=HALF, shrug=SHRUG, lean=LEAN):
     """Grip middle + blade (eye space) -> fp_rig key: the right fist (by the guard) and the
     blade in 3D, from the camera-fixed shoulders."""
-    return dict(G3=tuple(rig(g + d * HALF)), D3=tuple(rig(d)), shrug=SHRUG, lean=LEAN)
+    return dict(G3=tuple(rig(g + d * half)), D3=tuple(rig(d)), shrug=shrug, lean=lean)
 
 
-def _tip_on_crosshair(g):
-    """The blade from grip middle g whose tip lies on the crosshair's line (eye-space y axis)."""
-    L = HALF + TIP_AT
-    y = g[1] + math.sqrt(max(L * L - g[0] ** 2 - g[2] ** 2, 0.01))
-    return un(np.array([0.0, y, 0.0]) - g)
+def _tip_on_crosshair(g, L=None, axis=None):
+    """The blade from grip middle g whose tip lies on the crosshair's line: the eye-space y axis,
+    or `axis` (the ray that lands on the drawn crosshair in a shrunk view)."""
+    L = HALF + TIP_AT if L is None else L
+    a = np.array([0.0, 1.0, 0.0]) if axis is None else np.asarray(axis, float)
+    ag = float(np.dot(a, g))
+    t = ag + math.sqrt(max(ag * ag - float(np.dot(g, g)) + L * L, 0.01))
+    return un(a * t - g)
 
 
-def keys_of(seq, edge=True, cross=False, line=None):
+def keys_of(seq, edge=True, cross=False, line=None, P=None):
     """seq: [(move, key name, nth, flags), ...] -> one rig key per tic. cross: the slash rule:
     on the hit the blade's tip is on the crosshair, and through the swing the fist rolls so the
-    blade's edges face the crosshair."""
+    blade's edges face the crosshair. P: another weapon's profile (mocap1h: keys, one hand,
+    blade length, the crosshair's ray, view)."""
+    P = P or {}
+    KS, half, one = P.get("keys", KEYS), P.get("half", HALF), P.get("one", False)
+    tipL, axis, view = P.get("tip"), P.get("axis"), P.get("view", VIEW)
+    sho, shrug, lean = P.get("sho"), P.get("shrug", SHRUG), P.get("lean", LEAN)
     ks = []
     for move, name, nth, flags in seq:
-        ks.append(([x for x in KEYS[move] if x["name"] == name][nth], flags))
+        ks.append(([x for x in KS[move] if x["name"] == name][nth], flags))
     G, D = [], []
     for k, fl in ks:
         g = grip(k)
         d = blade_dir(k, g)
-        g = _reach(g, d)
+        g = _reach(g, d, half, one, sho)
         if "tip" in k:              # aimed blades stay aimed from where the fists really are
             d = un(world(*k["tip"]) - g)
         if cross and fl.get("hit"):
             for _ in range(3):      # the tip goes through the crosshair from where the fists are
-                d = _tip_on_crosshair(g)
-                g = _reach(grip(k), d)
-            d = _tip_on_crosshair(g)
+                d = _tip_on_crosshair(g, tipL, axis)
+                g = _reach(grip(k), d, half, one, sho)
+            d = _tip_on_crosshair(g, tipL, axis)
         G.append(g)
         D.append(d)
     samples = []                    # (g, d, key, flags, first tic of its key?)
@@ -155,8 +164,8 @@ def keys_of(seq, edge=True, cross=False, line=None):
     out = []
     pts = [g + d * SWEET for g, d, *_ in samples]
     for i, (g, d, k, flags, first) in enumerate(samples):
-        key = dict(rig_key(g, d), tics=1, view=VIEW, name=k["name"] if first else f"{k['name']} >",
-                   ref=f"swing2h@{k['ref']}")
+        key = dict(rig_key(g, d, half, shrug, lean), tics=1, view=view, name=k["name"] if first else f"{k['name']} >",
+                   ref=f"{P.get('video', 'swing2h')}@{k['ref']}")
         if poles[i] is not None:
             key["pole"] = tuple(poles[i])
         if abs(TW[i]) > 1e-3:      # the shoulders turn with the torso (fp_rig.shoulder)
@@ -172,7 +181,7 @@ def keys_of(seq, edge=True, cross=False, line=None):
             if cross and flags.get("hit"):
                 key["tip_axis"] = True   # (the rig puts the tip on the crosshair after any slide)
         out.append(key)
-    if cross:
+    if cross and P.get("knuckle", True):
         _edges_to_crosshair(samples, out, line)
     # the blade smears from just after the wind-up to just past the hit
     e = next((i for i, f in enumerate(out) if f.get("enter")), 0)

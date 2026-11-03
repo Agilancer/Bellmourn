@@ -100,7 +100,12 @@ def pose(arm):
         # shields ride on the fist: the grip bar runs along the hand's grip axis, so the board
         # turns with the hand however the arm moves. The face points along +z of the socket,
         # which the block poses aim at the enemy; the board sits in front of the knuckles.
+        # The grip is near the board's right edge (tools/models/shield_grip.py) and the board runs
+        # back along the forearm like a strapped shield: its face is kept square to the forearm.
         iz = norm(arm["face"])
+        fore = norm(arm["W"] - arm["E"])
+        if abs(np.dot(iz, fore)) < 0.97:
+            iz = norm(iz - fore * np.dot(iz, fore))
         if arm["shield"] == "kite":
             iy = norm(np.array([0.0, 1.0, 0.0]) - iz * iz[1])  # upright, like the 2D rig
         else:

@@ -127,7 +127,7 @@ def catalog():
             src, fr = key["ref"].split("@")
             ev["src"] = [src, round(int(fr) / 30, 3)]
         clips[cid] = dict(kind=clip["kind"], heavy=bool(clip.get("heavy")), roll=bool(clip.get("roll")),
-                          stab=bool(clip.get("stab")),
+                          stab=bool(clip.get("stab")), noslide=bool(clip.get("noslide")),
                           power=clip.get("power", 1.0),
                           starts=starts,
                           events=ev, names=[f["name"] for f in frames],
