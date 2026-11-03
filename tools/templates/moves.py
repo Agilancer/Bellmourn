@@ -34,6 +34,7 @@ import numpy as np
 import anims
 from anims import W, H, mirror, walk_cycle, lerp_key, lerp_hand
 import fp_rig as R
+import mocap2h
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models"))
 import arm as A  # noqa: E402  (hand shapes)
@@ -54,7 +55,12 @@ def at(xf, yf, z):
 def slide(arms):
     """How far (drawn px) each arm is slid sideways: {side: px}. Two hands on one grip slide
     together, by the right hand's amount."""
+    if R.VIEW_SCALE != R.REST_SCALE:   # (a two-hander drawn unshrunk keeps its hands where they are)
+        return {}
     g = {a["side"]: R.project(a["G"])[0] - W / 2 for a in arms if a["G"][2] > R.NEAR}
+    for a in arms:   # (the crosshair one-handers stay where they are swung: no slide)
+        if a.get("noslide"):
+            g[a["side"]] = 0.0
     out = {s: x * (STRETCH - 1) for s, x in g.items()}
     if any(a.get("support") for a in arms) and "R" in out:
         out["L"] = out["R"]
@@ -100,7 +106,9 @@ def towards(a, b, s, name, tics, **extra):
 SWORD = dict(S=at(0.80, 0.90, 0.40), ang=86, dz=0.05)
 GREAT = dict(S=at(0.76, 0.90, 0.42), ang=62, dz=0.15, twist=-22)  # (torso turned right)
 STAFF = dict(S=at(0.83, 0.95, 0.36), ang=90, dz=0.05)
-KITE = dict(S=at(0.85, 1.05, 0.46), ang=100, dz=0.10, face=(0.62, 0.10, 0.78))
+# (shields are held by a grip at the board's right edge and strapped along the forearm
+# (tools/models/shield_grip.py, arm.py): the forearm runs across the body so the board faces out)
+KITE = dict(S=at(0.62, 1.30, 0.36), ang=100, dz=0.10, face=(0.30, 0.10, 0.95))
 ROUND = dict(KITE)   # (held like the kite: see ROUND_BLOCK)
 HAND = palm("READY", 2, 0.82, 0.89, 0.33, (-0.10, 0.30, 0.95), (-0.40, -0.90, 0.15), 0.55)
 BOTH = palm("READY", 2, 0.75, 0.90, 0.32, (-0.15, 0.30, 0.94), (-0.45, -0.85, 0.25), 0.55)
@@ -221,77 +229,22 @@ SWORD_STAB = [
 
 
 # ---------------------------------------------------------------- two-handed (right + left support)
-GREAT_CHOP = [
-    pose(GREAT, "CARRY", 2, ref=126),
-    k("LIFT", 3, 0.78, 0.86, 0.43, 45, 0.10, twist=-20, ref=128),
-    k("COCK", 3, 0.76, 0.80, 0.43, 22, -0.08, pole=RAISED, twist=-16, ref=132),
-    k("COCK BACK", 3, 0.72, 0.77, 0.43, 18, -0.10, pole=RAISED, twist=-14, ref=136, enter=True),
-    k("OVERHEAD", 1, 0.70, 0.74, 0.43, 16, -0.12, pole=RAISED, twist=-12, ref=142),
-    k("COME OVER", 3, 0.63, 0.70, 0.45, 105, 0.60, pole=RAISED, twist=-6, smear=True, flat=0.5,
-      ref=150),
-    k("CHOP 1", 1, 0.57, 0.64, 0.46, 124, 0.55, twist=0, smear=True, flat=0.6, ref=152),
-    k("HIT", 2, 0.57, 0.82, 0.47, 124, 0.55, twist=2, smear=True, hit=True, flat=0.6, ref=155),
-    k("DRIVE", 1, 0.57, 0.95, 0.46, 124, 0.55, twist=4, smear=True, flat=0.6, ref=156),
-    k("DIP", 3, 0.57, 0.95, 0.45, 180, 0.40, twist=6, ref=158, link=True),
-    k("SLIDE", 2, 0.67, 0.96, 0.45, 200, 0.40, twist=-4),
-    k("TURN", 2, 0.75, 0.94, 0.44, 290, 0.40, twist=-14),
-    k("RAISE", 2, 0.77, 0.91, 0.43, 380, 0.40, twist=-20),
-    pose(GREAT, "SETTLE", 2, ref=165),
-]
-
-# Cleave (UAL1 Sword_Attack, two hands): the diagonal cut, heavier and lower.
-GREAT_CLEAVE = [
-    pose(GREAT, "CARRY", 2, ref="Sword_Attack@0"),
-    k("LIFT", 2, 0.77, 0.82, 0.46, 40, 0.10, twist=-22, ref="Sword_Attack@3"),
-    k("COCK", 3, 0.78, 0.74, 0.48, 20, -0.05, twist=-24, ref="Sword_Attack@6", enter=True),
-    k("COCKED", 2, 0.78, 0.73, 0.48, 16, -0.06, twist=-24, ref="Sword_Attack@9"),
-    k("OVER", 2, 0.71, 0.71, 0.50, 55, 0.15, twist=-12, smear=True, flat=0.3, ref="Sword_Attack@11"),
-    k("CUT", 1, 0.62, 0.72, 0.50, 100, 0.30, twist=-2, smear=True, flat=0.4, ref="Sword_Attack@12"),
-    k("HIT", 2, 0.55, 0.77, 0.50, 140, 0.35, twist=6, smear=True, hit=True, flat=0.5,
-      ref="Sword_Attack@13"),
-    k("THROUGH", 1, 0.50, 0.86, 0.48, 180, 0.35, twist=14, smear=True, flat=0.4, ref="Sword_Attack@14"),
-    k("FOLLOW", 4, 0.47, 0.93, 0.46, 195, 0.30, twist=18, ref="Sword_Attack@18", link=True),
-    k("UNDER", 2, 0.54, 0.94, 0.44, 250, 0.30, twist=6, ref="Sword_Attack@27"),
-    k("ROUND", 2, 0.66, 0.95, 0.43, 310, 0.25, twist=-8, ref="Sword_Attack@30"),
-    k("COME UP", 2, 0.74, 0.93, 0.43, 380, 0.20, twist=-18, ref="Sword_Attack@33"),
-    pose(GREAT, "SETTLE", 2, ref="Sword_Attack@46"),
-]
-
-# Backsweep (UAL2 Sword_Dash / Sword_Regular_B, two hands): carry it across to the left, then
-# sweep flat to the right.
-GREAT_BACK = [
-    pose(GREAT, "CARRY", 2, ref="Sword_Dash@0"),
-    k("TIP", 2, 0.70, 0.88, 0.44, 80, 1.20, twist=-10, ref="Sword_Dash@1"),
-    k("CROSS", 2, 0.58, 0.86, 0.44, 150, 1.00, twist=4, ref="Sword_Dash@2"),
-    k("CHAMBER", 2, 0.38, 0.74, 0.42, 184, -0.30, twist=24, flat=0.3, ref="Sword_Dash@4", enter=True),
-    k("COILED", 1, 0.37, 0.73, 0.42, 186, -0.32, twist=26, flat=0.3, ref="Sword_Dash@7"),
-    k("WHIP", 1, 0.45, 0.71, 0.44, 180, -0.05, twist=16, smear=True, flat=0.4, ref="Sword_Dash@9"),
-    k("DRAW", 1, 0.53, 0.70, 0.44, 175, 0.15, twist=4, smear=True, flat=0.5, ref="Sword_Dash@9"),
-    k("HIT", 2, 0.60, 0.70, 0.44, 172, 0.25, twist=-4, smear=True, hit=True, flat=0.6,
-      ref="Sword_Dash@10"),
-    k("DRAG", 1, 0.67, 0.72, 0.44, 185, 0.20, twist=-16, smear=True, flat=0.6, ref="Sword_Dash@11"),
-    k("ROLL", 1, 0.72, 0.74, 0.44, 260, 0.25, twist=-24, smear=True, flat=0.5, ref="Sword_Dash@11"),
-    k("FOLLOW", 1, 0.76, 0.76, 0.44, 335, 0.30, twist=-28, flat=0.5, ref="Sword_Dash@12"),
-    k("EXTEND", 2, 0.78, 0.77, 0.44, 380, 0.40, twist=-28, ref="Sword_Dash@12", link=True),
-    k("RETURN 1", 2, 0.80, 0.82, 0.44, 400, 0.15, twist=-22, ref="Sword_Dash@30"),
-    k("RETURN 2", 2, 0.78, 0.88, 0.43, 412, 0.10, twist=-22, ref="Sword_Dash@40"),
-    pose(GREAT, "SETTLE", 2, ref="Sword_Dash@47"),
-]
+# The two-handed moves are the user's own swing video, motion captured: see mocap2h.py.
 
 
 # ---------------------------------------------------------------- shields (keyed right, worn left)
 # Block (UAL2 Idle_Shield_Loop / Shield_OneShot / Idle_Shield_Break): the shield comes up across
 # the chest, face to the enemy, its rim just under the crosshair so you look over it; a blow
 # knocks it back and out (BRACE), then it lowers to the corner. Frame 3 holds while blocking.
-KITE_UP = dict(S=at(0.62, 0.90, 0.50), ang=96, dz=0.0, face=(-0.28, 0.12, 0.95))
+KITE_UP = dict(S=at(0.47, 1.00, 0.38), ang=92, dz=0.0, face=(0.0, 0.08, 1.0))   # (fist mid, forearm across, rim under the crosshair)
 KITE_BLOCK = [
     pose(KITE, "CARRY", 2, ref="Shield_OneShot@0"),
     towards(KITE, KITE_UP, 0.45, "RAISE 1", 1, ref="Shield_OneShot@2"),
     towards(KITE, KITE_UP, 0.85, "RAISE 2", 1, ref="Shield_OneShot@4"),
-    pose(KITE_UP, "SHOVE", 3, S=at(0.57, 0.80, 0.56), face=(-0.38, 0.14, 0.92), ref="Shield_OneShot@6"),   # (driven out and up: the shove)
-    pose(KITE_UP, "STEADY", 2, S=at(0.62, 0.91, 0.50), ref="Shield_OneShot@8"),   # (settling back into the block)
+    pose(KITE_UP, "SHOVE", 3, S=at(0.48, 0.92, 0.48), face=(0.0, 0.20, 1.0), ref="Shield_OneShot@6"),   # (driven out and up: the shove)
+    pose(KITE_UP, "STEADY", 2, S=at(0.47, 1.01, 0.39), ref="Shield_OneShot@8"),   # (settling back into the block)
     pose(KITE_UP, "BLOCK", 4, ref="Idle_Shield_Loop@0", hold=True),
-    dict(KITE_UP, name="BRACE", tics=2, S=at(0.65, 0.94, 0.46), face=(0.12, 0.05, 0.99),
+    dict(KITE_UP, name="BRACE", tics=2, S=at(0.49, 1.07, 0.33), face=(0.25, 0.30, 0.92),
          ref="Idle_Shield_Break@4"),
     towards(KITE, KITE_UP, 0.65, "LOWER 1", 2),
     towards(KITE, KITE_UP, 0.30, "LOWER 2", 2),
@@ -306,13 +259,13 @@ def raised(key, dy=0.03):
     return dict(key, S=(x, y - dy * H / VIEW, z))
 
 
-ROUND, ROUND_UP = raised(KITE), raised(KITE_UP)
-ROUND_BLOCK = [raised(key) for key in KITE_BLOCK]
+ROUND, ROUND_UP = raised(KITE, 0.14), raised(KITE_UP, 0.14)   # (smaller: held higher to cover as much)
+ROUND_BLOCK = [raised(key, 0.14) for key in KITE_BLOCK]
 # a second sword makes room the same way when the other hand swings: out and down a little
 SWORD_ROOM = dict(S=at(0.87, 0.96, 0.40), ang=78, dz=0.10)
 # out of the way of the sword: lower and further out into the corner, face turned outward
-KITE_ASIDE = dict(S=at(0.95, 1.16, 0.46), ang=110, dz=0.12, face=(0.90, 0.12, 0.42))
-ROUND_ASIDE = raised(KITE_ASIDE)
+KITE_ASIDE = dict(S=at(0.80, 1.36, 0.36), ang=105, dz=0.10, face=(0.75, 0.10, 0.66))
+ROUND_ASIDE = raised(KITE_ASIDE, 0.14)
 
 
 def aside_weights(keys):
@@ -443,7 +396,7 @@ BOTH_CAST = [
 # its 3 segments from the hand's line, toward the palm; fan], in degrees; the thumb [opening
 # from the fingers' line toward the thumb side, its lift off the palm, bend at the knuckle,
 # bend at the tip]. A left-hand video reads as the mirrored right.
-MOCAP_VIDEOS = ("one", "twoL", "twoR")
+MOCAP_VIDEOS = ("one", "twoL", "twoR", "swing2h", "swing1h")
 
 
 def thumb(open_, lift, mcp, ip):
@@ -595,6 +548,23 @@ STAFF_POINT = [
      for n, s in (("RETURN 1", 0.35), ("RETURN 2", 0.6), ("RETURN 3", 0.8), ("RETURN 4", 0.93))] + [
     pose(STAFF, "SETTLE", 2)]
 
+# Staff, lift: no blow, just the staff raised (the fist up a third of the screen, the head up over
+# the crosshair) to shoot, the bolt leaving its head at the top; it kicks back a little as the bolt
+# goes, then settles to the carry.
+STAFF_LIFT_FIRE = k("FIRE", 1, 0.72, 0.65, 0.43, 107, 0.12, fire=True)
+STAFF_LIFT_HOLD = k("HOLD", 1, 0.722, 0.665, 0.42, 105, 0.08)
+STAFF_LIFT = [
+    pose(STAFF, "CARRY", 2),
+    k("LIFT 1", 2, 0.80, 0.85, 0.38, 95, 0.05),
+    k("LIFT 2", 2, 0.76, 0.74, 0.40, 100, 0.07),
+    k("TOP", 1, 0.73, 0.67, 0.42, 105, 0.10),
+    STAFF_LIFT_FIRE,
+    k("RECOIL", 2, 0.725, 0.68, 0.41, 104, 0.04),
+    STAFF_LIFT_HOLD,
+] + [towards(STAFF_LIFT_HOLD, STAFF, s, n, 2)
+     for n, s in (("LOWER 1", 0.4), ("LOWER 2", 0.75), ("LOWER 3", 0.93))] + [
+    pose(STAFF, "SETTLE", 2)]
+
 # Staff, overhand (UAL2 OverhandThrow): heave the head back over the right shoulder, then bring
 # it over the top so it points at the target as the bolt leaves it.
 STAFF_OVER_FIRE = k("FIRE", 2, 0.63, 0.70, 0.44, 106, 1.60, fire=True, ref="OverhandThrow@12")
@@ -629,7 +599,7 @@ def frames(keys, side, weapon):
 def two_handed(keys):
     out = frames(keys, "R", "sword2h")
     for f, key in zip(out, keys):
-        f["L"] = dict(support=GRIP_2H, **({"twist": key["twist"]} if "twist" in key else {}))
+        f["L"] = dict(support=GRIP_2H, **{k: key[k] for k in ("twist", "shrug", "lean") if k in key})
     return out
 
 
@@ -658,13 +628,19 @@ def add(cid, frames_by_side, **info):
 
 
 SWORD_ATTACKS = dict(chop=SWORD_CHOP, diag=SWORD_DIAG, back=SWORD_BACK, rise=SWORD_RISE)
-GREAT_ATTACKS = dict(chop=GREAT_CHOP, cleave=GREAT_CLEAVE, back=GREAT_BACK)
+# two-handed: the user's own swing video (mocap2h.py), drawn unshrunk from a raised eye
+GREAT_ATTACKS = mocap2h.clips()
+# one-handed: the user's sword-and-shield video (mocap1h.py), by the same crosshair rules
+import mocap1h  # noqa: E402
+BLADE_ATTACKS = mocap1h.clips()
+GREAT_M = mocap2h.guard_pose()
 HAND_CASTS = dict(mocap=HAND_MOCAP, thrust=HAND_THRUST, push=HAND_PUSH, hurl=HAND_HURL)
 STAFF_CASTS = dict(point=STAFF_POINT, over=STAFF_OVER)
 
 add("sword_walk", {s: frames(walk(SWORD, 22 if s == "R" else -22), s, "sword1h") for s in "RL"},
     kind="walk")
-add("great_walk", {"RL": two_handed(walk(GREAT, rock=1.5))}, kind="walk")
+add("great_walk", {"RL": two_handed([dict(k, view=mocap2h.VIEW) for k in walk(GREAT_M, rock=1.5)])},
+    kind="walk")
 add("staff_walk", {"R": frames(walk(STAFF, rock=1.5), "R", "staff")}, kind="walk")
 add("round_walk", {"L": frames(walk(ROUND, sway=-22), "L", "round")}, kind="walk")
 add("kite_walk", {"L": frames(walk(KITE, sway=-22), "L", "kite")}, kind="walk")
@@ -682,7 +658,12 @@ for name, keys in SWORD_ATTACKS.items():
                                 for s in "RL"}, kind="aside")
 for name, keys in GREAT_ATTACKS.items():   # (blades show their flat by key now: no quarter-turn roll)
     add(f"great_{name}", {"RL": two_handed(keys)}, kind="attack", heavy=True, roll=False,
-        power=1.2 if name == "chop" else 1.0)
+        stab=name == "stab", power=1.25 if name == "slam" else 1.2 if name == "chop" else 1.1 if name == "stab" else 1.0)
+for name, keys in BLADE_ATTACKS.items():   # (right hand only; never slid sideways)
+    add(f"blade_{name}", {"R": frames(keys, "R", "sword1h")}, kind="attack", noslide=True,
+        stab=name == "stab", power=1.15 if name == "over" else 1.1 if name == "stab" else 1.0)
+    for kind, carry, aside in (("round", ROUND, ROUND_ASIDE), ("kite", KITE, KITE_ASIDE)):   # (the shield steps aside)
+        add(f"{kind}_aside_{name}", {"L": frames(shield_aside(carry, aside, keys), "L", kind)}, kind="aside")
 add("sword_stab", {s: frames(SWORD_STAB, s, "sword1h") for s in "RL"}, kind="attack", stab=True,
     power=1.1)
 add("round_block", {"L": frames(ROUND_BLOCK, "L", "round")}, kind="block")
@@ -696,10 +677,13 @@ add("both_cast", {"RL": both_hands(BOTH_CAST)}, kind="cast")
 add("both_mocap", {"RL": both_hands(BOTH_MOCAP)}, kind="cast")
 for name, keys in STAFF_CASTS.items():
     add(f"staff_{name}", {"R": frames(keys, "R", "staff")}, kind="cast")
+add("staff_lift", {"R": frames(STAFF_LIFT, "R", "staff")}, kind="cast")
 
 # What the player can choose between (the move viewer, moves.html), and the defaults.
 SLOTS = {
     "onehand": dict(title="One-handed weapon", options=[
+        dict(id="lines", name="Combo 1: cut, cut, overhead (your video)", chain=["blade_d1", "blade_d2", "blade_over"],
+             ref="your sword-and-shield video", note="every cut along its line through the crosshair"),
         dict(id="combo", name="Combo: cut, backhand, rising", chain=["sword_diag", "sword_back", "sword_rise"],
              ref="UAL2 Sword_Regular_Combo"),
         dict(id="diag", name="Diagonal cut", chain=["sword_diag"], ref="UAL1 Sword_Attack"),
@@ -707,15 +691,22 @@ SLOTS = {
         dict(id="rise", name="Rising slash", chain=["sword_rise"], ref="UAL2 Sword_Regular_A"),
         dict(id="chop", name="Overhead chop", chain=["sword_chop"], ref="your swing video's timing",
              note="straight down; slower, lands harder"),
+    ], default="lines"),
+    # two-handers: a different attack on each mouse button (left, right, wheel click)
+    "twohand": dict(title="Two-handed weapon (left click)", options=[
+        dict(id="combo", name="Combo: slash, slash, SLAM", chain=["great_cut1", "great_cut2", "great_slam"],
+             ref="your two-hand swing video, Dark Messiah style", note="cuts through the crosshair; the slam comes over the head"),
+        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your two-hand swing video"),
+        dict(id="rise", name="Rising backhand", chain=["great_rise"], ref="your two-hand swing video"),
     ], default="combo"),
-    "twohand": dict(title="Two-handed weapon", options=[
-        dict(id="combo", name="Combo: cleave, backsweep", chain=["great_cleave", "great_back"],
-             ref="UAL1 Sword_Attack + UAL2 Sword_Dash"),
-        dict(id="cleave", name="Cleave", chain=["great_cleave"], ref="UAL1 Sword_Attack"),
-        dict(id="back", name="Backsweep", chain=["great_back"], ref="UAL2 Sword_Dash"),
-        dict(id="chop", name="Overhead chop", chain=["great_chop"], ref="your swing video's timing",
-             note="straight down; slower, lands harder"),
-    ], default="combo"),
+    "twohand_r": dict(title="Two-handed weapon (right click)", options=[
+        dict(id="wide", name="Wide horizontal, back and forth", chain=["great_wide_r", "great_wide_l"],
+             ref="your two-hand swing video", note="right to left, then left to right, across the whole view"),
+    ], default="wide"),
+    "twohand_m": dict(title="Two-handed weapon (wheel click)", options=[
+        dict(id="stab", name="Stab", chain=["great_stab"], ref="your two-hand swing video",
+             note="coil at the hip, lunge at the crosshair"),
+    ], default="stab"),
     "spell": dict(title="One-hand spell", options=[
         dict(id="mocap", name="Thrust and splay (your cast)", chain=["hand_mocap"],
              ref="your casting video", note="motion captured from your left-hand cast"),
@@ -729,7 +720,20 @@ SLOTS = {
         dict(id="gather", name="Gather and push", chain=["both_cast"], ref="UAL1 Spell_Simple"),
     ], default="mocap"),
     "staff": dict(title="Staff", options=[
+        dict(id="lift", name="Lift", chain=["staff_lift"], ref="(your note: just a lift to shoot)",
+             note="no swing: the staff rises upright, the bolt leaves its head at the top"),
         dict(id="point", name="Raise and point", chain=["staff_point"], ref="(the first rig)"),
         dict(id="over", name="Overhand", chain=["staff_over"], ref="UAL2 OverhandThrow"),
-    ], default="point"),
+    ], default="lift"),
 }
+
+# keys 1-6 with a one-hander out: a combo each (mocap1h.COMBOS); maces, hammers and clubs bonk
+# where a blade would stab (mocap1h.BLUNT)
+for _n, _chain in mocap1h.COMBOS.items():
+    SLOTS[f"onehand{_n}"] = dict(title=f"One-handed weapon, key {_n}", options=[dict(
+        id="combo", name=" then ".join(_c for _c in _chain), chain=[f"blade_{_c}" for _c in _chain],
+        ref="your sword-and-shield video")], default="combo")
+for _n, _chain in mocap1h.BLUNT.items():
+    SLOTS[f"blunt{_n}"] = dict(title=f"Mace, hammer or club, key {_n}", options=[dict(
+        id="combo", name=" then ".join(_c for _c in _chain), chain=[f"blade_{_c}" for _c in _chain],
+        ref="your sword-and-shield video", note="bonks: no stabbing")], default="combo")

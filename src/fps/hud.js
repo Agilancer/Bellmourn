@@ -137,8 +137,9 @@ export class Hud {
       <div class="menu"></div>`;
     r.append(this.overlay);
 
-    this.rotate = el('div', 'rotate', '<div>&#x21bb;</div><p>Turn your phone sideways to play</p>');
-    r.append(this.rotate);
+    // (turn your phone sideways: index.html's, over the title too; made here only if a page lacks it)
+    this.rotate = document.getElementById('rotate');
+    if (!this.rotate) { this.rotate = el('div', 'rotate', '<div>&#x21bb;</div><p>Turn your phone sideways to play</p>'); document.body.append(this.rotate); }
 
     // ---- touch controls
     this.touch = el('div', 'touch hidden');
@@ -218,6 +219,7 @@ export class Hud {
   zone(name) {
     if (!name || name === this.lastZone) return;
     this.lastZone = name;
+    this.onZone?.(name);   // (the chat log, main.js)
     this.zoneEl.textContent = name;
     this.zoneEl.classList.remove('show');
     void this.zoneEl.offsetWidth; // restart the fade

@@ -65,6 +65,10 @@ let floor = null;          // the line that has the floor
 let quiet = 0;             // s of quiet left before the next speaker
 let hold = null;           // { group, t }: a conversation's hold on the floor between its lines
 
+/** Told of each line as it's said within earshot (on: (line) => {}, the line's `who` and `full`
+ * text): the chat log (main.js). */
+export const speechLog = { on: null };
+
 /** Whether `who` is speaking or waiting to (a bubble lingering after the last word isn't). */
 export const talking = (who) => !!(who && (who.pending || (who.talk && who.talk.state !== 'linger')));
 
@@ -161,17 +165,14 @@ export function tickSpeech(dt) {
       L.line?.go();
     }
   }
-  // the speaker with the floor: its voice begun yet? (a neural voice that doesn't come in time: the
-  // browser's own voice says it instead, at once)
+  // the speaker with the floor: its voice begun yet? (a recording that doesn't come in time: the line
+  // is shown without it, or let go if it was only a passing remark; a line nobody has recorded is
+  // shown at once)
   if (floor && floor.state === 'cue') {
     const L = floor;
     L.cue += dt;
     if (L.line && L.line.started) start(L, L.line);
-    else if (L.line && !L.fell && (L.line.failed || L.cue > (CUE[L.pri] ?? 3)) && voice.enabled) {
-      L.line.cancel();
-      L.fell = true; L.cue = (CUE[L.pri] ?? 3) - 1.6;
-      L.line = voice.say(L.who, L.full, { ...L.vo, pri: L.pri, browser: true });
-    } else if (!L.line || L.line.failed || L.cue > (CUE[L.pri] ?? 3)) {
+    else if (!L.line || L.line.failed || L.cue > (CUE[L.pri] ?? 3)) {
       const had = !!L.line;
       L.line?.cancel();
       if (had && !L.must && !L.group && !L.toYou) {   // (a passing remark whose voice didn't come: let go)
@@ -186,6 +187,7 @@ export function tickSpeech(dt) {
 /** A line's bubble goes up (with its voice, or without). */
 function start(L, line) {
   if (L.who.pending === L) L.who.pending = null;
+  if (!L.hidden && !L.logged) { L.logged = true; try { speechLog.on?.(L); } catch (e) { console.warn('speech log', e); } }
   L.line = line;
   L.state = 'up'; L.age = 0; L.total = 0; L.pi = 0; L.text = L.pages[0]; L.t = 1;
   L.left = readTime(L.pages[0]);

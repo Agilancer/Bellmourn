@@ -37,6 +37,11 @@ the Deep Undercroft. The old zombies and monsters stay in the repo, unloaded.
 python tools/serve.py 8124
 ```
 
+The models (`templates/models`) live in the [Bellmourn2](https://github.com/Agilancer/Bellmourn2)
+repo, to keep this one's Pages site under GitHub's 1 GB: clone it beside this checkout and the
+server serves it at `/Bellmourn2/`, as Pages does ([docs/ASSETS.md](docs/ASSETS.md)). Paths like
+`templates/models/...` below are in that repo.
+
 Then open http://127.0.0.1:8124/ (the old Castle Velscour platformer test is at
 `/velscour.html`). `/knight.html` shows every move the keep's Sworn make: they move on Quaternius'
 Universal Animation Libraries 1 and 2 (`src/fps/ual.js`, `tools/creatures/sworn_ual/`), and the page
@@ -58,6 +63,7 @@ sheets of them headless.
 | Key | Action |
 |---|---|
 | W A S D, mouse | move, look (Shift runs, Space jumps) |
+| Space, held through a jump | ride your shield (Shield Boarding): W pushes, S drags, A and D carve; tap Space again to hop, let go to step off |
 | Left click | right hand: swing, or shoot with a staff (click again, or hold, mid-blow for the next blow of the combo) |
 | Right click | left hand: hold a shield up, or swing |
 | F, R | cast the spells set to F and R (Firebolt gathers for two seconds first) |
@@ -195,7 +201,21 @@ Holding a shield up (right click) spends its **Guard** (the bar under life and m
 it stops: most of a blow from the front. When the Guard runs out it breaks, and the shield stops
 nothing until it has come back; it refills quickly, but only while the shield is down. Better
 shields hold more Guard and stop more, and from Rare up they're enchanted (thorns, frost, fire,
-holy light, a ward against spells, a shove). Gear rolls from Common to Mythic with affixes; what
+holy light, a ward against spells, a shove).
+
+**Shield Boarding** (`board.js`, after Zelda's shield surfing): jump and keep Space held, and by the
+time you land the shield is off your arm and under your feet. You ride on with the speed you had:
+slopes speed you up (a flight of stairs rides as a slope), flat ground slows you by what it is (the
+old snow high on the Sorrowhorn hardly at all, earth more, stone most, throwing sparks), and a crest,
+a ramp or a ledge throws you into the air with your speed; a landing on a downslope turns the drop
+into speed, and only a big drop onto the flat hurts (less than on foot). W pushes a little, S drags,
+A and D carve, all as you look, so you can turn round and swing, cast or shoot on the way down while
+the shield keeps going. Tap Space again quickly to hop; let go of it to step off and run out your
+speed. A wall met side-on turns you along it; head-on at speed it throws you off. Ride into a foe
+fast and it's knocked flying and hurt (at twenty metres a second, as hard as a blow of your weapon).
+A two-hander can carry a shield too: it gives nothing then (no Guard, no stats), it's only ridden.
+
+Gear rolls from Common to Mythic with affixes; what
 you find depends on where you are (the undercroft and the downs hold better). Dread knights and
 sorcerers march between the downs' places and hold its houses.
 
@@ -224,16 +244,26 @@ grows faster at half his life, and the chest (the Vigil's hoard: legendary and e
 draughts) opens only once he's dead. The Sworn load with the rest, before play (a phone takes one
 body and half the garrison, without the adepts, once the village is in).
 
-On a phone, turn it sideways: left thumb moves (push it right out to run), right thumb looks,
-and the buttons attack, use the left hand, cast F and R, use (E), jump, drink, open the map and
-the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
+On a phone, turn it sideways (held upright, the page says so over everything, the title too, from
+its first paint): left thumb moves (push it right out to run), right thumb looks,
+and the buttons attack, use the left hand, cast F and R, use (E), jump (hold it to ride your
+shield), drink, open the map and the bag, and pause. The picture's resolution steps down a level (of three) only when the GPU is
 what holds frames up, and comes back when there's time; at high a phone gets a smaller sun shadow
 map redrawn every other frame, fewer torch lights, half-size bloom and a shorter view. A phone
 loads phone copies of the grotesques, foes and villagers (`phone/` in each of their folders under
 `templates/models/creatures/`: their images at most 512, 512 and 256 square), the grotesques one
 at a time and the villagers one at a time once the village is up, half as many of the dead, and
 the stained glass at half size;
-re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. If a run
+re-run `python tools/creatures/phone_copies.py` whenever one of their `.glb`s changes. On top of
+those, a phone (`phonemem.js`, before anything loads) makes every picture half its width and height
+as it arrives, before it goes to the GPU (`createImageBitmap`, straight alpha kept; `?fulltex` keeps
+them whole), and lets three's GLTFLoader drop each model's file once it's made (`?keepgltf`); the
+built world's merged meshes keep their normals and shades in 16 and 8 bits and let go of their
+vertices once they're on the GPU (`?keepgeo` keeps both); and every body's animations are made the
+first time each is played, not all of them for all three hundred at once (`zombies.js` lazyActions,
+everywhere). Measured on an emulated iPhone (`--use-angle=swiftshader`, so the GPU's figure is
+SwiftShader's), loaded and at the title: the tab 1.8 GB to 1.2 GB, its peak while loading 2.0 GB to
+1.5 GB, the GPU process 1.5 GB to 1.1 GB, the pictures 546 MB to 149 MB. If a run
 dies (Safari's "A problem repeatedly occurred"), the next shows under the title how far it got.
 
 Bellmourn's twenty-two people (`villagers.js`: the men and women of
@@ -388,3 +418,9 @@ are scaled by 1.6 because the hero is about 80px tall and Alucard is about 50px:
   - `build_castle.py`: crops, downscales and packs the castle kit, and registers the torch
     flame frames to their bracket.
   - `qa_*.py`: contact sheets for checking the art.
+
+## Voices
+
+Every spoken line is a recording made with Qwen3-TTS in its speaker's voice and served from the
+Bellmourn2 repository; nothing is synthesised in the browser. Any new dialogue is recorded the same
+way before it's merged: see [docs/VOICES.md](docs/VOICES.md).

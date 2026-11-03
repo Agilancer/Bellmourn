@@ -7,6 +7,7 @@ template sheet, frames file and preview.
 """
 import json
 import os
+import sys
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,7 +62,9 @@ def pack_fp_weapons():
     return path, len(rigs)
 
 
-MODELS = os.path.join(TPL, "models")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import STORE, models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+MODELS = models() if STORE else os.path.join(TPL, "models")
 TOOLS = os.path.join(ROOT, "tools", "models")
 
 
@@ -88,7 +91,7 @@ def pack_models(name, title, subs):
         z.write(os.path.join(TOOLS, "apply_texture.py"), "apply_texture.py")
         # the viewer, rewritten to read the models from this folder
         with open(os.path.join(TOOLS, "viewer.html"), encoding="utf8") as f:
-            viewer = f.read().replace("|| '../../templates/models/';", "|| './';")
+            viewer = f.read().replace("|| '/Bellmourn2/templates/models/';", "|| './';")
             assert "|| './';" in viewer, "viewer ROOT line changed; update this rewrite"
             z.writestr("viewer.html", viewer)
         z.write(os.path.join(MODELS, "manifest.json"), "manifest.json")

@@ -19,7 +19,9 @@ import monsters  # noqa: E402
 UAL = os.environ.get("UAL2_GLB", r"F:/!  BELLMOURN/Universal Animation Library 2[Standard]/Unreal-Godot/UAL2_Standard.glb")
 WORK = os.environ.get("ZOMBIE_WORK", "F:/zombie_ual_build")
 BLENDER = os.environ.get("BLENDER", r"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe")
-DEST = os.path.join(ROOT, "templates", "models", "creatures", "zombie_ual")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+DEST = models("creatures", "zombie_ual")
 SHOTS = "tpose,idle_front,idle_34,back,face_rest,face_34,face,hand"
 
 

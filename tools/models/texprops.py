@@ -42,7 +42,9 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 LIB = os.path.join(ROOT, "art", "_texlib")
-OUT = os.path.join(ROOT, "templates", "models", "props")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+OUT = models("props")
 VIEW = os.path.join(ROOT, "art", "view", "texprops")
 PAD = 4  # px of repeated edge round every slot
 

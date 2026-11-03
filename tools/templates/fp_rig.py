@@ -84,6 +84,13 @@ def norm(v):
     return v / np.linalg.norm(v)
 
 
+def crosshair_ray():
+    """The ray from the eye whose points are drawn on the crosshair at the current view: the
+    camera's axis unshrunk; a shrunk view (anchored at the bottom middle) lifts it."""
+    cy = VIEW_ANCHOR[1] + (SCREEN_H / 2 - VIEW_ANCHOR[1]) / VIEW_SCALE
+    return norm(np.array([0.0, (SCREEN_H / 2 - cy) / FOCAL, 1.0]))
+
+
 def project(p):
     x, y, z = p
     p = np.array([SCREEN_W / 2 + FOCAL * x / z, SCREEN_H / 2 - FOCAL * y / z])
@@ -160,7 +167,7 @@ def pose_frame(f):
 def shoulder(side, key):
     """The key's shoulder: the rig's, or turned with the torso by `twist` degrees (positive
     turns the chest to the left, bringing the right shoulder forward) about the spine."""
-    s = SHOULDER[side] + np.array([0.0, key.get("shrug", 0.0), 0.0])
+    s = SHOULDER[side] + np.array([0.0, key.get("shrug", 0.0), key.get("lean", 0.0)])   # (lean: forward)
     tw = key.get("twist")
     if not tw:
         return s
@@ -239,6 +246,59 @@ def _pose_arm(side, key):
             d = norm(f * math.cos(r) + up * math.sin(r))
     if not held:
         a = norm(a - d * np.dot(a, d))
+    if key.get("fist_roll") and not held:
+        # the fist (and the sword in it) turned about the handle by this many degrees from its
+        # natural set: a wrist roll worked out over the whole swing (mocap2h), so it never flips
+        r = math.radians(key["fist_roll"])
+        a = norm(a * math.cos(r) + np.cross(d, a) * math.sin(r))
+        w = g - a * HAND
+        for t in (0.97, 0.94, 0.91, 0.88, 0.85, 0.82):   # (out of reach: toward the eye, as below)
+            if np.linalg.norm(w - s) <= UPPER + FORE - 1e-3:
+                break
+            g = np.asarray(key["G3"], float) * t
+            w = g - a * HAND
+        if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:
+            w = s + norm(w - s) * (UPPER + FORE - 1e-3)
+            g = w + a * HAND
+        e = solve_elbow(s, w, pole)
+    kn = key.get("knuckle")
+    if kn is not None and not held:
+        # the fist turns about the handle (a wrist roll: fist and blade turn together, the blade
+        # never spins in the grip) so its knuckles, and the blade's edges in line with them, face
+        # `knuckle`; by `knuckle_w`. The wrist goes round the handle and the elbow follows.
+        # Either edge will do (the blade has two), so the fist turns the shorter way.
+        kv = np.asarray(kn, float)
+        kv = kv - d * np.dot(kv, d)
+        if np.linalg.norm(kv) > 1e-6:
+            if np.dot(kv, a) < 0:
+                kv = -kv
+            wk = float(key.get("knuckle_w", 1.0))
+            a = norm(a * (1 - wk) + norm(kv) * wk)
+            a = norm(a - d * np.dot(a, d))
+            w = g - a * HAND
+            # out of reach once rolled: the grip slides straight toward the eye (the camera is
+            # the origin), so every point of the sword stays where it was on screen
+            for t in (0.97, 0.94, 0.91, 0.88, 0.85, 0.82):
+                if np.linalg.norm(w - s) <= UPPER + FORE - 1e-3:
+                    break
+                g = np.asarray(key["G3"], float) * t
+                w = g - a * HAND
+            if np.linalg.norm(w - s) > UPPER + FORE - 1e-3:
+                w = s + norm(w - s) * (UPPER + FORE - 1e-3)
+                g = w + a * HAND
+            e = solve_elbow(s, w, pole)
+    if key.get("tip_axis") and not held and key.get("weapon") in PROXY:
+        # the hit of a slash: wherever the fists ended up, the blade's tip is put on the
+        # crosshair's line (the camera's axis), the fist square to it as ever
+        L = PROXY[key["weapon"]]["tip"]
+        ax = crosshair_ray()
+        for _ in range(2):
+            ag = float(np.dot(ax, g))
+            t = ag + math.sqrt(max(ag * ag - float(np.dot(g, g)) + L * L, 0.01))
+            d = norm(ax * t - g)
+            a = norm(a - d * np.dot(a, d))
+            w = g - a * HAND
+        e = solve_elbow(s, w, pole)
     h = d  # the axis the fist closes around
     if held:
         h = np.cross(norm(np.cross(w - s, pole)), a)
@@ -252,7 +312,8 @@ def _pose_arm(side, key):
     k = norm(np.cross(a, h)) * (-1 if side == "R" else 1)  # back of the hand
     return dict(side=side, S=s, E=e, W=w, G=g, D=d, A=a, K=k, H=h, pole=pole,
                 reach_miss=float(np.linalg.norm(g - want_g)),
-                weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"),
+                weapon=key.get("weapon"), shield=key.get("shield"), flat=key.get("flat"), noslide=key.get("noslide"),
+                edge=key.get("edge"), edge_w=key.get("edge_w", 1.0),
                 face=norm(key["face"]) if "face" in key else None)
 
 

@@ -6,11 +6,12 @@
 // Drag a gem onto anything with an empty socket to set it there (or pick it from the gem's card);
 // double-click a plan to learn it. The spellbook is the second tab; the third is the materials
 // pouch and the plans you know (craft.js).
-import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats } from './gear.js';
+import { SLOTS, SLOT_NAMES, RARITY, ENCHANTS, statLabel, itemColor, fitsSlot, slotFor, itemValue, computeStats, isTwoHanded } from './gear.js';
 import { GEMS, GRADES, gemName, gemBonus, gemPlace, freeSocket } from './gems.js';
 import { MATS, MAT_TIER, MAT_TIER_COLOR, RECIPES, PLAN_TIER, PLAN_COLOR, known, knows, check, learn, fitCraft } from './craft.js';
 import { ATTRS, xpToNext, fitLevel, MAX_LEVEL } from './level.js';
 import { SPELL_KEYS } from './hud.js';
+import { CHARMS, CHARM_SLOTS, CHARM_COLOR, fitCharms, abilitiesOf, charmIcon, charmTip } from './charms.js';
 
 const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4],
   ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
@@ -173,7 +174,7 @@ export class Bag {
     close.onclick = () => opts.onClose?.();
     const tabs = el('div', 'tabs');
     this.tabBtn = {};
-    for (const [k, label] of [['gear', 'Inventory &amp; Character'], ['spells', 'Spellbook'], ['mats', 'Materials &amp; Plans']]) {
+    for (const [k, label] of [['gear', 'Inventory &amp; Character'], ['spells', 'Spellbook'], ['mats', 'Materials &amp; Plans'], ['charms', 'Charms']]) {
       const b = el('button', '', label);
       b.onclick = () => { this.tab = k; this.render(); };
       this.tabBtn[k] = b;
@@ -242,10 +243,8 @@ export class Bag {
     const old = c.equip[to];
     c.equip[to] = it;
     c.bag[idx] = old || null;
-    // a two-hander takes both hands: the off-hand goes back in the bag (and a shield taken up
-    // puts a two-hander away)
-    if (to === 'weapon' && it.kind === 'twohand' && c.equip.offhand) this.stow('offhand');
-    if (to === 'offhand' && c.equip.weapon?.kind === 'twohand') this.stow('weapon');
+    // (a two-hander takes both hands, but a shield can still be carried with it: it gives nothing
+    // then, and is only ridden (Shield Boarding: board.js); gear.js computeStats leaves it out)
     this.sel = { where: 'equip', slot: to };
     this.changed();
     return true;
@@ -392,6 +391,7 @@ export class Bag {
     this.body.innerHTML = '';
     if (this.tab === 'spells') { this.renderSpells(); return; }
     if (this.tab === 'mats') { this.renderMats(); return; }
+    if (this.tab === 'charms') { this.renderCharms(); return; }
     const c = this.o.char();
     const wrap = el('div', 'inv-wrap');
     // the doll and the card
@@ -409,6 +409,7 @@ export class Bag {
       if (it) d.append(this.cellFor(it)); else d.append(el('span', 'lbl', SLOT_NAMES[s]));
       // a two-hander's shadow in the off-hand
       if (s === 'offhand' && !it && c.equip.weapon?.kind === 'twohand') { d.classList.add('ghosted'); d.append(this.cellFor(c.equip.weapon)); }
+      if (s === 'offhand' && it && isTwoHanded(c.equip.weapon)) d.classList.add('boardonly');   // (carried only to ride)
       this.wire(d, it ? { where: 'equip', slot: s } : null, () => this.unequip(s));
       doll.append(d);
     }
@@ -522,6 +523,8 @@ export class Bag {
     h += '<h3>Numbers</h3><div class="stats-grid">';
     for (const [k2, v] of rows) h += `<span class="dim">${k2}</span><span class="v">${v}</span>`;
     h += '</div>';
+    const ab = abilitiesOf(this.o.char());
+    h += `<h3>Abilities</h3>${ab.length ? ab.map((a) => `<div class="ab-line"><b>${a.name}</b> <span class="dim">— ${esc(a.desc)} <em>(${esc(a.from)})</em></span></div>`).join('') : '<div class="dim small">None yet. Charms grant them: see the Charms tab.</div>'}`;
     const en = Object.entries(st.enchants).filter(([, v]) => v);
     if (en.length) h += '<h3>Shield</h3>' + en.map(([e, v]) => `<div class="tt-ench">${ENCHANTS[e].name}: ${esc(ENCHANTS[e].desc(v))}</div>`).join('');
     box.innerHTML = h;
@@ -538,6 +541,35 @@ export class Bag {
       this.changed();
     };
     return box;
+  }
+
+  /** The fourth tab: the charm pouch (twenty places; every charm carried works) and what they let you do. */
+  renderCharms() {
+    const c = fitCharms(this.o.char());
+    const wrap = el('div', 'charm-wrap');
+    const left = el('div', 'col');
+    left.append(el('h3', null, `Charm Pouch <em>— ${c.charms.filter(Boolean).length} of ${CHARM_SLOTS}. Every charm carried works</em>`));
+    const grid = el('div', 'charmgrid');
+    c.charms.forEach((it, i) => {
+      const d = el('div', 'cslot' + (it ? ' full' : ''));
+      if (it) {
+        d.innerHTML = `<img src="${charmIcon(it.charm)}" alt="${esc(it.name)}">`;
+        const tip = (e) => { this.tip.innerHTML = charmTip(it); this.tip.classList.remove('hidden'); this.tipMove(e); };
+        d.onpointerenter = (e) => { if (e.pointerType === 'mouse') tip(e); };
+        d.onpointermove = (e) => { if (e.pointerType === 'mouse') this.tipMove(e); };
+        d.onpointerleave = () => this.tip.classList.add('hidden');
+        d.onclick = tip;
+      } else d.title = `Place ${i + 1}: empty`;
+      grid.append(d);
+    });
+    left.append(grid, el('div', 'dim small', 'Charms are found and earned about the world, never sold. Each grants an ability while you carry it.'));
+    const right = el('div', 'col');
+    right.append(el('h3', null, 'Abilities'));
+    const ab = abilitiesOf(c);
+    if (!ab.length) right.append(el('div', 'dim', 'None yet. Somewhere a charm is waiting: in the bell tower on the downs, they say, an old man keeps one.'));
+    for (const a of ab) right.append(el('div', 'ab-card', `<b style="color:${CHARM_COLOR}">${a.name}</b><div>${esc(a.desc)}</div><div class="dim small">From ${esc(a.from)}</div>`));
+    wrap.append(left, right);
+    this.body.append(wrap);
   }
 
   /** The third tab: the materials pouch, the plans known, and the great ones' reagents. */
@@ -599,6 +631,7 @@ export function tooltip(it, opts = {}) {
   const { compare = null, hint = '' } = opts;
   const col = itemColor(it);
   let h = `<div class="tt-name" style="color:${col}">${esc(it.name)}</div>`;
+  if (it.type === 'charm') return CHARMS[it.charm] ? charmTip(it) : h;
   if (it.type === 'potion') {
     h += `<div class="dim">${it.kind === 'life' ? 'Heals 45 life over a moment' : 'Restores 50 mana'}. ${it.count > 1 ? `(${it.count} in the bag)` : ''}</div>`;
   } else if (it.type === 'gear') {
@@ -627,6 +660,10 @@ export function tooltip(it, opts = {}) {
       if (look) h += `<div class="tt-look">${esc(worn ? GEMS[look.gem].lookWorn : it.slot === 'hands' ? GEMS[look.gem].lookHands : GEMS[look.gem].look)}</div>`;
     }
     if (it.forged) h += `<div class="tt-forged">Forged at Hammerfall from the plans for ${esc(it.forged)}</div>`;
+    if (/shield/.test(it.kind || '')) {   // (Shield Boarding: board.js)
+      const ridden = opts.char && opts.char.equip.offhand === it && isTwoHanded(opts.char.equip.weapon);
+      h += `<div class="tt-ride">${ridden ? 'Carried with a two-hander: it gives nothing, and is only ridden' : 'Jump and hold Space to ride it'}</div>`;
+    }
     if (it.lore) h += `<div class="tt-sep"></div><div class="tt-lore">${esc(it.lore)}</div>`;
     h += `<div class="tt-price">${it.unique ? '<span class="tt-uniq">Unique</span> · ' : ''}Worth ${itemValue(it)} gold</div>`;
   } else if (it.type === 'gem') {

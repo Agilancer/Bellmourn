@@ -15,7 +15,9 @@ import export  # noqa: E402
 import items as I  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
-OUT = os.path.join(ROOT, "templates", "models", "items")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+OUT = models("items")
 KIND_TEXT = dict(onehand="one-handed weapon", twohand="two-handed weapon", wand="magic wand",
                  staff="magic staff", shield_round="round shield", shield_kite="kite shield")
 SET_NAME = dict(onehand="one-handed", twohand="two-handed", wand="wands", staff="staffs",

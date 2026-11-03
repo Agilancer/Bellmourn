@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { WEBGPU, T } from './nodes.js';
 import { pointQuads, pointQuad } from './effects.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
 export const CRATER = { x: -74, z: -58, R: 13, depth: 3.4, rim: 1.15, reach: 25, k: 1 };   // k: how far it's formed (0 before he lands)
 
@@ -241,7 +242,7 @@ export class Crater {
   /** The knight's armour, scorched and thrown about the crater. From the Fiend's Panoply (the
    * Sworn's set), each piece cut out of the set by the bones that carry it, baked as it was worn. */
   async armour() {
-    const g = await new GLTFLoader().loadAsync('templates/models/armor/fiend/fiend_m.glb');
+    const g = await new GLTFLoader().loadAsync(asset('templates/models/armor/fiend/fiend_m.glb'));
     g.scene.updateMatrixWorld(true);
     const parts = new Map();   // piece -> [{geo, mat}]
     g.scene.traverse((o) => {

@@ -28,7 +28,9 @@ import moves  # noqa: E402
 from gltf import GLB  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
-MODELS = os.path.join(ROOT, "templates", "models")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+MODELS = models()
 TIC = export.TIC
 
 
@@ -114,7 +116,7 @@ def catalog():
         hit = next((i for i, f in enumerate(frames) if f.get("hit")), None)
         if hit is not None and clip["kind"] == "attack":
             # which way the blade's tip travels across the screen at the hit (x right, y up)
-            R.set_view(R.REST_SCALE)
+            R.set_view(frames[hit].get("view", R.REST_SCALE))
             a, b = (drawn_tip(frames[j]) for j in (max(0, hit - 1), min(len(frames) - 1, hit + 1)))
             d = np.array([b[0] - a[0], a[1] - b[1]])
             d /= np.linalg.norm(d) or 1
@@ -127,16 +129,17 @@ def catalog():
             src, fr = key["ref"].split("@")
             ev["src"] = [src, round(int(fr) / 30, 3)]
         clips[cid] = dict(kind=clip["kind"], heavy=bool(clip.get("heavy")), roll=bool(clip.get("roll")),
-                          stab=bool(clip.get("stab")),
+                          stab=bool(clip.get("stab")), noslide=bool(clip.get("noslide")),
                           power=clip.get("power", 1.0),
                           starts=starts,
                           events=ev, names=[f["name"] for f in frames],
                           sides="".join(sorted({s for k in clip["frames"] for s in k})),
                           ref=sorted({r.split("@")[0] for r in refs}))
-    return dict(stretch=moves.STRETCH, clips=clips, slots=moves.SLOTS)
+    # (views: a weapon kind drawn at its own scale; two-handers unshrunk, see mocap2h.py)
+    return dict(stretch=moves.STRETCH, views=dict(twohand=moves.mocap2h.VIEW, twohand_zoom=moves.mocap2h.ZOOM), clips=clips, slots=moves.SLOTS)
 
 
-MARGIN = 0.07 * R.SCREEN_H   # clearance kept under the top of the screen (bob, recoil)
+# (no top-of-screen margin any more: the user retired that rule with the 3D models)
 
 
 def halfway(f0, f1):
@@ -144,7 +147,8 @@ def halfway(f0, f1):
     out = dict(f1)
     for side in ("R", "L"):
         a, b = f0.get(side), f1.get(side)
-        if not a or not b or "fing" in a or "fing" in b or "support" in a or "support" in b:
+        if (not a or not b or "fing" in a or "fing" in b or "support" in a or "support" in b
+                or "G3" in a or "G3" in b):   # (3D-keyed frames are dense: no halfway needed)
             continue
         m = moves.lerp_key(dict(a), dict(b), 0.5)
         if a.get("twist") or b.get("twist"):
@@ -245,7 +249,7 @@ def attack_checks(cid, keys, stab=False):
     diagonal 35-55 degrees off it)."""
     out = []
     hit = next(i for i, f in enumerate(keys) if f.get("hit"))
-    R.set_view(R.REST_SCALE)
+    R.set_view(keys[hit].get("view", R.REST_SCALE))   # (each blow measured as it is drawn)
     arms = R.pose_frame(keys[hit])
     arm = next(x for x in arms if x["side"] == "R")
     sl = moves.slide(arms).get("R", 0.0)
@@ -290,8 +294,8 @@ def attack_checks(cid, keys, stab=False):
 
 
 def check():
-    """Every frame and every halfway between frames: a margin under the top of the screen,
-    nothing that smears from behind the camera, and how far a fist falls short of where it was
+    """Every frame and every halfway between frames: how high it reaches on screen (reported
+    only), nothing that smears from behind the camera, and how far a fist falls short of where it was
     keyed (out of reach)."""
     bad = 0
     for cid, clip in moves.MOVES.items():
@@ -304,7 +308,7 @@ def check():
             sl = moves.slide(arms)
             pts = [R.project(q) + (sl.get(arm["side"], 0.0), 0.0) for arm in arms
                    for q in fit_check.points(arm) if q[2] > R.NEAR]
-            worst_top = min(worst_top, min(p[1] for p in pts))
+            worst_top = min([worst_top] + [p[1] for p in pts])   # (a windup can be all behind the eye)
             worst_miss = max([worst_miss] + [a["reach_miss"] for a in arms])
         for f0, f1 in zip(keys, keys[1:]):   # (and the blade as the game blends between keys)
             for q in blended_tips(f0, f1):
@@ -313,8 +317,6 @@ def check():
         flag = []
         if clip["kind"] == "attack":
             flag += attack_checks(cid, keys, clip.get("stab"))
-        if worst_top < MARGIN:
-            flag.append(f"TOO NEAR THE TOP {worst_top:.0f}px (keep {MARGIN:.0f})")
         if worst_miss > 0.015:
             flag.append(f"short {worst_miss * 100:.1f} cm")
         if behind:

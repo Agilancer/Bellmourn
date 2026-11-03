@@ -15,8 +15,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { crisp, WEBGPU } from './engine.js';
 import { drawNormalMap, T, sharpGrad, shared, keyed, ref, sourceOf, settled } from './nodes.js';
+import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-const ROOT = 'templates/models/kit/';
+const ROOT = asset('templates/models/kit/');
 const PACKS = ['props', 'village', 'nature', 'trees', 'ultimate', 'dungeon', 'bellmourn'];
 const CELL = 96;
 // the growing things and stones are batched: every species drawn with one atlas shares one

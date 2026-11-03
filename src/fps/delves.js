@@ -82,7 +82,7 @@ function stairHouse(ctx, d) {
 /** A cave's mouth framed in the cliff's own rock: great stones either side of the cut, a capstone
  * over it (clear of a man's head), moss on top, and rubble fallen before it; the Trollhole's with
  * gnawed bones, the Drowned Grotto's wet and mossy. */
-function frameMouth(ctx, c) {
+export function frameMouth(ctx, c) {
   const { b, lib, bill } = ctx;
   const M = (id, t) => lib.material(lib.surf.has(id) ? id : 'castle_basalt', { tile: t });
   // (framed in the cliff's own rock, wrapped by world position like the downs' boulders)

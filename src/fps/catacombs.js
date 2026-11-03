@@ -529,7 +529,7 @@ export function buildCatacombs(ctx) {
       physics.add([x - 0.62, Y5, z - 0.62], [x + 0.62, Y5 + 1.58, z + 0.62], 'prop');
     } }
   // (on the ring, the stumps of columns, each by a brazier's light: cover from what he throws)
-  for (const deg of [18, 162, 198, 342, 252, 288]) { const a = deg * DEG; props.add('pillar_broken', 46 + Math.cos(a) * 8.05, Y5, -396 + Math.sin(a) * 8.05, deg * 0.1, 0.95); }
+  for (const deg of [18, 162, 198, 342, 252, 288]) { const a = deg * DEG, x = 46 + Math.cos(a) * 8.05, z = -396 + Math.sin(a) * 8.05; props.add('pillar_broken', x, daisAt(x, z) ?? Y5, z, deg * 0.1, 0.95); }   // (the two by the apse stand on the dais)
   const BOSS = [46, Y5 + 0.75, -404.4];
   // the ringers' rope: it hangs in the apse once the abbot is dead, up into the dark (a way home)
   const ROPE = { x: 46, y: Y5 + 0.75, z: -402.6 };
@@ -555,7 +555,7 @@ export function buildCatacombs(ctx) {
       b.cylinder([lx, ly, lz], [lx, ly + hh, lz], 0.032, 6, ctx.scatter.P.wax, { shade: 0.95 });
       flames.push([lx, ly + hh + 0.06, lz, 0.075, 1]);
     } }
-  column(43.3, Y5, -403.4, 6); column(48.7, Y5, -403.4, 6);
+  for (const x of [43.3, 48.7]) { const y = daisAt(x, -403.4) ?? Y5; column(x, y, -403.4, 6 - (y - Y5)); }   // (on the dais's first step, their tops where they were)
   props.add('treasure_chest', 48.0, Y5 + 0.75, -405.2, 0);
   flames.push([46, Y5 + 2.2, -403.2, 0.7, 1]);
 
@@ -683,8 +683,16 @@ export function buildCatacombs(ctx) {
     for (let i = out.soon.length - 1; i >= 0; i--) if ((out.soon[i][0] -= dt) <= 0) { const fn = out.soon[i][1]; out.soon.splice(i, 1); fn(); }
     const bodies = out.bodies ||= [];
     bodies.length = 0;
-    for (const z of zombies.list) if (!z.dead && Math.abs(z.pos.x - BX) < 4 && z.pos.z < bridgeA[2] + 1 && z.pos.z > bridgeB[2] - 1) bodies.push(z);
-    const near = (Math.hypot(player.pos.x - BX, player.pos.z - (bridgeA[2] + bridgeB[2]) / 2) < 42 && player.pos.y < -5) || bodies.length > 0;
+    // (on it: over the deck and down at its depth, not up on the ground above it)
+    let stirring = false;
+    for (const z of zombies.list) {
+      if (z.dead || z.gone || Math.abs(z.pos.x - BX) >= 4 || z.pos.z >= bridgeA[2] + 1 || z.pos.z <= bridgeB[2] - 1 || Math.abs(z.pos.y - BY) > 4) continue;
+      bodies.push(z);
+      if (z.aggro || z.goal !== 'wander') stirring = true;
+    }
+    // it sleeps unless you're near or something on it is on the move (the ambush lying still at its
+    // far end has long since settled the deck under it)
+    const near = (Math.hypot(player.pos.x - BX, player.pos.z - (bridgeA[2] + bridgeB[2]) / 2) < 42 && player.pos.y < -5) || stirring;
     if (near || bridge.sleeping !== true) bridge.update(dt, player, bodies);
     bridge.sleeping = !near;
     if (active && out.ambush.length) {
@@ -910,6 +918,23 @@ export function buildCatacombs(ctx) {
     }
     b.raw(fl, P, U, 0.9);
     b.lathe(46, -396, [[7.5, 0], [7.5, -0.4], [6.5, -0.4], [6.5, -0.8], [5.5, -0.8], [5.5, -1.2], [0, -1.2]], 48, stp, { y: Y5 });
+    // the dais under his tomb, its three steps where daisAt has them (it was walked on but never
+    // built: his tomb, the chest and the candles stood on nothing)
+    b.lathe(46, -404.6, [[3.4, 0], [3.4, 0.25], [2.8, 0.25], [2.8, 0.5], [2.2, 0.5], [2.2, 0.75], [0, 0.75]], 40, stp, { y: Y5 });
+    // and where its front stands over the sunken floor, its face down to that floor, ring by ring (a
+    // narrow strip of it at a time, each down to the lower floor of its two ends)
+    { const pit = (x, z) => { const d = Math.hypot(x - 46, z + 396); return d < 5.5 ? Y5 - 1.2 : d < 6.5 ? Y5 - 0.8 : d < 7.5 ? Y5 - 0.4 : Y5; };
+      const R = 3.4, N = 160, P = [], U = [];
+      for (let k = 0; k < N; k++) {
+        const t0 = (k / N) * Math.PI * 2, t1 = ((k + 1) / N) * Math.PI * 2;
+        const x0 = 46 - R * Math.sin(t0), z0 = -404.6 - R * Math.cos(t0), x1 = 46 - R * Math.sin(t1), z1 = -404.6 - R * Math.cos(t1);
+        const y0 = Math.min(pit(x0, z0), pit(x1, z1));
+        if (y0 >= Y5) continue;
+        const u0 = k * 2 * Math.PI * R / N, u1 = u0 + 2 * Math.PI * R / N;
+        P.push(x0, y0, z0, x1, y0, z1, x1, Y5, z1, x0, y0, z0, x1, Y5, z1, x0, Y5, z0);
+        U.push(u0, 0, u1, 0, u1, Y5 - y0, u0, 0, u1, Y5 - y0, u0, Y5 - y0);
+      }
+      if (P.length) b.raw(stp, P, U, 0.9); }
     void m;
   }
 

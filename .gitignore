@@ -6,3 +6,6 @@ __pycache__/
 # re-skin pack: import review sheets and template previews (regenerated)
 templates/reskin/imports/
 templates/reskin/_preview/
+
+# the models live in Agilancer/Bellmourn2 (docs/ASSETS.md): nothing goes here
+templates/models/

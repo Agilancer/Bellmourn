@@ -43,7 +43,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 ROOT = os.path.dirname(os.path.dirname(HERE))
 PACKDATA = os.path.join(ROOT, "templates", "reskin", "pack")
-ITEMS = os.path.join(ROOT, "templates", "models", "items")
+sys.path.append(os.path.join(ROOT, "tools"))
+from assetstore import models  # noqa: E402  (templates/models lives in Bellmourn2: docs/ASSETS.md)
+ITEMS = models("items")
 IMPORTS = os.path.join(ROOT, "templates", "reskin", "imports")
 
 import reskin_tool as T  # noqa: E402

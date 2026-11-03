@@ -150,7 +150,13 @@ class DynamicShadow extends THREE.ShadowNode {
   constructor(light, shadow, isStatic) { super(light, shadow); this.isStatic = isStatic; }
   getShadowRenderObjectFunction(renderer, shadow) {
     const base = super.getShadowRenderObjectFunction(renderer, shadow), isStatic = this.isStatic;
-    return (o, ...a) => { if (!isStatic(o)) base(o, ...a); };
+    if (this._base !== base) {   // (made once: no closure and no rest array per draw)
+      this._base = base;
+      this._moving = (object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId) => {
+        if (!isStatic(object)) base(object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId);
+      };
+    }
+    return this._moving;
   }
 }
 
@@ -173,6 +179,7 @@ export function installSunShadows(sun, { isStatic, staticSize = 4096, staticBox 
   proxy.shadow.mapSize.set(dynSize, dynSize);
   const pc = proxy.shadow.camera;
   pc.left = pc.bottom = -dynBox / 2; pc.right = pc.top = dynBox / 2; pc.near = S.camera.near; pc.far = S.camera.far;
+  pc.layers.mask = S.camera.layers.mask;   // (it sees what the sun's camera sees: the bodies' shadow stand-ins too)
   proxy.shadow.bias = S.bias; proxy.shadow.normalBias = S.normalBias; proxy.shadow.radius = 2.6;
   proxy.shadow.filterNode = softPCF;
   pc.updateProjectionMatrix();

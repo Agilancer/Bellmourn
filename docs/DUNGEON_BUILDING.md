@@ -131,6 +131,8 @@ If a question has no answer, the space doesn't get built.
 - Nothing stands in a doorway, a passage mouth, a stair or the critical path; rooms don't get
   crowded. Keep a 3 m clear lane down every passage and a 3 m apron inside every opening.
 - After any layout change, load the game and run `(await import('/tools/pathcheck.js')).check()`.
+  It should come back empty. It doesn't count a doorway's own jambs (what stands in the door's
+  line beside its leaves) or anything past a road's end (a road may run up to a stair).
 
 ## 12. Fit the scene
 

@@ -258,12 +258,15 @@ function shellKind() {
     const f = clamp(abs(dot(normalView, positionViewDirection)).oneMinus(), 0.0, 1.0).toVar();
     return f.mul(f).mul(f.mul(0.4).add(0.6));
   })();
+  // (made once and given to every shell: a node is its own cache key, so nodes made for each slime
+  // were a shader of their own for each)
+  const opacity = clamp(materialOpacity.add(fr.mul(fres)), 0.0, 0.97), emissive = materialEmissive.add(rim.mul(fr));
   class SlimeShellMaterial extends THREE.MeshStandardNodeMaterial {
     static get type() { return 'SlimeShellMaterial'; }
     constructor(parameters) {
       super(parameters);
-      this.opacityNode = clamp(materialOpacity.add(fr.mul(fres)), 0.0, 0.97);
-      this.emissiveNode = materialEmissive.add(rim.mul(fr));
+      this.opacityNode = opacity;
+      this.emissiveNode = emissive;
     }
     setupPosition(builder) {
       const out = super.setupPosition(builder);
@@ -658,6 +661,8 @@ class Slime {
     const m = owner.materials(sp);
     this.u = m.u; this.frontMat = m.front; this.backMat = m.back;
     this.root = new THREE.Object3D();
+    // (a body that moves: kept out of the torches' kept shadow maps, in their live ones: engine.js)
+    this.root.userData.body = true; this.root.userData.mover = true;
     this.body = new THREE.Object3D();
     this.body.scale.set(this.R, this.H, this.R * this.long);
     this.root.add(this.body);
@@ -721,7 +726,8 @@ class Slime {
   }
 
   // -------------------------------------------------------------- blows
-  hit(h, { dmg = 0, dir = null, heavy = false, kind = 'blade' } = {}) {
+  hit(h, o = {}) { const before = this.hp; this.takeBlow(h, o); this.owner.feed?.struck(this, before, h, o); }   // (combatfx.js: numbers and the log)
+  takeBlow(h, { dmg = 0, dir = null, heavy = false, kind = 'blade' } = {}) {
     if (this.dead || this.invuln > 0) return;
     const o = this.owner, g = o.goo;
     const p = h.point || this.center(new THREE.Vector3());
@@ -761,10 +767,12 @@ class Slime {
   }
 
   /** Damage with nothing to show for it (fire, poison, a drained life). */
-  harm(dmg) {
+  harm(dmg, kind = 'harm') {
     if (this.dead || this.invuln > 0) return;
+    const before = this.hp;
     this.hp -= dmg * (this.frozen > 0 ? 1.5 : 1);
     if (this.owner.oneHit && dmg > 0) this.hp = Math.min(this.hp, 0);
+    this.owner.feed?.harmed(this, before, kind);
     this.aggro = true; this.lastT = this.owner.time;
     if (this.owner.player) { this.last.copy(this.owner.player.pos); this.hasLast = true; }
     if (this.hp <= 0) this.die(null, 'harm');
@@ -1314,12 +1322,12 @@ class Slime {
   afflict(dt) {
     const res = this.sp.resist || {};
     if (this.chillT > 0) { this.chillT -= dt; this.chilled = Math.max(this.chilled || 0, 0.1); }   // (the shield's frost)
-    if (this.burnT > 0) { this.burnT -= dt; this.harm((this.burnDps || 4) * dt * (res.fire ?? 1)); }
+    if (this.burnT > 0) { this.burnT -= dt; this.harm((this.burnDps || 4) * dt * (res.fire ?? 1), 'burn'); }
     if (this.burning > 0) {
-      this.burning -= dt; this.harm((this.burnDps || 6) * dt * (res.fire ?? 1));
+      this.burning -= dt; this.harm((this.burnDps || 6) * dt * (res.fire ?? 1), 'burn');
       if (Math.random() < dt * 8) this.owner.fx?.smoke?.emit(this.center(new THREE.Vector3()), _b.set((Math.random() - 0.5) * 0.3, 0.9, (Math.random() - 0.5) * 0.3), { life: 1.4, size: 0.3 + this.R * 0.3, grow: 0.8, alpha: 0.22, shade: 0.95 });
     }
-    if (this.poisoned > 0) { this.poisoned -= dt; this.harm((this.poisonDps || 5) * dt * (res.poison ?? 1)); }
+    if (this.poisoned > 0) { this.poisoned -= dt; this.harm((this.poisonDps || 5) * dt * (res.poison ?? 1), 'poison'); }
     if (this.frozen > 0) this.frozen -= dt;
     if (this.chilled > 0) this.chilled -= dt;
     return this.frozen > 0 ? 0 : this.chilled > 0 ? 0.45 : 1;
@@ -1480,6 +1488,14 @@ export class Slimes {
         ['drowned', [['crimson', 'XL', 1], ['azure', 'S', 2, 'roof']]],          // the drowned shrine: room to circle the big one
         ['gallery', [['azure', 'XS', 2]]],
       ]],
+      [cave('The Glimmerdeep'), [
+        ['lake', [['azure', 'M', 2], ['violet', 'S', 3, 'roof']]],               // round the black lake, and on its roof
+        ['grove', [['violet', 'XS', 3, 'roof']]],                                  // among the crystals they shine like
+      ]],
+      [cave("The Wether's Throat"), [
+        ['ossuary', [['ossuary', 'L', 1]]],
+        ['way', [['mire', 'S', 2]]],                                               // in the damp on the way to the Well
+      ]],
       [cave('The Trollhole'), [
         ['grove', [['toxic', 'XS', 4], ['toxic', 'S', 3], ['amber', 'M', 1]]],   // a swarm in the fungus they glow like
         ['seep', [['amber', 'L', 1], ['amber', 'M', 1]]],
@@ -1508,6 +1524,7 @@ export class Slimes {
       { x: 84, z: -165, r: 13, mix: [['mire', 'M', 3], ['mire', 'L', 1], ['bog', 'L', 1], ['toxic', 'XS', 3], ['violet', 'S', 2]] },   // the Darkwood's bog, among the trunks
       { x: 400, z: -128, r: 18, mix: [['mire', 'S', 3], ['mire', 'M', 2], ['bog', 'M', 2], ['crimson', 'XL', 1]] },                    // the wet meadow down the stream
       { x: 718, z: -60, r: 7, mix: [['azure', 'S', 3], ['azure', 'M', 2]] },                                                           // under the cliff by the falls
+      ...(ctx.mountain?.slimeSpots || []),                                                                                             // round the Still Water (mountain.js)
     ];
     for (const pl of places) for (const [key, size, count] of pl.mix) {
       for (let i = 0, m = BIG[size] ? count : few(count); i < m; i++) {

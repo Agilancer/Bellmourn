@@ -56,13 +56,13 @@ const SETTINGS = `
     <label><span>Graphics</span><select id="optGfx"><option value="high">High (shadows)</option><option value="low">Low</option></select></label>
     <label><span>Renderer</span><select id="optGpu"><option value="auto">Auto (WebGPU where it can)</option><option value="webgpu">WebGPU</option><option value="webgl">WebGL</option></select></label>
     <label><span>Texels</span><select id="optTex"><option value="crisp" selected>Crisp</option><option value="smooth">Smooth</option></select></label>
-    <label><span>Voices</span><select id="optVoice"><option value="neural">Natural (Kokoro, a 90 MB download)</option><option value="basic">Basic (the browser's own)</option><option value="off">Off</option></select></label>
+    <label><span>Voices</span><select id="optVoice"><option value="on">On</option><option value="off">Off</option></select></label>
     <label><span>Time of day</span><select id="optTime"><option value="cycle">Day &amp; night</option><option value="golden">Golden hour</option><option value="noon">Noon</option><option value="night">Night</option></select></label>
   </div>
   <p class="t-note">Graphics, renderer and texels restart the game to take hold.</p>
   <div class="t-dbtns"><button class="t-btn" data-close><span>Done</span></button></div>`;
 
-const KEYS = [['W A S D', 'move'], ['Mouse', 'look'], ['Shift', 'run'], ['Space', 'jump'],
+const KEYS = [['W A S D', 'move'], ['Mouse', 'look'], ['Shift', 'run'], ['Space', 'jump'], ['Space (held)', 'jump and hold it: ride your shield'],
   ['Left click', 'right hand: swing, shoot'], ['Right click', 'left hand: block, swing, shoot'],
   ['F R X C V', 'cast the spells set to those keys'], ['Q &nbsp; Z', 'drink healing, mana'],
   ['E', 'open doors, search chests, speak'], ['1 – 5', 'quick-equip arms'],
@@ -225,16 +225,15 @@ export class Title {
       r.value = String(now);
       r.oninput = () => { this.sfx[set](Number(r.value)); try { localStorage.setItem(key, r.value); } catch { /* no storage */ } };
     }
-    // the voices: natural (neural, a computer's default), the browser's own (a phone's), or none
+    // the voices (recorded: voice.js), on or off
     const vo = this.settings.querySelector('#optVoice'), get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-    vo.value = get('bm.voices') === '0' ? 'off' : get('bm.neural') === '0' ? 'basic' : 'neural';
+    vo.value = get('bm.voices') === '0' ? 'off' : 'on';
     vo.onchange = () => {
       try {
         localStorage.setItem('bm.voices', vo.value === 'off' ? '0' : '1');
-        localStorage.setItem('bm.neural', vo.value === 'neural' ? '1' : '0');
       } catch { /* no storage */ }
       const v = window.bellmourn?.voice;
-      if (v) { v.set(vo.value !== 'off'); if (vo.value === 'neural') v.warm(); }
+      if (v) v.set(vo.value !== 'off');
     };
   }
 

@@ -23,12 +23,15 @@
 // put in the hands; a severed arm or a death drops them. A death may leave loot (ctx.loot).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Zombie, goreMaterial, goreShell, wrap, longLow } from './zombies.js';
+import { Zombie, goreMaterial, goreShell, wrap, longLow, adaptBeast, lazyActions } from './zombies.js';
+import { letGo } from './engine.js';
 import { WEBGPU } from './nodes.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { swornBody, shieldLift } from './sworn.js';
 import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
+import { asset } from './store.js';
+import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -39,6 +42,10 @@ const ITEM_ROOT = 'templates/models/';
 const FPS = 30;
 
 // the variants (look: what their spells and glows are made of)
+// (the brain's timers run down each frame; and the states a body lies in, its own brain idle)
+const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool'];
+const LAID = new Set(['collapse', 'buried', 'rise', 'playdead', 'getup']);
+
 export const FOES = {
   knight_a: { kind: 'knight', title: 'Dread Knight', R: ['arming_sword', 'flanged_mace', 'morning_star'], L: ['thorned_kite', 'knights_kite'], finish: 'bloodforged' },
   knight_b: { kind: 'knight', title: 'Ashen Templar', R: ['falchion', 'war_hammer', 'arming_sword'], L: ['templar_kite', 'banded_kite'], finish: 'bright' },
@@ -57,6 +64,15 @@ export const FOES = {
   // finish and a kite shield on the arm (the round ones are dished too deep to ride a vambrace).
   // Their adepts go bareheaded with burning eyes, a blade in one hand and a staff in the other, and
   // cast. Their lord is the same body half as big again, burning red.
+  // the goat men of the Sorrowhorn (mountain.js): beasts on the animation library's skeleton
+  // (beast_ual), a club or an axe in the fist and a spiked buckler on the arm. They fight as the
+  // grubbers do, but fast and hard: a cut, a ram with the horns (the end of a charge, and you're
+  // thrown back), both fists hammered down, and a leap on you from a few strides off. The ram's
+  // bigger than the rest of his band. (`ownArm`: the shield rides the arm as their own clips swing it)
+  goat_a: { kind: 'grubber', title: 'Horned Reaver', beast: 'beast_goat', stats: 'goat', ram: 'attack2', ownArm: true, finish: ['ancient', 'worn'],
+    R: ['nail_club', 'bone_cleaver', 'bearded_axe', 'butchers_axe'], L: ['spiked_buckler'] },
+  goat_b: { kind: 'grubber', title: 'Crag Ram', beast: 'beast_goat', stats: 'goat_ram', scale: 1.18, ram: 'attack2', ownArm: true, finish: ['ancient'],
+    R: ['bearded_axe', 'nail_club'], L: ['skull_boss'] },
   sworn_m: { kind: 'knight', title: 'Sworn of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['ancient', 'bloodforged', 'worn'], stats: 'sworn',
     R: ['arming_sword', 'bearded_axe', 'flanged_mace', 'morning_star', 'falchion', 'war_hammer', 'grave_messer', 'coffin_hammer', 'reliquary_blade', 'fang_blade', 'wolfjaw_sickle', 'scimitar'],
     L: ['thorned_kite', 'knights_kite', 'banded_kite'] },
@@ -67,11 +83,72 @@ export const FOES = {
     caster: true, spell: 'blood', R: ['reliquary_blade', 'grave_messer', 'fang_blade', 'flanged_mace'], L: ['serpent_staff', 'antler_staff', 'brazier_staff', 'skull_staff'], Lsock: 'gripL' },
   sworn_adept_f: { kind: 'knight', title: 'Adept of the Vigil', body: { villager: 'villager_f08', armor: 'fiend', sex: 'f', helm: false, casts: 'sorcerer_b' }, finish: ['bloodforged', 'ancient'], stats: 'adept',
     caster: true, spell: 'blood', R: ['reliquary_blade', 'scimitar', 'fang_blade', 'grave_messer'], L: ['serpent_staff', 'skull_staff', 'crosier', 'iron_crook'], Lsock: 'gripL' },
+  // the Undershrine's (undershrine.js): the Oath Hall's Knight-Warden, and the Violet Hand in his shrine
+  sworn_hollin: { kind: 'knight', title: 'Ser Hollin Vane, the Knight-Warden', body: { villager: 'villager_m03', armor: 'fiend', sex: 'm' }, finish: ['ancient'], stats: 'champion',
+    scale: 1.4, R: ['coffin_hammer', 'war_hammer'], L: ['knights_kite'] },
+  sworn_archmage: { kind: 'knight', title: 'Magister Morcant, the Violet Hand', body: { villager: 'villager_m04', armor: 'runebound', sex: 'm', helm: false, casts: 'sorcerer_b' }, finish: ['ancient'], stats: 'archmage',
+    caster: true, spell: 'arcane', boss: true, scale: 1.6, glow: 0x9a4cff, glow2: 0x50ff60, R: ['reliquary_blade'], L: ['skull_staff'], Lsock: 'gripL' },
+  // the Sorrowhorn's reavers, the Red Scythe (reavers.js): villagers in red boiled leather (the
+  // `scythe` set: tools/armor/sets.py), sworn to no one. On the knights' clips like the Sworn, but
+  // their eyes are a man's. A reaver swings a two-hander, or an axe in each fist, and throws axes
+  // that turn over and over as they come (`thrower`); their fire-callers go bareheaded with a staff
+  // and a hatchet, and burn you. Their warlord is a head taller than the rest, with the great scythe.
+  // (The helmed ones are the Sworn's own bodies under the helm, so they take the clips already made for
+  // them: each villager's set of clips costs its share of the heap.)
+  scythe_m: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+    R: ['scythe', 'great_axe', 'dane_axe', 'headsman', 'bloodletter', 'claymore', 'warmaul'] },
+  scythe_f: { kind: 'knight', title: 'Red Scythe Reaver', faction: 'scythe', body: { villager: 'villager_f08', armor: 'scythe', sex: 'f', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe', thrower: true,
+    R: ['scythe', 'great_axe', 'flamberge', 'bloodletter', 'dane_axe'] },
+  scythe_axes: { kind: 'knight', title: 'Red Scythe Axeman', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_axes', thrower: true,
+    R: ['bearded_axe', 'butchers_axe'], L: ['bearded_axe', 'butchers_axe'], Lsock: 'gripL' },
+  scythe_mage_m: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_m06', armor: 'scythe', sex: 'm', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
+    caster: true, spell: 'fire', R: ['bearded_axe', 'bone_cleaver'], L: ['brazier_staff', 'gnarled_staff', 'iron_crook'], Lsock: 'gripL' },
+  scythe_mage_f: { kind: 'knight', title: 'Red Scythe Fire-Caller', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged', 'worn'], stats: 'scythe_mage',
+    caster: true, spell: 'fire', R: ['bearded_axe', 'fang_blade'], L: ['brazier_staff', 'serpent_staff'], Lsock: 'gripL' },
+  scythe_warlord: { kind: 'knight', title: 'Hask Redhand, Warlord of the Red Scythe', faction: 'scythe', body: { villager: 'villager_m08', armor: 'scythe', sex: 'm', eyes: null }, finish: ['bloodforged'], stats: 'warlord', thrower: true,
+    boss: true, scale: 1.3, R: ['scythe'] },
+  scythe_pyre: { kind: 'knight', title: 'Ysolde the Kindler, Fire-Mother of the Red Scythe', faction: 'scythe', body: { villager: 'villager_f04', armor: 'scythe', sex: 'f', helm: false, casts: 'sorcerer_b', eyes: null }, finish: ['bloodforged'], stats: 'pyre',
+    caster: true, spell: 'fire', scale: 1.15, R: ['fang_blade'], L: ['brazier_staff'], Lsock: 'gripL' },
+  // the crag bandits (reavers.js): hill folk gone bad, in their own clothes (no set: `armor` null),
+  // each in a palette of his own (`palette`: their cloth recoloured, reavers.js BANDIT_PALETTES), with
+  // whatever they could steal: a blade or an axe and a round shield, or a two-hander
+  bandit_m: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_m02', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true,
+    R: ['bearded_axe', 'falchion', 'nail_club', 'grave_messer', 'scimitar', 'flanged_mace'], L: ['hide_targe', 'spiked_buckler', 'ironbound'] },
+  bandit_m2: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_m07', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true, thrower: true,
+    R: ['great_axe', 'ogre_club', 'dane_axe', 'glaive'] },
+  bandit_f: { kind: 'knight', title: 'Crag Bandit', faction: 'bandit', body: { villager: 'villager_f03', armor: null, sex: 'f', helm: false, eyes: null }, finish: ['worn', 'ancient'], stats: 'bandit', palette: true,
+    R: ['scimitar', 'fang_blade', 'gaolers_hook', 'wolfjaw_sickle', 'bearded_axe'], L: ['hide_targe', 'spiked_buckler'] },
+  bandit_chief: { kind: 'knight', title: 'Old Corrick, the Crowstep Captain', faction: 'bandit', body: { villager: 'villager_m07', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['ancient'], stats: 'bandit_chief', palette: true,
+    scale: 1.12, R: ['headsman'] },
+  // the Temple of Velscour's warden (temple.js), at the foot of its altar: one of the Sworn grown huge
+  sworn_warden: { kind: 'knight', title: 'Ser Oswin Vey, Warden of the Temple', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'champion',
+    scale: 1.3, R: ['penitents_greatsword', 'coffin_hammer'], L: ['thorned_kite'] },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
-export const VARIANTS = Object.keys(FOES).filter((v) => !FOES[v].body);
-export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body);
+export const VARIANTS = Object.keys(FOES).filter((v) => !FOES[v].body && !FOES[v].beast);
+// the beasts' bodies (Foes.loadBeasts): their files, the brain's moves from their own clips, where each
+// blow lands (frames at 30 a second), how each one darts in (seconds into the clip, m/s), and the grip
+// of the weapon and the shield (from Blender: in the armature's frame, glTF's axes, with the clip and
+// time the hand was posed at)
+const BEAST_ROOT = 'templates/models/creatures/beast_ual/';
+export const BEASTS = {
+  beast_goat: {
+    pick: { idle: 'Goat_Idle_Loop', walk: 'Jog_Fwd_Loop', run: 'Sprint_Loop', blows: ['Sword_Regular_B', 'Goat_Ram_Charge', 'Goat_Hammer'], hit: 'Hit_Chest', death: 'Death01',
+      crawl: 'Zombie_Walk_Fwd_Loop', extra: { leap: 'Goat_Leap' } },
+    hits: { attack1: 8, attack2: 41, attack3: 34, leap: 37 },
+    dash: { attack2: [0.55, 1.3, 4.4] },
+    pose: ['Sword_Idle', 10 / 24],
+    grip: {
+      gripR: ['hand_r', 'handR', [0.68683, -0.09352, -0.52503, 0, -0.33514, 0.59023, -0.54355, 0, 0.41483, 0.63168, 0.43016, 0, -0.29162, 0.83303, -0.55654, 1]],
+      shieldL: ['lowerarm_l', 'forearmL', [0.36506, 0.56232, 0.55378, 0, -0.10214, 0.63868, -0.5812, 0, -0.78259, 0.17895, 0.33418, 0, 0.43534, 0.93172, 0.23209, 1]],
+    },
+  },
+};
+export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body && !FOES[v].faction);
+// the Sorrowhorn's (reavers.js): a phone makes one body of each
+export const REAVERS = Object.keys(FOES).filter((v) => FOES[v].faction);
+export const REAVERS_PHONE = ['scythe_m', 'scythe_mage_m', 'bandit_m'];
 
 // how each kind stands up to you: hp, damage taken (armour), limb toughness, speeds, senses
 const KIND = {
@@ -107,6 +184,31 @@ export const STATS = {
     dmg: { attack1: 14, attack2: 18, attack3: 13, attack4: 20, bash: 7, lunge: 16, leap: 20, punch1: 5, punch2: 7 }, cool: [0.3, 0.85] },
   adept: { hp: 165, armor: 0.78, limb: 1.4, walk: 1.65, run: 4.2, turn: 4.6, sight: 30, hear: 1.2, reach: 2.0, flinch: 0.4, tier: 4, heft: 1.3, swing: 1.2, gait: GAIT,
     dmg: { attack1: 12, attack2: 15, attack3: 11, attack4: 16, lunge: 13, leap: 16, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
+  champion: { hp: 640, armor: 0.58, limb: 2.8, walk: 1.6, run: 4.2, turn: 4.2, sight: 30, tier: 5, heft: 3, swing: 1.12, gait: GAIT,
+    dmg: { attack1: 20, attack2: 25, attack3: 18, attack4: 28, bash: 10, lunge: 22, leap: 26, punch1: 7, punch2: 9 }, cool: [0.4, 1.0] },
+  archmage: { hp: 1500, armor: 0.66, limb: 4, walk: 1.5, run: 3.8, turn: 4.6, sight: 36, hear: 1.4, reach: 2.2, flinch: 0.05, tier: 6, heft: 4, swing: 1.1, gait: GAIT,
+    dmg: { attack1: 20, attack2: 24, attack3: 18, attack4: 26, lunge: 20, leap: 24, punch1: 8, punch2: 10 }, cool: [0.45, 1.0] },
+  goat: { hp: 290, armor: 0.84, limb: 1.6, walk: 2.4, run: 5.6, turn: 5, sight: 24, hear: 1.5, reach: 1.95, flinch: 0.2, tier: 4, heft: 2.2, swing: 1.15,
+    dmg: { attack1: 15, attack2: 19, attack3: 24, leap: 21 }, cool: [0.45, 1.0] },
+  goat_ram: { hp: 470, armor: 0.78, limb: 2.2, walk: 2.2, run: 5.2, turn: 4.4, sight: 26, hear: 1.5, reach: 2.2, flinch: 0.1, tier: 5, heft: 3.2, swing: 1.08,
+    dmg: { attack1: 19, attack2: 25, attack3: 30, leap: 26 }, cool: [0.5, 1.1] },
+  // the Red Scythe: lighter armour than the Sworn's plate, quicker and wilder (shorter waits between
+  // blows), the two-handers hitting hard; the axemen quicker still
+  scythe: { hp: 225, armor: 0.74, limb: 1.5, walk: 1.8, run: 4.7, turn: 5.2, sight: 28, hear: 1.3, tier: 4, heft: 1.7, swing: 1.12, gait: GAIT, reach: 2.35,
+    dmg: { attack1: 17, attack2: 21, attack3: 16, attack4: 24, lunge: 19, leap: 23, punch1: 5, punch2: 7, throw: 13 }, cool: [0.2, 0.7] },
+  scythe_axes: { hp: 205, armor: 0.76, limb: 1.45, walk: 1.9, run: 4.9, turn: 5.6, sight: 28, hear: 1.3, tier: 4, heft: 1.5, swing: 1.3, gait: GAIT,
+    dmg: { attack1: 12, attack2: 14, attack3: 12, attack4: 16, lunge: 14, leap: 18, punch1: 5, punch2: 7, throw: 12 }, cool: [0.1, 0.5] },
+  scythe_mage: { hp: 150, armor: 0.85, limb: 1.3, walk: 1.7, run: 4.3, turn: 4.8, sight: 32, hear: 1.3, reach: 2.0, flinch: 0.45, tier: 4, heft: 1.2, swing: 1.2, gait: GAIT,
+    dmg: { attack1: 11, attack2: 13, attack3: 10, attack4: 14, lunge: 12, leap: 15, punch1: 4, punch2: 6 }, cool: [0.5, 1.1] },
+  warlord: { hp: 980, armor: 0.6, limb: 3.6, walk: 1.7, run: 4.6, turn: 4.6, sight: 32, hear: 1.4, reach: 2.8, flinch: 0.08, tier: 6, heft: 4.2, swing: 1.08, gait: GAIT,
+    dmg: { attack1: 26, attack2: 30, attack3: 24, attack4: 34, lunge: 26, leap: 30, heavy: 22, punch1: 9, punch2: 12, throw: 18 }, cool: [0.35, 0.9] },
+  pyre: { hp: 620, armor: 0.75, limb: 2.4, walk: 1.6, run: 4.2, turn: 4.8, sight: 34, hear: 1.4, reach: 2.1, flinch: 0.15, tier: 5, heft: 2.4, swing: 1.15, gait: GAIT,
+    dmg: { attack1: 15, attack2: 18, attack3: 14, attack4: 20, lunge: 16, leap: 19, punch1: 6, punch2: 8 }, cool: [0.45, 1.0] },
+  // the bandits: cloth and a little leather, not much of a fight one at a time
+  bandit: { hp: 150, armor: 0.92, limb: 1.1, walk: 1.6, run: 4.4, turn: 4.6, sight: 24, hear: 1.2, tier: 3, heft: 1.2, swing: 1.1, gait: GAIT,
+    dmg: { attack1: 11, attack2: 13, attack3: 10, attack4: 15, bash: 5, lunge: 12, leap: 14, punch1: 4, punch2: 6, throw: 10 }, cool: [0.45, 1.1] },
+  bandit_chief: { hp: 560, armor: 0.8, limb: 2.2, walk: 1.6, run: 4.3, turn: 4.4, sight: 28, hear: 1.3, reach: 2.6, flinch: 0.15, tier: 5, heft: 2.6, swing: 1.06, gait: GAIT,
+    dmg: { attack1: 21, attack2: 25, attack3: 19, attack4: 28, lunge: 21, leap: 24, punch1: 7, punch2: 9 }, cool: [0.45, 1.0] },
   lord: { hp: 1150, armor: 0.55, limb: 4.5, walk: 1.45, run: 3.9, sight: 34, hear: 1.3, turn: 3.4, reach: 2.75, flinch: 0.05, tier: 6, heft: 5, swing: 1.05, gait: GAIT,
     dmg: { attack1: 24, attack2: 30, attack3: 22, attack4: 34, bash: 14, lunge: 26, leap: 32, heavy: 20, punch1: 10, punch2: 13 }, cool: [0.6, 1.3] },
 };
@@ -127,8 +229,10 @@ const SPELL = { // bolt colour, its glow, damage
   arcane: { core: 0xe6b8ff, glow: 0x9a4cff, dmg: 10, speed: 14 },
   blood: { core: 0xffb0a0, glow: 0xff2a1a, dmg: 12, speed: 13 },
   venom: { core: 0xd8ffc0, glow: 0x5cff3a, dmg: 9, speed: 12 },
+  fire: { core: 0xffe2a0, glow: 0xff5a10, dmg: 13, speed: 15 },   // (the Red Scythe's fire-callers)
 };
 
+const _gA = new THREE.Color(), _gB = new THREE.Color();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
 const EMBERS = [new THREE.Color(1, 0.55, 0.15), new THREE.Color(1, 0.22, 0.06), new THREE.Color(0.9, 0.08, 0.03)];
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
@@ -257,7 +361,7 @@ class Foe extends Zombie {
     this.postYaw = o.yaw ?? this.yaw;
     if (o.start === 'ambush') { this.state = 'ambush'; this.play('idle', 0); }
     // the Sworn's eyes burn: a glint at each (through the helm's slits, or bare on an adept)
-    if (this.def.body && meta.eyes?.length) {
+    if (this.def.body && meta.eyes?.length && this.def.body.eyes !== null) {
       const head = this.bones.head, inv = this.skel.boneInverses[this.skel.bones.indexOf(head)];
       this.eyes = meta.eyes.map((e) => {
         const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
@@ -268,7 +372,8 @@ class Foe extends Zombie {
         return g;
       });
     }
-    if (this.def.body && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
+    if (this.def.body?.armor === 'fiend' && !this.def.boss) this.fit(o.fitting ?? Math.floor(Math.random() * FITTINGS.length));
+    if (this.def.palette) this.recolour(o.palette ?? Math.floor(Math.random() * BANDIT_PALETTES.length));
     if (this.ual && this.state === 'move') { this.play('idle', 0); this.mixer.update(Math.random() * 2); }   // (at ease, now it knows it can be)
     // a lord of the Sworn burns: his armour glows from within (brightest where it's gilded)
     if (this.def.glow) {
@@ -283,12 +388,7 @@ class Foe extends Zombie {
     if (this.ual || this.dead || this.mode !== 'stand' || this.state !== 'move') return false;
     const meta = g.userData.foe, cur = this.cur;
     this.mixer.stopAllAction();
-    this.actions = {};
-    for (const clip of g.animations) {
-      const a = this.mixer.clipAction(clip);
-      if (ONCE.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
-      this.actions[clip.name] = a;
-    }
+    this.actions = lazyActions(this.mixer, g.animations, ONCE);   // (each made when first played: zombies.js)
     this.ual = true; this.hits = meta.hits || {};
     if (meta.gait) this.kind = { ...this.kind, gait: { ...this.kind.gait, ...meta.gait } };
     this.cur = null;
@@ -330,6 +430,19 @@ class Foe extends Zombie {
       if (!m.name.includes(piece)) continue;
       if (tint) m.color.setRGB(...tint); else m.visible = false;
     }
+    this.syncShade();
+  }
+
+  /** A bandit's own colours: each piece of cloth or leather he has on recoloured from palette i
+   * (reavers.js BANDIT_PALETTES), by its material's name, so no two of a band are dressed alike. */
+  recolour(i) {
+    const P = BANDIT_PALETTES[i % BANDIT_PALETTES.length];
+    for (const m of [this.mesh.material].flat()) {
+      if (!/^V_/.test(m.name) || /Skin|Eye|Hair|Lashes|Head/.test(m.name)) continue;
+      let h = 0; for (const c of m.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+      m.color.setRGB(...P[h % P.length]);
+    }
+    this.syncShade();
   }
 
   /** Put an item model (already cloned) in a socket. */
@@ -341,11 +454,16 @@ class Foe extends Zombie {
     s.m.decompose(g.position, g.quaternion, g.scale);
     g.add(obj);
     bone.add(g);
-    obj.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.frustumCulled = false; } });
+    obj.traverse((c) => { if (c.isMesh) c.castShadow = true; });
     this.items.push({ g, bone: s.bone, socket: socketName });
   }
 
   get shield() { return this.items.find((i) => i.socket === 'shieldL'); }
+
+  castsShadow(on) {
+    super.castsShadow(on);
+    for (const it of this.items) it.g.traverse((c) => { if (c.isMesh) c.castShadow = on; });
+  }
 
   /** The clips swing the shield arm across the body (the shield goes through the chest as it
    * walks, and across it as the sword comes round). Unless it's blocking or bashing, the arm is
@@ -355,7 +473,7 @@ class Foe extends Zombie {
    * are drawn into a guard there instead (and as they charge), and they keep the carry as they
    * jump and fall (see shieldArm). Blended in and out over the clip (dt 0: at once). */
   carryShield(dt = 0) {
-    if (!this.shield || !this.arm('L')) return;
+    if (!this.shield || !this.arm('L') || this.def.ownArm) return;
     const { w, guard, swing, cock } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body, this.ual);
     const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1;
     this.carryW = (this.carryW ?? w) + (w - (this.carryW ?? w)) * k;
@@ -364,7 +482,8 @@ class Foe extends Zombie {
     this.cockW = (this.cockW ?? cock) + (cock - (this.cockW ?? cock)) * k2;
     if (this.carryW < 0.01) return;
     const P = this.foes.poses(this);
-    this.root.updateMatrixWorld(true);
+    // (each getWorldQuaternion below brings its own chain up from the world, the arm just turned
+    // included: the whole body's matrices were walked here three times over, every frame, for each)
     const model = this.root.children[0], qm = model.getWorldQuaternion(_q0);
     for (const part of ['up', 'fore']) {
       const bone = part === 'up' ? this.bones.upper_armL : this.bones.forearmL;
@@ -373,7 +492,6 @@ class Foe extends Zombie {
       const pq = bone.parent.getWorldQuaternion(_q1).invert();
       _q2.copy(qm).multiply(_q3).premultiply(pq);
       bone.quaternion.slerp(_q2, this.carryW);
-      bone.updateMatrixWorld(true);
     }
     if (P.cock && this.cockW > 0.01 && this.arm('R')) {        // the sword arm drawn back as the shield goes in
       for (const part of ['up', 'fore']) {
@@ -381,7 +499,6 @@ class Foe extends Zombie {
         const pq = bone.parent.getWorldQuaternion(_q1).invert();
         _q2.copy(qm).multiply(P.cock[part]).premultiply(pq);
         bone.quaternion.slerp(_q2, this.cockW);
-        bone.updateMatrixWorld(true);
       }
     }
   }
@@ -397,6 +514,7 @@ class Foe extends Zombie {
 
   // -------------------------------------------------------------- being hit
   hit(h, opts) {
+    if (this.lurk) spring(this.foes, this.lurk, this.owner.player || { pos: this.pos });
     // (GOD MODE, the Debug Menu: no shield or parry turns a blow)
     if (!this.dead && !this.owner.oneHit && this.state === 'block' && (this.shield && this.arm('L') && this.has('handL') || this.parrying)) {
       const f = this.forward(_t);
@@ -427,6 +545,7 @@ class Foe extends Zombie {
       g.drop(p, _v, 0.008 + Math.random() * 0.01, sp[i % 3]);
     }
     sfx?.clang?.(false, p);   // (heard from the shield)
+    this.owner.feed?.blocked(this, { point: p });
     this.foes.flash(p, 0xffd080, 0.25);
     this.blockT = Math.min(this.blockT, 0.25);
     this.hunt(this.owner.player?.pos, true);
@@ -445,7 +564,8 @@ class Foe extends Zombie {
   die() {
     const lying = this.cur === 'knockdown';
     super.die();
-    if (lying && this.actions.dead) this.play('dead', 0.4);
+    if (this.rag) { /* it falls limp (ragdoll.js) */ }
+    else if (lying && this.actions.dead) this.play('dead', 0.4);
     else if (this.ual && this.mode === 'stand' && this.cur === 'death' && this.actions.death2 && Math.random() < 0.5) this.play('death2', 0.15);
     this.drop();
     for (const g of this.eyes || []) g.visible = false;
@@ -461,6 +581,12 @@ class Foe extends Zombie {
 
   /** What it can see and hear of you (its own cry when it first has you). */
   sense(player, active) {
+    if (this.lurk) {        // an ambush: blind and deaf to you till you walk into it (reavers.js spring)
+      const A = this.lurk;
+      this.dist = Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z); this.canSee = false;
+      if (active && Math.hypot(player.pos.x - A.x, player.pos.z - A.z) < A.r && Math.abs(player.pos.y - A.y) < 5) spring(this.foes, A, player);
+      if (this.lurk) return;
+    }
     const was = this.aggro;
     const groan = this.owner.sound;
     this.owner.sound = (k, p, loud) => { if (k !== 'groan') groan.call(this.owner, k, p, loud); };
@@ -473,22 +599,22 @@ class Foe extends Zombie {
   update(dt, player, active, far, mid) {
     if (this.def.boss) this.burn(dt, player);
     if (this.gone) return;
-    if (this.dead && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
-    if (this.dead || this.mode === 'crawl' || ['collapse', 'buried', 'rise', 'playdead', 'getup'].includes(this.state)) {
+    if (this.dead && !this.rag && this.cur === 'death2' && this.done()) this.play('dead2', 0.3);
+    if (this.dead || this.mode === 'crawl' || LAID.has(this.state)) {
       super.update(dt, player, active, far, mid);
       return;
     }
     const owner = this.owner;
     if (far && !this.aggro && this.goal === 'wander') return;   // out of the way: it waits
     // in the keep, one in a room you can't see into isn't drawn (unless it's after you)
-    if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) this.root.visible = false;
+    if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) { this.root.visible = false; this.seen = false; }
     this.mixAcc += dt;
-    if (!mid || ++this.frame % (far ? 6 : 3) === 0) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
+    if (this.animDue(far, mid)) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
     // (its afflictions run once a frame, in the horde's update)
     if (this.dead) return;
     this.bleed(dt);
     // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
-    for (const k of ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT']) this[k] = Math.max(0, (this[k] || 0) - dt);
+    for (const k of COOLS) this[k] = Math.max(0, (this[k] || 0) - dt);
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
@@ -594,6 +720,7 @@ class Foe extends Zombie {
   route(p) {
     if (this.zone === 'cave' && !this.canSee && this.foes.cave?.flowDir(this.pos, _w)) return _t.copy(this.pos).addScaledVector(_w, 2);
     if (this.zone === 'keep' && !this.canSee && this.foes.keep?.flowDir(this.pos, _w)) return _t.copy(this.pos).addScaledVector(_w, 2);
+    if (this.zone === 'dungeon' && this.dg && !this.canSee && this.owner.flowDir?.(this.pos, _w, this.dg)) return _t.copy(this.pos).addScaledVector(_w, 2);   // (the Undershrine's Vigil: the dead's flow)
     return p;
   }
 
@@ -691,10 +818,11 @@ class Foe extends Zombie {
       this.hitI = (this.hitI || 0) + 1;
       this.fired = this.hitI >= at.length;
       const reach = this.kind.reach + (this.cur === 'attack3' && this.kindName === 'ghast' ? 0.4 : 0.2);
-      this.foes.sound('swing', this.pos, this.kindName);
-      if (active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3 && !this.owner.physics.between(this.pos, player.pos)) {
+      if (this.cur === 'throw') this.foes.axes.toss(this, player);       // (the axe out of the fist: reavers.js)
+      else this.foes.sound('swing', this.pos, this.kindName);
+      if (this.cur !== 'throw' && active && dist < reach && facingErr < 1.1 && Math.abs(player.pos.y - this.pos.y) < 1.3 && !this.owner.physics.between(this.pos, player.pos)) {
         this.owner.onPlayerHit?.(this.kind.dmg[this.cur] ?? 10, this);
-        if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === 'attack1')) {   // knocked back
+        if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === (this.def.ram || 'attack1'))) {   // knocked back
           const f = this.forward();
           player.vel.x += f.x * 6; player.vel.z += f.z * 6; player.vel.y = Math.max(player.vel.y, 2.5);
         }
@@ -751,7 +879,7 @@ class Foe extends Zombie {
   /** Out of the room it keeps, you're none of its business: back to its post, facing the way in.
    * Their lord can still call Velscour's fire down on you if he can see you. */
   keepPost(dt, player, active, dist) {
-    if (this.def.boss && active && this.canSee && !this.bigCool && dist < 24) { this.invoke(player); return; }
+    if (this.def.boss && this.def.faction !== 'scythe' && active && this.canSee && !this.bigCool && dist < 24) { this.invoke(player); return; }
     const away = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z) > 0.7;
     if (away) this.go(dt, this.home, this.kind.walk);
     else this.go(dt, null, 0, { face: _v.set(this.pos.x + Math.sin(this.postYaw) * 4, this.pos.y, this.pos.z + Math.cos(this.postYaw) * 4) });
@@ -780,7 +908,14 @@ class Foe extends Zombie {
    * him and the red light he throws. */
   burn(dt, player) {
     const k = (this.dead ? Math.max(0, 1 - this.deadT / 3) : 1) * (0.72 + 0.28 * Math.sin(this.owner.time * 3.1)) * (this.enraged ? 1.6 : 1);
-    for (const m of this.glowMats || []) m.emissive.setRGB(1.7 * k, 0.17 * k, 0.05 * k);
+    if (this.def.glow2) {   // (the Violet Hand: violet and green in turn, the green coming up as he burns down)
+      const g = Math.max(0, Math.sin(this.owner.time * 0.9)) * (this.enraged ? 1 : 0.6), a = _gA.setHex(this.def.glow).lerp(_gB.setHex(this.def.glow2), g);
+      for (const m of this.glowMats || []) m.emissive.setRGB(a.r * 0.75 * k, a.g * 0.75 * k, a.b * 0.75 * k);
+      if (this.foes.bossLight) this.foes.bossLight.color.copy(a);
+    } else {
+      for (const m of this.glowMats || []) m.emissive.setRGB(1.7 * k, 0.17 * k, 0.05 * k);
+      this.foes.bossLight?.color.setHex(0xff3018);
+    }
     const L = this.foes.bossLight;
     if (L) {
       this.bones.chest.getWorldPosition(L.position);
@@ -803,7 +938,7 @@ class Foe extends Zombie {
     const K = this.kind, now = this.owner.time;
     if (this.def.boss) {
       if (!this.enraged && this.hp < K.hp * 0.5) this.enrage();
-      if (this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }
+      if (this.def.faction !== 'scythe' && this.canSee && !this.bigCool && dist > 4 && dist < 18 && Math.random() < dt * 1.5) { this.invoke(player); return; }   // (Velscour's fire is his lord's alone)
     }
     const shield = this.shield && this.arm('L'), armed = this.arm('R') && this.has('handR');
     const guard = shield || (this.ual && armed);      // (on the library's clips they parry with the blade when the shield's gone)
@@ -819,6 +954,17 @@ class Foe extends Zombie {
       if (this.ual && this.actions.punch1 && (this.arm('L') || this.arm('R'))) {      // bare-handed: a jab, a cross
         this.strike(this.arm('L') ? 'punch1' : 'punch2');
         this.comboQ = this.arm('L') && this.arm('R') ? ['punch2'] : null;
+        return;
+      }
+    }
+    // a thrown axe: from six to twenty strides off, with a clear line to you (from up a slope too:
+    // they needn't be on your level to see you, as they must to come at you)
+    if (this.def.thrower && this.feet && armed && this.actions.throw && dist > 5.5 && dist < 21 && !this.throwCool && this.foes.axes.clear(this, player)) {
+      const want = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+      if (Math.abs(wrap(want - this.yaw)) < 0.6) {
+        this.throwCool = (this.def.boss ? 3.5 : 5.5) + Math.random() * 5;
+        this.hits.throw ??= Math.round(this.actions.throw.getClip().duration * FPS * 0.42);
+        this.strike('throw');
         return;
       }
     }
@@ -1071,9 +1217,20 @@ class Foe extends Zombie {
     this.routine ??= ['brawler', 'biter', 'charger'][Math.floor(Math.random() * 3)];
     const mad = this.hp < K.hp * 0.35;                 // (badly hurt: frenzied)
     if (mad && this.cool > 0.35) this.cool = 0.35;
-    // charging into you: a ram, and you're thrown back (its club blow knocks you back)
-    if (this.chargeT > 0 && dist < K.reach + 0.7 && fe < 0.5 && this.arm('R') && !this.cool) {
-      this.chargeT = 0; this.chargeCool = 2.5 + Math.random() * 2; this.strike('attack1'); return;
+    // charging into you: a ram, and you're thrown back (its club blow knocks you back; a goat man's
+    // horns)
+    const ram = this.def.ram || 'attack1', canRam = ram === 'attack1' ? this.arm('R') : this.has('head');
+    if (this.chargeT > 0 && dist < K.reach + (this.def.ram ? 2.4 : 0.7) && fe < 0.5 && canRam && !this.cool) {
+      this.chargeT = 0; this.chargeCool = 2.5 + Math.random() * 2; this.strike(ram); this.dash = this.def.dash?.[ram] || this.dash; return;
+    }
+    // a beast's leap: up and on you from a few strides off, the blow landing as it comes down
+    if (this.actions.leap) {
+      this.leapCool = (this.leapCool ?? 1 + Math.random() * 3) - dt;
+      if (this.leapCool < 0 && this.feet && !this.chargeT && fe < 0.3 && dist > 4.2 && dist < 7.5 && this.canSee) {
+        this.leapCool = 6 + Math.random() * 6;
+        this.strike('leap'); this.dash = [0.45, 1.2, Math.min(9, (dist - 1.3) / 0.75)];
+        return;
+      }
     }
     if (dist < K.reach && fe < 0.6 && !this.cool) {
       const club = this.arm('R') && 'attack1', over = this.arm('R') && 'attack3', jaw = this.has('head') && 'attack2';
@@ -1199,6 +1356,7 @@ export class Foes {
     this.loader = new GLTFLoader();
     this.texLoader = new THREE.TextureLoader();
     this.bolts = new Bolts(this);
+    this.axes = new Axes(this);       // (the Red Scythe's thrown axes)
     this.hexes = [];
     this.lost = [];       // dropped weapons and shields
     this.flashes = [];
@@ -1214,11 +1372,64 @@ export class Foes {
 
   async load(variants = VARIANTS) {
     await Promise.all(variants.map(async (v) => {
-      const g = await this.loader.loadAsync(`${ROOT}${v}.glb`);
+      const g = await this.loader.loadAsync(asset(`${ROOT}${v}.glb`));
       g.userData = { ...(g.userData || {}), foe: JSON.parse(g.scene.userData.foe || '{}') };
       this.gltf[v] = g;
     }));
     await this.loadItems(variants);
+  }
+
+  /** The beasts (FOES with `beast`): each file once, its moves made from its own clips, its grips put
+   * in the hands (the weapon's and the shield's sockets, worked out on the pose they were set in). */
+  async loadBeasts(variants = Object.keys(FOES).filter((v) => FOES[v].beast)) {
+    const files = new Map();
+    const body = async (file) => {
+      const B = BEASTS[file], g = await this.loader.loadAsync(asset(`${BEAST_ROOT}${TOUCH ? 'phone/' : ''}${file}.glb`)).catch(() => this.loader.loadAsync(asset(`${BEAST_ROOT}${file}.glb`)));
+      // the grips: the hand posed as it was in Blender, each grip brought into its bone's frame
+      const scene = g.scene, arm = scene.getObjectByName('Armature') || scene, rest = [];
+      scene.traverse((o) => { if (o.isBone) rest.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
+      const mixer = new THREE.AnimationMixer(scene), clip = g.animations.find((c) => c.name === B.pose[0]);
+      if (clip) { mixer.clipAction(clip).play(); mixer.setTime(B.pose[1]); }
+      scene.updateMatrixWorld(true);
+      const inArm = arm.matrixWorld.clone().invert(), sockets = {};
+      for (const [name, [boneName, as, m]] of Object.entries(B.grip)) {
+        const bone = scene.getObjectByName(boneName);
+        if (bone) sockets[name] = { bone: as, m: inArm.clone().multiply(bone.matrixWorld).invert().multiply(new THREE.Matrix4().fromArray(m)) };
+      }
+      mixer.stopAllAction(); mixer.uncacheRoot(scene);
+      for (const [o, p, q, s] of rest) { o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); }
+      scene.updateMatrixWorld(true);
+      adaptBeast(g, B.pick);
+      g.userData.foe = { hits: { ...B.hits }, beast: file };
+      g.userData.sockets = sockets;
+      return g;
+    };
+    for (const v of variants) {
+      const file = FOES[v].beast;
+      if (!files.has(file)) files.set(file, body(file));
+      try {
+        const g = this.gltf[v] = await files.get(file);
+        for (const [name, s] of Object.entries(g.userData.sockets)) this.sock[`${v}|${name}`] = s;
+      } catch (e) { console.warn('the beasts', v, e); }
+    }
+    await this.loadItems(variants.filter((v) => this.gltf[v]));
+  }
+
+  /** The goat men of the Sorrowhorn at their camps (mountain.js S.camps): a band round each fire, more
+   * of them higher up, each band but the first led by a ram bigger than the rest. */
+  populateMountain(m) {
+    if (!m?.camps?.length || !this.gltf.goat_a) return 0;
+    let n = 0;
+    m.camps.forEach((c, i) => {
+      const crew = Array.from({ length: 3 + (i > 0) + (i > 2) }, (_, k) => (k === 0 && i > 0 && this.gltf.goat_b ? 'goat_b' : 'goat_a'));
+      for (const f of this.band(crew, c.x + 2.5, c.z + 2.5, { zone: 'mountain', area: { x: c.x, z: c.z, r: 14 } })) { f.yaw = Math.random() * 6.28; n++; }
+    });
+    for (const L of m.ledges || []) {          // (and a few on Thornback Ledge, up its side path: mountain.js LEDGES)
+      if (L.folk !== 'goats') continue;
+      for (const f of this.band(['goat_a', 'goat_a', this.gltf.goat_b ? 'goat_b' : 'goat_a'], L.x, L.z, { zone: 'mountain', area: { x: L.x, z: L.z, r: L.r0 - 1 } })) { f.yaw = Math.random() * 6.28; f.band = L.id; n++; }
+    }
+    console.info(`foes: ${n} goat men on the Sorrowhorn`);
+    return n;
   }
 
   /** The open country's knights and sorcerers on the knight's clips (ual.js), made once the world is
@@ -1261,15 +1472,19 @@ export class Foes {
     const knight = this.gltf.knight_a || (await this.load(['knight_a']), this.gltf.knight_a);
     // the animation library (ual.js), read once
     if (ual && !this.ual) this.ual = await loadUal(this.loader);
-    const files = new Map(), bodies = new Map();
-    const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(url)); return files.get(url); };
+    const files = this._files ||= new Map(), bodies = this._bodies ||= new Map(), clips = this._clips ||= new Map();
+    const file = (url) => { if (!files.has(url)) files.set(url, this.loader.loadAsync(asset(url))); return files.get(url); };
     const body = (b) => {
-      const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}`;
+      const key = `${b.villager}|${b.armor}|${b.helm !== false}|${b.casts || ''}|${b.eyes === null ? 'plain' : 'burn'}`;
       if (!bodies.has(key)) bodies.set(key, (async () => {
-        const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`)]);
+        const [villager, armor] = await Promise.all([file(`${VILLAGERS}${b.villager}.glb`), b.armor ? file(`${ARMOR}${b.armor}/${b.armor}_${b.sex}.glb`) : null]);
         if (b.casts && !this.gltf[b.casts]) await this.load([b.casts]);
-        return swornBody(knight, { scene: cloneSkinned(villager.scene) }, { scene: cloneSkinned(armor.scene) },
-          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null, ual: ual ? this.ual : null, legacy });
+        // (the clips are the villager's skeleton's: the second body on the same one takes the first's)
+        const ck = `${b.villager}|${b.casts || ''}|${ual}|${legacy}`, made = clips.get(ck);
+        const g = await swornBody(knight, { scene: cloneSkinned(villager.scene) }, armor ? { scene: cloneSkinned(armor.scene) } : null,
+          { helm: b.helm !== false, casts: b.casts ? this.gltf[b.casts] : null, ual: ual ? this.ual : null, legacy, eyes: b.eyes === null ? null : undefined, clips: made ? await made : null });
+        if (!made) clips.set(ck, Promise.resolve(g.clips));
+        return g;
       })());
       return bodies.get(key);
     };
@@ -1292,15 +1507,15 @@ export class Foes {
   /** The weapons and shields the variants carry, in each of their finishes. */
   async loadItems(variants) {
     const ids = new Set();
-    for (const v of variants) for (const s of ['R', 'L']) for (const id of FOES[v][s] || []) for (const f of [FOES[v].finish || ''].flat()) ids.add(`${id}|${f}`);
+    for (const v of variants) for (const s of ['R', 'L', 'T']) for (const id of (s === 'T' ? (FOES[v].thrower ? THROWN : []) : FOES[v][s]) || []) for (const f of [FOES[v].finish || ''].flat()) ids.add(`${id}|${f}`);
     const all = Object.values(this.manifest.items).flat();
     await Promise.all([...ids].map(async (key) => {
       const [id, finish] = key.split('|');
       const e = all.find((x) => x.id === id);
       if (!e) return;
-      const g = await this.loader.loadAsync(ITEM_ROOT + e.path);
+      const g = await this.loader.loadAsync(asset(ITEM_ROOT + e.path));
       let map = null;
-      if (finish && e.variants?.[finish]) map = await this.texLoader.loadAsync(ITEM_ROOT + e.variants[finish]).catch(() => null);
+      if (finish && e.variants?.[finish]) map = await this.texLoader.loadAsync(asset(ITEM_ROOT + e.variants[finish])).catch(() => null);
       g.scene.traverse((o) => {
         if (!o.isMesh) return;
         const m = map || o.material.map;
@@ -1423,8 +1638,9 @@ export class Foes {
   /** An item let go of: it tumbles to the ground and lies there a while. */
   loose(g, v) {
     this.scene.attach(g);
+    g.userData.mover = true;
     this.lost.push({ g, v: v.clone(), spin: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), w: 6 + Math.random() * 6, rest: false, age: 0 });
-    if (this.lost.length > 40) { const o = this.lost.shift(); this.scene.remove(o.g); }
+    if (this.lost.length > 40) { const o = this.lost.shift(); this.scene.remove(o.g); letGo(o.g); }
   }
 
   // -------------------------------------------------------------- voices and sounds
@@ -1490,6 +1706,7 @@ export class Foes {
   // -------------------------------------------------------------- each frame
   update(dt, player) {
     this.bolts.update(dt, player);
+    this.axes.update(dt, player);
     const g = this.zombies.gore;
     for (const h of this.hexes) {
       h.t += dt;
@@ -1672,6 +1889,7 @@ export class Foes {
     for (const r of inside.filter((q) => q.biome === 'downs')) {
       if (r.x1 - r.x0 < 2 || r.z1 - r.z0 < 2) continue;
       const who = /barn/i.test(r.name) ? ['knight_c', 'knight_c'] : /farm/i.test(r.name) ? ['sorcerer_b', 'knight_a'] : /windmill/i.test(r.name) ? ['sorcerer_a'] : [pick(SO), ...(R() < 0.5 ? [pick(KN)] : [])];
+      if (r.held) continue;   // (drawn for and not garrisoned: someone keeps it, the bell tower's Bellwright)
       who.forEach((v, i) => { n += inRoom(v, r, i, who.length); });
     }
     // the other countries: a few at their ruins, keeps, chapels and crossroads

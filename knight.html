@@ -165,6 +165,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { Foes, FOES, SWORN, FITTINGS, STATS, DASH, shieldArm, shieldPoses } from './src/fps/foes.js';
 import { RECIPES, CALM, LOOPING, UAL_URL, loadUal, ualBody, VILLAGER_BONES } from './src/fps/ual.js';
+import { asset } from './src/fps/store.js';   // (the models live in Bellmourn2)
 
 const $ = (id) => document.getElementById(id);
 const FPS = 30;
@@ -357,7 +358,7 @@ floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
 scene.add(floor);
 
 // ------------------------------------------------------------------ the knights, as the game builds them
-const manifest = await fetch('templates/models/manifest.json').then((r) => r.json());
+const manifest = await fetch(asset('templates/models/manifest.json')).then((r) => r.json());
 const stub = () => ({ scene: new THREE.Scene() });           // (what the foes want of the horde)
 const NOW = new Foes(stub(), manifest, {}), OLD = new Foes(stub(), manifest, {});
 const ualGltf = await new GLTFLoader().loadAsync(UAL_URL);
@@ -374,7 +375,7 @@ const loadBody = (which, v) => {
  * or on their own. */
 const villagerSets = {};
 async function villagerBody(F, v, ual) {
-  const g = await F.loader.loadAsync(`templates/models/creatures/villagers/${v}.glb`);
+  const g = await F.loader.loadAsync(asset(`templates/models/creatures/villagers/${v}.glb`));
   let animations = g.animations, foe = { ual: false };
   if (ual) {
     const made = await (villagerSets[v.includes('_f') ? 'f' : 'm'] ||= loadUal(F.loader)

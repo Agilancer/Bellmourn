@@ -2,20 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>
-  // (cross-origin isolation, coi.js: the voices' model runs on several cores. The first visit registers
-  // it and reloads once it's in charge; once only a session, in case a browser won't have it.)
-  // (?nocoi: skipped, for tests that must see the whole load in one page; the voices then run on one core)
-  if (!/[?&]nocoi\b/.test(location.search) &&!self.crossOriginIsolated && 'serviceWorker' in navigator && self.isSecureContext) {
-    let tried = false;
-    try { tried = sessionStorage.getItem('bm.coi') === '1'; sessionStorage.setItem('bm.coi', '1'); } catch (e) { tried = true; }
-    navigator.serviceWorker.register('coi.js').then((reg) => {
-      if (tried || (navigator.serviceWorker.controller && !reg.installing && !reg.waiting)) return;
-      if (navigator.serviceWorker.controller) location.reload();
-      else navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
-    }).catch(() => {});
-  }
-</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,7 +9,7 @@
 <title>Bellmourn : Velscour's Throne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,600;1,600&family=Cinzel:wght@500;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,600;1,600&family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet" crossorigin="anonymous">
 <link rel="preload" as="image" href="assets/title/blastorama.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/herrington.webp" fetchpriority="high">
 <link rel="preload" as="image" href="assets/title/bellmourn.webp" fetchpriority="high">
@@ -332,6 +318,9 @@
   .eslot, .bslot { position: relative; border: 1px solid #4a3620; background: rgba(0, 0, 0, .55); cursor: pointer; touch-action: none; }
   .eslot .lbl { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: 9px; color: #6d5a40; text-transform: uppercase; pointer-events: none; }
   .eslot.ghosted .icell { opacity: .3; filter: grayscale(1); }
+  .eslot.boardonly .icell { opacity: .55; filter: grayscale(.7); }   /* (a shield carried with a two-hander: only ridden) */
+  .eslot.boardonly::after { content: 'ride'; position: absolute; top: 2px; right: 3px; font-size: 9px; color: #9ad0ff; text-transform: uppercase; pointer-events: none; }
+  .tt-ride { color: #9ad0ff; font-size: 11px; margin-top: 4px; }
   .bagrid { display: grid; grid-template-columns: repeat(10, 44px); grid-auto-rows: 44px; gap: 3px; }
   .bslot.sel, .eslot.sel { outline: 2px solid #ffe2a0; }
   .icell { position: absolute; inset: 2px; display: grid; place-items: center; pointer-events: none; }
@@ -380,6 +369,13 @@
   .matgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 5px; }
   .mcell { display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 7px; align-items: center; padding: 4px 6px; border: 1px solid #3a2e22; background: rgba(0, 0, 0, .4); cursor: help; font: 12px Georgia, serif; }
   .mcell img { grid-row: 1 / span 2; width: 32px; height: 32px; image-rendering: pixelated; } .mcell b { font: 700 12px Cinzel, serif; } .mcell span { color: #ffe2a0; font-size: 12px; }
+  .charm-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; }
+  .charmgrid { display: grid; grid-template-columns: repeat(5, 58px); grid-auto-rows: 58px; gap: 5px; margin: 4px 0 10px; }
+  .cslot { display: flex; align-items: center; justify-content: center; border: 1px solid #3a3058; background: rgba(10, 6, 22, .58); }
+  .cslot.full { border-color: #8a72d8; box-shadow: inset 0 0 14px rgba(160, 130, 255, .32); cursor: help; }
+  .cslot img { width: 42px; height: 42px; image-rendering: pixelated; }
+  .ab-card { border: 1px solid #4a3e78; background: rgba(20, 12, 40, .5); padding: 7px 10px; margin-bottom: 6px; font: 13px Georgia, serif; } .ab-card b { font: 700 14px Cinzel, serif; }
+  .ab-line { font-size: 12px; margin: 2px 0; } .ab-line b { color: #c9b8ff; font-weight: 400; }
   .mcell.none { opacity: .42; filter: grayscale(.6); } .mcell.none span { color: #8a7a60; font-style: italic; }
   .plan-row, .plan-pick { display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: start; padding: 6px 8px; border: 1px solid #33291f; background: rgba(0, 0, 0, .35); margin-bottom: 5px; font: 12px Georgia, serif; }
   .plan-row img, .plan-pick img { width: 36px; height: 36px; image-rendering: pixelated; }
@@ -414,7 +410,7 @@
   .tr-list .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   .tr-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 6px; border-top: 1px solid #2e241a; font: 11px Georgia, serif; }
   .q-trade { margin-top: 10px !important; border-color: #8a6a2a !important; }
-  @media (max-width: 760px) { .tr-body { grid-template-columns: 1fr; } .tr-card { position: static; } .mats-wrap { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .tr-body { grid-template-columns: 1fr; } .tr-card { position: static; } .mats-wrap { grid-template-columns: 1fr; } .charm-wrap { grid-template-columns: 1fr; } }
   @media (pointer: coarse) {
     .tgrid { grid-template-columns: repeat(auto-fill, 46px); } .tslot { width: 46px; height: 46px; } .tgrid.bagrid-t { grid-template-columns: repeat(10, 36px); } .bagrid-t .tslot { width: 36px; height: 36px; }
     .tr-body { grid-template-columns: minmax(0, 1fr) 250px; } .tr-card { font-size: 12px; } .bag .keys, .trade .keys { display: none; }
@@ -588,8 +584,14 @@
   .tbtn.qlogb { right: calc(204px + env(safe-area-inset-right)); top: 14px; width: 46px; height: 46px; font: 900 22px 'Cinzel Decorative', serif; color: #ffd21a; border-radius: 8px; }
   @media (pointer: coarse) { .qtrack { top: 184px; width: 34vw; font-size: 11px; } .xpbar { bottom: 2px; } }
 
-  .rotate { position: absolute; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 10; text-align: center; }
+  /* turn your phone sideways: over everything (the title and its loading too), from the first paint,
+     by CSS alone; main.js's .show is the same rule for a browser that gets the media query wrong */
+  .rotate { position: fixed; inset: 0; display: none; place-content: center; justify-items: center; gap: 10px; background: var(--ink); color: var(--gold); z-index: 200; text-align: center;
+            font: 16px Cinzel, Georgia, serif; padding: 0 24px; pointer-events: auto; touch-action: none; }
+  .rotate p { margin: 0; max-width: 300px; line-height: 1.4; text-wrap: balance; }
+  .rotate small { font: 13px Georgia, serif; color: var(--gold-dim); }
   .rotate.show { display: grid; }
+  @media (pointer: coarse) and (orientation: portrait) { .rotate { display: grid; } }
   .rotate div { font-size: 64px; animation: spin 2.4s ease-in-out infinite; }
   @keyframes spin { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
 
@@ -633,6 +635,103 @@
     .bagrid { grid-template-columns: repeat(10, 36px); grid-auto-rows: 36px; }
     .item-detail { width: 230px; font-size: 12px; } .stats { width: 200px; font-size: 12px; }
   }
+
+  /* ---------------- the chat log (chatlog.js): bottom left, over the life and mana bars, in the game's
+     own plain panel and buttons; the fight's numbers and words (combatfx.js) are on their own canvas */
+  body.title-up canvas.combatfx { visibility: hidden; }
+  .chatlog { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 88px; width: 400px; height: 210px; box-sizing: border-box;
+             display: flex; flex-direction: column; padding: 6px 8px 8px; pointer-events: auto; container-type: inline-size;
+             font: 13px 'Alegreya Sans', Georgia, serif; color: #e8dcc0;
+             background: rgba(16, 12, 18, .72); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000;
+             transition: background .4s, border-color .4s, box-shadow .4s; }
+  .chatlog[data-size="s"] { font-size: 11.5px; } .chatlog[data-size="l"] { font-size: 15.5px; }
+  .chatlog.faint { background: rgba(16, 12, 18, .35); }
+  .chatlog.focus { border-color: var(--gold-dim); background: rgba(16, 12, 18, .88); }
+  .chatlog.under { visibility: hidden; }
+  /* quiet a while: the panel fades away, only the lines newer than 8 s stay */
+  .chatlog.idle { background: transparent; border-color: transparent; box-shadow: none; }
+  .chatlog.idle .cl-head { opacity: 0; }
+  .chatlog.idle .ln:not(.fresh) { opacity: 0; }
+  .chatlog.idle .ln.fresh { text-shadow: 0 1px 0 #000, 0 0 4px #000; }
+  .chatlog.idle .cl-body { scrollbar-color: transparent transparent; }
+  .cl-head { display: flex; align-items: center; gap: 6px; flex: none; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #3a3028; transition: opacity .4s; }
+  .cl-tabs { display: flex; gap: 4px; min-width: 0; }
+  #ui .cl-tabs button { position: relative; min-width: 0; padding: 2px 7px; font: 700 10px Cinzel, serif; letter-spacing: .06em; }
+  #ui .cl-tabs button.on { background: #5a4420; border-color: var(--gold); color: #fff4d0; }
+  .cl-tabs button i { display: none; position: absolute; right: 2px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: #ffd24a; box-shadow: 0 0 3px #ffb020; }
+  .cl-tabs button.new i { display: block; }
+  .cl-tick { display: none; }
+  .cl-hint { margin-left: auto; font: 600 9.5px Cinzel, serif; letter-spacing: .08em; color: #8a7a5a; }
+  #ui .cl-gear { width: 24px; height: 22px; min-width: 0; padding: 0; font-size: 15px; line-height: 1; }
+  #ui .cl-gear.on { border-color: var(--gold); color: var(--gold); }
+  .cl-grip { width: 12px; height: 12px; flex: none; align-self: flex-start; margin: -4px -6px 0 0; cursor: nesw-resize !important; opacity: .7;
+             background: linear-gradient(135deg, transparent 0 40%, #8a7448 40% 50%, transparent 50% 65%, #8a7448 65% 75%, transparent 75%); }
+  .cl-grip:hover { opacity: 1; }
+  @container (max-width: 420px) { .cl-hint { display: none; } #ui .cl-gear { margin-left: auto; } }
+  @container (max-width: 330px) { #ui .cl-tabs button { padding: 2px 4px; letter-spacing: 0; } }
+  .cl-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 4px; outline: none;
+             scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+  .chatlog .ln { display: flex; align-items: baseline; gap: 6px; padding: 1px 0; line-height: 1.32; text-shadow: 0 1px 1px #000; transition: opacity .4s; }
+  .chatlog .ln time { display: none; flex: none; font: 600 9.5px Cinzel, serif; color: #6e6252; font-variant-numeric: tabular-nums; }
+  .chatlog.stamps .ln time { display: inline; }
+  .chatlog .ln time.rep { visibility: hidden; }
+  .chatlog .ln span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .chatlog .ln.nw span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chatlog .ln span i { color: #a89070; }
+  .chatlog .c-nw { white-space: nowrap; }
+  .chatlog .ln-x { flex: none; font: italic 600 10px Cinzel, serif; color: var(--gold); }
+  .chatlog .ln.big span { color: #ffe48c; font-weight: 700; }
+  .chatlog .ln.bump span { animation: lnbump .25s ease-out; }
+  @keyframes lnbump { 0% { filter: brightness(1.7); } }
+  .chatlog .ln.c-talk { color: #f2e8d2; } .chatlog .ln.c-taunt { color: #d8aaa0; font-style: italic; }
+  .chatlog .ln.c-quest { color: #ffe48c; } .chatlog .ln.c-qitem { color: #f6eeb0; }
+  .chatlog .ln.c-loot, .chatlog .ln.c-trade { color: #e4dac4; } .chatlog .ln.c-gold { color: #ffd65a; }
+  .chatlog .ln.c-xp { color: #e8d496; } .chatlog .ln.c-level { color: #ffe48c; }
+  .chatlog .ln.c-hit { color: #e6ded0; } .chatlog .ln.c-hurt { color: #ffa08e; } .chatlog .ln.c-ail { color: #f0c28e; }
+  .chatlog .ln.c-kill { color: #d4ccc4; } .chatlog .ln.c-block { color: #c8d2dc; } .chatlog .ln.c-heal { color: #a8f0a0; }
+  .chatlog .ln.c-world { color: #a8c8ff; } .chatlog .ln.c-sys { color: #bfb196; }
+  .chatlog .c-who { color: #ffd88e; } .chatlog .c-foe { color: #ff8070; } .chatlog .c-you { color: #fff6dc; }
+  .chatlog .c-q { color: #ffd84a; } .chatlog .c-gold { color: #ffd34a; } .chatlog .c-item { color: #ece4d4; } .chatlog .c-qitem { color: #f8f0a8; }
+  .chatlog .c-x { color: var(--gold); }
+  .chatlog .c-num { color: #ffffff; font-variant-numeric: tabular-nums; }
+  .chatlog .c-num.fire { color: #ff9a48; } .chatlog .c-num.frost { color: #8ad4ff; } .chatlog .c-num.shock { color: #c8b0ff; }
+  .chatlog .c-num.arcane { color: #e488ff; } .chatlog .c-num.holy { color: #ffe890; } .chatlog .c-num.poison { color: #b0e858; }
+  .chatlog .c-num.blood { color: #ff6070; } .chatlog .c-num.heavy { color: #ffd040; } .chatlog .c-num.hurt { color: #ff6a50; }
+  .chatlog .c-num.xp, .chatlog .c-num.level { color: #ffe08a; }
+  #ui .cl-new { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); min-width: 0; padding: 2px 10px; font-size: 10px; z-index: 2; box-shadow: 0 2px 8px #000; }
+  .cl-menu { position: absolute; left: -2px; bottom: calc(100% + 6px); width: min(540px, 92vw); max-height: min(70vh, 520px); overflow: auto; box-sizing: border-box;
+             padding: 12px 16px; z-index: 6; background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 0 0 1px #000, 0 10px 40px #000; }
+  #ui .cm-close { display: none; position: sticky; top: 0; float: right; width: 44px; height: 44px; font-size: 20px; z-index: 1; }
+  .cm-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 18px; }
+  .cm-group h4 { display: flex; align-items: baseline; margin: 0 0 4px; padding-bottom: 2px; border-bottom: 1px solid #3a3028;
+                 font: 700 11px Cinzel, serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+  .cm-group h4 a { margin-left: auto; font: 600 9.5px Cinzel, serif; letter-spacing: .04em; text-transform: none; color: #8a7a60; cursor: pointer; }
+  .cm-group h4 a:hover { color: var(--gold); }
+  .cm-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; font: 13px 'Alegreya Sans', Georgia, serif; color: #e8dcc0; cursor: pointer; }
+  .cm-row input { display: none; }
+  .cm-box { flex: none; width: 10px; height: 10px; border: 1px solid var(--edge); background: #120e14; }
+  .cm-row input:checked + .cm-box { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 2px #120e14; }
+  .cm-row:hover span { color: #fff4d8; }
+  .cm-size, .cm-act { margin-top: 7px; font: 600 11px Cinzel, serif; color: #a89070; }
+  #ui .cm-size button, #ui .cm-act button { min-width: 0; padding: 2px 8px; margin: 0 0 0 4px; font-size: 11px; }
+  #ui .cm-act button { margin: 0 4px 0 0; }
+  @media (pointer: coarse) {   /* a phone: top left, under what's in your hands; folded to one line till tapped */
+    .chatlog { top: 78px; bottom: auto; width: 40vw; height: 30vh; padding: 4px 6px 5px; font-size: 11px; }
+    .chatlog.collapsed { width: min(240px, 42vw); height: auto; }
+    .chatlog.collapsed .cl-body, .chatlog.collapsed .cl-new, .chatlog.collapsed .cl-tabs, .chatlog.collapsed .cl-gear { display: none; }
+    .chatlog.collapsed .cl-head { margin: 0; padding: 0; border: 0; }
+    .chatlog.collapsed .cl-tick { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; font-size: 11px; color: #e8dcc0; }
+    .chatlog.collapsed .cl-tick span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chatlog.collapsed .cl-tick span:empty::before { content: 'Chronicle'; font: 700 11px Cinzel, serif; color: var(--gold); letter-spacing: .1em; }
+    .chatlog.collapsed .cl-tick b { flex: none; font: 700 10px Cinzel, serif; color: #1a0e04; background: var(--gold); padding: 0 4px; }
+    .chatlog.collapsed .cl-tick b:empty { display: none; }
+    .chatlog .cl-grip { display: none; }
+    #ui .cl-tabs button { min-height: 28px; padding: 2px 6px; }
+    .cl-menu { position: fixed; inset: 8px; width: auto; max-height: none; }
+    .cm-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #ui .cm-close { display: block; }
+  }
+
   @media (max-height: 420px) { /* a phone on its side */
     .overlay { gap: 4px; }
     .overlay .logo { width: min(360px, 56vw); }
@@ -645,6 +744,7 @@
 <div id="ui"></div>
 <!-- the title screen: black from the first paint; title.js fills it in before the game has loaded -->
 <div id="title"><div class="t-screen"><div class="t-cover"></div></div><div class="t-modal"></div></div>
+<div id="rotate" class="rotate"><div>&#x21bb;</div><p>Turn your phone sideways to play</p><small>Bellmourn is played in landscape</small></div>
 <script type="module" src="src/fps/title.js"></script>
 <script type="module" src="src/fps/main.js"></script>
 </body>
