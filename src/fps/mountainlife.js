@@ -157,8 +157,9 @@ export function lifeSpurs(S) {
     const len = Math.hypot(bx - ax, bz - az);
     if (len < 3) continue;
     const n = Math.ceil(len / 2.5), bend = -sg * len * 0.08, pts = [];
-    for (let k = 0; k <= n; k++) { const t = k / n, w = Math.sin(t * Math.PI) * bend, px = ax + (bx - ax) * t - dz * w, pz = az + (bz - az) * t + dx * w; pts.push([px, pz, S.heightAt(px, pz)]);
-      if (into > 0.6 && Math.hypot(px - c.x, pz - c.z) < c.r0 * 0.95) break; }   // (it stops where the forecourt starts)
+    for (let k = 0; k <= n; k++) { const t = k / n, w = Math.sin(t * Math.PI) * bend, px = ax + (bx - ax) * t - dz * w, pz = az + (bz - az) * t + dx * w;
+      if (into > 0.6 && k > 1 && Math.hypot(px - c.x, pz - c.z) < c.r0 * 0.95) break;   // (it stops where the forecourt starts)
+      pts.push([px, pz, S.heightAt(px, pz)]); }
     out.push({ name: `The path to ${c.name.replace(/^The /, 'the ')}`, w: 1.15, pts, side: true, to: c.name, spur: true });
   }
   S.trails.push(...out);
