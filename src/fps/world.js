@@ -753,7 +753,7 @@ function forestRing(ctx, R, houses) {
     const sc = 0.8 + R() * 0.6;
     // Blackvigil Keep's ground stays open: what would grow there is drawn for and not planted,
     // so the rest of the forest stands as it always has
-    const open = keepClear(x, z) || !!ctx.mountain?.keepsClear(x, z);   // (and the Pilgrims' Track to the Broken Stair, and the mountain's own ground)
+    const open = keepClear(x, z) || !!ctx.mountain?.keepsClear(x, z) || !!ctx.details?.keepsClear(x, z);   // (and the temple, the camps, the ruins: details.js)   // (and the Pilgrims' Track to the Broken Stair, and the mountain's own ground)
     if (!inVillage && count % 9 === 4 && ctx.trees3d) { // every ninth forest tree is a 3D one
       const s3 = 0.9 + R() * 0.5;
       if (!open) ctx.trees3d.add(species[(count / 9 | 0) % species.length], x, 0, z, s3);

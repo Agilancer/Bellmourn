@@ -95,6 +95,16 @@ const ROSTER = [
   { m: 'villager_f06', name: 'Tamsin', call: 'Tamsin', tags: ['healer', 'hillfolk'], keeper: 'hornTamsin', hair: [0.55, 0.3, 0.16] },
   // the Mountain Wardens, who keep the Pilgrims' Road (holds.js): their captain in Greywatch Keep's court
   // and two of the watch on its gate, and Edda at Cairnwatch's foot, all in the Warden's Leathers
+  // the wayside camps' folk (pastimes.js): travellers at their fires, who'll throw knucklebones with you or
+  // race you to a cairn and back (`keeper`: their places by the fire)
+  { m: 'villager_m06', name: 'Pell', call: 'Pell the Tinker', tags: ['traveller', 'merchant'], keeper: 'campPell' },
+  { m: 'villager_f10', name: 'Wynn', tags: ['traveller'], keeper: 'campWynn' },
+  { m: 'villager_m03', name: 'Cade', call: 'Brother Cade', tags: ['traveller', 'learned'], keeper: 'campCade' },
+  { m: 'villager_f11', name: 'Agna', tags: ['traveller'], keeper: 'campAgna' },
+  { m: 'villager_m02', name: 'Rook', tags: ['hunter', 'traveller'], keeper: 'campRook', armor: 'hunter', helm: false },
+  { m: 'villager_f05', name: 'Sef', tags: ['hunter', 'traveller'], keeper: 'campSef' },
+  { m: 'villager_m09', name: 'Hob', call: 'Hob the Drover', tags: ['worker', 'hillfolk'], keeper: 'campHob' },
+  { m: 'villager_f04', name: 'Merra', tags: ['worker', 'hillfolk'], keeper: 'campMerra' },
   { m: 'villager_m10', name: 'Halvard', call: 'Captain Halvard', tags: ['guard', 'warden'], keeper: 'gwHalvard', armor: 'hunter', helm: false, hair: [0.4, 0.36, 0.32] },
   { m: 'villager_f07', name: 'Edda', call: 'Edda of Cairnwatch', tags: ['guard', 'warden', 'hunter'], keeper: 'cwEdda', armor: 'hunter', helm: false },
   { m: 'villager_m01', name: 'Corwin', tags: ['guard', 'warden'], keeper: 'gwWardenA', armor: 'hunter' },

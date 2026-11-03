@@ -45,6 +45,10 @@ import { title } from './title.js';   // (the title screen: up before any of thi
 import { Zombies, pieceSample } from './zombies.js';
 import { Foes, REAVERS, REAVERS_PHONE } from './foes.js';
 import { populateReavers, populateMountainDead } from './reavers.js';
+import { detailClear, layDetails } from './details.js';
+import { buildTemple, templeClear, populateTemple } from './temple.js';
+import { raiseStatues } from './statues.js';
+import { layCamps, Pastimes } from './pastimes.js';
 import { Slimes } from './slimes.js';
 import { Villagers } from './villagers.js';
 import { CALLER, GATHER_CALLS, GATHER_AGAIN, GATHER_CHATTER, GATHER_LEAD, GATHER_LAG, GATHER_SIGHT, GATHER_TALK, GATHER_AWAY, gatherLines } from './lines/opening.js';
@@ -329,7 +333,12 @@ async function build() {
     PORTALS.push(...mountainPortals(ctx.mountain));   // (its star-seals: before the forest's planted, so it leaves their ground clear)
     // (Hornhollow's folk at their posts: the quest givers' and the villagers' keepers)
     for (const [name, g] of Object.entries(ctx.mountain?.givers || {})) { if (GIVERS[name]) GIVERS[name].post = g.post; ctx[g.key] = { post: g.post, floor: g.floor }; } }
+  // the places that must stay open (the temple, the camps, the ruins), registered before the forest's planted
+  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); templeClear(detailClear(ctx)); layCamps(ctx, MM); }
   buildWorld(ctx); await mark('world');
+  // the Temple of Velscour (after buildWorld: its rooms go in ctx.zones), then the world's detail (kerbs, outcrops,
+  // groves, ruins, the statues' places) now every road is down
+  { const MM = (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }); buildTemple(ctx, MM); layDetails(ctx, MM); }
   buildMountainVillage(ctx, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }));   // (Hornhollow's houses: their rooms go in ctx.zones as Bellmourn's do)
   // the catacombs under the cathedral (the Undercroft, the Mourning Gulf's floor and the Deep
   // Undercroft: catacombs.js); Blackvigil Keep; the Darkwood's delves and the cliff's caves
@@ -469,7 +478,8 @@ async function build() {
   ctx.say = (who, line) => hud.announce(who, line);
   ctx.catacombs.toast = (t) => hud.toast(t);
   const awayFromHomes = (x, z) => Math.hypot(x, z) > VILLAGE_R + 25 && ctx.inBounds(x, z);
-  populateMountainDead(zombies, ctx.mountain, { touch });   // (the Hollow Tower's and the Pilgrims' Barrow's dead)
+  populateMountainDead(zombies, ctx.mountain, { touch });
+  populateTemple(ctx.temple, { zombies, touch });   // (the crypt's dead: temple.js)   // (the Hollow Tower's and the Pilgrims' Barrow's dead)
   zombies.populateWild([
     { x: POOL.x - 14, z: POOL.z + 18, r: 10, n: few(3), haunt: 'water' },                       // the falls' pool
     ...[3, 6, 8, 10].map((i) => ({ x: STREAM[i][0], z: STREAM[i][1], r: 7, n: few(2), haunt: 'water' })),   // down the stream
@@ -530,6 +540,9 @@ async function build() {
   foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => foes.populateMountain(ctx.mountain)).catch((e) => console.warn('the goat men', e));
   // the Sorrowhorn's Red Scythe and bandits (reavers.js), made after the keep's Sworn (the library read once between them)
   foes.reaversReady = (touch ? foes.beastsReady : foes.swornReady).then(() => foes.loadSworn(touch ? REAVERS_PHONE : REAVERS)).then(() => populateReavers(foes, ctx.mountain, { touch })).catch((e) => console.warn('the reavers', e));
+  // the temple's knights once the Sworn are made; the statues once every body they're cast from is
+  foes.swornReady.then(() => populateTemple(ctx.temple, { foes, touch })).catch((e) => console.warn('the temple', e));
+  foes.statuesReady = foes.reaversReady.then(() => raiseStatues(ctx, foes, (id, tile = 3, o = {}) => lib.material(id, { tile, ...o }), { touch })).catch((e) => console.warn('the statues', e));
   await mark('foes');
   magic.hitTest = (p, d, far) => zombies.ray(p, d, far);
   magic.hitAll = (p, d, far) => [...zombies.list, ...slimes.list].map((z) => z.ray(p, d, far)).filter(Boolean);
@@ -2558,8 +2571,11 @@ function step(dt) {
     const shop = MERCHANT_OF[who.name], gift = who.name === 'Garrow' && villagers.onGift && !villagers.gave('garrowsoath');
     const trades = shop && mark !== '!' && mark !== '?' && !gift && !who.gathered;
     if (trades) hud.prompt(`E — trade with ${who.call} · ${SHOPS[shop].name}`);
+    const game = ctx.pastimes?.offer(who);   // (the wayside camps' games: pastimes.js)
+    if (game) hud.prompt(game);
     if (inp.was('KeyE')) {
       if (trades) setTrade(true, who);
+      else if (game && ctx.pastimes.talk(who, player)) { /* (a game) */ }
       else if (!quests.talk(who.name, who)) villagers.talkTo(who, player); else if (!who.gathered) { villagers.stopScenes(who); villagers.face(who, player); who.quick = 0.8; }
     }
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
@@ -2608,6 +2624,7 @@ function step(dt) {
   ctx.crater.update(dt, t, camera);
   ctx.fireflies.update(dt, t, camera, 1 - day.day, L.under > 0.5 || camera.position.y < physics.groundAt(camera.position.x, camera.position.z) - 1);
   ctx.motes?.update(dt, t, camera, L.under > 0.5, day.day, L.wood);
+  (ctx.pastimes ||= new Pastimes(ctx, { char, sfx, hud, villagers })).update(dt, player);
   ctx.horizon?.update(camera, scene.fog.color, L.under);
   // the crater's glow (the opening has the light while it runs)
   if (!intro?.running) {

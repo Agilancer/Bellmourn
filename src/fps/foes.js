@@ -120,6 +120,9 @@ export const FOES = {
     R: ['scimitar', 'fang_blade', 'gaolers_hook', 'wolfjaw_sickle', 'bearded_axe'], L: ['hide_targe', 'spiked_buckler'] },
   bandit_chief: { kind: 'knight', title: 'Old Corrick, the Crowstep Captain', faction: 'bandit', body: { villager: 'villager_m07', armor: null, sex: 'm', helm: false, eyes: null }, finish: ['ancient'], stats: 'bandit_chief', palette: true,
     scale: 1.12, R: ['headsman'] },
+  // the Temple of Velscour's warden (temple.js), at the foot of its altar: one of the Sworn grown huge
+  sworn_warden: { kind: 'knight', title: 'Ser Oswin Vey, Warden of the Temple', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'champion',
+    scale: 1.3, R: ['penitents_greatsword', 'coffin_hammer'], L: ['thorned_kite'] },
   sworn_lord: { kind: 'knight', title: 'Ser Malgrave, the Red Hand of Velscour', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['bloodforged'], stats: 'lord',
     boss: true, scale: 1.35, glow: 0xff2410, R: ['penitents_greatsword'], L: ['thorned_kite'] },
 };
