@@ -923,11 +923,14 @@ export class Zombie {
     // the body is the biggest skinned mesh (monsters also carry eyes, brows and bones)
     model.traverse((c) => { if (c.isSkinnedMesh && (!this.mesh || c.geometry.attributes.position.count > this.mesh.geometry.attributes.position.count)) this.mesh = c; });
     const mesh = this.mesh;
-    // every body of a kind shares its vertices; each has its own triangles, as limbs come off
+    // every body of a kind shares its vertices, and its triangles too until a limb comes off (cut()
+    // and its kin give it an index of its own then): three hundred copies of each kind's triangles,
+    // here and on the GPU, were a phone's memory for nothing
     const src = mesh.geometry, geo = mesh.geometry = new THREE.BufferGeometry();
     for (const [k, a] of Object.entries(src.attributes)) geo.setAttribute(k, a);
     geo.setAttribute('bindPos', src.attributes.position);
-    geo.setIndex(src.index.clone());
+    geo.setIndex(src.index);
+    this.sharedIndex = src.index;
     for (const g of src.groups) geo.addGroup(g.start, g.count, g.materialIndex);
     this.shared = Object.keys(geo.attributes);
     mesh.material = this.material(mesh.material, owner.lib);
@@ -951,7 +954,7 @@ export class Zombie {
       for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
       this.dom[i] = best;
     }
-    this.index = geo.index.array.slice();
+    this.index = src.index.array;   // (the whole body's triangles, as it came: read only, so shared too)
     this.alive = new Uint8Array(this.index.length / 3).fill(1);
     // one skeleton for all its parts, and culled to what the camera and the sun can see (engine.js)
     shareSkeletons(model);
@@ -2056,6 +2059,7 @@ export class Zombie {
       g.setIndex(null); g.dispose();
     }
     for (const k of this.shared) this.mesh.geometry.deleteAttribute(k); // the other bodies still draw with them
+    if (this.mesh.geometry.index === this.sharedIndex) this.mesh.geometry.setIndex(null);   // (and its triangles, if it still had its kind's)
     this.mesh.geometry.dispose();
     for (const m of [this.mesh.material].flat()) m.dispose();
     this.mixer.stopAllAction();
