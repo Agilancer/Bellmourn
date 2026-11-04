@@ -191,6 +191,10 @@ export class WorldMap {
       const water = (x, z, r, fill) => { const [a, b] = this.px(x, z); g.fillStyle = fill; g.beginPath(); g.arc(a, b, Math.max(2.5, r / PX), 0, Math.PI * 2); g.fill(); g.strokeStyle = INK; g.lineWidth = 0.8; g.stroke(); };
       // (the places off the road, up their own paths: a ring, their name under it)
       const named = [...(Mt.holds || []), ...(Mt.camps || []), ...(Mt.views || []), Mt.falls?.pool, Mt.mere].filter(Boolean);
+      // (the places' paths bolder than the old trails: they're how you find them)
+      g.save(); g.strokeStyle = '#6a4a2a'; g.lineWidth = 1.6; g.setLineDash([4, 2]);
+      for (const t of Mt.trails || []) { if (!t.to) continue; g.beginPath(); t.pts.forEach(([x, z], i) => { const [a, b] = this.px(x, z); if (i) g.lineTo(a, b); else g.moveTo(a, b); }); g.stroke(); }
+      g.restore();
       for (const o of Mt.outposts || []) { const [a, b] = this.px(o.x, o.z); g.strokeStyle = INK; g.lineWidth = 1.2; g.beginPath(); g.arc(a, b, 2.6, 0, Math.PI * 2); g.stroke();
         if (!named.some((q) => Math.hypot(q.x - o.x, q.z - o.z) < 60)) name(o.x, o.z + 13, o.name, 7); }   // (its name only where it won't sit on another's)
       if (Mt.falls) { water(Mt.falls.pool.x, Mt.falls.pool.z, Mt.falls.pool.r, '#3a5a6a'); name(Mt.falls.pool.x, Mt.falls.pool.z - 10, 'Sorrowfall', 8); }

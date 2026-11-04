@@ -1065,7 +1065,7 @@ export class Villagers {
     this.run((function* () {
       self.face(a, player); a.quick = 0.6;
       yield 0.25;
-      self.gesture(a, 'wave');
+      if (!a.greets) self.gesture(a, 'wave');   // (the mountain's folk only turn to you: their wave reads as a stiff arm)
       if (self.time >= QUIET) { self.say(a, line, true, { wait: 3 }); yield 0.3; }   // (a passing good day: let go if others are talking)
       yield 0.8;
     })(), [a]);

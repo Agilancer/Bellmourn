@@ -100,11 +100,12 @@ function ruin(b, M, ctx, x, z, k, row = false) {
 }
 
 /** A grove: a knot of broadleaf trees, a few stones and some undergrowth among them. */
-function grove(ctx, M, x, z, n, k) {
+function grove(ctx, M, x, z, n, k, roadD = null) {
   const sp = ['oak', 'beech', 'elm', 'maple', 'oak', 'laurel'];
   for (let i = 0; i < n; i++) {
-    const a = rnd() * TAU, r = Math.sqrt(rnd()) * (5 + n * 0.8), tx = x + Math.cos(a) * r, tz = z + Math.sin(a) * r;
-    ctx.trees3d?.add(sp[(i + k) % sp.length], tx, groundAt(ctx, tx, tz) - 0.2, tz, 0.95 + rnd() * 0.6);
+    const a = rnd() * TAU, r = Math.sqrt(rnd()) * (5 + n * 0.8), tx = x + Math.cos(a) * r, tz = z + Math.sin(a) * r, s = 0.95 + rnd() * 0.6;
+    if (roadD && roadD(tx, tz) < 2) continue;   // (a tree of it in a way: drawn for, not planted)
+    ctx.trees3d?.add(sp[(i + k) % sp.length], tx, groundAt(ctx, tx, tz) - 0.2, tz, s);
   }
   const rock = M('rock_06_overworld_mossy_rock_1_03', 2.6, { tint: 0xc0c4b0, tri: true });
   for (let i = 0; i < 3; i++) { const a = rnd() * TAU, r = 3 + rnd() * 6, sx = x + Math.cos(a) * r, sz = z + Math.sin(a) * r, s = 0.5 + rnd() * 0.7;
@@ -142,14 +143,15 @@ export function layDetails(ctx, M) {
   }
   // outcrops: the Darkwood, the downs, the foothills
   const tryPlace = (gen, want, fn) => { for (let t = 0, n = 0; t < want * 60 && n < want; t++) { const [x, z] = gen(); if (free(x, z, 9) && fn(x, z, n) !== false) n++; } };   // (fn false: not there after all)
-  tryPlace(() => { const a = rnd() * TAU, r = 125 + rnd() * 150; return [Math.cos(a) * r, Math.sin(a) * r]; }, 9, (x, z, n) => { outcrop(b, M, x, groundAt(ctx, x, z), z, 2.4 + rnd() * 2.2, n); D.zones.push([x, z, 6]); stats.outcrops++; });
-  tryPlace(() => [300 + rnd() * 460, -240 + rnd() * 480], 12, (x, z, n) => { outcrop(b, M, x, groundAt(ctx, x, z), z, 2.2 + rnd() * 3, n + 20); stats.outcrops++; });
+  const wide = (x, z, s) => roadD(x, z) > s * 1.9 + 1.5;   // (an outcrop's slabs and fallen blocks reach nearly twice its size out: none of it on a way)
+  tryPlace(() => { const a = rnd() * TAU, r = 125 + rnd() * 150; return [Math.cos(a) * r, Math.sin(a) * r]; }, 9, (x, z, n) => { const s = 2.4 + rnd() * 2.2; if (!wide(x, z, s)) return false; outcrop(b, M, x, groundAt(ctx, x, z), z, s, n); D.zones.push([x, z, 6]); stats.outcrops++; });
+  tryPlace(() => [300 + rnd() * 460, -240 + rnd() * 480], 12, (x, z, n) => { const s = 2.2 + rnd() * 3; if (!wide(x, z, s)) return false; outcrop(b, M, x, groundAt(ctx, x, z), z, s, n + 20); stats.outcrops++; });
   if (S) {
     tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 330 + rnd() * 260; return [Math.cos(a) * r, Math.sin(a) * r]; }, 12, (x, z, n) => {
-      if (!S.covers(x, z) || S.slopeAt(x, z) > 0.5) return false; outcrop(b, M, x, S.heightAt(x, z), z, 3 + rnd() * 3, n + 40); stats.outcrops++; });
+      if (!S.covers(x, z) || S.slopeAt(x, z) > 0.5) return false; const s = 3 + rnd() * 3; if (!wide(x, z, s)) return false; outcrop(b, M, x, S.heightAt(x, z), z, s, n + 40); stats.outcrops++; });
     // groves of broadleaf round the mountain's feet: on its lowest, gentlest ground
     tryPlace(() => { const a = 2.62 + rnd() * 2.6, r = 312 + rnd() * 240; return [Math.cos(a) * r, Math.sin(a) * r]; }, 18, (x, z, n) => {
-      if (!S.covers(x, z) || S.heightAt(x, z) > 120 || S.slopeAt(x, z) > 0.55) return false; grove(ctx, M, x, z, 6 + (n % 5), n); stats.groves++; });
+      if (!S.covers(x, z) || S.heightAt(x, z) > 120 || S.slopeAt(x, z) > 0.55) return false; grove(ctx, M, x, z, 6 + (n % 5), n, roadD); stats.groves++; });
   }
   // the old ruins: in Darkwood clearings, on the downs, one in the foothills
   const ruinSpots = [[-150, -205, true], [205, -95, false], [520, 175, false], [420, -200, true], [-120, 200, false]];

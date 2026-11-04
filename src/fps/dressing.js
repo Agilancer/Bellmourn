@@ -118,7 +118,8 @@ function landmarks(ctx, M, D, free) {
     let top = true;
     for (const [dx, dz] of [[14, 0], [-14, 0], [0, 14], [0, -14], [10, 10], [-10, 10], [10, -10], [-10, -10]]) if (terrainHeight(x + dx, z + dz) > y) { top = false; break; }
     // (the downs proper: not the falls' plateau and its cliff to the east, not by the water)
-    if (top && ![...physics.near(x - 13, z - 13, x + 13, z + 13)].some((q) => q.tag === 'tree' || q.tag === 'rock' || q.tag === 'prop') && x < REGION.x1 - 130 && Math.hypot(x - POOL.x, z - POOL.z) > 90 && Math.hypot(x - KNOLL.x, z - KNOLL.z) > KNOLL.r + 40 && free(x, z, 14)) tops.push([y, x, z]);
+    if (top && ![...physics.near(x - 13, z - 13, x + 13, z + 13)].some((q) => q.tag === 'tree' || q.tag === 'rock' || q.tag === 'prop' || q.tag === 'wall' || q.tag === 'door')
+      && !(ctx.interiors || []).some((r) => x > r.x0 - 12 && x < r.x1 + 12 && z > r.z0 - 12 && z < r.z1 + 12) && x < REGION.x1 - 130 && Math.hypot(x - POOL.x, z - POOL.z) > 90 && Math.hypot(x - KNOLL.x, z - KNOLL.z) > KNOLL.r + 40 && free(x, z, 14)) tops.push([y, x, z]);
   }
   tops.sort((a, b2) => b2[0] - a[0]);
   const hills = [];
@@ -258,7 +259,7 @@ function groundDressing(ctx, D) {
     // the summit's own pale stone; the village's yard
     if (S.summitSite) D.strew('rock_pale', S.summitSite.x, S.summitSite.z, 14, 22, { scale: 1.3 });
     if (S.villageSite) D.strew('debris', S.villageSite.x, S.villageSite.z, 15, 10, { lift: 0.04 });
-    if (S.falls) { const p = S.falls.pool; for (let k = 0; k < 26; k++) { const a = k / 26 * Math.PI * 2, r = p.r + 0.4 + D.R() * 0.9, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r; if (Math.abs(H(x, z) - p.y) < 0.8) D.add('pebbles', x, z, { scale: 0.7 + D.R() * 0.5 }); } }   // (the pebbles not up the cliff behind it)
+    if (S.falls) { const p = S.falls.pool; for (let k = 0; k < 26; k++) { const a = k / 26 * Math.PI * 2, r = p.r + 0.4 + D.R() * 0.9, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r, sc = 0.7 + D.R() * 0.5; if (Math.abs(H(x, z) - p.y) < 0.8) D.add('pebbles', x, z, { scale: sc }); } }   // (the pebbles not up the cliff behind it)
   }
   // every cave's mouth: the dark wet rock that runs out of it
   for (const c of ctx.caves || []) { const m = c.mouth; D.strew('rock_dark', m.x - 2.5, m.z, 4.5, 12); D.strew('pebbles', m.x - 5, m.z, 4, 4); }

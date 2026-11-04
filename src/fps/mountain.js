@@ -29,7 +29,7 @@ import { buildHolds } from './holds.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TOUCH } from './input.js';
 import { layRoads } from './roads.js';
-import { planLife, lifeSpurs, buildLife, massForest } from './mountainlife.js';
+import { planLife, lifeSpurs, buildLife, massForest, laneIndex } from './mountainlife.js';
 
 export const MOUNT = { x: -1000, z: -1000, R: 860, peak: 480, name: 'The Sorrowhorn' };
 export const GATE = { bearing: 225 * Math.PI / 180, r0: 300, r1: 305.5, h: 9, name: 'The Broken Stair' };
@@ -269,7 +269,7 @@ function planHolds(S) {
     }
     return null;
   };
-  S.holds = []; S.ledges = []; S.ambushes = []; S.brinks = new Set();
+  S.holds = []; S.ledges = []; S.ambushes = []; S.brinks = new Set(); S.brinkDepth = new Map();
   for (const [want, id, name, kind, side, folk] of HOLDS) {
     const r0 = kind === 'keep' ? 18 : kind === 'camp' ? 15 : 10, r1 = r0 + (side === 'out' ? 5 : 7);
     const site = place(want, r0, r1, side, { id, name, kind, folk });
@@ -301,7 +301,7 @@ function planHolds(S) {
     }
   }
   // the sheer stretches: where the ground already falls hard away outside the road, and nothing's there
-  for (const [want, w] of BRINKS) {
+  for (const [n, [want, w]] of BRINKS.entries()) {
     for (let i = Math.floor(N * (want - w)); i <= Math.floor(N * (want + w)); i++) {
       if (i < 4 || i >= N - 4) continue;
       const [x, z, y] = R[i], [ux, uz] = inward(i);
@@ -309,7 +309,7 @@ function planHolds(S) {
       if (S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < (c.r1 || 10) + 14)) continue;
       const far = S.roadAt(x - ux * 40, z - uz * 40);
       if (far && far.d < 32) continue;
-      S.brinks.add(i);
+      S.brinks.add(i); S.brinkDepth.set(i, n % 4 === 1 ? 32 : 22);   // (most a fall of twenty-odd metres; every fourth deeper still)
     }
   }
 }
@@ -406,12 +406,12 @@ export class Sorrowhorn {
         const span = Math.min(18, Math.max(3, Math.abs(h - r.y) * 0.9));
         const w = 1 - smooth(ROAD_W, ROAD_W + span, r.d);
         h += (r.y - 0.15 - h) * w;
-        // a sheer stretch: the outer edge breaks off in a face seventeen metres down, a steep slope under it
+        // a sheer stretch: the outer edge breaks off in a face twenty to thirty metres down, a steep slope under it
         // (its face is a cliff of its own: mountainlife.js buildCliffs)
         if (this.brinks.has(r.i) && r.d > ROAD_W + 0.3) {
           const [ax, az] = this.road[r.i];
           if ((x - ax) * (ax - MOUNT.x) + (z - az) * (az - MOUNT.z) > 0) {
-            const e = r.d - ROAD_W - 0.3, cut = r.y - 0.15 - 17 * smooth(0, 2.6, e) - 0.7 * e;
+            const e = r.d - ROAD_W - 0.3, cut = r.y - 0.15 - (this.brinkDepth.get(r.i) || 17) * smooth(0, 1.4, e) - 0.7 * e;
             if (cut < h) h += (cut - h) * (1 - smooth(28, 44, e));
           }
         }
@@ -430,8 +430,15 @@ export class Sorrowhorn {
       }
       const tr = this.trailAt(x, z);          // (a trail's bench, narrower than the road's)
       if (tr && tr.d < tr.w + 10) { const span = Math.min(9, Math.max(2, Math.abs(h - tr.y) * 0.85)); h += (tr.y - 0.1 - h) * (1 - smooth(tr.w, tr.w + span, tr.d)); }
+      if (this.lifeCut) h = this.lifeCut(x, z, h);   // (the scree chutes' gullies, the places' ways opened out: mountainlife.js)
       this.h[k * NX + i] = h;
     }
+    // (the cells about the sheer stretches: there the grid's four-metre triangles would sag the road's
+    // outer half toward the drop, so heightAt holds the road's own surface out to its edge)
+    this.brinkCells = new Set();
+    for (const i of this.brinks) { const [ax, az] = this.road[i], [bx, bz] = this.road[Math.min(this.road.length - 1, i + 1)];
+      for (let t = 0; t <= 1; t += 0.25) { const ci = Math.floor((ax + (bx - ax) * t - BOX.x0) / G), ck = Math.floor((az + (bz - az) * t - BOX.z0) / G);
+        for (let di = -2; di <= 2; di++) for (let dk = -2; dk <= 2; dk++) this.brinkCells.add((ck + dk) * NX + ci + di); } }
   }
 
   /** The road nearest (x, z): {d, y (its height there), s (how far along, 0..1)} or null. */
@@ -491,7 +498,17 @@ export class Sorrowhorn {
     const i = Math.max(0, Math.min(NX - 2, Math.floor(fi))), k = Math.max(0, Math.min(NZ - 2, Math.floor(fk)));
     const fx = Math.min(1, Math.max(0, fi - i)), fz = Math.min(1, Math.max(0, fk - k)), H = this.h;
     const a = H[k * NX + i], b = H[k * NX + i + 1], c = H[(k + 1) * NX + i], d = H[(k + 1) * NX + i + 1];
-    return fx + fz <= 1 ? a + (b - a) * fx + (c - a) * fz : d + (c - d) * (1 - fx) + (b - d) * (1 - fz);
+    const h = fx + fz <= 1 ? a + (b - a) * fx + (c - a) * fz : d + (c - d) * (1 - fx) + (b - d) * (1 - fz);
+    if (this.brinkCells?.has(k * NX + i)) { const r = this.roadAt(x, z); if (r && r.d < ROAD_W + 0.3) return Math.max(h, r.y - 0.15); }   // (by a drop: the road level to its edge)
+    return h;
+  }
+  /** heightAt for what's laid on the road: by a sheer drop, the road's own height a little past its lip
+   * (a road's mesh ends in one long span: on the ground out there, it would dive down the face). */
+  levelAt(x, z) {
+    const h = this.heightAt(x, z);
+    if (!this.brinkCells?.has(Math.floor((z - BOX.z0) / G) * NX + Math.floor((x - BOX.x0) / G))) return h;
+    const r = this.roadAt(x, z);
+    return r && r.d < ROAD_W + 1.4 ? Math.max(h, r.y - 0.15) : h;
   }
   /** How steep the ground is at (x, z) (rise over run). */
   slopeAt(x, z) {
@@ -616,7 +633,7 @@ const BANDS = { meadow: 140, granite: 215, basalt: 340, snow: 400 };
 
 export function mountainMaterial(lib) {
   const ok = LAYERS.map(([id, c]) => (lib.surf.has(id) ? [id, c] : ['castle_basalt', c]));
-  const tex = ok.map(([id]) => { lib.used?.add(id); return lib.texture(lib.surf.get(id).file); });
+  const tex = ok.map(([id]) => { lib.used?.add(id); const t = lib.texture(lib.surf.get(id).file); t.anisotropy = Math.max(t.anisotropy || 1, 8); return t; });
   const m = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x060606, shininess: 5 });
   m.userData.noGlass = true;
   if (WEBGPU) { m.colorNode = settled(mountainNode(tex, ok.map(([, c]) => c))); keyed(m, 'mountain'); return m; }
@@ -648,7 +665,7 @@ export function mountainMaterial(lib) {
       vec3 nn = normalize(vMN);
       float n1 = mNoise(gp * 0.03), n2 = mNoise(gp * 0.11 + 7.0), n3 = mNoise(gp * 0.05 + 31.0);
       float slope = 1.0 - nn.y, y = vMP.y + (n1 - 0.5) * 40.0;
-      float rockW = max(smoothstep(0.2, 0.4, slope + (n2 - 0.5) * 0.14), vMR);
+      float rockW = max(smoothstep(0.15, 0.33, slope + (n2 - 0.5) * 0.14), vMR);
       vec3 c = vec3(0.0);
       if (rockW < 0.999) {   // the level ground: meadow, then scree and gravel, then old snow
         float hi = smoothstep(${BANDS.snow}.0, ${BANDS.snow + 70}.0, y);
@@ -705,7 +722,7 @@ function mountainNode(tex, tints) {
     const n1 = snoise(gp.mul(0.03)).toVar(), n2 = snoise(gp.mul(0.11).add(7.0)).toVar(), n3 = snoise(gp.mul(0.05).add(31.0)).toVar();
     const nn = normalize(normalGeometry).toVar();
     const slope = nn.y.oneMinus().toVar(), y = P.y.add(n1.sub(0.5).mul(40.0)).toVar();
-    const rockW = max(smoothstep(0.2, 0.4, slope.add(n2.sub(0.5).mul(0.14))), attribute('rocky', 'float')).toVar();
+    const rockW = max(smoothstep(0.15, 0.33, slope.add(n2.sub(0.5).mul(0.14))), attribute('rocky', 'float')).toVar();
     const c = vec3(0.0).toVar();
     If(rockW.lessThan(0.999), () => {
       const sc = smoothstep(BANDS.meadow - 25, BANDS.meadow + 25, y).toVar();
@@ -873,7 +890,9 @@ export function buildMountainCaves(ctx, M) {
       const q = k / 14 * Math.PI * 2, x = W.x + Math.cos(q) * 6.4, z = W.z + Math.sin(q) * 6.4, s = 0.5 + ((k * 37) % 7) / 14;
       b.place(x, S.heightAt(x, z) - 0.2, z, q, 1, (o) => o.blob([0, s * 0.4, 0], [s, s * 0.6, s * 0.8], k % 3 ? rock : moss, { detail: 1, jitter: 0.22, seed: 360 + k }), { solid: false });
     }
-    const cx = W.x + 8.5, cz = W.z, cy = S.heightAt(cx, cz);
+    // (its cairn by the lip, where no path runs: the first of a few places round it clear of every way)
+    const inLane = laneIndex(ctx.paths), spot = [[8.5, 0], [8.5, 3], [8.5, -3], [7, 5.5], [7, -5.5], [10.5, 0]].map(([u, v]) => [W.x + u, W.z + v]).find(([x, z]) => !inLane(x, z, 0.6)) || [W.x + 8.5, W.z];
+    const [cx, cz] = spot, cy = S.heightAt(cx, cz);
     b.place(cx, cy, cz, 0, 1, (o) => { for (let i = 0; i < 5; i++) o.blob([Math.sin(i * 2.1) * 0.1, 0.18 + i * 0.24, 0], [0.34 - i * 0.04, 0.15, 0.3 - i * 0.04], rock, { detail: 1, jitter: 0.25, seed: 390 + i }); }, { solid: true, minHeight: 0.3 });
     S.well = { x: W.x, z: W.z, floor: W.y, lip, ledges: n, hoard: hoardAt, steps };
   }
@@ -1369,7 +1388,7 @@ export function buildMountain(ctx, M) {
   // the road and the paths off it: loose stone of several kinds, frayed into the ground (roads.js); the
   // paths of grit (t.road 'mountain') with the road, the trodden ones (most) their own
   const H = (x, z) => S.heightAt(x, z);
-  S.roadMesh = layRoads(ctx, ctx.lib, 'mountain', [{ pts: S.road.slice(0, -3), half: 1.9, fray: 1.0, seed: 3 }], { heightAt: H, lift: 0.06, order: 3 });
+  S.roadMesh = layRoads(ctx, ctx.lib, 'mountain', [{ pts: S.road.slice(0, -3), half: 1.9, fray: 1.0, seed: 3 }], { heightAt: (x, z) => S.levelAt(x, z), lift: 0.06, order: 3 });
   S.trailMeshes = ['mountain', 'trail'].map((kind) => layRoads(ctx, ctx.lib, kind, S.trails.map((t, i) => ({ t, i })).filter(({ t }) => (t.road || 'trail') === kind)
     .map(({ t, i }) => ({ pts: i === 0 ? t.pts.slice(0, -3) : t.pts, half: t.w * 0.75, fray: Math.min(0.9, t.w * 0.55), seed: 40 + i, spill: 0.6, step: 1.1, wander: 0.6 })), { heightAt: H, lift: 0.08, order: 2 })).filter(Boolean);
   { const tread = M('castle_keep_pale_keep_limestone', 1.2, { tint: 0x9a968e }), P0 = S.trails[0].pts;   // (the Shepherd's Stair: a stone tread every 3 m)
@@ -1421,6 +1440,7 @@ export function buildMountain(ctx, M) {
     for (let i = Math.floor(S.road.length * (want - 0.1)); i < Math.floor(S.road.length * (want + 0.1)); i += 3) {
       const [x, z, y] = S.road[i], [x2, z2] = S.road[Math.min(S.road.length - 1, i + 2)];
       if (S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < 70)) continue;   // (not under the goat men's noses, nor at a cave or the falls)
+      if (S.trails.some((t) => t.pts.some(([px, pz]) => Math.hypot(px - x, pz - z) < 10))) continue;   // (nor where a path leaves the road: its cairn would stand on it)
       { const ux0 = x2 - x, uz0 = z2 - z, L0 = Math.hypot(ux0, uz0) || 1, o0x = uz0 / L0, o0z = -ux0 / L0, s0 = Math.sign(o0x * (x - MOUNT.x) + o0z * (z - MOUNT.z)) || 1;
         let near = false;   // (its parapet stones, bench and cairn clear of the road, wherever it bends back)
         const oa = Math.atan2(o0z * s0, o0x * s0), test = (px, pz) => { const r = S.roadAt(px, pz); if (r && r.d < 2.6) near = true; };
@@ -1614,7 +1634,7 @@ export function buildMountain(ctx, M) {
   // climbs to the timberline, boulders fallen from the crags (more higher up), grass and heather
   // along the road. Never on the road, never in the lookouts
   { let seed = 4242; const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    const offRoad = (x, z, pad) => { const r = S.roadAt(x, z), t = S.trailAt(x, z); return (!r || r.d > ROAD_W + pad) && (!t || t.d > t.w + pad) && !S.spurNear?.(x, z, pad); };
+    const offRoad = (x, z, pad) => { const r = S.roadAt(x, z), t = S.trailAt(x, z); return (!r || r.d > ROAD_W + pad) && (!t || t.d > t.w + pad) && !S.spurNear?.(x, z, pad) && !S.chuteNear?.(x, z, pad); };
     const awayFromViews = (x, z) => !views.some((v) => Math.hypot(x - v.x, z - v.z) < 12) && !S.shelves.some((c) => Math.hypot(x - c.x, z - c.z) < c.r1 + 2);
     const boulder = [rock, M('rock_02_cave_dark_basalt_1_05', 3, { tint: 0xb8b8c0, tri: true }), moss];
     let trees = 0, rocks = 0;
@@ -1626,7 +1646,9 @@ export function buildMountain(ctx, M) {
         return (hash2(i, k) * (1 - su) + hash2(i + 1, k) * su) * (1 - sv) + (hash2(i, k + 1) * (1 - su) + hash2(i + 1, k + 1) * su) * sv; };
       // (near the ways, where you pass them close, the full trees; the rest, the forest seen across the
       // slopes, simple pines and many more of them: mountainlife.js massForest)
-      const near3d = TOUCH ? 1000 : 2600, wantMass = TOUCH ? 3500 : 11000, mass = [];
+      const near3d = TOUCH ? 1100 : 3000, wantMass = TOUCH ? 3500 : 11000, mass = [];
+      const ferns = ctx.lib.sprites ? ctx.lib.sprites('scatter', (s) => /fern|sapling|leafy_shrub|bramble/.test(s.id)) : [];
+      const inLane = laneIndex(ctx.paths);   // (no tree in any way's lane: the downs' and the Darkwood's paths come up to the foot too)
       for (let i = 0; i < (near3d + wantMass) * 12 && (trees < near3d || mass.length < wantMass); i++) {
         const x = BOX.x0 + R() * (BOX.x1 - BOX.x0), z = BOX.z0 + R() * (BOX.z1 - BOX.z0);
         if (!S.covers(x, z) || Math.hypot(x, z) < GATE.r1 + 6) continue;
@@ -1634,12 +1656,13 @@ export function buildMountain(ctx, M) {
         if (y > line || sl > 0.62) continue;
         const up = smooth(70, line, y), grove = smooth(0.32, 0.62, vn(x * 0.03 + 7.1, z * 0.03 + 3.3));
         if (R() > (1 - up * 0.88) * (0.25 + 0.75 * grove) * (1 - smooth(0.42, 0.62, sl))) continue;
-        if (!offRoad(x, z, 2.5) || !awayFromViews(x, z)) continue;
+        if (!offRoad(x, z, 2.5) || !awayFromViews(x, z) || inLane(x, z, 1.2)) continue;
         const scale = (0.75 + R() * 0.55) * (1 - smooth(line - 60, line, y) * 0.5), r = S.roadAt(x, z), t = S.trailAt(x, z);
-        if ((r && r.d < 45) || (t && t.d < 30) || S.spurNear?.(x, z, 25)) {
+        if ((r && r.d < 70) || (t && t.d < 50) || S.spurNear?.(x, z, 40)) {
           if (trees >= near3d) continue;
           ctx.trees3d.add(y < 140 ? ['pine', 'cedar', 'pine', 'redwood', 'cedar'][trees % 5] : 'pine', x, y - 0.2, z, scale);
           trees++;
+          if (ferns.length && R() < 0.45 && y < line - 45) for (let q = 0; q < 2; q++) { const fx = x + (R() - 0.5) * 4, fz = z + (R() - 0.5) * 4; if (offRoad(fx, fz, 1)) ctx.bill.add(ferns[Math.floor(R() * ferns.length)].id, fx, S.heightAt(fx, fz), fz, 0.6 + R() * 0.5, 0.8); }   // (the forest floor under it)
         } else if (mass.length < wantMass) mass.push([x, y - 0.3, z, scale]);
       }
       massForest(ctx, mass);

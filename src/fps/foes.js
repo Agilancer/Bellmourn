@@ -826,6 +826,9 @@ class Foe extends Zombie {
         if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === (this.def.ram || 'attack1'))) {   // knocked back
           const f = this.forward();
           player.vel.x += f.x * 6; player.vel.z += f.z * 6; player.vel.y = Math.max(player.vel.y, 2.5);
+          // (by a sheer drop, rammed toward its lip: it's over you go: mountainlife.js)
+          const e = this.owner.physics.mountain?.edgeOut?.(player.pos.x, player.pos.z);
+          if (e && e.d < 2.8 && f.x * e.ox + f.z * e.oz > 0.2) { player.vel.x += e.ox * 5; player.vel.z += e.oz * 5; }
         }
       }
     }

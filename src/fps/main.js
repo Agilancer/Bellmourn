@@ -406,7 +406,7 @@ async function build() {
   // (the mist on the ground is in the fog shader: engine.js groundMist; these are the wisps drifting over it)
   mist = new Mist(scene, [GRAVEYARD.x0 - 4, GRAVEYARD.z0 - 4, GRAVEYARD.x1 + 4, GRAVEYARD.z1 + 4],
     { exclude: indoors.map((z) => [z.x0, z.z0, z.x1, z.z1]), layers: 2, base: 0.45, height: 0.35, density: 0.16 });   // (low, so they meet the stones down in the ground mist)
-  smoke = new Smoke(scene);
+  smoke = new Smoke(scene); ctx.smoke = smoke;   // (and for what's lit later: mountainlife.js's beacons)
   for (const [x, y, z] of ctx.chimneys) smoke.addEmitter(x, y, z, 2.5);
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
   ctx.crater = new Crater(ctx);
@@ -1148,7 +1148,13 @@ function reel(z, t) {
   }
 }
 /** Knock something back along (dx, dz), about `m` metres. */
-function shove(z, dx, dz, m) { if (z.dead || z.mode === 'crawl') return; z.knock = new THREE.Vector3(dx * m * 9, 0, dz * m * 9); }
+function shove(z, dx, dz, m) {
+  if (z.dead || z.mode === 'crawl') return;
+  z.knock = new THREE.Vector3(dx * m * 9, 0, dz * m * 9);
+  // (toward a sheer drop on the mountain, near its lip: over it it goes, howling: mountainlife.js)
+  const e = ctx.mountain?.edgeOut?.(z.pos.x, z.pos.z);
+  if (e && e.d < 3.4 && dx * e.ox + dz * e.oz > 0.15) { z.knock.set(e.ox * 16 + dx * 3, 0, e.oz * 16 + dz * 3); z.owner?.sound?.('groan', z.pos, true); }
+}
 /** What's in front of you, within reach and the cone (cos of its half-angle). */
 function inFront(reach, cone) {
   const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), out = [];
@@ -2599,6 +2605,9 @@ function step(dt) {
   } else if (acting && ctx.portals.standing) {   // on an awake seal: the portals' window
     hud.prompt('E — use the portal');
     if (inp.was('KeyE')) setPortals(true);
+  } else if (acting && ctx.mountain?.prompt) {   // (a beacon on the Sorrowhorn to light: mountainlife.js)
+    hud.prompt(ctx.mountain.prompt);
+    if (inp.was('KeyE')) ctx.mountain.act({ toast: (m) => hud.toast(m), reward });
   } else if (acting && ctx.shrine?.prompt) {
     hud.prompt(ctx.shrine.prompt);
     if (inp.was('KeyE')) ctx.shrine.act(sfx, (t) => hud.toast(t));
