@@ -542,7 +542,7 @@ async function build() {
   const sworn = () => foes.loadSworn(touch ? ['sworn_m', 'sworn_lord'] : undefined).then(() => foes.populateKeep(ctx.keep)).catch((e) => console.warn('the Sworn', e));
   foes.swornReady = touch ? Promise.resolve(villagers.ready).catch(() => {}).then(sworn) : sworn();
   foes.ualReady = (touch ? foes.swornReady : Promise.resolve()).then(() => foes.upgrade()).catch((e) => console.warn('foes: the library', e));
-  foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => foes.populateMountain(ctx.mountain)).catch((e) => console.warn('the goat men', e));
+  foes.beastsReady = (touch ? foes.ualReady : Promise.resolve()).then(() => foes.loadBeasts()).then(() => { foes.populateMountain(ctx.mountain); foes.populateWolves(ctx); }).catch((e) => console.warn('the beasts', e));
   // the Sorrowhorn's Red Scythe and bandits (reavers.js), made after the keep's Sworn (the library read once between them)
   foes.reaversReady = (touch ? foes.beastsReady : foes.swornReady).then(() => foes.loadSworn(touch ? REAVERS_PHONE : REAVERS)).then(() => populateReavers(foes, ctx.mountain, { touch })).catch((e) => console.warn('the reavers', e));
   // the temple's knights once the Sworn are made; the statues once every body they're cast from is

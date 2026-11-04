@@ -74,6 +74,14 @@ export const FOES = {
     R: ['nail_club', 'bone_cleaver', 'bearded_axe', 'butchers_axe'], L: ['spiked_buckler'] },
   goat_b: { kind: 'grubber', title: 'Crag Ram', beast: 'beast_goat', stats: 'goat_ram', scale: 1.18, ram: 'attack2', ownArm: true, finish: ['ancient'],
     R: ['bearded_axe', 'nail_club'], L: ['skull_boss'] },
+  // the werewolves of the Deepwood, and one that hunts the Darkwood on the way there (beast_ual): no
+  // weapons, the claws and the jaws. It howls when it first sees you a way off, rakes you right claw
+  // then left, claws you across, pounces from a few strides off, and ends a charge in its lunge and
+  // bite (jaws gaping and claws flared wide first: the tell), shaking you and throwing you back. The
+  // alpha is the bigger. (`leapDash`: the stretch of the pounce it's in the air, as `dash`)
+  wolf_a: { kind: 'grubber', title: 'Werewolf', beast: 'beast_wolf', stats: 'wolf', ram: 'attack2', dash: { attack2: [0.6, 0.92, 4.2] }, leapDash: [0.78, 1.46] },
+  wolf_b: { kind: 'grubber', title: 'Deepwood Alpha', beast: 'beast_wolf', stats: 'wolf_alpha', scale: 1.15, ram: 'attack2', dash: { attack2: [0.6, 0.92, 4.6] },
+    leapDash: [0.78, 1.46] },
   sworn_m: { kind: 'knight', title: 'Sworn of the Vigil', body: { villager: 'villager_m08', armor: 'fiend', sex: 'm' }, finish: ['ancient', 'bloodforged', 'worn'], stats: 'sworn',
     R: ['arming_sword', 'bearded_axe', 'flanged_mace', 'morning_star', 'falchion', 'war_hammer', 'grave_messer', 'coffin_hammer', 'reliquary_blade', 'fang_blade', 'wolfjaw_sickle', 'scimitar'],
     L: ['thorned_kite', 'knights_kite', 'banded_kite'] },
@@ -145,6 +153,15 @@ export const BEASTS = {
       shieldL: ['lowerarm_l', 'forearmL', [0.36506, 0.56232, 0.55378, 0, -0.10214, 0.63868, -0.5812, 0, -0.78259, 0.17895, 0.33418, 0, 0.43534, 0.93172, 0.23209, 1]],
     },
   },
+  // (its clips were made at 24 a second: the rake's two claws land at its 13th and 27th frames, the
+  // bite at its 22nd, the pounce comes down at its 36th; the howl lands no blow)
+  beast_wolf: {
+    pick: { idle: 'Wolf_Idle_Loop', walk: 'Wolf_Prowl_Loop', run: 'Wolf_Run_Loop', blows: ['Wolf_Rake', 'Wolf_Lunge_Bite', 'Zombie_Scratch'], hit: 'Hit_Chest', death: 'Death01',
+      crawl: 'Zombie_Walk_Fwd_Loop', extra: { leap: 'Wolf_Pounce', howl: 'Wolf_Howl' } },
+    hits: { attack1: [16, 34], attack2: 28, attack3: 21, leap: 45, howl: 9999 },
+    pose: ['Wolf_Idle_Loop', 0],
+    grip: {},
+  },
 };
 export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body && !FOES[v].faction);
 // the Sorrowhorn's (reavers.js): a phone makes one body of each
@@ -191,6 +208,10 @@ export const STATS = {
     dmg: { attack1: 20, attack2: 24, attack3: 18, attack4: 26, lunge: 20, leap: 24, punch1: 8, punch2: 10 }, cool: [0.45, 1.0] },
   goat: { hp: 290, armor: 0.84, limb: 1.6, walk: 2.4, run: 5.6, turn: 5, sight: 24, hear: 1.5, reach: 1.95, flinch: 0.2, tier: 4, heft: 2.2, swing: 1.15,
     dmg: { attack1: 15, attack2: 19, attack3: 24, leap: 21 }, cool: [0.45, 1.0] },
+  wolf: { hp: 300, armor: 0.86, limb: 1.5, walk: 1.4, run: 6.0, turn: 5.6, sight: 26, hear: 1.8, reach: 1.95, flinch: 0.2, tier: 4, heft: 2.0, swing: 1.1,
+    gait: { walk: 1.3, run: 6.2 }, dmg: { attack1: 12, attack2: 24, attack3: 13, leap: 22 }, cool: [0.4, 0.9] },
+  wolf_alpha: { hp: 480, armor: 0.8, limb: 2.0, walk: 1.4, run: 5.8, turn: 5.2, sight: 28, hear: 1.8, reach: 2.15, flinch: 0.1, tier: 5, heft: 3.0, swing: 1.06,
+    gait: { walk: 1.3, run: 6.2 }, dmg: { attack1: 16, attack2: 30, attack3: 17, leap: 27 }, cool: [0.45, 1.0] },
   goat_ram: { hp: 470, armor: 0.78, limb: 2.2, walk: 2.2, run: 5.2, turn: 4.4, sight: 26, hear: 1.5, reach: 2.2, flinch: 0.1, tier: 5, heft: 3.2, swing: 1.08,
     dmg: { attack1: 19, attack2: 25, attack3: 30, leap: 26 }, cool: [0.5, 1.1] },
   // the Red Scythe: lighter armour than the Sworn's plate, quicker and wilder (shorter waits between
@@ -222,7 +243,7 @@ const ONCE = new Set(['jump', 'attack1', 'attack2', 'attack3', 'bash', 'cast1', 
   'attack1_rec', 'attack2_rec', 'lunge', 'parry', 'guardbreak', 'knockdown', 'heavy',
   'attack4', 'punch1', 'punch2', 'roll', 'hit_head', 'hit_chest', 'death2', 'cast', 'sit', 'stand', 'interact', 'pickup',
   'sword_combo', 'shield_hit', 'punch3', 'punch3_rec', 'throw', 'climb', 'slide_start', 'slide_exit', 'nod_yes', 'rail_call', 'open_chest',
-  'consume', 'harvest', 'plant', 'water', 'zombie_scratch', 'leap', 'nod_no', 'cast_ready']);
+  'consume', 'harvest', 'plant', 'water', 'zombie_scratch', 'leap', 'nod_no', 'cast_ready', 'howl']);
 // the Sworn on the animation library's clips (ual.js): where in a move its feet carry it forward,
 // [from, to] seconds into the clip, at m/s (the clips stay in place; the body is moved instead)
 export const DASH = { lunge: [0.1, 0.38, 6.5], bash: [0, 0.16, 5], roll: [0.1, 0.95, 3], leap: [0.05, 0.62, 7.2] };
@@ -593,7 +614,11 @@ class Foe extends Zombie {
     this.owner.sound = (k, p, loud) => { if (k !== 'groan') groan.call(this.owner, k, p, loud); };
     super.sense(player, active);
     this.owner.sound = groan;
-    if (!was && this.aggro) this.foes.voice(this, 'alert');
+    if (!was && this.aggro) {
+      this.foes.voice(this, 'alert');
+      // a werewolf that first sees you a way off throws its head back and howls (once): the warning
+      if (this.actions?.howl && !this.howled && this.canSee && Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z) > 6 && this.state !== 'attack' && this.feet) { this.howled = true; this.strike('howl'); }
+    }
   }
 
   // -------------------------------------------------------------- the brain
@@ -1232,7 +1257,8 @@ class Foe extends Zombie {
       this.leapCool = (this.leapCool ?? 1 + Math.random() * 3) - dt;
       if (this.leapCool < 0 && this.feet && !this.chargeT && fe < 0.3 && dist > 4.2 && dist < 7.5 && this.canSee) {
         this.leapCool = 6 + Math.random() * 6;
-        this.strike('leap'); this.dash = [0.45, 1.2, Math.min(9, (dist - 1.3) / 0.75)];
+        const [l0, l1] = this.def.leapDash || [0.45, 1.2];
+        this.strike('leap'); this.dash = [l0, l1, Math.min(9, (dist - 1.3) / (l1 - l0))];
         return;
       }
     }
@@ -1434,6 +1460,19 @@ export class Foes {
     }
     n += lifeFoes(this, m, { touch: TOUCH });   // (on their ledges over the road, in their pens: mountainlife.js)
     console.info(`foes: ${n} goat men on the Sorrowhorn`);
+    return n;
+  }
+
+  /** The werewolves (beast_wolf): a pack in the Deepwood (land.js), an alpha at its head, another
+   * pair deeper in, and one hunting alone in the Darkwood's north-west on the way there. */
+  populateWolves(ctx) {
+    if (!this.gltf.wolf_a) return 0;
+    let n = 0;
+    for (const [crew, x, z, r] of [[['wolf_b', 'wolf_a', 'wolf_a'], -560, -620, 16], [['wolf_a', 'wolf_a'], -420, -360, 14], [['wolf_a'], -170, -205, 18]]) {
+      if (ctx?.inBounds && !ctx.inBounds(x, z)) continue;
+      for (const f of this.band(crew.filter((v) => this.gltf[v]), x, z, { area: { x, z, r } })) { f.yaw = Math.random() * 6.28; n++; }
+    }
+    console.info(`foes: ${n} werewolves in the woods`);
     return n;
   }
 

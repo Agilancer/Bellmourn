@@ -15,7 +15,9 @@ import * as THREE from 'three';
 
 const C = 0.4;            // the grid (m)
 const BUDGET = 4500;      // nodes a plan may open
-const MS = 6;             // and the time it may take (it goes as far as it got)
+const MS = 12;            // and the time it may take (it goes as far as it got). (The way out of a house
+                          // takes 6 to 8 ms, gathering its boxes included: at 6 it was often cut short,
+                          // and the walker went to the wall nearest you instead of the door)
 const DROP = 1.0;         // the furthest down one step of a path may go
 const LINE = 24;          // how far the straight way is checked ahead
 const BUCKET = 2;         // the boxes gathered for a plan, sorted into squares this size
