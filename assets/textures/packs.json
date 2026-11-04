@@ -391,6 +391,48 @@
    "tile_x": true,
    "tile_y": true,
    "color": "#bfb29d"
+  },
+  {
+   "id": "rock_08_mountain_alpine_granite_3_01",
+   "file": "packs/rock_08_mountain_alpine_granite_3_01.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "08_mountain_alpine_granite",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#8e9094"
+  },
+  {
+   "id": "rock_08_mountain_alpine_granite_3_02",
+   "file": "packs/rock_08_mountain_alpine_granite_3_02.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "08_mountain_alpine_granite",
+   "size": [
+    397,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#888a8c"
+  },
+  {
+   "id": "rock_08_mountain_alpine_granite_1_05",
+   "file": "packs/rock_08_mountain_alpine_granite_1_05.jpg",
+   "kind": "pack_rock",
+   "pack": "natural-rock-30-sheets",
+   "set": "08_mountain_alpine_granite",
+   "size": [
+    396,
+    394
+   ],
+   "tile_x": true,
+   "tile_y": true,
+   "color": "#828485"
   }
  ]
 }

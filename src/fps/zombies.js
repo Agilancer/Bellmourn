@@ -2649,13 +2649,13 @@ export class Zombies {
         const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
         const otherLevel = Math.abs(player.pos.y - z.pos.y) > 6;
         const far = d > 85 || (otherLevel && d > 12);
-        if (z.state !== 'buried') z.root.visible = !far;
+        if (z.state !== 'buried' && !z.hiding) z.root.visible = !far;   // (nor one hiding in an ambush: foes.js comeUp)
         const casts = d < 28;
         if (z._casts !== casts) { z._casts = casts; z.castsShadow(casts); z.root.userData.casts = casts; }
         z.root.userData.down = z.dead;   // (the torches' moving shadows go to the standing first: engine.js)
         if (z.mesh.boundingSphere) _sph.copy(z.mesh.boundingSphere).applyMatrix4(z.mesh.matrixWorld);
         else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
-        z.seen = !far && _frustum.intersectsSphere(_sph);
+        z.seen = !far && !z.hiding && _frustum.intersectsSphere(_sph);
         z.fur?.lod(Math.hypot(camera.position.x - z.pos.x, camera.position.z - z.pos.z));   // (a beast's coat: fewer strands further off)
         const pace = z.afflict(dt);
         const px = z.pos.x, py = z.pos.y, pz = z.pos.z;

@@ -33,6 +33,7 @@ import { TOUCH } from './input.js';
 import { asset } from './store.js';
 import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
 import { Fur, furOf } from './fur.js';
+import { lifeFoes } from './mountainlife.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -44,7 +45,7 @@ const FPS = 30;
 
 // the variants (look: what their spells and glows are made of)
 // (the brain's timers run down each frame; and the states a body lies in, its own brain idle)
-const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool'];
+const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool', 'upT'];
 const LAID = new Set(['collapse', 'buried', 'rise', 'playdead', 'getup']);
 
 export const FOES = {
@@ -612,6 +613,11 @@ class Foe extends Zombie {
     }
   }
 
+  /** One hiding in an ambush (not drawn at all till it's sprung: reavers.js spring) comes up from below
+   * its ledge's lip, each in its own time, and holds still till it's up. */
+  comeUp() { this.hiding = false; this.root.visible = true; this.upT = 0.5 + Math.random() * 0.4; this.sync(); }   // (sync: drawn this frame already, from below)
+  sync() { super.sync(); if (this.upT > 0) this.root.position.y -= 2.2 * Math.min(1, this.upT / 0.5); }
+
   /** What it can see and hear of you (its own cry when it first has you). */
   sense(player, active) {
     if (this.lurk) {        // an ambush: blind and deaf to you till you walk into it (reavers.js spring)
@@ -652,6 +658,7 @@ class Foe extends Zombie {
     this.bleed(dt);
     // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
     for (const k of COOLS) this[k] = Math.max(0, (this[k] || 0) - dt);
+    if (this.upT > 0) { this.sync(); return; }   // (still coming up over its lip)
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
@@ -862,6 +869,9 @@ class Foe extends Zombie {
         if (this.cur === 'bash' || (this.kindName === 'grubber' && this.cur === (this.def.ram || 'attack1'))) {   // knocked back
           const f = this.forward();
           player.vel.x += f.x * 6; player.vel.z += f.z * 6; player.vel.y = Math.max(player.vel.y, 2.5);
+          // (by a sheer drop, rammed toward its lip: it's over you go: mountainlife.js)
+          const e = this.owner.physics.mountain?.edgeOut?.(player.pos.x, player.pos.z);
+          if (e && e.d < 2.8 && f.x * e.ox + f.z * e.oz > 0.2) { player.vel.x += e.ox * 5; player.vel.z += e.oz * 5; }
         }
       }
     }
@@ -1466,6 +1476,7 @@ export class Foes {
       if (L.folk !== 'goats') continue;
       for (const f of this.band(['goat_a', 'goat_a', this.gltf.goat_b ? 'goat_b' : 'goat_a'], L.x, L.z, { zone: 'mountain', area: { x: L.x, z: L.z, r: L.r0 - 1 } })) { f.yaw = Math.random() * 6.28; f.band = L.id; n++; }
     }
+    n += lifeFoes(this, m, { touch: TOUCH });   // (on their ledges over the road, in their pens: mountainlife.js)
     console.info(`foes: ${n} goat men on the Sorrowhorn`);
     return n;
   }

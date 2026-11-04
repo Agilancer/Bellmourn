@@ -39,6 +39,7 @@ DUSK.push(...MS.dusk, ...MS.night); FLEE.push(...MS.flee); PRAY.push(...MS.pray)
 import { SACRED_CHATS, GARRISON_CHATS, SACRED_GREETS, SACRED_TALK, SACRED_BARKS, HUSH } from './tessariel.js';
 import { GIVERS } from './quests.js';
 import { TOUCH } from './input.js';
+import { ROAD_GREETS, ROAD_BARKS } from './lines/mountain.js';
 import { loadUal, ualBody, RECIPES, CALM, LOOPING, VILLAGER_BONES } from './ual.js';
 import { cullable, shareSkeletons } from './engine.js';
 import { WEBGPU, T, keyed, ref, shared, sharpGrad, sourceOf } from './nodes.js';
@@ -109,6 +110,14 @@ const ROSTER = [
   { m: 'villager_f07', name: 'Edda', call: 'Edda of Cairnwatch', tags: ['guard', 'warden', 'hunter'], keeper: 'cwEdda', armor: 'hunter', helm: false },
   { m: 'villager_m01', name: 'Corwin', tags: ['guard', 'warden'], keeper: 'gwWardenA', armor: 'hunter' },
   { m: 'villager_f01', name: 'Ilse', tags: ['guard', 'warden'], keeper: 'gwWardenB', armor: 'hunter' },
+  // the folk walking the Pilgrims' Road, each up and down their own stretch of it (mountainlife.js,
+  // travel below), and Brannoc the hermit under his rock off it; each greets you in their own words
+  { m: 'villager_m04', name: 'Aldric', call: 'Aldric the Pilgrim', tags: ['traveller', 'pilgrim'], keeper: 'mtWalk0', greets: ROAD_GREETS.Aldric },
+  { m: 'villager_f08', name: 'Brienne', tags: ['traveller', 'pilgrim'], keeper: 'mtWalk1', greets: ROAD_GREETS.Brienne },
+  { m: 'villager_m07', name: 'Osk', call: 'Osk the Pedlar', tags: ['traveller', 'merchant'], keeper: 'mtWalk2', greets: ROAD_GREETS.Osk },
+  { m: 'villager_f03', name: 'Hild', call: 'Sister Hild', tags: ['traveller', 'learned'], keeper: 'mtWalk3', greets: ROAD_GREETS.Hild },
+  { m: 'villager_m05', name: 'Tam', tags: ['traveller', 'hillfolk', 'young'], keeper: 'mtWalk4', greets: ROAD_GREETS.Tam },
+  { m: 'villager_m11', name: 'Brannoc', call: 'Brannoc the Hermit', tags: ['old', 'hillfolk'], keeper: 'mtHermit', greets: ROAD_GREETS.Brannoc, hair: [0.85, 0.85, 0.86] },
 ];
 // what the Bellwright says to himself and to you, between his work
 const BELLWRIGHT = ['Noon and midnight. Never late. Not once in nineteen years.', 'The bronze remembers every hand that rang it.',
@@ -309,6 +318,7 @@ export class Villagers {
       speed: p.tags.includes('old') ? 0.8 : rand(1.0, 1.25), busy: false, inside: false, flee: 0, faceTo: null, gesture: 0,
       talk: null, greeted: -99, frame: k % 4, acc: 0, stuck: 0, last: new THREE.Vector3(x, 0, z), nextT: rand(0, 3), occT: 0, hidden: false };
     if (kp) { a.keeperPost = kp; a.rest = 'idle'; }
+    a.route = (p.keeper && this.ctx.mountain?.walkers?.find((w) => w.key === p.keeper)) || null;   // (a walker's stretch of the mountain road)
     this.play(a, 'idle');
     mixer.update(Math.random() * 3);
     root.userData.body = true;   // (engine.js's point-light shadow passes)
@@ -527,6 +537,7 @@ export class Villagers {
   stays(a) { return !!a.keeperPost || !!(((GIVERS[a.name] && this.quests?.business(a.name)) || this.shops?.[a.name]) && !a.garrison); }
 
   pickRoutine(a) {
+    if (a.route) return this.run(this.travel(a), [a]);
     if (this.stays(a)) return this.run(this.keepPost(a), [a]);
     const free = (q) => q !== a && !q.busy && !q.inside && q.flee <= 0;
     const near = this.list.filter((q) => free(q) && Math.hypot(q.pos.x - a.pos.x, q.pos.z - a.pos.z) < 18);
@@ -678,6 +689,23 @@ export class Villagers {
       if (chance(0.12)) yield* this.line(a, pick(a.tags.includes('bellwright') ? BELLWRIGHT : [...SACRED_BARKS.any, ...a.tags.flatMap((t) => SACRED_BARKS[t] || [])]), 0, 2);
       yield rand(2, 4);
     }
+  }
+
+  /** A traveller on the Pilgrims' Road (mountainlife.js): up their stretch of it and back down again,
+   * keeping to their right, a word to themselves now and then, a rest at each end. */
+  * travel(a) {
+    const S = this.ctx.mountain, R = S?.road, W = a.route;
+    if (!R) { yield 5; return; }
+    const dir = a.routeDir || 1, end = dir > 0 ? W.to : W.from;
+    let i = Math.max(W.from, Math.min(W.to, S.roadAt(a.pos.x, a.pos.z)?.i ?? W.from));
+    while (dir > 0 ? i < end : i > end) {
+      i = dir > 0 ? Math.min(end, i + 3) : Math.max(end, i - 3);
+      const [x, z] = R[i], [qx, qz] = R[Math.min(R.length - 1, i + 1)], L = Math.hypot(qx - x, qz - z) || 1, side = 1.1 * dir;
+      yield this.walkTo(a, x - (qz - z) / L * side, z + (qx - x) / L * side);
+      if (chance(0.04)) { yield* this.line(a, pick(ROAD_BARKS), 0, 2); yield rand(1, 3); }
+    }
+    a.routeDir = -dir;
+    yield rand(8, 20);
   }
 
   * wander(a) {
@@ -1023,6 +1051,7 @@ export class Villagers {
 
   /** The good day `a` will give you next (picked ahead, as their answer is). */
   greetingFor(a) {
+    if (a.greets) return (a.greeting ||= pick(a.greets));   // (their own words: the mountain's folk)
     return (a.greeting ||= pick(a.garrison ? [...GREETS.velscour, ...SACRED_GREETS.velscour]
       : chance(0.8) ? [...SACRED_GREETS.any, ...a.tags.flatMap((t) => SACRED_GREETS[t] || [])] : [...GREETS.any, ...a.tags.flatMap((t) => GREETS[t] || [])]));
   }
@@ -1036,7 +1065,7 @@ export class Villagers {
     this.run((function* () {
       self.face(a, player); a.quick = 0.6;
       yield 0.25;
-      self.gesture(a, 'wave');
+      if (!a.greets) self.gesture(a, 'wave');   // (the mountain's folk only turn to you: their wave reads as a stiff arm)
       if (self.time >= QUIET) { self.say(a, line, true, { wait: 3 }); yield 0.3; }   // (a passing good day: let go if others are talking)
       yield 0.8;
     })(), [a]);
@@ -1072,7 +1101,12 @@ export class Villagers {
         if (danger(a.pos)) {
           this.stopScenes(a); a.flee = 10; a.busy = true;
           if (chance(0.6)) this.say(a, pick(FLEE));
-          const n = this.graph[a.home]; this.go(a, n.x, n.z);
+          // (on the mountain, Bellmourn's doors are a day away: a walker runs back down the road, the
+          // mountain's folk to their own posts)
+          const M = this.ctx.mountain;
+          if (a.route) { const i = Math.max(0, (M.roadAt(a.pos.x, a.pos.z)?.i ?? a.route.from) - 10); this.walkTo(a, M.road[i][0], M.road[i][1]); }
+          else if (a.keeperPost && M?.covers(a.pos.x, a.pos.z)) this.go(a, a.keeperPost[0], a.keeperPost[1]);
+          else { const n = this.graph[a.home]; this.go(a, n.x, n.z); }
         }
       }
       // home at night (the watch stays out), out again by day
