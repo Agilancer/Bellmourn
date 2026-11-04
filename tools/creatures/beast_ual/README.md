@@ -58,6 +58,10 @@ review.py in the same session.
   tips through the `lockT` attribute) over sculpted ruff bulk (`sdf.TUFTS`); dark-fur islands found
   by grain, not brightness (`prep_tex.fur_islands`); the bridge of the muzzle mapped by distance
   along the snout; frost kept off the face; `symmetrize` (a pose averaged with its mirror in
-  armature space) where a base clip spins.
+  armature space) where a base clip spins. Its emissive map came out black (`EYEW` finds no vertex
+  at the wolf's eye, so a new species should check it): the game gives it glints at
+  `BEASTS.beast_wolf.eyes` instead.
+- Fine fur isn't built here: the game grows it (`src/fps/fur.js`) from the roughness map's coat, on
+  the same bones. A new species needs a `fur` and `eyes` entry in `BEASTS` (foes.js).
 - `review.py`: lit contact sheets (`LIGHT=studio` by default, `LIGHT=crypt` for the dim one),
   `clip:<Action>@<fraction>:-:<view>` shots and `b_*` beast close-ups.
