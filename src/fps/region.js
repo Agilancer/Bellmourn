@@ -117,10 +117,12 @@ export function buildRegion(ctx, M, hm) {
     made++;
     const n = 3 + Math.floor(R() * 4), m = made % 4 === 3 ? mossRock : granite;
     for (let k = 0; k < n; k++) {
-      const a = R() * 6.28, d = R() * 5, sx = 2 + R() * 3.5, sy = 1.5 + R() * 4, cx = x + Math.cos(a) * d, cz = z + Math.sin(a) * d;
-      b.place(cx, H(cx, cz) - 0.6, cz, R() * 6.28, 1, (B) => {
-        B.blob([0, sy * 0.5, 0], [sx, sy, sx * (0.7 + R() * 0.5)], m, { detail: 2, jitter: 0.22, seed: made * 13 + k });
-        if (R() < 0.5) B.blob([0, sy * 1.0, 0], [sx * 0.8, sy * 0.25, sx * 0.6], moss, { detail: 2, jitter: 0.3, seed: k });
+      const a = R() * 6.28, d = R() * 5, sx = 2 + R() * 3.5, sy = 1.5 + R() * 4, cx = x + Math.cos(a) * d, cz = z + Math.sin(a) * d, rot = R() * 6.28, q1 = R(), q2 = R();
+      // (a stone of it against a house: drawn for, not laid, so all after it lies where it did)
+      if (homes.some((h) => Math.abs(cx - h.x) < h.w / 2 + 4 + sx && Math.abs(cz - h.z) < h.d / 2 + 4 + sx)) continue;
+      b.place(cx, H(cx, cz) - 0.6, cz, rot, 1, (B) => {
+        B.blob([0, sy * 0.5, 0], [sx, sy, sx * (0.7 + q1 * 0.5)], m, { detail: 2, jitter: 0.22, seed: made * 13 + k });
+        if (q2 < 0.5) B.blob([0, sy * 1.0, 0], [sx * 0.8, sy * 0.25, sx * 0.6], moss, { detail: 2, jitter: 0.3, seed: k });
       }, { tag: 'rock' });
     }
   }

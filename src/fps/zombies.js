@@ -714,7 +714,7 @@ function shadeMaterial(like) {
   return shadeMats.get(key);
 }
 const normals = new Map();   // texture -> its normal map, made once per body
-const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
+const ZERO4 = new THREE.Vector4(0, 0, 0, 0), ZERO3 = new THREE.Vector3();   // (a Vector4 is w = 1 unless told: D.w 1 is a gash)
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 const FROST = new THREE.Color(0.85, 0.94, 1.0);
 
@@ -1454,6 +1454,7 @@ export class Zombie {
     this.lost.add(name);
     if (waist) { this.lost.add('thighL'); this.lost.add('thighR'); }
     this.mesh.geometry.setIndex(keep);
+    this.fur?.sync(this.alive);   // (its fur goes with it: fur.js)
     const goneGroups = this.triGroup ? this.regroup(this.mesh.geometry, keptT, goneT) : null;
     this.syncShade(); this._caps = null;
     // the joint, in world space and bind space; a cut there colours the stump and the piece
@@ -1498,6 +1499,7 @@ export class Zombie {
       if (set.has(this.dom[a]) + set.has(this.dom[b]) + set.has(this.dom[c]) >= 2) { this.alive[t] = 0; goneT.push(t); } else { keep.push(a, b, c); keptT.push(t); }
     }
     this.mesh.geometry.setIndex(keep);
+    this.fur?.sync(this.alive);
     if (this.triGroup) this.regroup(this.mesh.geometry, keptT, goneT);
     this.syncShade(); this._caps = null;
     this.root.updateMatrixWorld(true);
@@ -2052,6 +2054,7 @@ export class Zombie {
     // that are never disposed), so that taking the shared buffers off below doesn't take them from
     // every other body of its kind as well (engine.js letGo)
     letGo(this.root);
+    this.fur?.dispose();     // (its strands, not its kind's: fur.js)
     this.skel.dispose?.();   // (its bone texture)
     if (this.shade) {   // (its buffers are the body's, let go just below)
       const g = this.shade.geometry;
@@ -2646,13 +2649,14 @@ export class Zombies {
         const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
         const otherLevel = Math.abs(player.pos.y - z.pos.y) > 6;
         const far = d > 85 || (otherLevel && d > 12);
-        if (z.state !== 'buried') z.root.visible = !far;
+        if (z.state !== 'buried' && !z.hiding) z.root.visible = !far;   // (nor one hiding in an ambush: foes.js comeUp)
         const casts = d < 28;
         if (z._casts !== casts) { z._casts = casts; z.castsShadow(casts); z.root.userData.casts = casts; }
         z.root.userData.down = z.dead;   // (the torches' moving shadows go to the standing first: engine.js)
         if (z.mesh.boundingSphere) _sph.copy(z.mesh.boundingSphere).applyMatrix4(z.mesh.matrixWorld);
         else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
-        z.seen = !far && _frustum.intersectsSphere(_sph);
+        z.seen = !far && !z.hiding && _frustum.intersectsSphere(_sph);
+        z.fur?.lod(Math.hypot(camera.position.x - z.pos.x, camera.position.z - z.pos.z));   // (a beast's coat: fewer strands further off)
         const pace = z.afflict(dt);
         const px = z.pos.x, py = z.pos.y, pz = z.pos.z;
         if (pace > 0) z.update(dt * pace, player, active, far, d > 32);
