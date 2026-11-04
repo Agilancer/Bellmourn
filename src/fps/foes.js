@@ -32,6 +32,7 @@ import { loadUal, ualBody, RECIPES, CALM } from './ual.js';
 import { TOUCH } from './input.js';
 import { asset } from './store.js';
 import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
+import { Fur, furOf } from './fur.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
 // atlases at 512, cut down nearest so the paint keeps its palette)
@@ -147,6 +148,8 @@ export const BEASTS = {
     hits: { attack1: 8, attack2: 41, attack3: 34, leap: 37 },
     dash: { attack2: [0.55, 1.3, 4.4] },
     pose: ['Sword_Idle', 10 / 24],
+    fur: { n: TOUCH ? 3000 : 10000 },   // (its coat, the colour of its skin: fur.js)
+    eyes: [[0.0544, 1.9538, 0.1063], [-0.0544, 1.9538, 0.1063]],   // (in its bind pose: the fur keeps off them)
     grip: {
       gripR: ['hand_r', 'handR', [0.68683, -0.09352, -0.52503, 0, -0.33514, 0.59023, -0.54355, 0, 0.41483, 0.63168, 0.43016, 0, -0.29162, 0.83303, -0.55654, 1]],
       shieldL: ['lowerarm_l', 'forearmL', [0.36506, 0.56232, 0.55378, 0, -0.10214, 0.63868, -0.5812, 0, -0.78259, 0.17895, 0.33418, 0, 0.43534, 0.93172, 0.23209, 1]],
@@ -160,6 +163,9 @@ export const BEASTS = {
     hits: { attack1: [16, 34], attack2: 28, attack3: 21, leap: 45, howl: 9999 },
     pose: ['Wolf_Idle_Loop', 0],
     grip: {},
+    fur: { n: TOUCH ? 4000 : 12000, skin: 1.5, frost: 1 },   // (its coat: fur.js; its dark hide brought up to the game's light)
+    // (its eyes in its bind pose: amber glints, as the Sworn's)
+    eyes: [[0.0623, 1.989, 0.1056], [-0.0623, 1.989, 0.1056]], eyeGlow: [2.6, 1.05, 0.2],
   },
 };
 export const SWORN = Object.keys(FOES).filter((v) => FOES[v].body && !FOES[v].faction);
@@ -364,9 +370,15 @@ class Foe extends Zombie {
     this.heft = this.kind.heft || 1;     // how hard it is to shove
     this.limbHp = Object.fromEntries(Object.entries(LIMB_HP).map(([k, v]) => [k, v * this.kind.limb]));
     const geo = this.mesh.geometry;
-    geo.setAttribute('shell', geo.attributes._shell
-      || (gltf.userData.noShell ||= new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count), 1)));
+    // (a beast with a coat: the undersides of its locks are hide, not the inside of the body, unless it's torn there)
+    const coat = this.def.beast && BEASTS[this.def.beast]?.fur, nv = geo.attributes.position.count;
+    geo.setAttribute('shell', geo.attributes._shell || (coat
+      ? (gltf.userData.allShell ||= new THREE.Float32BufferAttribute(new Float32Array(nv).fill(1), 1))
+      : (gltf.userData.noShell ||= new THREE.Float32BufferAttribute(new Float32Array(nv), 1))));
     this.shared.push('shell');
+    // and it grows its fur (the kind's strands, grown once: fur.js)
+    const F = coat && furOf(gltf, { ...coat, eyes: gltf.userData.foe.eyes });
+    if (F) this.fur = new Fur(F, this.mesh, coat.skin);
     this.zone = o.zone || 'wild';
     this.area = o.area || null;            // {x, z, r} it keeps to, or a room rect via o.room
     this.patrol = o.patrol || null;        // [[x, z], ...] it walks round
@@ -382,13 +394,13 @@ class Foe extends Zombie {
     this.postYaw = o.yaw ?? this.yaw;
     if (o.start === 'ambush') { this.state = 'ambush'; this.play('idle', 0); }
     // the Sworn's eyes burn: a glint at each (through the helm's slits, or bare on an adept)
-    if (this.def.body && meta.eyes?.length && this.def.body.eyes !== null) {
+    if ((this.def.body || meta.eyeGlow) && meta.eyes?.length && this.def.body?.eyes !== null) {
       const head = this.bones.head, inv = this.skel.boneInverses[this.skel.bones.indexOf(head)];
       this.eyes = meta.eyes.map((e) => {
         const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-          color: this.def.caster ? new THREE.Color(2.4, 0.3, 0.1) : new THREE.Color(0xff3010) }));   // (an adept's, bare, burn brightest)
+          color: meta.eyeGlow ? new THREE.Color(...meta.eyeGlow) : this.def.caster ? new THREE.Color(2.4, 0.3, 0.1) : new THREE.Color(0xff3010) }));   // (an adept's, bare, burn brightest)
         g.position.set(...e).applyMatrix4(inv);
-        g.scale.setScalar(this.def.caster ? 0.09 : 0.05);
+        g.scale.setScalar(meta.eyeGlow ? 0.03 : this.def.caster ? 0.09 : 0.05);
         head.add(g);
         return g;
       });
@@ -1426,7 +1438,7 @@ export class Foes {
       for (const [o, p, q, s] of rest) { o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); }
       scene.updateMatrixWorld(true);
       adaptBeast(g, B.pick);
-      g.userData.foe = { hits: { ...B.hits }, beast: file };
+      g.userData.foe = { hits: { ...B.hits }, beast: file, eyes: B.eyes, eyeGlow: B.eyeGlow };
       g.userData.sockets = sockets;
       return g;
     };

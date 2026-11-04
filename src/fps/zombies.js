@@ -1454,6 +1454,7 @@ export class Zombie {
     this.lost.add(name);
     if (waist) { this.lost.add('thighL'); this.lost.add('thighR'); }
     this.mesh.geometry.setIndex(keep);
+    this.fur?.sync(this.alive);   // (its fur goes with it: fur.js)
     const goneGroups = this.triGroup ? this.regroup(this.mesh.geometry, keptT, goneT) : null;
     this.syncShade(); this._caps = null;
     // the joint, in world space and bind space; a cut there colours the stump and the piece
@@ -1498,6 +1499,7 @@ export class Zombie {
       if (set.has(this.dom[a]) + set.has(this.dom[b]) + set.has(this.dom[c]) >= 2) { this.alive[t] = 0; goneT.push(t); } else { keep.push(a, b, c); keptT.push(t); }
     }
     this.mesh.geometry.setIndex(keep);
+    this.fur?.sync(this.alive);
     if (this.triGroup) this.regroup(this.mesh.geometry, keptT, goneT);
     this.syncShade(); this._caps = null;
     this.root.updateMatrixWorld(true);
@@ -2052,6 +2054,7 @@ export class Zombie {
     // that are never disposed), so that taking the shared buffers off below doesn't take them from
     // every other body of its kind as well (engine.js letGo)
     letGo(this.root);
+    this.fur?.dispose();     // (its strands, not its kind's: fur.js)
     this.skel.dispose?.();   // (its bone texture)
     if (this.shade) {   // (its buffers are the body's, let go just below)
       const g = this.shade.geometry;
@@ -2653,6 +2656,7 @@ export class Zombies {
         if (z.mesh.boundingSphere) _sph.copy(z.mesh.boundingSphere).applyMatrix4(z.mesh.matrixWorld);
         else { _sph.center.set(z.pos.x, z.pos.y + 0.9 * (z.size || 1), z.pos.z); _sph.radius = 1.4 * (z.size || 1); }
         z.seen = !far && _frustum.intersectsSphere(_sph);
+        z.fur?.lod(Math.hypot(camera.position.x - z.pos.x, camera.position.z - z.pos.z));   // (a beast's coat: fewer strands further off)
         const pace = z.afflict(dt);
         const px = z.pos.x, py = z.pos.y, pz = z.pos.z;
         if (pace > 0) z.update(dt * pace, player, active, far, d > 32);
