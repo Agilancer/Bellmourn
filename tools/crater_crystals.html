@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="../">
+<title>Crater Crystals</title>
+<style>html, body { margin:0; height:100%; background:#050806; overflow:hidden; }</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+// The crater's crystals (src/fps/starcrystals.js) on their own, round a dark bowl. ?a=angle fixes the view;
+// ?d=distance, ?h=height.
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { CRATER, craterHeight } from './src/fps/crater.js';
+import { StarCrystals } from './src/fps/starcrystals.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.setSize(innerWidth, innerHeight);
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0d10);
+const cam = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+scene.add(new THREE.HemisphereLight(0x8090a8, 0x30261f, 0.9));
+const sun = new THREE.DirectionalLight(0xfff0dc, 1.1); sun.position.set(-30, 60, 20); scene.add(sun);
+const light = new THREE.PointLight(0x50ff80, 18, 34, 1.4); light.position.set(CRATER.x, craterHeight(CRATER.x, CRATER.z) + 3, CRATER.z); scene.add(light);
+// the bowl, plain
+const bowl = new THREE.PlaneGeometry(70, 70, 90, 90).rotateX(-Math.PI / 2).translate(CRATER.x, 0, CRATER.z);
+for (let i = 0; i < bowl.attributes.position.count; i++) bowl.attributes.position.setY(i, craterHeight(bowl.attributes.position.getX(i), bowl.attributes.position.getZ(i)));
+bowl.computeVertexNormals();
+scene.add(new THREE.Mesh(bowl, new THREE.MeshPhongMaterial({ color: 0x4a3c34 })));
+const ctx = { scene, paths: [], physics: { add: () => ({}), near: () => [], groundAt: () => 0 } };
+const crystals = new StarCrystals(ctx);
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, cam));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.6, 0.95));
+composer.addPass(new OutputPass());
+const q = new URLSearchParams(location.search);
+window.at = { a: q.has('a') ? +q.get('a') : null, d: +(q.get('d') || 30), h: +(q.get('h') || 14), y: +(q.get('y') || -1) };
+renderer.setAnimationLoop((ms) => {
+  const t = ms / 1000, a = window.at.a ?? t * 0.12;
+  cam.position.set(CRATER.x + Math.cos(a) * window.at.d, window.at.h, CRATER.z + Math.sin(a) * window.at.d);
+  cam.lookAt(CRATER.x, window.at.y, CRATER.z);
+  crystals.update(0.016, t, cam);
+  composer.render();
+});
+</script>
+</body></html>

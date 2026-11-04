@@ -57,7 +57,9 @@ import { CALLER, GATHER_CALLS, GATHER_AGAIN, GATHER_CHATTER, GATHER_LEAD, GATHER
 import { buildKeep } from './keep.js';
 import { WorldMap } from './map.js';
 import { StainedGlass } from './glass.js';
-import { Crater, CRATER, craterHeight, formCrater } from './crater.js';
+import { Crater, CRATER, LIE, craterHeight, formCrater, craterPainted } from './crater.js';
+import { CraterRocks } from './craterrocks.js';
+import { StarCrystals } from './starcrystals.js';
 import { Intro } from './intro.js';
 import { Ambience } from './ambience.js';
 import { Quests, GIVERS } from './quests.js';
@@ -411,7 +413,9 @@ async function build() {
   // where Tessariel came down: its shards, flames, embers and smoke, and the knight's armour
   ctx.crater = new Crater(ctx);
   ctx.crater.smokers = ctx.crater.smokeSpots.map(([x, y, z]) => { smoke.addEmitter(x, y, z, 1.6); return smoke.emitters[smoke.emitters.length - 1]; });
-  ctx.crater.armourReady = ctx.crater.armour().catch((e) => console.warn("the knight's armour", e));   // (the opening waits for it)
+  ctx.craterRocks = new CraterRocks(ctx, craterStoneMayLie, touch);
+  ctx.crystals = new StarCrystals(ctx, craterStoneMayLie, touch);
+  ctx.crater.armourReady = Promise.all([ctx.crater.armour().catch((e) => console.warn("the knight's armour", e)), craterPainted()]);   // (the opening waits for it)
   ctx.fireflies = new Fireflies(scene, (x, z) => physics.groundAt(x, z), touch ? 120 : 260);
   ctx.motes = new Motes(scene, ctx, touch);   // (snow off the horn, motes in the caves, embers off the fires)
   ctx.horizon = new Horizon(scene);           // (far ridges all round: the world doesn't end in grey)
@@ -2241,8 +2245,8 @@ function setCinema(on) {
 const GATHER_DIR = (() => { const l = Math.hypot(30, 12); return [30 / l, 12 / l]; })();   // (toward the town)
 const GATHER_SIDE = [-GATHER_DIR[1], GATHER_DIR[0]];
 const along = (u, v = 0) => [CRATER.x + GATHER_DIR[0] * u + GATHER_SIDE[0] * v, CRATER.z + GATHER_DIR[1] * u + GATHER_SIDE[1] * v];
-const GATHER_GROUP = [['Odile', 22.5, 0.4], ['Elsie', 21.6, 2.2], ['Osric', 24.2, -2.2], ['Hesk', 23.6, 2.6], ['Tobias', 25.0, 0.8], ['Garrow', 22.8, -3.6], ['Wren', 21.8, -1.6]];
-const ARMS_PATH = { onehand: [3.2, 0.3], shield: [6.2, -0.3], staff: [8.9, 0.25] };   // (metres up the way to her, and to the side)
+const GATHER_GROUP = [['Odile', 28.5, 0.4], ['Elsie', 27.6, 2.2], ['Osric', 30.2, -2.2], ['Hesk', 29.6, 2.6], ['Tobias', 31.0, 0.8], ['Garrow', 28.8, -3.6], ['Wren', 27.8, -1.6]];
+const ARMS_PATH = { onehand: [4.6, 0.3], shield: [9, -0.3], staff: [12.9, 0.25] };   // (metres up the way to her, and to the side)
 
 /** Where they stand: Wren up on the crater's edge toward the town (just inside its crest, where you
  * see her from the bottom), the rest out on the meadow beyond; and f, the way from the town into the crater. */
@@ -2256,6 +2260,19 @@ function gatherSpots() {
   return { f, caller: { name: CALLER, at: along(crest - 0.45, -0.4) }, group: GATHER_GROUP.map(([name, u, v]) => ({ name, at: along(u, v) })) };
 }
 let staged = [];   // (the village as it was, while warm draws it gathered)
+
+/** May a thrown stone of radius r lie at (x, z)? Not where you wake, on the way up to Wren, among the
+ * knot of the village beyond her, on the knight's armour, the star-seal or the village's offerings. */
+function craterStoneMayLie(x, z, r) {
+  const dx = x - CRATER.x, dz = z - CRATER.z, d = Math.hypot(dx, dz);
+  const u = dx * GATHER_DIR[0] + dz * GATHER_DIR[1], v = dx * GATHER_SIDE[0] + dz * GATHER_SIDE[1];
+  if (d < 3.5 + r) return false;
+  if (u > 0 && u < 24 && Math.abs(v) < 2.2 + r) return false;
+  if (u > 22 && u < 38 && Math.abs(v) < 8 + r) return false;
+  if (Object.values(LIE).some(([ax, az]) => Math.hypot(dx - ax, dz - az) < 0.9 + r)) return false;
+  if (Math.hypot(x - CRATER.x, z - (CRATER.z + 30)) < 6 + r) return false;   // (the star-seal: portals.js)
+  return !(dx > 0 && d > CRATER.reach - 1 && d < CRATER.reach + 5 && Math.abs(Math.atan2(dz, dx)) < 1.3);   // (the offerings: polish.js)
+}
 
 /** In the black after the white: you lie in the crater's middle, and come round facing Wren up on its
  * edge, calling down to you; the rest of the village waits back from the hole. */
@@ -2641,6 +2658,8 @@ function step(dt) {
   ctx.trees3d.update(t);
   ctx.tufts.update(t);
   ctx.crater.update(dt, t, camera);
+  ctx.craterRocks.update(camera);
+  ctx.crystals.update(dt, t, camera);
   ctx.fireflies.update(dt, t, camera, 1 - day.day, L.under > 0.5 || camera.position.y < physics.groundAt(camera.position.x, camera.position.z) - 1);
   ctx.motes?.update(dt, t, camera, L.under > 0.5, day.day, L.wood);
   (ctx.pastimes ||= new Pastimes(ctx, { char, sfx, hud, villagers })).update(dt, player);
@@ -2648,8 +2667,8 @@ function step(dt) {
   // the crater's glow (the opening has the light while it runs)
   if (!intro?.running) {
     const fl = 0.8 + 0.2 * Math.sin(t * 7.1) * Math.sin(t * 3.3);
-    cometLight.position.set(CRATER.x, physics.groundAt(CRATER.x, CRATER.z) + 1.4, CRATER.z);
-    cometLight.distance = 24; cometLight.intensity = CRATER.k ? 7 * fl * (0.4 + 0.6 * (1 - day.day)) : 0;
+    cometLight.position.set(CRATER.x, physics.groundAt(CRATER.x, CRATER.z) + 3, CRATER.z);
+    cometLight.distance = 34; cometLight.intensity = CRATER.k ? 18 * fl * (0.4 + 0.6 * (1 - day.day)) : 0;
   }
   showUnder();
   for (const a of villagers.list) {   // (villagers' shadows: near you only)

@@ -1,23 +1,36 @@
 // The crater: where Tessariel came down in the green star and struck one of Velscour's Sworn as he
 // walked out of the western wood. It lies in the meadow between the cathedral and the trees: a bowl
-// some 26 m across and over 3 m deep, a ridge of thrown-up earth round it, the ground charred and
-// streaked out to 40 m, the floor fused into green glass that still glows in its cracks.
+// some 40 m across and over 4 m deep, a ridge of thrown-up earth round it, the ground charred and
+// streaked out to 40 m, the floor's cracks still glowing green. It wears a painting of itself
+// (art/crater/crater_blast.webp, tools/world/import_crater.py): the skin laid over the bowl here, its
+// rim the bowl's own rim, and craterrocks.js stands stones on the ones painted on it.
 //
 // Its shape is one height function (craterHeight), added to the village's flat ground by terrain.js,
 // so the physics walks in it and everything that asks for the ground's height finds the bowl. The
 // village ground leaves the crater's square out (world.js) and the bowl is built here, smooth-shaded,
-// in the ground's own material (whose shader chars and lights it: lib.ground's `crater`).
+// in the ground's own material (whose shader chars and lights it, and the meadow past the painting's
+// ragged edge: lib.ground's `crater`).
 //
-// In it: shards of the green star, still burning; smoke and embers; and the knight, or what's left:
+// In it: the green star's crystals (starcrystals.js); smoke and embers; and the knight, or what's left:
 // his armour (the Fiend's Panoply, cut into its pieces) scorched and thrown about. The armour can't
 // be taken up. His sword, shield and staff can (main.js lays them out for a new game).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { WEBGPU, T } from './nodes.js';
+import { WEBGPU, T, settled, keyed } from './nodes.js';
 import { pointQuads, pointQuad } from './effects.js';
 import { asset } from './store.js';   // (the models live in Bellmourn2: store.js)
 
-export const CRATER = { x: -74, z: -58, R: 13, depth: 3.4, rim: 1.15, reach: 25, k: 1 };   // k: how far it's formed (0 before he lands)
+export const CRATER = { x: -74, z: -58, R: 19.6, depth: 4.4, rim: 1.3, reach: 25, k: 1 };   // k: how far it's formed (0 before he lands)
+
+// the painting (tools/world/import_crater.py): its size and middle in pixels, metres a pixel (its ragged
+// edge, 605 px out, lies at the crater's reach), and how far out its rim runs at each angle
+export const PAINT = { size: 1254, x: 621.9, y: 622.2, m: CRATER.reach / 605 };
+const RIM_PX = [481, 481, 480, 478, 478, 476, 472, 470, 470, 468, 466, 467, 470, 471, 471, 473, 476, 476, 472, 474, 480, 484, 486, 486, 486, 486, 485, 485, 477, 462, 453, 452, 462, 481, 490, 490, 485, 474, 465, 461, 460, 464, 472, 476, 477, 478, 480, 481];
+const RIM_MEAN = RIM_PX.reduce((a, b) => a + b) / RIM_PX.length;
+function rimAt(a) {   // (the rim's radius at angle a, as a share of its mean)
+  const f = ((a / (Math.PI * 2)) % 1 + 1) % 1 * RIM_PX.length, i = Math.floor(f), t = f - i;
+  return (RIM_PX[i] + (RIM_PX[(i + 1) % RIM_PX.length] - RIM_PX[i]) * t) / RIM_MEAN;
+}
 
 function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
 function vnoise(x, z) {
@@ -38,12 +51,11 @@ export function craterHeight(x, z) {
   const dx = x - CRATER.x, dz = z - CRATER.z, d = Math.hypot(dx, dz);
   if (d >= CRATER.reach || !CRATER.k) return 0;
   const { R, depth, rim, reach } = CRATER;
-  // a ragged lip: the radius wanders with the angle and a little noise
-  const a = Math.atan2(dz, dx);
-  const r = d * (1 + 0.06 * Math.sin(a * 3 + 1.3) + 0.04 * Math.sin(a * 7 + 0.4)) + (vnoise(x * 0.35, z * 0.35) - 0.5) * 1.4;
+  // a ragged lip: the radius follows the painting's rim, with a little noise
+  const r = d / rimAt(Math.atan2(dz, dx)) + (vnoise(x * 0.35, z * 0.35) - 0.5) * 1.0;
   const t = r / R;
   let h = 0;
-  if (t < 1) h -= depth * Math.pow(1 - t * t, 1.2);
+  if (t < 1) h -= depth * Math.pow(1 - t ** 2.4, 1.1);   // (a broad floor, the walls steepening up to the rim)
   // the ridge of thrown-up earth, and the ejecta beyond it thinning out
   h += rim * Math.exp(-(((r - R) / 3.1) ** 2)) + rim * 0.35 * (1 - smooth(R, reach - 2, r)) * (r > R ? 1 : 0);
   // clods and lumps
@@ -51,7 +63,61 @@ export function craterHeight(x, z) {
   return h * (1 - smooth(reach - 5, reach, d)) * CRATER.k;
 }
 
-let bowl = null, groundMat = null;
+let bowl = null, groundMat = null, skin = null;
+const followers = new Set();   // (what's only there once the crater is: formCrater shows them)
+/** Show `o` only while the crater's formed. */
+export function withCrater(o) { followers.add(o); o.visible = CRATER.k > 0; }
+
+// the painting's textures. craterPainted settles when they're all in (the opening waits for it)
+const painted = [];
+export const paintTex = (file, srgb = true, repeat = false) => {
+  let t;
+  painted.push(new Promise((res) => { t = new THREE.TextureLoader().load('assets/textures/crater/' + file, res, undefined, res); }));
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = THREE.Texture.DEFAULT_ANISOTROPY;
+  return t;
+};
+export const craterPainted = () => Promise.all(painted);
+
+const GRAIN = 34;   // (repeats of the fine grain across the painting: one to a metre and a half)
+/** The painting laid over the bowl: the same ground (they share its heights), its own uvs, and only
+ * where the painting is (alpha-tested, so the charred meadow shows past its ragged edge). */
+function layCraterSkin(scene, g0) {
+  const pos = g0.attributes.position, { size, x: px, y: py, m } = PAINT;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = ((pos.getX(i) - CRATER.x) / m + px) / size;
+    uv[i * 2 + 1] = 1 - ((pos.getZ(i) - CRATER.z) / m + py) / size;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', pos); g.setAttribute('normal', g0.attributes.normal);
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  const map = paintTex('skin.webp'), grain = paintTex('grain.webp', false, true);
+  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, map, specular: 0x0a0a0a, shininess: 6, alphaTest: 0.5,
+    normalMap: paintTex('normal.webp', false), normalScale: new THREE.Vector2(0.6, 0.6),
+    emissive: 0x1fb050, emissiveMap: paintTex('glow.webp'), emissiveIntensity: 0,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  // the fine grain over it, or the painting's a blur from where you stand
+  if (WEBGPU) {
+    const { texture, uv: uvs, vec4 } = T, c = texture(map);
+    mat.colorNode = settled(vec4(c.rgb.mul(texture(grain, uvs().mul(GRAIN)).r.sub(0.5).mul(1.5).add(1)), c.a));
+  } else {
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.skinGrain = { value: grain };
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D skinGrain;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        diffuseColor.rgb *= 1.0 + (texture2D(skinGrain, vMapUv * ${GRAIN.toFixed(1)}).r - 0.5) * 1.5;`);
+    };
+  }
+  keyed(mat, 'craterSkin');
+  skin = new THREE.Mesh(g, mat);
+  skin.receiveShadow = true;
+  skin.matrixAutoUpdate = false;
+  scene.add(skin);
+  followers.add(skin);
+}
+
 /** The bowl's ground, in the village ground's own material, smooth-shaded: a mesh of its own, so it
  * can lie flat until the green star comes down (formCrater). */
 export function buildCraterGround(scene, ground) {
@@ -83,6 +149,7 @@ export function buildCraterGround(scene, ground) {
   bowl.receiveShadow = true;
   bowl.matrixAutoUpdate = false;
   scene.add(bowl);
+  layCraterSkin(scene, g);
   formCrater(CRATER.k);
 }
 
@@ -99,7 +166,9 @@ export function formCrater(k) {
     }
     pos.needsUpdate = true; nrm.needsUpdate = true;
     g.computeBoundingSphere();
+    skin.geometry.boundingSphere = g.boundingSphere;
   }
+  for (const o of followers) o.visible = k > 0;
   const u = groundMat?.userData.crater?.value;
   if (u) u.set(k > 0 ? CRATER.x : 1e5, k > 0 ? CRATER.z : 1e5, CRATER.R, CRATER.reach);
 }
@@ -166,7 +235,7 @@ const PIECES = {
   UpperLegL: 'cuisseL', LowerLegL: 'greaveL', FootL: 'sabatonL', UpperLegR: 'cuisseR', LowerLegR: 'greaveR', FootR: 'sabatonR',
 };
 // where each lies (crater-relative x, z, how far it's sunk, its tilt), thrown out from where he stood
-const LIE = {
+export const LIE = {
   helm: [-1.8, -6.4, 0.06, 1.2], cuirass: [-6.8, 1.0, 0.2, 1.45], faulds: [2.4, 7.4, 0.05, 1.3], pauldronL: [8.6, -2.2, 0.04, 0.6], pauldronR: [-9.4, -5.8, 0.06, 2.2],
   vambraceL: [11.6, 5.0, 0.03, 1.57], vambraceR: [-3.5, 10.6, 0.04, 1.4], cuisseL: [6.5, -9.4, 0.06, 1.5], cuisseR: [-12.4, 3.4, 0.05, 1.6],
   greaveL: [14.6, -6.8, 0.04, 1.5], greaveR: [-1.4, -12.6, 0.05, 1.55], sabatonL: [10.0, 10.6, 0.02, 0.3], sabatonR: [-15.6, -2.0, 0.03, 2.6],
@@ -181,34 +250,8 @@ export class Crater {
     ctx.scene.add(this.group);
     this.t = 0;
     this.y = (x, z) => craterHeight(CRATER.x + x, CRATER.z + z);
-    this.shards();
     this.flamesAndEmbers();
     this.smokeSpots = [[0, 0.6], [-3, 2], [4, -2.5], [-6.8, 1.0], [8, 6]].map(([x, z]) => [CRATER.x + x, this.y(x, z) + 0.3, CRATER.z + z]);
-  }
-
-  /** The green star's broken heart: glassy shards standing out of the floor, burning from inside. */
-  shards() {
-    const geo = new THREE.OctahedronGeometry(1, 0);
-    geo.scale(0.35, 1, 0.35);
-    const hot = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 2.4, 0.7), toneMapped: false });
-    const glass = new THREE.MeshPhongMaterial({ color: 0x0c2a16, emissive: 0x1aff6a, emissiveIntensity: 0.55, specular: 0x9affc0, shininess: 90, flatShading: true });
-    const R = (() => { let s = 77; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
-    const n = 26, inner = new THREE.InstancedMesh(geo, glass, n), core = new THREE.InstancedMesh(geo, hot, n);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    for (let i = 0; i < n; i++) {
-      const a = R() * Math.PI * 2, d = i < 6 ? R() * 1.6 : 1.2 + R() * 6.5;
-      const x = Math.cos(a) * d, z = Math.sin(a) * d, s = (i < 6 ? 1.3 : 0.45) * (0.6 + R() * 0.8);
-      e.set((R() - 0.5) * 1.1, R() * 6.28, (R() - 0.5) * 1.1);
-      q.setFromEuler(e);
-      m.compose(new THREE.Vector3(CRATER.x + x, this.y(x, z) + s * 0.45, CRATER.z + z), q, new THREE.Vector3(s, s, s));
-      inner.setMatrixAt(i, m);
-      m.compose(new THREE.Vector3(CRATER.x + x, this.y(x, z) + s * 0.45, CRATER.z + z), q, new THREE.Vector3(s * 0.45, s * 0.8, s * 0.45));
-      core.setMatrixAt(i, m);
-    }
-    core.material.depthWrite = true;
-    this.glass = glass;
-    inner.castShadow = true;
-    this.group.add(core, inner);
   }
 
   /** Little green flames licking about the floor, and embers rising off it. */
@@ -216,7 +259,7 @@ export class Crater {
     this.flames = [];
     const R = (() => { let s = 4242; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
     for (let i = 0; i < 14; i++) {
-      const a = R() * Math.PI * 2, d = Math.sqrt(R()) * 9;
+      const a = R() * Math.PI * 2, d = Math.sqrt(R()) * 14;
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
       const mat = new THREE.SpriteMaterial({ map: flameTex(), color: new THREE.Color(0.4, 1.6, 0.6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
       const s = new THREE.Sprite(mat);
@@ -340,12 +383,12 @@ export class Crater {
       s.scale.set(u.k * 0.5 * (0.9 + 0.2 * Math.sin(t * 7 + u.ph)), u.k * f, 1);
       s.material.opacity = 0.6 + 0.4 * f;
     }
-    this.glass.emissiveIntensity = 0.45 + 0.25 * Math.sin(t * 1.7) ** 2;
+    skin.material.emissiveIntensity = 0.9 * groundMat.userData.glow.value;
     const P = this.embers.geometry.attributes.position, C = this.embers.geometry.attributes.color;
     this.emb.forEach((e, i) => {
       e.t += dt;
       if (e.t > e.life) {
-        const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * 10;
+        const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * 15;
         e.x = CRATER.x + Math.cos(a) * d; e.z = CRATER.z + Math.sin(a) * d; e.y = this.y(e.x - CRATER.x, e.z - CRATER.z) + 0.1;
         e.vy = 0.5 + Math.random() * 1.4; e.life = 2 + Math.random() * 3; e.t = 0; e.g = Math.random() < 0.6;
       }
