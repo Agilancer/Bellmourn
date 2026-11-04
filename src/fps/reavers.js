@@ -210,6 +210,7 @@ export function spring(foes, A, player) {
   for (const f of foes.zombies.list) {
     if (f.lurk !== A || f.dead) continue;
     f.lurk = null;
+    if (f.hiding) f.comeUp();
     f.aggro = true;
     f.hunt?.(player.pos, true);
     if (first) { foes.voice(f, 'alert'); first = false; }

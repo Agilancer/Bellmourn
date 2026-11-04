@@ -860,6 +860,7 @@ export function lifeFoes(foes, S, { touch = false } = {}) {
     const f = foes.spawn(k === 0 && foes.gltf.goat_b ? 'goat_b' : 'goat_a', x, z, { zone: 'mountain', y: A.standY?.[k], area: { x, z, r: 1.5 } });
     if (!f) return;
     f.lurk = A; f.band = 'ambush'; f.yaw = Math.atan2(-A.ux, -A.uz); n++;
+    f.hiding = true; f.root.visible = false;   // (unseen from the road, or from the lap above it: only the ram's skull warns you)
   });
   for (const o of S.outposts || []) if (o.goats) for (const f of foes.band(Array.from({ length: o.goats }, (_, k) => (k === 0 && foes.gltf.goat_b ? 'goat_b' : 'goat_a')), o.x, o.z, { zone: 'mountain', area: { x: o.x, z: o.z, r: o.r0 - 1 } })) { f.yaw = Math.random() * 6.28; f.band = o.id; n++; }
   return n;

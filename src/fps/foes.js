@@ -44,7 +44,7 @@ const FPS = 30;
 
 // the variants (look: what their spells and glows are made of)
 // (the brain's timers run down each frame; and the states a body lies in, its own brain idle)
-const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool'];
+const COOLS = ['cool', 'spellCool', 'bigCool', 'blinkCool', 'blockCool', 'retreatT', 'chargeCool', 'lungeT', 'wardCool', 'rushCool', 'holdT', 'throwCool', 'upT'];
 const LAID = new Set(['collapse', 'buried', 'rise', 'playdead', 'getup']);
 
 export const FOES = {
@@ -601,6 +601,11 @@ class Foe extends Zombie {
     }
   }
 
+  /** One hiding in an ambush (not drawn at all till it's sprung: reavers.js spring) comes up from below
+   * its ledge's lip, each in its own time, and holds still till it's up. */
+  comeUp() { this.hiding = false; this.root.visible = true; this.upT = 0.5 + Math.random() * 0.4; this.sync(); }   // (sync: drawn this frame already, from below)
+  sync() { super.sync(); if (this.upT > 0) this.root.position.y -= 2.2 * Math.min(1, this.upT / 0.5); }
+
   /** What it can see and hear of you (its own cry when it first has you). */
   sense(player, active) {
     if (this.lurk) {        // an ambush: blind and deaf to you till you walk into it (reavers.js spring)
@@ -641,6 +646,7 @@ class Foe extends Zombie {
     this.bleed(dt);
     // (holdT too: the zombies' flinch sets it, and play() keeps the walk, run and idle off while it lasts)
     for (const k of COOLS) this[k] = Math.max(0, (this[k] || 0) - dt);
+    if (this.upT > 0) { this.sync(); return; }   // (still coming up over its lip)
     this.lungeCool -= dt;
     if (this.blockSoon >= 0) { this.blockSoon -= dt; if (this.blockSoon < 0 && this.state === 'move') this.raiseShield(0.9 + Math.random() * 0.8); }
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
