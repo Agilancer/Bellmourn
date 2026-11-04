@@ -63,7 +63,8 @@ function coatMask(mat) {
 
 /** The strands of a kind of body (made once, kept on its gltf): the shared vertices, the whole index,
  * and for each strand the body triangle it grows from. `o.n`: how many (a phone grows fewer); `o.eyes`:
- * where its eyes are in its bind pose; `o.frost`: 0, the skin's own colour, to 1, frosted tips. */
+ * where its eyes are in its bind pose; `o.frost`: 0, the skin's own colour, to 1, frosted tips; `o.flat`:
+ * how far its strands lift off the skin (1: all the way the coat allows; less lies closer). */
 export function furOf(gltf, o = {}) {
   if (gltf.userData.fur !== undefined) return gltf.userData.fur;
   let body = null;
@@ -79,7 +80,8 @@ function grow(body, o) {
   const bones = body.skeleton.bones, mask = coatMask(body.material);
   const unit = 1 / new THREE.Vector3().setFromMatrixScale(body.bindMatrix).x;   // (metres to the body's units)
   // each bone's place in bind space, and which way down it its limb goes
-  const inv = body.bindMatrixInverse, eyes = (o.eyes || []).map((e) => new THREE.Vector3(...e).applyMatrix4(inv)), at = bones.map((b, j) => new THREE.Vector3().setFromMatrixPosition(inv.clone().multiply(body.skeleton.boneInverses[j].clone().invert())));
+  // (not body.bindMatrixInverse: three keeps that the inverse of where the body is now, its scale in it)
+  const inv = body.bindMatrix.clone().invert(), eyes = (o.eyes || []).map((e) => new THREE.Vector3(...e).applyMatrix4(inv)), at = bones.map((b, j) => new THREE.Vector3().setFromMatrixPosition(inv.clone().multiply(body.skeleton.boneInverses[j].clone().invert())));
   const along = bones.map((b, j) => {
     const kid = b.children.find((c) => c.isBone), k = kid ? bones.indexOf(kid) : -1;
     const d = k >= 0 ? at[k].clone().sub(at[j]) : at[j].clone().sub(at[Math.max(0, bones.indexOf(b.parent))]);
@@ -168,7 +170,7 @@ function grow(body, o) {
     const j = (rnd() - 0.5) * 0.7;
     side.crossVectors(r.n, tg);
     tg.multiplyScalar(Math.cos(j)).addScaledVector(side, Math.sin(j)).normalize();
-    const lift = r.R[2] * (r.tail ? 1.3 : 1) * (0.75 + 0.5 * rnd()), L = r.R[1] * r.short * (r.tail ? 1.5 : 1) * (0.65 + 0.7 * rnd()) * unit;
+    const lift = r.R[2] * (o.flat || 1) * (r.tail ? 1.3 : 1) * (0.75 + 0.5 * rnd()), L = r.R[1] * r.short * (r.tail ? 1.5 : 1) * (0.65 + 0.7 * rnd()) * unit;
     d0.copy(tg).multiplyScalar(Math.cos(lift)).addScaledVector(r.n, Math.sin(lift));
     d1.copy(tg).multiplyScalar(Math.cos(lift * 0.3)).addScaledVector(r.n, Math.sin(lift * 0.3)).addScaledVector(FLOW.body, 0.15).normalize();
     P0.copy(r.p).addScaledVector(r.n, -0.25 * W);   // (rooted a little under the skin)

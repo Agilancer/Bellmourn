@@ -33,6 +33,7 @@ import { TOUCH } from './input.js';
 import { asset } from './store.js';
 import { Axes, BANDIT_PALETTES, THROWN, spring } from './reavers.js';   // (the models live in Bellmourn2: store.js)
 import { Fur, furOf } from './fur.js';
+import { shutHands } from './fists.js';
 import { lifeFoes } from './mountainlife.js';
 
 // a phone loads their phone copies (foes/phone/, from tools/creatures/phone_copies.py: their
@@ -70,10 +71,10 @@ export const FOES = {
   // (beast_ual), a club or an axe in the fist and a spiked buckler on the arm. They fight as the
   // grubbers do, but fast and hard: a cut, a ram with the horns (the end of a charge, and you're
   // thrown back), both fists hammered down, and a leap on you from a few strides off. The ram's
-  // bigger than the rest of his band. (`ownArm`: the shield rides the arm as their own clips swing it)
-  goat_a: { kind: 'grubber', title: 'Horned Reaver', beast: 'beast_goat', stats: 'goat', ram: 'attack2', ownArm: true, finish: ['ancient', 'worn'],
+  // bigger than the rest of his band.
+  goat_a: { kind: 'grubber', title: 'Horned Reaver', beast: 'beast_goat', stats: 'goat', ram: 'attack2', finish: ['ancient', 'worn'],
     R: ['nail_club', 'bone_cleaver', 'bearded_axe', 'butchers_axe'], L: ['spiked_buckler'] },
-  goat_b: { kind: 'grubber', title: 'Crag Ram', beast: 'beast_goat', stats: 'goat_ram', scale: 1.18, ram: 'attack2', ownArm: true, finish: ['ancient'],
+  goat_b: { kind: 'grubber', title: 'Crag Ram', beast: 'beast_goat', stats: 'goat_ram', scale: 1.18, ram: 'attack2', finish: ['ancient'],
     R: ['bearded_axe', 'nail_club'], L: ['skull_boss'] },
   // the werewolves of the Deepwood, and one that hunts the Darkwood on the way there (beast_ual): no
   // weapons, the claws and the jaws. It howls when it first sees you a way off, rakes you right claw
@@ -148,13 +149,9 @@ export const BEASTS = {
       crawl: 'Zombie_Walk_Fwd_Loop', extra: { leap: 'Goat_Leap' } },
     hits: { attack1: 8, attack2: 41, attack3: 34, leap: 37 },
     dash: { attack2: [0.55, 1.3, 4.4] },
-    pose: ['Sword_Idle', 10 / 24],
-    fur: { n: TOUCH ? 3000 : 10000 },   // (its coat, the colour of its skin: fur.js)
+    fists: ['Sword_Idle', 10 / 24],   // (it holds its arms in the sword clip's fist: fists.js)
+    fur: { n: TOUCH ? 3000 : 10000, flat: 0.4 },   // (its coat, the colour of its skin, lying close: fur.js)
     eyes: [[0.0544, 1.9538, 0.1063], [-0.0544, 1.9538, 0.1063]],   // (in its bind pose: the fur keeps off them)
-    grip: {
-      gripR: ['hand_r', 'handR', [0.68683, -0.09352, -0.52503, 0, -0.33514, 0.59023, -0.54355, 0, 0.41483, 0.63168, 0.43016, 0, -0.29162, 0.83303, -0.55654, 1]],
-      shieldL: ['lowerarm_l', 'forearmL', [0.36506, 0.56232, 0.55378, 0, -0.10214, 0.63868, -0.5812, 0, -0.78259, 0.17895, 0.33418, 0, 0.43534, 0.93172, 0.23209, 1]],
-    },
   },
   // (its clips were made at 24 a second: the rake's two claws land at its 13th and 27th frames, the
   // bite at its 22nd, the pounce comes down at its 36th; the howl lands no blow)
@@ -162,8 +159,6 @@ export const BEASTS = {
     pick: { idle: 'Wolf_Idle_Loop', walk: 'Wolf_Prowl_Loop', run: 'Wolf_Run_Loop', blows: ['Wolf_Rake', 'Wolf_Lunge_Bite', 'Zombie_Scratch'], hit: 'Hit_Chest', death: 'Death01',
       crawl: 'Zombie_Walk_Fwd_Loop', extra: { leap: 'Wolf_Pounce', howl: 'Wolf_Howl' } },
     hits: { attack1: [16, 34], attack2: 28, attack3: 21, leap: 45, howl: 9999 },
-    pose: ['Wolf_Idle_Loop', 0],
-    grip: {},
     fur: { n: TOUCH ? 4000 : 12000, skin: 1.5, frost: 1 },   // (its coat: fur.js; its dark hide brought up to the game's light)
     // (its eyes in its bind pose: amber glints, as the Sworn's)
     eyes: [[0.0623, 1.989, 0.1056], [-0.0623, 1.989, 0.1056]], eyeGlow: [2.6, 1.05, 0.2],
@@ -313,15 +308,23 @@ function socketLocal(model, s) {
  * back behind the shoulder as the shield goes into a bash, ready to follow it). Each was tried
  * against every clip's arms and body, and the blends between them, until nothing passed through
  * the shield. */
-export function shieldPoses(skel, bones, sworn = false) {
+export function shieldPoses(skel, bones, sworn = false, aPose = false) {
   const bindQ = (b) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(skel.boneInverses[skel.bones.indexOf(b)].clone().invert()));
   // the arms' bind frames: along the arm, its outer (back of the hand's) side, and their cross
   const bind = { L: new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)),
     R: new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1)) };
+  // (a beast is bound in the A-pose: its left arm's frames are read off its own bones)
+  const place = (b) => new THREE.Vector3().setFromMatrixPosition(skel.boneInverses[skel.bones.indexOf(b)].clone().invert());
+  const u0 = aPose ? place(bones.forearmL).sub(place(bones.upper_armL)).normalize() : null;
+  const d0 = aPose ? place(bones.handL).sub(place(bones.forearmL)).normalize() : null;
+  if (aPose) {
+    const o0 = new THREE.Vector3(0, 1, 0).addScaledVector(d0, -d0.y).normalize();
+    bind.L = new THREE.Matrix4().makeBasis(d0, o0, d0.clone().cross(o0));
+  }
   const pose = (up, d, o, s = 'L') => {
     up.normalize(); d.normalize(); o.addScaledVector(d, -o.dot(d)).normalize();   // (o: the forearm's outer side, the shield's face)
     const turn = new THREE.Matrix4().makeBasis(d, o, d.clone().cross(o)).multiply(bind[s].clone().invert());
-    return { up: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(s === 'L' ? 1 : -1, 0, 0), up).multiply(bindQ(bones['upper_arm' + s])),
+    return { up: new THREE.Quaternion().setFromUnitVectors(aPose ? u0 : new THREE.Vector3(s === 'L' ? 1 : -1, 0, 0), up).multiply(bindQ(bones['upper_arm' + s])),
       fore: new THREE.Quaternion().setFromRotationMatrix(turn).multiply(bindQ(bones['forearm' + s])) };
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -507,8 +510,11 @@ class Foe extends Zombie {
    * are drawn into a guard there instead (and as they charge), and they keep the carry as they
    * jump and fall (see shieldArm). Blended in and out over the clip (dt 0: at once). */
   carryShield(dt = 0) {
-    if (!this.shield || !this.arm('L') || this.def.ownArm) return;
-    const { w, guard, swing, cock } = shieldArm(this.cur, this.state, !this.dead && this.mode === 'stand', !!this.def.body, this.ual);
+    if (!this.shield || !this.arm('L')) return;
+    const standing = !this.dead && this.mode === 'stand', S = shieldArm(this.cur, this.state, standing, !!this.def.body, this.ual);
+    const { guard, swing, cock } = S;
+    // (a beast has no block or bash of its own: on its feet the shield is carried, whatever it does)
+    const w = this.def.beast && standing && !['collapse', 'getup', 'death', 'dead', 'knockdown'].includes(this.cur) ? 1 : S.w;
     const k = dt ? Math.min(1, dt * 7) : 1, k2 = dt ? Math.min(1, dt * 9) : 1;
     this.carryW = (this.carryW ?? w) + (w - (this.carryW ?? w)) * k;
     this.guardW = (this.guardW ?? guard) + (guard - (this.guardW ?? guard)) * k2;
@@ -652,7 +658,7 @@ class Foe extends Zombie {
     // in the keep, one in a room you can't see into isn't drawn (unless it's after you)
     if (this.zone === 'keep' && !this.aggro && this.foes.keep && !this.foes.keep.sees(this.pos, player.pos)) { this.root.visible = false; this.seen = false; }
     this.mixAcc += dt;
-    if (this.animDue(far, mid)) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight') this.carryShield(t); }
+    if (this.animDue(far, mid)) { const t = this.mixAcc; this.mixer.update(t); this.mixAcc = 0; if (this.kindName === 'knight' || this.def.beast) this.carryShield(t); }
     // (its afflictions run once a frame, in the horde's update)
     if (this.dead) return;
     this.bleed(dt);
@@ -1427,29 +1433,17 @@ export class Foes {
     await this.loadItems(variants);
   }
 
-  /** The beasts (FOES with `beast`): each file once, its moves made from its own clips, its grips put
-   * in the hands (the weapon's and the shield's sockets, worked out on the pose they were set in). */
+  /** The beasts (FOES with `beast`): each file once, its moves made from its own clips, its hands
+   * shut on what it holds (fists.js). */
   async loadBeasts(variants = Object.keys(FOES).filter((v) => FOES[v].beast)) {
     const files = new Map();
     const body = async (file) => {
       const B = BEASTS[file], g = await this.loader.loadAsync(asset(`${BEAST_ROOT}${TOUCH ? 'phone/' : ''}${file}.glb`)).catch(() => this.loader.loadAsync(asset(`${BEAST_ROOT}${file}.glb`)));
-      // the grips: the hand posed as it was in Blender, each grip brought into its bone's frame
-      const scene = g.scene, arm = scene.getObjectByName('Armature') || scene, rest = [];
-      scene.traverse((o) => { if (o.isBone) rest.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
-      const mixer = new THREE.AnimationMixer(scene), clip = g.animations.find((c) => c.name === B.pose[0]);
-      if (clip) { mixer.clipAction(clip).play(); mixer.setTime(B.pose[1]); }
-      scene.updateMatrixWorld(true);
-      const inArm = arm.matrixWorld.clone().invert(), sockets = {};
-      for (const [name, [boneName, as, m]] of Object.entries(B.grip)) {
-        const bone = scene.getObjectByName(boneName);
-        if (bone) sockets[name] = { bone: as, m: inArm.clone().multiply(bone.matrixWorld).invert().multiply(new THREE.Matrix4().fromArray(m)) };
-      }
-      mixer.stopAllAction(); mixer.uncacheRoot(scene);
-      for (const [o, p, q, s] of rest) { o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); }
-      scene.updateMatrixWorld(true);
+      const hands = B.fists ? shutHands(g, B.fists) : null;
       adaptBeast(g, B.pick);
+      hands?.keep();
       g.userData.foe = { hits: { ...B.hits }, beast: file, eyes: B.eyes, eyeGlow: B.eyeGlow };
-      g.userData.sockets = sockets;
+      g.userData.sockets = hands?.sockets || {};
       return g;
     };
     for (const v of variants) {
@@ -1590,7 +1584,7 @@ export class Foes {
 
   /** The shield arm's carry and guard for a body (shieldPoses), worked out once per variant. */
   poses(f) {
-    return (this._poses ||= {})[f.variant] ||= shieldPoses(f.skel, f.bones, !!f.def.body);
+    return (this._poses ||= {})[f.variant] ||= shieldPoses(f.skel, f.bones, !!f.def.body, !!f.def.beast);
   }
 
   /** A socket of variant v as {bone, m (relative to the bone)}, worked out once per body. */

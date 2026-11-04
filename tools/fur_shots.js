@@ -19,7 +19,9 @@ export async function around(prefix, o = {}) {
   z.sync();   // (one out of your sight hasn't turned to its yaw yet)
   z.mixer.stopAllAction();
   const a = z.actions[o.clip || 'idle'];
+  z.mixer.timeScale = 1;
   a.reset().play(); z.mixer.update(o.at ?? 0.1); z.mixer.timeScale = 0;
+  z.cur = o.clip || 'idle'; z.carryShield?.(0);
   if (z.fur && o.fur === false) z.fur.mesh.layers.disable(0);
   // (close up: it's lifted so what's looked at is level with your eye)
   const lift = o.on ? 1.58 - (z.bones[o.on].getWorldPosition(new (await import('three')).Vector3()).y - zp.y) : 0, y0 = z.root.position.y;
@@ -59,4 +61,23 @@ export async function gore(prefix) {
   z.remove();
   bm.zombies.list.splice(bm.zombies.list.indexOf(z), 1);
   return { before, after, cutGoneStrands: before - after, shots: shots.shots, othersStrands: others.map((q) => q.fur.shown), sharedKept: others[0].fur.geometry.attributes.position === keepAttr && !!keepAttr.array?.length };
+}
+
+/** Wounds on a body of `variant`: a blow of each kind on its chest, and a limb off, pictures after. */
+export async function wounds(prefix, variant, kinds = ['blunt', 'blade', 'fire']) {
+  const bm = window.bellmourn, THREE = await import('three');
+  const z = bm.zombies.list.filter((q) => q.variant === variant && !q.dead).at(-1);
+  z.hp = 99999;
+  const caps = z.capsules(), chest = caps.find((c) => c.bone === z.bones.chest) || caps[2];
+  const fwd = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), z.root.rotation.y);
+  kinds.forEach((kind, i) => {
+    const point = chest.a.clone().lerp(chest.b, 0.3 + 0.2 * i).addScaledVector(fwd, 0.12).add(new THREE.Vector3(0.09 * (i - 1), 0, 0));
+    z.hit({ bone: chest.bone, point, z }, { dmg: 30, dir: fwd.clone().negate(), heavy: true, kind, edge: kind === 'blade' ? new THREE.Vector3(1, 0.4, 0).normalize() : null, push: 0, blow: 2 });
+  });
+  const a = await around(prefix + '_hit', { variant, on: 'chest', d: 1.3, views: [['front', 0.1]] });
+  const u = z.u, n = u.uWoundN.value;
+  const limb = z.bones.forearmL ? 'forearmL' : Object.keys(z.bones).find((k) => /forearm|lower.?arm/i.test(k));
+  if (limb) z.sever(limb, new THREE.Vector3(1, 0.2, 0));
+  const b = await around(prefix + '_cut', { variant, views: [['front', 0.1]] });
+  return { variant, limb, shots: [...a.shots, ...b.shots], wounds: u.uWound.value.slice(0, n).map((w, i) => [+w.w.toFixed(3), u.uWoundD.value[i].w]), strands: z.fur?.shown };
 }
