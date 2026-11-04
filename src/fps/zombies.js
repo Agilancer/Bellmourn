@@ -714,7 +714,7 @@ function shadeMaterial(like) {
   return shadeMats.get(key);
 }
 const normals = new Map();   // texture -> its normal map, made once per body
-const ZERO4 = new THREE.Vector4(), ZERO3 = new THREE.Vector3();
+const ZERO4 = new THREE.Vector4(0, 0, 0, 0), ZERO3 = new THREE.Vector3();   // (a Vector4 is w = 1 unless told: D.w 1 is a gash)
 const EMBER = [new THREE.Color(1, 0.7, 0.2), new THREE.Color(1, 0.35, 0.05), new THREE.Color(0.3, 0.2, 0.15)];
 const FROST = new THREE.Color(0.85, 0.94, 1.0);
 
