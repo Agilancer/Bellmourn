@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crater Rocks</title>
+<style>
+  html, body { margin:0; height:100%; background:#14110f; color:#ccc; font:13px system-ui, sans-serif; overflow:hidden; }
+  #ref { position:fixed; right:0; top:0; width:38vw; height:100vh; object-fit:cover; object-position:58% 66%; }
+  #say { position:fixed; left:10px; top:8px; }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<img id="ref" src="../art/crater/crater_blast.webp" alt="The painting">
+<div id="say">The crater's stones (src/fps/craterrocks.js), each kind, beside the painting they match.</div>
+<script type="module">
+import * as THREE from 'three';
+import { stone, KINDS, rockMaterial } from '../src/fps/craterrocks.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+const W = Math.round(innerWidth * 0.62), H = innerHeight;
+renderer.setSize(W, H);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14110f);
+const cam = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
+scene.add(new THREE.HemisphereLight(0xc8d0e0, 0x4a3a30, 1.2));
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
+sun.position.set(-5, 9, 4); sun.castShadow = true;
+sun.shadow.mapSize.setScalar(2048); Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7 });
+scene.add(sun);
+const load = (file, srgb, repeat) => {
+  const t = new THREE.TextureLoader().load('../assets/textures/crater/' + file);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+};
+const mat = rockMaterial(load);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({ color: 0x5a4a42 }));
+floor.receiveShadow = true;
+scene.add(floor);
+const rocks = Object.entries(KINDS).map(([k, o], i) => {
+  const m = new THREE.Mesh(stone(o.seed, o), mat);
+  m.castShadow = m.receiveShadow = true;
+  m.position.set(((i % 3) - 1) * 2.9, o.shape[1] * 0.55, (Math.floor(i / 3) - 1) * 2.7);
+  m.scale.setScalar(k === 'gravel' ? 0.5 : 1);
+  scene.add(m);
+  return m;
+});
+const q = new URLSearchParams(location.search), spin = q.has('spin') ? +q.get('spin') : null;
+renderer.setAnimationLoop((t) => {
+  const a = spin ?? t * 0.00025;
+  for (const r of rocks) r.rotation.y = a;
+  cam.position.set(0, 14, 11.5); cam.lookAt(0, 0.3, 0.2);
+  renderer.render(scene, cam);
+});
+</script>
+</body></html>

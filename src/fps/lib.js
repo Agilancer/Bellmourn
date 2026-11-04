@@ -313,9 +313,9 @@ function groundNodes(m, { village, yard, layers, tex }) {
     If(cr.lessThan(max(gCrater.w.add(14.0), gCrater.z.mul(0.62).add(1.5))), () => {
       const cn = fbm(gp.mul(0.31).add(7.0)).toVar();
       const rays = smoothstep(0.62, 0.9, snoise(vec2(atan(cq.y, cq.x).mul(7.0), cr.mul(0.06))).mul(0.7).add(cn.mul(0.5)));
-      const scorch = max(smoothstep(gCrater.z.mul(0.85), gCrater.w.add(4.0), cr.add(cn.sub(0.5).mul(9.0))).oneMinus(),
+      const scorch = max(smoothstep(gCrater.w, gCrater.w.add(13.0), cr.add(cn.sub(0.5).mul(9.0))).oneMinus(),
         rays.mul(smoothstep(gCrater.z, gCrater.w.add(14.0), cr).oneMinus())).toVar();
-      const ash = mix(vec3(0.07, 0.065, 0.06), vec3(0.24, 0.22, 0.2), snoise(gp.mul(1.9)).mul(0.6).add(cn.mul(0.4)));
+      const ash = mix(vec3(0.07, 0.055, 0.045), vec3(0.26, 0.2, 0.16), snoise(gp.mul(1.9)).mul(0.6).add(cn.mul(0.4)));
       gc.assign(mix(gc, gc.mul(0.18).add(ash), scorch.mul(0.94)));
       const core = smoothstep(gCrater.z.mul(0.25), gCrater.z.mul(0.62), cr.add(cn.sub(0.5).mul(3.0))).oneMinus().toVar();
       gc.assign(mix(gc, vec3(0.04, 0.1, 0.06).add(snoise(gp.mul(4.0)).mul(0.06)), core.mul(0.85)));
@@ -607,10 +607,10 @@ export class Library {
         // floor fused to dark green glass whose cracks still glow
         vec2 cq = gp - gCrater.xy;
         float cr = length(cq), cn = gFbm(gp * 0.31 + 7.0);
-        float scorch = 1.0 - smoothstep(gCrater.z * 0.85, gCrater.w + 4.0, cr + (cn - 0.5) * 9.0);
+        float scorch = 1.0 - smoothstep(gCrater.w, gCrater.w + 13.0, cr + (cn - 0.5) * 9.0);
         float rays = smoothstep(0.62, 0.9, gNoise(vec2(atan(cq.y, cq.x) * 7.0, cr * 0.06)) * 0.7 + cn * 0.5);
         scorch = max(scorch, rays * (1.0 - smoothstep(gCrater.z, gCrater.w + 14.0, cr)));
-        vec3 ash = mix(vec3(0.07, 0.065, 0.06), vec3(0.24, 0.22, 0.2), gNoise(gp * 1.9) * 0.6 + cn * 0.4);
+        vec3 ash = mix(vec3(0.07, 0.055, 0.045), vec3(0.26, 0.2, 0.16), gNoise(gp * 1.9) * 0.6 + cn * 0.4);
         gc = mix(gc, gc * 0.18 + ash, scorch * 0.94);
         float core = 1.0 - smoothstep(gCrater.z * 0.25, gCrater.z * 0.62, cr + (cn - 0.5) * 3.0);
         gc = mix(gc, vec3(0.04, 0.1, 0.06) + 0.06 * gNoise(gp * 4.0), core * 0.85);

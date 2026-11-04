@@ -26,6 +26,9 @@ const SPELL_CAST = {
 const CROWD_VOL = { gasp: 0.8, panic: 1.2 };
 // how loud the knight's scream plays in the opening, over the star's roar (tools/audio/scream_preview.html)
 const WILHELM_VOL = 1.0;
+// and the helm he screams inside: its hollow thins the voice (below the cut), rings at its two resonances
+// and stops the top (the visor's slit lets little out), with the short echoes of a steel shell a head wide
+export const HELM = { cut: 340, top: 2100, rings: [[820, 2.5, 6], [1620, 4, 5]], shell: [[0.0029, 0.42], [0.0043, 0.36], [0.0071, 0.28]], wet: 0.3, out: 0.3 };
 const clamp1 = (x) => Math.max(-1, Math.min(1, x));
 /** Where a decoded effect's sound begins (past the file's own silence and the encoder's), seconds. */
 export function onset(b) {
@@ -603,10 +606,32 @@ export class Sfx {
     [1568, 2093, 2637].forEach((f, i) => this._tone(t + 0.25 + i * 0.07, 0.9, { type: 'triangle', f0: f, f1: f, gain: 0.02 }));
   }
 
-  /** The opening's knight, as the green star comes down on him: the Wilhelm scream. */
-  knightScream() {
+  /** A line out that sounds from inside a closed helm, into `to`: {input, free()} (free it when it's done:
+   * the shell's echoes feed themselves, so they'd never go of their own). */
+  helm(c, to) {
+    const made = [], node = (n) => { made.push(n); return n; };
+    const filter = (type, f, q = 0.7, gain = 0) => { const n = node(c.createBiquadFilter()); n.type = type; n.frequency.value = f; n.Q.value = q; n.gain.value = gain; return n; };
+    const input = node(c.createGain()), body = filter('highpass', HELM.cut), top = filter('lowpass', HELM.top), out = node(c.createGain());
+    out.gain.value = HELM.out;
+    let last = body;
+    input.connect(body);
+    for (const [f, q, db] of HELM.rings) { const n = filter('peaking', f, q, db); last.connect(n); last = n; }
+    last.connect(top); top.connect(out);
+    for (const [t, fb] of HELM.shell) {
+      const d = node(c.createDelay(0.02)), back = node(c.createGain()), wet = node(c.createGain());
+      d.delayTime.value = t; back.gain.value = fb; wet.gain.value = HELM.wet;
+      last.connect(d); d.connect(back); back.connect(d); d.connect(wet); wet.connect(top);
+    }
+    out.connect(to);
+    return { input, free: () => { for (const n of made) n.disconnect(); } };
+  }
+
+  /** The opening's knight, as the green star comes down on him: the Wilhelm scream, in his helm. */
+  knightScream(vol = WILHELM_VOL) {
     if (!this.ok) return;
-    this.play('wilhelm_scream', { vol: WILHELM_VOL, vary: 0 });
+    const h = this.helm(this.ctx, this.out);
+    this.play('wilhelm_scream', { vol, vary: 0, to: h.input });
+    setTimeout(h.free, 3000);
   }
 
   /** The strike, heard from the village: everyone gasps and screams at once, the recorded crowds

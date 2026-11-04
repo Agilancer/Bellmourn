@@ -35,7 +35,7 @@ $('play').onclick = async () => {
   // the roar as the dive sets it each frame (roar(0.8 + 0.2u, u))
   const tick = () => { const u = Math.min(1, (performance.now() - t0) / 1000 / DIVE); roar.set(0.8 + 0.2 * u, u); };
   tick(); timers.push(setInterval(tick, 30));
-  timers.push(setTimeout(() => sfx.play('wilhelm_scream', { vol: +$('vol').value, vary: 0 }), (DIVE - +$('lead').value) * 1000));
+  timers.push(setTimeout(() => sfx.knightScream(+$('vol').value), (DIVE - +$('lead').value) * 1000));
   timers.push(setTimeout(() => { clearInterval(timers[0]); roar.stop(0.05); sfx.impact(); }, DIVE * 1000));
   if ($('village').checked) timers.push(setTimeout(() => sfx.villageScreams(), (DIVE + 1.84) * 1000));
 };
