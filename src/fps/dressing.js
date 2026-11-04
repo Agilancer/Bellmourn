@@ -118,7 +118,8 @@ function landmarks(ctx, M, D, free) {
     let top = true;
     for (const [dx, dz] of [[14, 0], [-14, 0], [0, 14], [0, -14], [10, 10], [-10, 10], [10, -10], [-10, -10]]) if (terrainHeight(x + dx, z + dz) > y) { top = false; break; }
     // (the downs proper: not the falls' plateau and its cliff to the east, not by the water)
-    if (top && ![...physics.near(x - 13, z - 13, x + 13, z + 13)].some((q) => q.tag === 'tree' || q.tag === 'rock' || q.tag === 'prop') && x < REGION.x1 - 130 && Math.hypot(x - POOL.x, z - POOL.z) > 90 && Math.hypot(x - KNOLL.x, z - KNOLL.z) > KNOLL.r + 40 && free(x, z, 14)) tops.push([y, x, z]);
+    if (top && ![...physics.near(x - 13, z - 13, x + 13, z + 13)].some((q) => q.tag === 'tree' || q.tag === 'rock' || q.tag === 'prop' || q.tag === 'wall' || q.tag === 'door')
+      && !(ctx.interiors || []).some((r) => x > r.x0 - 12 && x < r.x1 + 12 && z > r.z0 - 12 && z < r.z1 + 12) && x < REGION.x1 - 130 && Math.hypot(x - POOL.x, z - POOL.z) > 90 && Math.hypot(x - KNOLL.x, z - KNOLL.z) > KNOLL.r + 40 && free(x, z, 14)) tops.push([y, x, z]);
   }
   tops.sort((a, b2) => b2[0] - a[0]);
   const hills = [];
@@ -239,20 +240,15 @@ function landmarks(ctx, M, D, free) {
 // ------------------------------------------------------------------ the ground's dressing
 function groundDressing(ctx, D) {
   const S = ctx.mountain, H = (x, z) => ctx.physics.groundAt(x, z);
-  // the Pilgrims' Road: its gravel verge both sides (the ribbon is 1.9 m to a side), and loose stone
-  // on its outer side where the slope falls away
+  // the Pilgrims' Road: loose stone on its outer side where the slope falls away (its own verge frays
+  // into the ground: roads.js; the stone lining it and the trails: mountainlife.js)
   if (S) {
-    const pts = S.road.map(([x, z]) => [x, z]);
-    D.strip('edging', pts, 2.05, { keep: 0.8, lift: 0.09 }); D.strip('edging', pts, -2.05, { keep: 0.8, lift: 0.09 });
     for (let i = 8; i < S.road.length; i += 9) {
       const [x, z] = S.road[i], [x2, z2] = S.road[i + 1] || S.road[i], L = Math.hypot(x2 - x, z2 - z) || 1;
       let ox = (z2 - z) / L, oz = -(x2 - x) / L;
       if (ox * (x - -1000) + oz * (z - -1000) < 0) { ox = -ox; oz = -oz; }
       D.strew('rock_gray', x + ox * 4.4, z + oz * 4.4, 1.6, 2);
     }
-    // the trails' old flagstones (more of them broken the higher they go)
-    for (const t of S.trails) for (let i = 1; i < t.pts.length - 1; i++) if (i % 2) { const [x, z] = t.pts[i], [x2, z2] = t.pts[i + 1]; D.add('flags', x, z, { rot: Math.atan2(z2 - z, x2 - x) + (D.R() - 0.5) * 0.4, lift: 0.09, scale: 0.7 }); }
-    if (S.track) D.strip('flags', S.track, 0, { keep: 0.35, lift: 0.05, scale: 0.75 });
     // the scree under the skirt cliff, all along the forest side (thickest by the Broken Stair)
     for (let a = 150 * Math.PI / 180 + 0.05; a < 300 * Math.PI / 180 - 0.05; a += 4 / 299) {
       const near = Math.abs(a - 225 * Math.PI / 180) < 0.05;
@@ -263,7 +259,7 @@ function groundDressing(ctx, D) {
     // the summit's own pale stone; the village's yard
     if (S.summitSite) D.strew('rock_pale', S.summitSite.x, S.summitSite.z, 14, 22, { scale: 1.3 });
     if (S.villageSite) D.strew('debris', S.villageSite.x, S.villageSite.z, 15, 10, { lift: 0.04 });
-    if (S.falls) { const p = S.falls.pool; for (let k = 0; k < 26; k++) { const a = k / 26 * Math.PI * 2, r = p.r + 0.4 + D.R() * 0.9; D.add('pebbles', p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, { scale: 0.7 + D.R() * 0.5 }); } }
+    if (S.falls) { const p = S.falls.pool; for (let k = 0; k < 26; k++) { const a = k / 26 * Math.PI * 2, r = p.r + 0.4 + D.R() * 0.9, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r, sc = 0.7 + D.R() * 0.5; if (Math.abs(H(x, z) - p.y) < 0.8) D.add('pebbles', x, z, { scale: sc }); } }   // (the pebbles not up the cliff behind it)
   }
   // every cave's mouth: the dark wet rock that runs out of it
   for (const c of ctx.caves || []) { const m = c.mouth; D.strew('rock_dark', m.x - 2.5, m.z, 4.5, 12); D.strew('pebbles', m.x - 5, m.z, 4, 4); }
